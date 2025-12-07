@@ -26,7 +26,7 @@ npm run dev
 
 📂 Estructura inicial del proyecto
 
-project-root/
+TrabajoFinal
 │   README.md
 │   requirements.txt
 │   .gitignore
@@ -36,56 +36,35 @@ project-root/
 │   ├── main.py               # punto de entrada FastAPI
 │   ├── .env                  # variables de entorno
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── api/              # rutas/endpoints
-│   │   │   ├── __init__.py
-│   │   │   ├── users.py
-│   │   │   └── items.py
-│   │   ├── core/             # configuración central
-│   │   │   ├── config.py     # carga de variables .env
-│   │   │   └── security.py   # autenticación/autorización
-│   │   ├── db/               # conexión y modelos DB
-│   │   │   ├── __init__.py
-│   │   │   ├── base.py       # metadata y engine SQLAlchemy
-│   │   │   ├── models/       # tablas ORM
-│   │   │   │   └── user.py
-│   │   │   └── crud/         # operaciones CRUD
-│   │   │       └── user.py
-│   │   ├── schemas/          # Pydantic (validación)
-│   │   │   └── user.py
-│   │   ├── services/         # lógica de negocio
-│   │   │   └── email.py
-│   │   └── tests/            # pruebas unitarias
-│   │       └── test_users.py
-│   └── scripts/              # migraciones, utilidades
-│       └── init_db.py
+│   │   ├── api/              # Endpoints de la API (rutas FastAPI)
+│   │   ├── core/             # Configuración central (variables, seguridad, middlewares)
+│   │   ├── db/               # Conexión y modelos de base de datos
+│   │   │   ├── models/       # Tablas y entidades SQLAlchemy
+│   │   │   ├── crud/         # Operaciones CRUD sobre la BD
+│   │   │   └── base.py       # Engine y metadata
+│   │   ├── schemas/          # Esquemas Pydantic (validación de datos)
+│   │   ├── services/         # Lógica de negocio (ej. envío de emails, cálculos)
+│   │   └── tests/            # Pruebas unitarias e integración
+│   └── scripts/              # Scripts auxiliares (migraciones, inicialización)
 │
 ├── frontend/
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── vite.config.ts
-│   ├── public/               # assets estáticos
-│   │   └── favicon.ico
+│   ├── public/               # Archivos estáticos (favicon, imágenes públicas)
 │   └── src/
-│       ├── main.tsx          # punto de entrada React
-│       ├── App.tsx
-│       ├── assets/           # imágenes, íconos
-│       ├── components/       # componentes reutilizables
-│       │   └── Navbar.tsx
-│       ├── pages/            # vistas principales
-│       │   ├── Home.tsx
-│       │   └── Login.tsx
-│       ├── hooks/            # custom hooks
-│       ├── services/         # llamadas API (axios)
-│       │   └── api.ts
-│       ├── context/          # contextos globales
-│       ├── styles/           # CSS/SCSS modules
-│       └── tests/            # pruebas frontend
-│           └── App.test.tsx
+│       ├── assets/           # Recursos gráficos internos (íconos, imágenes)
+│       ├── components/       # Componentes reutilizables de UI
+│       ├── pages/            # Vistas principales (Home, Login, etc.)
+│       ├── services/         # Llamadas a la API con Axios
+│       ├── context/          # Contextos globales de React
+│       ├── hooks/            # Custom hooks reutilizables
+│       ├── styles/           # CSS/SCSS globales o modulares
+│       └── tests/            # Pruebas de componentes y lógica frontend
 │
-└── docs/                     # documentación institucional
-    ├── arquitectura.md
-    └── decisiones.md
+└── docs/                     # Documentación institucional
+    ├── arquitectura.md        # Explicación de arquitectura
+    └── decisiones.md          # Registro de decisiones técnicas
 
 
 
