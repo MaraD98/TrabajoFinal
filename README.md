@@ -26,27 +26,27 @@ npm run dev
 
 📂 Estructura inicial del proyecto
 
-TrabajoFinal
-│   README.md
-│   requirements.txt
-│   .gitignore
-│   docker-compose.yml        # opcional si usan contenedores
-│
-├── backend/
-│   ├── main.py               # punto de entrada FastAPI
-│   ├── .env                  # variables de entorno
-│   ├── app/
-│   │   ├── api/              # Endpoints de la API (rutas FastAPI)
-│   │   ├── core/             # Configuración central (variables, seguridad, middlewares)
-│   │   ├── db/               # Conexión y modelos de base de datos
-│   │   │   ├── models/       # Tablas y entidades SQLAlchemy
-│   │   │   ├── crud/         # Operaciones CRUD sobre la BD
-│   │   │   └── base.py       # Engine y metadata
-│   │   ├── schemas/          # Esquemas Pydantic (validación de datos)
-│   │   ├── services/         # Lógica de negocio (ej. envío de emails, cálculos)
-│   │   └── tests/            # Pruebas unitarias e integración
-│   └── scripts/              # Scripts auxiliares (migraciones, inicialización)
-│
+TrabajoFinal/
+├── app/
+│   ├── api/          # Endpoints de la API (rutas FastAPI)
+│   ├── core/         # Configuración central (variables, seguridad, middlewares)
+│   ├── db/           # Conexión y lógica de base de datos
+│   │   └── crud/     # Operaciones CRUD sobre la BD
+│   ├── models/       # Tablas y entidades SQLAlchemy
+│   ├── schemas/      # Esquemas Pydantic (validación de datos)
+│   ├── services/     # Lógica de negocio (auth, reglas de negocio, cálculos)
+│   └── tests/        # Pruebas unitarias e integración
+├── main.py           # Punto de entrada FastAPI
+├── scripts/          # Scripts auxiliares (migraciones, inicialización)
+│   └── db/ 
+│       └── README.md
+├── .env              # Variables de entorno (DB, SECRET_KEY, etc.)
+├── .gitattributes
+├── .gitignore
+├── README.md         # Documentación del proyecto
+└── requirements.txt  # Dependencias de Python
+
+
 ├── frontend/
 │   ├── package.json
 │   ├── tsconfig.json
