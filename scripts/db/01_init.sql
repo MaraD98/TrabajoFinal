@@ -1,6 +1,7 @@
 CREATE database WakeUp;
 Use WakeUp;
 
+-- Tabla que se va a eliminar y reemplazar por una tabla de usuarios con roles
 CREATE TABLE Usuario_Admin (
     id_admin INT IDENTITY(1,1) PRIMARY KEY,          -- autoincremental
     nombre_admin NVARCHAR(255) NOT NULL,             -- obligatorio
@@ -9,7 +10,59 @@ CREATE TABLE Usuario_Admin (
     fecha_creacion DATETIME DEFAULT GETDATE()        -- automático al insertar
 );
 
-------------------------------
+-- Cambiar esta tabla por una tabla de usuarios con roles:
+
+CREATE TABLE Rol (
+    id_rol INT IDENTITY(1,1) PRIMARY KEY,       -- autoincremental
+    nombre_rol NVARCHAR(100) NOT NULL UNIQUE    -- Ej: 'Administrador', 'Supervisor', 'Operario', 'Cliente'
+);
+
+CREATE TABLE Usuario (
+    id_usuario INT IDENTITY(1,1) PRIMARY KEY,   -- autoincremental
+    nombre NVARCHAR(255) NOT NULL,              -- nombre visible
+    email NVARCHAR(255) NOT NULL UNIQUE,        -- login principal
+    contrasenia NVARCHAR(200) NOT NULL,         -- credencial
+    fecha_creacion DATETIME DEFAULT GETDATE(),  -- automático
+    id_rol INT NOT NULL,                        -- FK al rol
+    FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
+);
+
+CREATE TABLE Contacto (
+    id_contacto INT IDENTITY(1,1) PRIMARY KEY,
+    id_usuario INT NOT NULL,                         -- FK al usuario
+    telefono NVARCHAR(50),                           -- opcional
+    direccion NVARCHAR(255),                         -- opcional
+    enlace_redes NVARCHAR(255),                      -- ej: Instagram, LinkedIn
+    otro_contacto NVARCHAR(255),                     -- ej: WhatsApp alternativo
+    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+
+
+----------Carga de datos
+-- Insertar roles
+INSERT INTO Rol (nombre_rol) VALUES ('Administrador');
+INSERT INTO Rol (nombre_rol) VALUES ('Supervisor');
+INSERT INTO Rol (nombre_rol) VALUES ('Operario');
+INSERT INTO Rol (nombre_rol) VALUES ('Cliente');
+
+-- Insertar usuarios
+INSERT INTO Usuario (nombre, email, contrasenia, id_rol)
+VALUES ('Agustin', 'agustin@empresa.com', '1234Segura', 1); -- Administrador
+
+INSERT INTO Usuario (nombre, email, contrasenia, id_rol)
+VALUES ('Juan Perez', 'juanperez@gmail.com', 'claveCliente', 4); -- Cliente externo
+
+-- Insertar contactos para los usuarios ya creados
+
+-- Contacto para Agustin (Administrador)
+INSERT INTO Contacto (id_usuario, telefono, direccion, enlace_redes, otro_contacto)
+VALUES (1, '351-555-1234', 'Córdoba Capital', 'linkedin.com/in/agustin', 'agustin.whatsapp');
+
+-- Contacto para Juan Perez (Cliente externo)
+INSERT INTO Contacto (id_usuario, telefono, direccion, enlace_redes, otro_contacto)
+VALUES (2, '351-444-5678', 'Villa María', 'instagram.com/juanperez', 'juanperez.whatsapp');
+
+-----------------------------------------------------------------------------------------------------------------------------------
 
 CREATE TABLE TipoEvento (
     id_tipo INT IDENTITY(1,1) PRIMARY KEY,
@@ -50,6 +103,8 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Publicado'),
 ('Finalizado');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA EVENTO
 
 CREATE TABLE Evento (
     id_evento INT IDENTITY(1,1) PRIMARY KEY,
@@ -83,6 +138,8 @@ INSERT INTO EstadoSolicitud (nombre) VALUES
 ('Aprobada'),
 ('Rechazada');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA SOLICITUD DE PUBLICACION
 
 CREATE TABLE Solicitud_Publicacion (
     id_solicitud INT IDENTITY(1,1) PRIMARY KEY,
@@ -120,6 +177,8 @@ INSERT INTO EstadoReserva (nombre) VALUES
 ('Cancelada'),
 ('Expirada');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA RESERVA DE EVENTO
 
 CREATE TABLE Reserva_Evento (
 	id_reserva INT IDENTITY (1,1) PRIMARY KEY,
@@ -135,9 +194,8 @@ CREATE TABLE Reserva_Evento (
 	CONSTRAINT FK_Reserva_EstadoReserva FOREIGN KEY (id_estado_reserva) REFERENCES EstadoReserva(id_estado_reserva),
 )
 
----------------------------------------
-
-
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLAS DE HISTORIAL DE CAMBIOS Y EDICIONES DE EVENTOS
 
 CREATE TABLE Cambio_Evento(
 	id_cambio INT IDENTITY(1,1) PRIMARY KEY,
@@ -159,3 +217,7 @@ CREATE TABLE Edicion_Evento(
 	CONSTRAINT FK_Edicion_Admin FOREIGN KEY (id_admin) REFERENCES Usuario_Admin(id_admin)
 	
 );
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+
