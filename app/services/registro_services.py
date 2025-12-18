@@ -4,7 +4,7 @@ from app.schemas.registro_schema import EventoCreate
 
 def crear_nuevo_evento(db: Session, evento_in: EventoCreate):
     # 1. Convertimos el esquema (Pydantic) a Modelo (SQLAlchemy)
-    nuevo_evento = Evento(
+    nuevo_evento = Evento(                                      # faltaria la conexion con el crud nuevo_eventoCRUD.create_evento(
         nombre=evento_in.nombre,
         fecha=evento_in.fecha,
         ubicacion=evento_in.ubicacion,

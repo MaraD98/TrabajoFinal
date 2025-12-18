@@ -5,7 +5,8 @@ from typing import Literal
 # Input: Lo que el usuario te envía para registrarse
 class EventoCreate(BaseModel):
     # HU 1.2: Validaciones de longitud (max_length reemplaza tus 'if len(...)')
-    nombre: str = Field(..., max_length=100, min_length=1, description="Nombre del evento")
+    nombre: str = Field(..., max_length=100, min_length=1, description="Nombre del evento")         # aca deber ir todos los campos que el usuario 
+                                                                                                    #debe enviar para crear el evento
     fecha: date
     ubicacion: str = Field(..., max_length=150, min_length=1)
     
