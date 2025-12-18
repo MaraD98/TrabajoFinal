@@ -40,9 +40,7 @@ class Evento(Base):
     descripcion = Column(String(500), nullable=True)
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)    
     
-    # 3. Estado
-    # Importante: Como es Integer, el default debe ser el ID (numero) del estado borrador. VEEEEEEEEEEEEEEEER
-    # Asumimos que 1 es el ID para "Borrador" en la tabla estadoevento.
+    
     id_estado = Column(Integer, ForeignKey("estadoevento.id_estado"), nullable=False, default=1)
 
     # Fecha automática

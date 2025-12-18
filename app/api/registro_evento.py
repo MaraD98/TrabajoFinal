@@ -64,7 +64,7 @@ def read_one_evento(evento_id: int, db: Session = Depends(get_db)):
     return EventoService.obtener_evento_por_id(db, evento_id)
 
 # ============ Actualizar Evento (PUT) ============
-@router.put(
+""" @router.put(
     "/{evento_id}", 
     response_model=EventoResponse,
     summary="Actualizar un evento existente"
@@ -75,4 +75,4 @@ def update_evento(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user) # <--- Protegido
 ):
-    return EventoService.actualizar_evento(db, evento_id, evento)
+    return EventoService.actualizar_evento(db, evento_id, evento) """
