@@ -1,6 +1,7 @@
 CREATE database WakeUp;
 Use WakeUp;
 
+-- Tabla que se va a eliminar y reemplazar por una tabla de usuarios con roles
 CREATE TABLE Usuario_Admin (
     id_admin INT IDENTITY(1,1) PRIMARY KEY,          -- autoincremental
     nombre_admin NVARCHAR(255) NOT NULL,             -- obligatorio
@@ -9,7 +10,7 @@ CREATE TABLE Usuario_Admin (
     fecha_creacion DATETIME DEFAULT GETDATE()        -- automático al insertar
 );
 
-------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
 
 CREATE TABLE TipoEvento (
     id_tipo INT IDENTITY(1,1) PRIMARY KEY,
@@ -50,6 +51,8 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Publicado'),
 ('Finalizado');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA EVENTO
 
 CREATE TABLE Evento (
     id_evento INT IDENTITY(1,1) PRIMARY KEY,
@@ -83,6 +86,8 @@ INSERT INTO EstadoSolicitud (nombre) VALUES
 ('Aprobada'),
 ('Rechazada');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA SOLICITUD DE PUBLICACION
 
 CREATE TABLE Solicitud_Publicacion (
     id_solicitud INT IDENTITY(1,1) PRIMARY KEY,
@@ -120,6 +125,8 @@ INSERT INTO EstadoReserva (nombre) VALUES
 ('Cancelada'),
 ('Expirada');
 
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLA RESERVA DE EVENTO
 
 CREATE TABLE Reserva_Evento (
 	id_reserva INT IDENTITY (1,1) PRIMARY KEY,
@@ -135,9 +142,8 @@ CREATE TABLE Reserva_Evento (
 	CONSTRAINT FK_Reserva_EstadoReserva FOREIGN KEY (id_estado_reserva) REFERENCES EstadoReserva(id_estado_reserva),
 )
 
----------------------------------------
-
-
+-----------------------------------------------------------------------------------------------------------------------------------
+-- TABLAS DE HISTORIAL DE CAMBIOS Y EDICIONES DE EVENTOS
 
 CREATE TABLE Cambio_Evento(
 	id_cambio INT IDENTITY(1,1) PRIMARY KEY,
@@ -159,3 +165,7 @@ CREATE TABLE Edicion_Evento(
 	CONSTRAINT FK_Edicion_Admin FOREIGN KEY (id_admin) REFERENCES Usuario_Admin(id_admin)
 	
 );
+
+-----------------------------------------------------------------------------------------------------------------------------------
+
+
