@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.schemas.evento_solicitud import EventoSolicitudCreate, EventoSolicitudResponse
-from app.db.crud import evento_solicitud as crud
-from app.db.base import SessionLocal
+from app.schemas.evento_solicitud_schema import EventoSolicitudCreate, EventoSolicitudResponse
+from app.db.crud import evento_solicitud_crud as crud
+from app.models.base import SessionLocal
 
 router = APIRouter(prefix="/api/eventos-externos", tags=["Eventos Externos"])
 

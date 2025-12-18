@@ -1,7 +1,9 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, Enum
 from sqlalchemy.sql import func
-from app.db.base import Base
+from app.models.base import Base
 import enum
+
+# Modelos de Evento Solicitud de la base de datos
 
 class EstadoSolicitud(str, enum.Enum):
     PENDIENTE = "Pendiente de revisión"
