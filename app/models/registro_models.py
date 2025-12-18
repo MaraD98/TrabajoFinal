@@ -1,47 +1,49 @@
-from sqlalchemy import Column, Integer, String, Date
-from app.models.base import Base  # Asegúrate de tener configurado tu Base
-from sqlalchemy import Column, Integer, String, Date, Text, DECIMAL
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text
+from app.models.base import Base
 
+# --- MODELOS AUXILIARES ---
+# Necesitamos definirlos para que las ForeignKey de abajo tengan a dónde apuntar.
 
-class TipoEvento (Base):
+class TipoEvento(Base):
     __tablename__ = "tipoevento"
-
     id_tipo = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
 
-
-class NivelDificultad (Base):
+class NivelDificultad(Base):
     __tablename__ = "niveldificultad"
-
     id_dificultad = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
 
-
-class EstadoEvento (Base):
+class EstadoEvento(Base):
     __tablename__ = "estadoevento"
-
     id_estado = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
 
+# --- MODELO PRINCIPAL ---
 
 class Evento(Base):
     __tablename__ = "evento"
 
     id_evento = Column(Integer, primary_key=True, index=True)
-    id_usuario = Column(Integer, nullable=False)                        # falta la relacion con usuario ForeignKey("usuario.id_usuario") 
-    # HU 1.2: Validaciones de longitud y obligatoriedad (nullable=False)
+    
+    # 1. Relación con Usuario (Igual que contacto se relaciona con usuario en el código de ella)
+    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
+
     nombre_evento = Column(String(255), nullable=False, index=True)
     fecha_evento = Column(Date, nullable=False)
     ubicacion = Column(String(255), nullable=False)
     
-    # HU 1.2: Tipo de evento (guardaremos el string validado)
-    id_tipo = Column(Integer, nullable=False)                           # falta la relacion con tipoevento ForeignKey("tipoevento.id_tipo")
-    id_dificultad = Column(Integer, nullable=False)                     # falta la relacion con niveldificultad ForeignKey("niveldificultad.id_dificultad")
+    # 2. Relaciones con las tablas de arriba (Solo ForeignKey)
+    id_tipo = Column(Integer, ForeignKey("tipoevento.id_tipo"), nullable=False)
+    id_dificultad = Column(Integer, ForeignKey("niveldificultad.id_dificultad"), nullable=False)
+    
     descripcion = Column(String(500), nullable=True)
-    #veeeeeeeeeeeer string o text en postgres
-
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)    
-    id_estado = Column(Integer, default="borrador", nullable=False)     # falta la relacion con estadoevento ForeignKey("estadoevento.id_estado")
-    # fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    fecha_creacion = Column(DateTime, server_default=func.now(), nullable=False)
+    
+    # 3. Estado
+    # Importante: Como es Integer, el default debe ser el ID (numero) del estado borrador. VEEEEEEEEEEEEEEEER
+    # Asumimos que 1 es el ID para "Borrador" en la tabla estadoevento.
+    id_estado = Column(Integer, ForeignKey("estadoevento.id_estado"), nullable=False, default=1)
+
+    # Fecha automática
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
