@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 from fastapi import security
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from app.models.auth_models import Usuario
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionCreate, SolicitudPublicacionResponse,TipoEventoResponse, NivelDificultadResponse)
 from app.services.evento_solicitud_service import EventoSolicitudService
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
@@ -30,10 +31,11 @@ def get_current_user(
 def crear_solicitud_evento(
     solicitud: SolicitudPublicacionCreate,
     db: Session = Depends(get_db),
-    id_usuario: int = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user)
 ):
-    nueva_solicitud = EventoSolicitudService.crear_solicitud(db, solicitud, id_usuario)
+    nueva_solicitud = EventoSolicitudService.crear_solicitud(db, solicitud, current_user.id_usuario)
     return nueva_solicitud
+
 
 # ============ Obtener mis solicitudes ============
 @router.get(
@@ -44,9 +46,9 @@ def crear_solicitud_evento(
 )
 def obtener_mis_solicitudes(
     db: Session = Depends(get_db),
-    id_usuario: int = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user)
 ):
-    solicitudes = EventoSolicitudService.obtener_mis_solicitudes(db, id_usuario)
+    solicitudes = EventoSolicitudService.obtener_mis_solicitudes(db, current_user.id_usuario)
     return solicitudes
 
 # ============ Consultar solicitud por ID ============
