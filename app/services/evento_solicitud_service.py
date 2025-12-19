@@ -8,12 +8,12 @@ from fastapi import HTTPException, status
     
 class EventoSolicitudService:
    
-        #Valida que la fecha del evento sea al menos 7 días en el futuro.
+        #Valida que la fecha del evento sea al menos 1 días en el futuro.
         #Regla de negocio: tiempo mínimo para planificación.
         
     @staticmethod
     def validar_fecha_evento(fecha_evento: date) -> None:
-        dias_minimos = 7
+        dias_minimos = 1
         fecha_minima = date.today() + timedelta(days=dias_minimos)
         
         if fecha_evento < fecha_minima:
@@ -22,7 +22,7 @@ class EventoSolicitudService:
                 detail=f"La fecha del evento debe ser al menos {dias_minimos} días en el futuro"
             )
             
-    #Valida que el tipo de evento y nivel de dificultad existan en los catálogos.
+    
     @staticmethod
     def validar_tipo_y_dificultad(db: Session, id_tipo: int, id_dificultad: int) -> None:
         tipos_validos = [tipo.id_tipo for tipo in obtener_tipos_evento(db)]
@@ -41,7 +41,7 @@ class EventoSolicitudService:
             )
             
         
-    #Valida que el usuario exista en la base de datos.
+    
     @staticmethod
     def validar_usuario(db: Session, id_usuario: int) -> None:
     

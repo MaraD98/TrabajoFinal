@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date, Text, DECIMAL, ForeignKey
 from sqlalchemy.orm import relationship
+from app.models.auth_models import Usuario
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -27,20 +28,6 @@ class EstadoSolicitud(Base):
     id_estado_solicitud = Column(Integer, primary_key=True)
     nombre = Column(String(100), nullable=False, unique=True)
     
-class Usuario(Base):
-    __tablename__ = "usuario"
-    id_usuario = Column(Integer, primary_key=True)
-    nombre_y_apellido = Column(String(255), nullable=False)
-    email = Column(String(255), nullable=False, unique=True)
-    contrasenia = Column(String(200), nullable=False)
-    fecha_creacion = Column(TIMESTAMP, server_default=func.current_timestamp())
-    id_rol = Column(Integer, ForeignKey('rol.id_rol'), nullable=False)
-
-
-class Rol(Base):
-    __tablename__ = "rol"
-    id_rol = Column(Integer, primary_key=True)
-    nombre_rol = Column(String(100), nullable=False, unique=True)
     
 class SolicitudPublicacion(Base):
     

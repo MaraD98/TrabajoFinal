@@ -1,19 +1,25 @@
 from fastapi import APIRouter, Depends, status
+from fastapi import security
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionCreate, SolicitudPublicacionResponse,TipoEventoResponse, NivelDificultadResponse)
+from app.services.auth_services import AuthService
 from app.services.evento_solicitud_service import EventoSolicitudService
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
 
 router = APIRouter(prefix="/solicitudes-eventos", tags=["Solicitudes de Eventos Externos"])
 
-# Función temporal para simular usuario autenticado (REEMPLAZAR CON JWT)
-def get_current_user_id() -> int:
-    # TODO: Reemplazar con la función real que obtiene el id_usuario del token JWT
-    return 1
+# --- DEPENDENCIA DE SEGURIDAD (El Portero) ---
+def get_current_user(
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    # Esto verifica que el token sea válido usando el servicio de tu compañera
+    return AuthService.get_current_usuario_from_token(db, credentials.credentials)
 
-# ============ Crear solicitud de evento ============
+
 @router.post(
     "/",
     response_model=SolicitudPublicacionResponse,
@@ -24,7 +30,7 @@ def get_current_user_id() -> int:
 def crear_solicitud_evento(
     solicitud: SolicitudPublicacionCreate,
     db: Session = Depends(get_db),
-    id_usuario: int = Depends(get_current_user_id)
+    id_usuario: int = Depends(get_current_user)
 ):
     nueva_solicitud = EventoSolicitudService.crear_solicitud(db, solicitud, id_usuario)
     return nueva_solicitud
@@ -38,7 +44,7 @@ def crear_solicitud_evento(
 )
 def obtener_mis_solicitudes(
     db: Session = Depends(get_db),
-    id_usuario: int = Depends(get_current_user_id)
+    id_usuario: int = Depends(get_current_user)
 ):
     solicitudes = EventoSolicitudService.obtener_mis_solicitudes(db, id_usuario)
     return solicitudes
