@@ -118,16 +118,17 @@ CREATE TABLE Solicitud_Publicacion (
     id_dificultad INT NOT NULL,     
     descripcion TEXT,
     costo_participacion DECIMAL(10,2) NOT NULL,    
-    id_estado INT NOT NULL DEFAULT 1, 
-    contacto_organizador VARCHAR(255),
+    id_estado INT NOT NULL DEFAULT 1,
     fecha_solicitud DATE NOT NULL DEFAULT CURRENT_DATE,
     observaciones_admin TEXT,
     id_estado_solicitud INT,
+    id_usuario INT NOT NULL,
     
     CONSTRAINT FK_Solicitud_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
     CONSTRAINT FK_Solicitud_Dificultad FOREIGN KEY (id_dificultad) REFERENCES NivelDificultad(id_dificultad),
     CONSTRAINT FK_Solicitud_Estado FOREIGN KEY (id_estado) REFERENCES EstadoEvento(id_estado),
-    CONSTRAINT FK_Solicitud_Estado_Solicitud FOREIGN KEY (id_estado_solicitud) REFERENCES EstadoSolicitud (id_estado_solicitud)
+    CONSTRAINT FK_Solicitud_Estado_Solicitud FOREIGN KEY (id_estado_solicitud) REFERENCES EstadoSolicitud (id_estado_solicitud),
+    CONSTRAINT fk_solicitud_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario)
 );
 
 CREATE TABLE Evento_Multimedia (
