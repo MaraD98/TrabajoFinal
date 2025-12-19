@@ -1,27 +1,10 @@
 from sqlalchemy import Column, Integer, String, Date, Text, DECIMAL, ForeignKey
 from sqlalchemy.orm import relationship
 from app.models.auth_models import Usuario
-from sqlalchemy.ext.declarative import declarative_base
+from app.models.registro_models import TipoEvento, NivelDificultad, EstadoEvento
+from app.models.base import Base
 
-Base = declarative_base()
 # Modelos de catálogos 
-class TipoEvento(Base):
-    __tablename__ = "tipoevento"
-    id_tipo = Column(Integer, primary_key=True)
-    nombre = Column(String(100), nullable=False, unique=True)
-
-
-class NivelDificultad(Base):
-    __tablename__ = "niveldificultad"
-    id_dificultad = Column(Integer, primary_key=True)
-    nombre = Column(String(100), nullable=False, unique=True)
-
-
-class EstadoEvento(Base):
-    __tablename__ = "estadoevento"
-    id_estado = Column(Integer, primary_key=True)
-    nombre = Column(String(100), nullable=False, unique=True)
-
 
 class EstadoSolicitud(Base):
     __tablename__ = "estadosolicitud"
@@ -60,5 +43,5 @@ class SolicitudPublicacion(Base):
     nivel_dificultad = relationship("NivelDificultad", backref="solicitudes")
     estado_evento = relationship("EstadoEvento", backref="solicitudes")
     estado_solicitud = relationship("EstadoSolicitud", backref="solicitudes")
-
+    usuario = relationship("Usuario", backref="solicitudes")
 

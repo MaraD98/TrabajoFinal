@@ -53,22 +53,22 @@ class EventoSolicitudService:
     
         #Crea una nueva solicitud con todas las validaciones de negocio.
     @staticmethod
-    def crear_solicitud(db: Session, solicitud: SolicitudPublicacionCreate):
-       
+    def crear_solicitud(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int):
         # Validaciones de negocio
         EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
-        EventoSolicitudService.validar_contacto(solicitud.contacto_organizador)
         EventoSolicitudService.validar_tipo_y_dificultad(db, solicitud.id_tipo, solicitud.id_dificultad)
-        
+        EventoSolicitudService.validar_usuario(db, id_usuario)
+
         # Crear solicitud
         try:
-            nueva_solicitud = crear_solicitud_publicacion(db, solicitud)
+            nueva_solicitud = crear_solicitud_publicacion(db, solicitud, id_usuario)
             return nueva_solicitud
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error al crear la solicitud: {str(e)}"
             )
+
     #Obtiene una solicitud por ID con validación
     @staticmethod
     def obtener_solicitud(db: Session, id_solicitud: int):

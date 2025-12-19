@@ -50,6 +50,17 @@ def listar_pendientes(db: Session = Depends(get_db)):
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_pendientes(db)
     return solicitudes
 
+# ============ Listar solicitudes aprobadas ============
+@router.get(
+    "/aprobadas",
+    response_model=list[SolicitudPublicacionResponse],
+    summary="Listar solicitudes aprobadas",
+    description="Obtiene todas las solicitudes que han sido aprobadas y están publicadas"
+)
+def listar_aprobadas(db: Session = Depends(get_db)):
+    solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_aprobadas(db)
+    return solicitudes
+
 # ============ Obtener detalle de solicitud ============
 @router.get(
     "/{id_solicitud}",
@@ -92,13 +103,3 @@ def revisar_solicitud(
     
     return solicitud_actualizada
 
-# ============ Listar solicitudes aprobadas ============
-@router.get(
-    "/aprobadas",
-    response_model=list[SolicitudPublicacionResponse],
-    summary="Listar solicitudes aprobadas",
-    description="Obtiene todas las solicitudes que han sido aprobadas y están publicadas"
-)
-def listar_aprobadas(db: Session = Depends(get_db)):
-    solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_aprobadas(db)
-    return solicitudes
