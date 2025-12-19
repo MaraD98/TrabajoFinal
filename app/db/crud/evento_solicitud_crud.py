@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
-from app.models.evento_solicitud_models import (SolicitudPublicacion,TipoEvento, NivelDificultad, EstadoSolicitud, Usuario)
+from app.models.evento_solicitud_models import (SolicitudPublicacion,TipoEvento, NivelDificultad, Usuario)
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionCreate, RevisionSolicitud)
 from datetime import date
 from typing import Optional

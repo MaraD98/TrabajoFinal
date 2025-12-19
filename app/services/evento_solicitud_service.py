@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.db.crud.evento_solicitud_crud import (Solicitud_PublicacionCRUD, crear_solicitud_publicacion, obtener_solicitud_por_id,obtener_tipos_evento, obtener_niveles_dificultad, verificar_usuario_existe, obtener_solicitudes_por_usuario)
+from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
 from app.schemas.evento_solicitud_schema import SolicitudPublicacionCreate
 from datetime import date, timedelta
 from fastapi import HTTPException, status
@@ -88,3 +88,10 @@ class EventoSolicitudService:
     def obtener_mis_solicitudes(db: Session, id_usuario: int):
        
         return obtener_solicitudes_por_usuario(db, id_usuario)
+    
+crear_solicitud_publicacion = Solicitud_PublicacionCRUD.crear_solicitud_publicacion
+obtener_solicitud_por_id = Solicitud_PublicacionCRUD.obtener_solicitud_por_id
+obtener_tipos_evento = Solicitud_PublicacionCRUD.obtener_tipos_evento
+obtener_niveles_dificultad = Solicitud_PublicacionCRUD.obtener_niveles_dificultad
+verificar_usuario_existe = Solicitud_PublicacionCRUD.verificar_usuario_existe
+obtener_solicitudes_por_usuario = Solicitud_PublicacionCRUD.obtener_solicitudes_por_usuario

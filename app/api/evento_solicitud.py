@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, status
 from fastapi import security
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-
-from app.db.database import get_db
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionCreate, SolicitudPublicacionResponse,TipoEventoResponse, NivelDificultadResponse)
-from app.services.auth_services import AuthService
 from app.services.evento_solicitud_service import EventoSolicitudService
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
+from app.db.database import get_db
+from app.core.security import security
+from app.services.auth_services import AuthService
 
 router = APIRouter(prefix="/solicitudes-eventos", tags=["Solicitudes de Eventos Externos"])
 
