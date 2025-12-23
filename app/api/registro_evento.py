@@ -37,7 +37,7 @@ def create_evento(
     current_user = Depends(get_current_user) # <--- Solo usuarios logueados entran
 ):
     # Aquí llamamos a TU servicio PRO que tiene las validaciones
-    return EventoService.crear_nuevo_evento(db=db, evento_in=evento)
+    return EventoService.crear_nuevo_evento(db=db, evento_in=evento,current_user=current_user)
 
 # ============ Listar Eventos (GET) ============
 @router.get(

@@ -6,7 +6,7 @@ from datetime import date
 # -----------------------------------------------------------------------------
 # 1. CREATE (Crear) - Esto se usa cuando llega un POST
 # -----------------------------------------------------------------------------
-def create_evento(db: Session, evento: EventoCreate):
+def create_evento(db: Session, evento: Evento):
     # Convertimos los datos que vienen del formulario (Schema) 
     # a un objeto de base de datos (Model)
     db_evento = Evento(
