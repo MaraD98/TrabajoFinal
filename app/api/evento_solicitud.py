@@ -26,7 +26,7 @@ def get_current_user(
     response_model=SolicitudPublicacionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear solicitud de evento externo",
-    description="Permite a un usuario autenticado enviar una solicitud para publicar un evento ciclista. Estado inicial: Pendiente de revisión."
+    description="Permite a un usuario autenticado enviar una solicitud para publicar un evento ciclista. Estado inicial: Borrador."
 )
 def crear_solicitud_evento(
     solicitud: SolicitudPublicacionCreate,
@@ -58,9 +58,32 @@ def obtener_mis_solicitudes(
     summary="Consultar solicitud por ID",
     description="Obtiene el detalle y estado actual de una solicitud específica"
 )
-def consultar_solicitud(id_solicitud: int, db: Session = Depends(get_db)):
-    solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud)
+def consultar_solicitud(
+    id_solicitud: int, 
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    solicitud = EventoSolicitudService.obtener_solicitud(
+        db, id_solicitud, current_user
+    )
     return solicitud
+@router.patch(
+    "/{id_solicitud}/enviar",
+    response_model=SolicitudPublicacionResponse,
+    summary="Enviar solicitud para revisión",
+    description="Cambia el estado del evento de Borrador a Pendiente."
+    
+)
+def enviar_solicitud_para_revision(
+    id_solicitud: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    # Envía la solicitud para que sea revisada por un administrador.
+    solicitud_enviada = EventoSolicitudService.enviar_solicitud_para_revision(
+        db, id_solicitud, current_user
+    )
+    return solicitud_enviada
 
 # ============ Listar tipos de evento ============
 @router.get(

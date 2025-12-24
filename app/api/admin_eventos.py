@@ -1,32 +1,60 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionResponse, RevisionSolicitud, SolicitudesPaginadas)
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
+from app.models.auth_models import Usuario
+from app.core.security import security
+from app.services.auth_services import AuthService
+from app.services.evento_permisos_service import EventoPermisosService
 
 router = APIRouter(prefix="/admin/solicitudes", tags=["Administración de Solicitudes"])
 
 # TODO: Agregar dependencia de autenticación de administrador
 # from app.core.security import require_admin_role
 # Depends(require_admin_role)
+# --- DEPENDENCIA DE SEGURIDAD (El Portero Administrador) ---
 
-# ============ Listar todas las solicitudes ============
+# ============== DEPENDENCIAS ==============
+
+def get_current_user(
+    db: Session = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+) -> Usuario:
+    return AuthService.get_current_usuario_from_token(db, credentials.credentials)
+
+
+def require_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+    if current_user.id_rol not in [1, 2]:  
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los administradores pueden acceder a este recurso"
+        )
+    return current_user
+
+
+
+
 @router.get(
     "/",
     response_model=SolicitudesPaginadas,
     summary="Listar todas las solicitudes",
-    description="Lista todas las solicitudes con filtro opcional por estado y paginación. Incluye información del usuario solicitante."
 )
 def listar_todas_solicitudes(
-    id_estado_solicitud: int = Query(None, ge=1, le=3, description="Filtrar por estado (1=Pendiente, 2=Aprobada, 3=Rechazada)"),
-    pagina: int = Query(1, ge=1, description="Número de página"),
-    por_pagina: int = Query(20, ge=1, le=100, description="Solicitudes por página"),
-    db: Session = Depends(get_db)
+    id_estado_solicitud: int = Query(None, ge=1, le=3),
+    pagina: int = Query(1, ge=1),
+    por_pagina: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(get_current_user)  # Aquí ya tienes al usuario validado
 ):
     skip = (pagina - 1) * por_pagina
+    
+    # <--- AQUÍ ESTABA EL ERROR DE CONEXIÓN --->
     resultado = Solicitud_PublicacionCRUD.listar_solicitudes(
-        db,
+        db=db,
+        usuario_solicitante=admin,   # <--- Le pasamos el objeto 'admin' (Usuario)
         id_estado_solicitud=id_estado_solicitud,
         skip=skip,
         limit=por_pagina
@@ -46,7 +74,8 @@ def listar_todas_solicitudes(
     summary="Listar solicitudes pendientes",
     description="Vista rápida de todas las solicitudes que esperan revisión"
 )
-def listar_pendientes(db: Session = Depends(get_db)):
+def listar_pendientes(db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)):
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_pendientes(db)
     return solicitudes
 
@@ -57,7 +86,8 @@ def listar_pendientes(db: Session = Depends(get_db)):
     summary="Listar solicitudes aprobadas",
     description="Obtiene todas las solicitudes que han sido aprobadas y están publicadas"
 )
-def listar_aprobadas(db: Session = Depends(get_db)):
+def listar_aprobadas(db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)):
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_aprobadas(db)
     return solicitudes
 
@@ -68,7 +98,8 @@ def listar_aprobadas(db: Session = Depends(get_db)):
     summary="Obtener detalle de solicitud",
     description="Consulta completa de una solicitud específica con todos sus datos"
 )
-def obtener_detalle_solicitud(id_solicitud: int, db: Session = Depends(get_db)):
+def obtener_detalle_solicitud(id_solicitud: int, db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)):
     solicitud = Solicitud_PublicacionCRUD.obtener_solicitud_detallada(db, id_solicitud)
     
     if not solicitud:
@@ -90,7 +121,8 @@ def obtener_detalle_solicitud(id_solicitud: int, db: Session = Depends(get_db)):
 def revisar_solicitud(
     id_solicitud: int,
     revision: RevisionSolicitud,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)
 ):
     solicitud_actualizada = Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
     

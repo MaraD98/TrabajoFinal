@@ -13,7 +13,7 @@ class SolicitudPublicacionCreate(BaseModel):
     ubicacion: str = Field(..., min_length=3, max_length=150, description="Ubicación del evento")
     id_tipo: int = Field(..., gt=0, description="ID del tipo de evento (1=Carrera, 2=Paseo, 3=Entrenamiento, 4=Cicloturismo)")
     id_dificultad: int = Field(..., gt=0, description="ID de dificultad (1=Básico, 2=Intermedio, 3=Avanzado)")
-    descripcion: Optional[str] = Field(None, description="Descripción del evento")
+    descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción del evento")
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de participación")
     
     @field_validator('fecha_evento')
@@ -29,7 +29,33 @@ class SolicitudPublicacionCreate(BaseModel):
         if v < 0:
             raise ValueError('El costo no puede ser negativo')
         return v
-
+# schema para respuesta 
+class EstadoSolicitudInfo(BaseModel):
+    # Información del estado de la solicitud
+    id_estado_solicitud: int
+    nombre: str
+    
+    class Config:
+        from_attributes = True
+        
+class EstadoEventoInfo(BaseModel):
+    # Información del estado del evento
+    id_estado: int
+    nombre: str
+    
+    class Config:
+        from_attributes = True
+       
+class UsuarioBasico(BaseModel):
+    # Información básica del usuario creador
+    id_usuario: int
+    nombre_y_apellido: str
+    email: str
+    
+    class Config:
+        from_attributes = True
+        
+         
 #Schema para respuesta de solicitud al usuario
 class SolicitudPublicacionResponse(BaseModel):
     
@@ -42,8 +68,16 @@ class SolicitudPublicacionResponse(BaseModel):
     descripcion: Optional[str]
     costo_participacion: Decimal
     id_estado: int
-    fecha_solicitud: date
     id_estado_solicitud: Optional[int]
+    fecha_solicitud: date
+    observaciones_admin: Optional[str]
+    # Usuario creador
+    id_usuario: int
+    # Información adicional (opcional, se carga con joinedload)
+    usuario: Optional[UsuarioBasico] = None
+    estado_solicitud: Optional[EstadoSolicitudInfo] = None
+    estado_evento: Optional[EstadoEventoInfo] = None
+    
     
     class Config:
         from_attributes = True
@@ -59,8 +93,9 @@ class RevisionSolicitud(BaseModel):
     @field_validator('id_estado_solicitud')
     @classmethod
     def validar_estado(cls, v):
-        if v not in [1, 2, 3]:
-            raise ValueError('Estado debe ser: 1=Pendiente, 2=Aprobada, 3=Rechazada')
+        estados_validos = [1, 2, 3]
+        if v not in estados_validos:
+            raise ValueError(f'Estado debe ser uno de: {estados_validos}')
         return v
 
 #Respuesta con lista paginada de solicitudes
@@ -88,16 +123,6 @@ class NivelDificultadResponse(BaseModel):
     
     id_dificultad: int
     nombre: str
-    
-    class Config:
-        from_attributes = True
-
-#Información básica de usuario
-class UsuarioBasico(BaseModel):
-    
-    id_usuario: int
-    nombre_y_apellido: str
-    email: str
     
     class Config:
         from_attributes = True
