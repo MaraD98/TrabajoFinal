@@ -1,14 +1,19 @@
 from sqlalchemy.orm import Session
-from app.models.registro_models import Evento  # Asegurate de que esta ruta sea correcta según tus carpetas
+from app.models.registro_models import Evento 
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
 
 # -----------------------------------------------------------------------------
-# 1. CREATE (Crear) - Esto se usa cuando llega un POST
+# Si mañana cambia el ID de borrador, solo lo cambias acá.
+ID_ESTADO_BORRADOR = 1
 # -----------------------------------------------------------------------------
-def create_evento(db: Session, evento: Evento):
-    # Convertimos los datos que vienen del formulario (Schema) 
-    # a un objeto de base de datos (Model)
+# 1. CREATE (Crear) - 
+# -----------------------------------------------------------------------------
+# Agregamos 'user_id' como parámetro para saber quién crea el evento
+def create_evento(db: Session, evento: EventoCreate, user_id: int):
+    
+    # Creamos el objeto del modelo asignando CAMPO POR CAMPO (manualmente)
+    # Así queda bien claro qué dato va en qué columna.
     db_evento = Evento(
         nombre_evento       = evento.nombre_evento,
         ubicacion           = evento.ubicacion,
@@ -18,13 +23,11 @@ def create_evento(db: Session, evento: Evento):
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
         
-        # --- Datos fijos (Hardcoded) por ahora ---
-        # Como dijiste antes: id_estado=1 (Borrador) y id_usuario=1 (Usuario fijo)
-        id_estado  = 1,
-        id_usuario = 1 
+        # --- CORRECCIÓN ---
+        id_estado  = ID_ESTADO_BORRADOR, # Usamos la constante definida arriba
+        id_usuario = user_id             # Usamos el ID que recibimos por parámetro
     )
     
-    # Agregamos a la sesión, guardamos (commit) y recargamos para tener el ID nuevo
     db.add(db_evento)
     db.commit()
     db.refresh(db_evento)

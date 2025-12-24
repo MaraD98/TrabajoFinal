@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.evento_models import Evento, HistorialEdicionEvento, DetalleCambioEvento
+from app.models.editar_models import Evento, HistorialEdicionEvento, DetalleCambioEvento
 
 from sqlalchemy.orm import Session
 
