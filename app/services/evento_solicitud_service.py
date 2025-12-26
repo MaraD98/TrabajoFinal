@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
 from app.schemas.evento_solicitud_schema import SolicitudPublicacionCreate
 from app.services.evento_permisos_service import EventoPermisosService
@@ -109,57 +108,38 @@ class EventoSolicitudService:
     
     # 1. Regla para ENVIAR
     @staticmethod
-    def enviar_solicitud_para_revision(db: Session, id_solicitud: int, usuario_actual: Usuario):
-        solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario_actual)
+    def enviar_solicitud_para_revision(
+        db: Session,
+        id_solicitud: int,
+        usuario_actual: Usuario
+    ):
+       
+        # Obtener solicitud
+        solicitud = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(
+            db, id_solicitud
+        )
         
-        # Validación de dueño
-        if solicitud.id_usuario != usuario_actual.id_usuario:
-            raise HTTPException(status_code=403, detail="No puedes enviar una solicitud ajena.")
-            
-        # SOLO enviar si es Borrador (4).
-        if solicitud.id_estado_solicitud != 4:
+        if not solicitud:
             raise HTTPException(
-                status_code=400, 
-                detail="Solo se pueden enviar solicitudes que están en Borrador."
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Solicitud con ID {id_solicitud} no encontrada"
             )
-            
-        return Solicitud_PublicacionCRUD.enviar_solicitud(db, id_solicitud)
-
-    # 2. Regla para EDITAR (Estricta Gmail: Solo editas si no has enviado)
-    @staticmethod
-    def actualizar_solicitud(db: Session, id_solicitud: int, datos: SolicitudPublicacionCreate, usuario: Usuario):
-        solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario)
         
-        if solicitud.id_usuario != usuario.id_usuario:
-             raise HTTPException(status_code=403, detail="Acceso denegado")
-
-        # Si ya la enviaste (es 1, 2 o 3), NO se edita. 
-        # Tienes que borrarla y hacer otra, o esperar.
-        if solicitud.id_estado_solicitud != 4:
-            raise HTTPException(
-                status_code=400,
-                detail="Solo puedes editar solicitudes en 'Borrador'. Si ya la enviaste, no se puede modificar."
-            )
-
-        return Solicitud_PublicacionCRUD.actualizar_solicitud(db, id_solicitud, datos)
-
-    # 3. Regla para ELIMINAR (Borradores o Pendientes)
-    @staticmethod
-    def eliminar_solicitud(db: Session, id_solicitud: int, usuario_actual: Usuario):
-        solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario_actual)
+        # Validar permisos usando el Service de Permisos
+        EventoPermisosService.validar_puede_enviar_solicitud(solicitud, usuario_actual)
         
-        if solicitud.id_usuario != usuario_actual.id_usuario:
-            raise HTTPException(status_code=403, detail="No es tu solicitud.")
-            
-        # Permitimos borrar Borradores (4) para limpiar.
-        # Permitimos borrar Pendientes (1) para "cancelar" el envío.
-        if solicitud.id_estado_solicitud not in [1, 4]: 
+        # Enviar solicitud (cambia id_estado de 1 a 2)
+        solicitud_actualizada = Solicitud_PublicacionCRUD.enviar_solicitud(
+            db, id_solicitud
+        )
+        
+        if not solicitud_actualizada:
             raise HTTPException(
-                status_code=400, 
-                detail="No se puede eliminar una solicitud que ya fue procesada (Aprobada o Rechazada)."
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al enviar la solicitud"
             )
-            
-        Solicitud_PublicacionCRUD.eliminar_solicitud(db, solicitud)
+        
+        return solicitud_actualizada
 
 # Alias para compatibilidad (si los usas en otros lugares)
 crear_solicitud_publicacion = Solicitud_PublicacionCRUD.crear_solicitud_publicacion

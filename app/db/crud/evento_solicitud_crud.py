@@ -13,13 +13,17 @@ class Solicitud_PublicacionCRUD:
     @staticmethod
     def crear_solicitud_publicacion(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int) -> SolicitudPublicacion:
         db_solicitud = SolicitudPublicacion(
-            # ... (tus campos de siempre: nombre, fecha, etc.) ...
-            nombre_evento=solicitud.nombre_evento,
-            # ...
-            fecha_solicitud=date.today(),
-            
-            id_estado=1,            # Evento: Oculto
-            id_estado_solicitud=4   # Solicitud: BORRADOR (El cambio clave)
+        nombre_evento=solicitud.nombre_evento,
+        fecha_evento=solicitud.fecha_evento,
+        ubicacion=solicitud.ubicacion,
+        id_tipo=solicitud.id_tipo,
+        id_dificultad=solicitud.id_dificultad,
+        descripcion=solicitud.descripcion,
+        costo_participacion=solicitud.costo_participacion,
+        id_usuario=id_usuario,  # Asignar usuario autenticado
+        fecha_solicitud=date.today(),
+        id_estado=1,  # Borrador
+        id_estado_solicitud=1  # Pendiente
         )
         db.add(db_solicitud)
         db.commit()
@@ -148,15 +152,10 @@ class Solicitud_PublicacionCRUD:
         ).order_by(desc(SolicitudPublicacion.fecha_evento)).all()
     
     @staticmethod
-    def eliminar_solicitud(db: Session, solicitud_db: SolicitudPublicacion):
-        # Elimina físicamente la solicitud de la base de datos
-        db.delete(solicitud_db)
-        db.commit()
-        return True
-    
-    # 2. Agregar/Restaurar el método ENVIAR
-    @staticmethod
-    def enviar_solicitud(db: Session, id_solicitud: int) -> Optional[SolicitudPublicacion]:
+    def enviar_solicitud(
+        db: Session,
+        id_solicitud: int
+    ) -> Optional[SolicitudPublicacion]:
         solicitud = db.query(SolicitudPublicacion).filter(
             SolicitudPublicacion.id_solicitud == id_solicitud
         ).first()
