@@ -45,3 +45,13 @@ class Evento(Base):
 
     # Fecha automática
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
+   
+    # ---(HU 1.3 y 1.4) ---
+class EventoMultimedia(Base):
+    __tablename__ = "evento_multimedia"
+
+    id_multimedia = Column(Integer, primary_key=True, index=True)
+    id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
+    url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto 
+    tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' 
+    fecha_subida = Column(DateTime(timezone=True), server_default=func.now())

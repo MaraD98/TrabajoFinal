@@ -34,3 +34,11 @@ class EventoResponse(EventoBase):
     # Configuración para que lea desde el modelo ORM (SQLAlchemy)
     model_config = ConfigDict(from_attributes=True)
     
+# --- TU SCHEMA NUEVO ---
+class MultimediaResponse(BaseModel):
+    id_multimedia: int
+    id_evento: int
+    url_archivo: str
+    tipo_archivo: str
+
+    model_config = ConfigDict(from_attributes=True)

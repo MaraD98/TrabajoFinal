@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from app.models.registro_models import Evento 
+from app.models.registro_models import Evento, EventoMultimedia #AGREGADO EventoMultimedia
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
 
@@ -87,3 +87,15 @@ def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
         Evento.nombre_evento == nombre,
         Evento.fecha_evento == fecha
     ).first()
+    
+# --- TU CRUD NUEVO ---
+def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
+    nuevo_registro = EventoMultimedia(
+        id_evento=id_evento,
+        url_archivo=url,
+        tipo_archivo=tipo
+    )
+    db.add(nuevo_registro)
+    db.commit()
+    db.refresh(nuevo_registro)
+    return nuevo_registro

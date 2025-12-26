@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
+from fastapi import File, Form, UploadFile
 
 # Bases de datos y Seguridad
 from app.db.database import get_db
@@ -76,3 +77,21 @@ def update_evento(
     current_user = Depends(get_current_user) # <--- Protegido
 ):
     return EventoService.actualizar_evento(db, evento_id, evento) """
+    
+    # --- TU ENDPOINT NUEVO (HU 1.3 y 1.4) ---
+@router.post(
+    "/{evento_id}/multimedia",
+    summary="Multimedia: Agregar imagen o archivo multimedia al evento",
+    description="Sube una imagen y/o link al evento creado."
+)
+def agregar_multimedia_evento(
+    evento_id: int,
+    archivo_imagen: UploadFile = File(None), # Opcional
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return EventoService.agregar_detalles_multimedia(
+        db=db,
+        id_evento=evento_id,
+        archivo=archivo_imagen
+    )
