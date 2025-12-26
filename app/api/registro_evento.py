@@ -81,12 +81,11 @@ def update_evento(
     # --- TU ENDPOINT NUEVO (HU 1.3 y 1.4) ---
 @router.post(
     "/{evento_id}/multimedia",
-    summary="Multimedia: Agregar imagen y redes sociales",
-    description="Sube una imagen y/o link de redes sociales al evento creado."
+    summary="Multimedia: Agregar imagen o archivo multimedia al evento",
+    description="Sube una imagen y/o link al evento creado."
 )
 def agregar_multimedia_evento(
     evento_id: int,
-    redes_sociales: str = Form(None), # Opcional
     archivo_imagen: UploadFile = File(None), # Opcional
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
@@ -94,6 +93,5 @@ def agregar_multimedia_evento(
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
-        redes_sociales=redes_sociales,
         archivo=archivo_imagen
     )

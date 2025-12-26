@@ -86,7 +86,6 @@ class EventoService:
     def agregar_detalles_multimedia(
         db: Session,
         id_evento: int,
-        redes_sociales: str = None,
         archivo: UploadFile = None
     ):
         # 1. Validar que el evento exista (Usamos la función de tu compañero)
@@ -96,16 +95,7 @@ class EventoService:
 
         resultados = []
 
-        # 2. Procesar Redes Sociales (HU 1.4)
-        # Guardamos el link en la tabla multimedia con tipo 'RED_SOCIAL'
-        if redes_sociales:
-            red_social_entry = registro_crud.create_multimedia(
-                db=db,
-                id_evento=id_evento,
-                url=redes_sociales,
-                tipo="RED_SOCIAL"
-            )
-            resultados.append(red_social_entry)
+       
 
         # 3. Procesar Imagen (HU 1.3)
         # Guardamos la ruta en la tabla multimedia con tipo 'IMAGEN'
@@ -127,7 +117,7 @@ class EventoService:
                 db=db,
                 id_evento=id_evento,
                 url=ruta_final,
-                tipo="IMAGEN"
+                tipo="IMAGEN" 
             )
             resultados.append(imagen_entry)
 

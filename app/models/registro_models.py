@@ -52,8 +52,6 @@ class EventoMultimedia(Base):
 
     id_multimedia = Column(Integer, primary_key=True, index=True)
     id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
-    id_solicitud = Column(Integer, nullable=True) # Opcional según tu diagrama
-    
-    url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto O el link de la red social
-    tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' o 'RED_SOCIAL'
+    url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto 
+    tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' 
     fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
