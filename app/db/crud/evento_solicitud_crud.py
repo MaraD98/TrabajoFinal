@@ -21,7 +21,7 @@ class Solicitud_PublicacionCRUD:
         costo_participacion=solicitud.costo_participacion,
         id_usuario=id_usuario,  # Asignar usuario autenticado
         fecha_solicitud=date.today(),
-        id_estado=1,  # Borrador
+        id_estado=2,  # Borrador
         id_estado_solicitud=1  # Pendiente
         )
         db.add(db_solicitud)
@@ -149,6 +149,13 @@ class Solicitud_PublicacionCRUD:
         ).filter(
             SolicitudPublicacion.id_estado_solicitud == 2
         ).order_by(desc(SolicitudPublicacion.fecha_evento)).all()
+    
+    @staticmethod
+    def eliminar_solicitud(db: Session, solicitud_db: SolicitudPublicacion):
+        # Elimina físicamente la solicitud de la base de datos
+        db.delete(solicitud_db)
+        db.commit()
+        return True
     
     @staticmethod
     def enviar_solicitud(

@@ -47,7 +47,7 @@ def listar_todas_solicitudes(
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    admin: Usuario = Depends(get_current_user)  # Aquí ya tienes al usuario validado
+    admin: Usuario = Depends(require_admin)  # Aquí ya tienes al usuario validado
 ):
     skip = (pagina - 1) * por_pagina
     

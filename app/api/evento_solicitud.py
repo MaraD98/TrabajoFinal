@@ -74,6 +74,37 @@ def consultar_solicitud(
     description="Cambia el estado del evento de Borrador a Pendiente."
     
 )
+@router.delete(
+    "/{id_solicitud}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar solicitud",
+    description="Elimina una solicitud siempre y cuando esté en Borrador o Pendiente."
+)
+def eliminar_solicitud(
+    id_solicitud: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    EventoSolicitudService.eliminar_solicitud(db, id_solicitud, current_user)
+    return None # 204 No Content no devuelve body
+
+
+@router.put(
+    "/{id_solicitud}",
+    response_model=SolicitudPublicacionResponse,
+    summary="Editar solicitud pendiente",
+    description="Permite corregir datos de una solicitud siempre y cuando siga en estado Pendiente."
+)
+def editar_mi_solicitud(
+    id_solicitud: int,
+    solicitud_actualizada: SolicitudPublicacionCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    return EventoSolicitudService.actualizar_solicitud(
+        db, id_solicitud, solicitud_actualizada, current_user
+    )
+
 def enviar_solicitud_para_revision(
     id_solicitud: int,
     db: Session = Depends(get_db),
