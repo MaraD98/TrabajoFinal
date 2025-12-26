@@ -1,8 +1,18 @@
+import os
+import shutil
+from uuid import uuid4
+from app.models.registro_models import EventoMultimedia # Importar el modelo nuevo
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 from typing import List
 from app.db.crud import registro_crud
-from app.schemas.registro_schema import EventoCreate, EventoResponse
+from app.schemas.registro_schema import EventoCreate, EventoResponse 
+
+# Configuración de carpeta para guardar fotos
+UPLOAD_DIR = "static/uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+# --------------------------------------
+
 # Ya no necesitamos importar Evento (modelo) aquí, porque eso lo maneja el CRUD
 
 class EventoService:
@@ -70,3 +80,55 @@ class EventoService:
         EventoService.obtener_evento_por_id(db, evento_id) # Valida existencia
         registro_crud.delete_evento(db=db, evento_id=evento_id)
         return {"detail": "Evento eliminado correctamente"}
+    
+    # --- TU SERVICIO NUEVO ---
+    @staticmethod
+    def agregar_detalles_multimedia(
+        db: Session,
+        id_evento: int,
+        redes_sociales: str = None,
+        archivo: UploadFile = None
+    ):
+        # 1. Validar que el evento exista (Usamos la función de tu compañero)
+        evento = registro_crud.get_evento_by_id(db, id_evento)
+        if not evento:
+            raise HTTPException(status_code=404, detail="El evento no existe.")
+
+        resultados = []
+
+        # 2. Procesar Redes Sociales (HU 1.4)
+        # Guardamos el link en la tabla multimedia con tipo 'RED_SOCIAL'
+        if redes_sociales:
+            red_social_entry = registro_crud.create_multimedia(
+                db=db,
+                id_evento=id_evento,
+                url=redes_sociales,
+                tipo="RED_SOCIAL"
+            )
+            resultados.append(red_social_entry)
+
+        # 3. Procesar Imagen (HU 1.3)
+        # Guardamos la ruta en la tabla multimedia con tipo 'IMAGEN'
+        if archivo:
+            # Validar formato
+            if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+                raise HTTPException(status_code=400, detail="Formato inválido. Solo JPG/PNG.")
+            
+            # Guardar archivo físico
+            extension = archivo.filename.split(".")[-1]
+            nombre_archivo = f"{uuid4()}.{extension}"
+            ruta_final = f"{UPLOAD_DIR}/{nombre_archivo}"
+            
+            with open(ruta_final, "wb") as buffer:
+                shutil.copyfileobj(archivo.file, buffer)
+
+            # Guardar en BD
+            imagen_entry = registro_crud.create_multimedia(
+                db=db,
+                id_evento=id_evento,
+                url=ruta_final,
+                tipo="IMAGEN"
+            )
+            resultados.append(imagen_entry)
+
+        return resultados if resultados else {"mensaje": "No se enviaron datos nuevos"}
