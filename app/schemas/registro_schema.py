@@ -18,7 +18,9 @@ class EventoCreate(EventoBase):
     
     # La validación se queda aquí. Solo importa cuando creas o actualizas.
     @field_validator('fecha_evento')
+    @classmethod
     def validar_fecha_futura(cls, v):
+        # Solo validamos que sea futura cuando estamos CREANDO
         if v <= date.today():
             raise ValueError("La fecha del evento debe ser futura.")
         return v
