@@ -9,20 +9,17 @@ from typing import Optional
 # ============== CRUD PARA HU-2.1 (Crear solicitud) ==============
 
 class Solicitud_PublicacionCRUD:
+    # 1. Modificar CREAR para que nazca como Borrador (4)
     @staticmethod
     def crear_solicitud_publicacion(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int) -> SolicitudPublicacion:
         db_solicitud = SolicitudPublicacion(
-        nombre_evento=solicitud.nombre_evento,
-        fecha_evento=solicitud.fecha_evento,
-        ubicacion=solicitud.ubicacion,
-        id_tipo=solicitud.id_tipo,
-        id_dificultad=solicitud.id_dificultad,
-        descripcion=solicitud.descripcion,
-        costo_participacion=solicitud.costo_participacion,
-        id_usuario=id_usuario,  # Asignar usuario autenticado
-        fecha_solicitud=date.today(),
-        id_estado=2,  # Borrador
-        id_estado_solicitud=1  # Pendiente
+            # ... (tus campos de siempre: nombre, fecha, etc.) ...
+            nombre_evento=solicitud.nombre_evento,
+            # ...
+            fecha_solicitud=date.today(),
+            
+            id_estado=1,            # Evento: Oculto
+            id_estado_solicitud=4   # Solicitud: BORRADOR (El cambio clave)
         )
         db.add(db_solicitud)
         db.commit()
@@ -157,11 +154,9 @@ class Solicitud_PublicacionCRUD:
         db.commit()
         return True
     
+    # 2. Agregar/Restaurar el método ENVIAR
     @staticmethod
-    def enviar_solicitud(
-        db: Session,
-        id_solicitud: int
-    ) -> Optional[SolicitudPublicacion]:
+    def enviar_solicitud(db: Session, id_solicitud: int) -> Optional[SolicitudPublicacion]:
         solicitud = db.query(SolicitudPublicacion).filter(
             SolicitudPublicacion.id_solicitud == id_solicitud
         ).first()
@@ -169,14 +164,13 @@ class Solicitud_PublicacionCRUD:
         if not solicitud:
             return None
         
-        if solicitud.id_estado != 1:
-            return None
-        
-        solicitud.id_estado = 2
+        # Cambia de Borrador (4) a Pendiente (1)
+        solicitud.id_estado_solicitud = 1 
+        # Actualizamos la fecha al momento real del envío
+        solicitud.fecha_solicitud = date.today()
         
         db.commit()
         db.refresh(solicitud)
-        
         return solicitud
     
    

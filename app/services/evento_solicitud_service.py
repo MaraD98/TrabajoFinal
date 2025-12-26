@@ -107,88 +107,59 @@ class EventoSolicitudService:
        
         return Solicitud_PublicacionCRUD.obtener_solicitudes_por_usuario(db, id_usuario)
     
+    # 1. Regla para ENVIAR
     @staticmethod
-    def actualizar_solicitud(db: Session, id_solicitud: int, datos_actualizados: SolicitudPublicacionCreate, usuario_actual):
-        # 1. Buscamos la solicitud y verificamos que sea del usuario
-        # (Reutilizamos tu método existente que ya hace la búsqueda segura)
-        solicitud_existente = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario_actual)
-        
-        # 2. VALIDACIÓN CLAVE: Solo se edita si está "Pendiente"
-        if solicitud_existente.id_estado_solicitud != 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Solo puedes editar solicitudes que estén 'Pendientes'. Si ya fue revisada, no se puede modificar."
-            )
-            
-        # 3. Validamos de nuevo las reglas de negocio con los datos nuevos
-        # (Por si el usuario intenta poner una fecha pasada al editar)
-        EventoSolicitudService.validar_fecha_evento(datos_actualizados.fecha_evento)
-        EventoSolicitudService.validar_tipo_y_dificultad(db, datos_actualizados.id_tipo, datos_actualizados.id_dificultad)
-        
-        # 4. Si todo está bien, llamamos al CRUD para guardar
-        # Importante capturar error de duplicado por si cambia el nombre a uno que ya existe
-        try:
-            return Solicitud_PublicacionCRUD.actualizar_solicitud_usuario(db, solicitud_existente, datos_actualizados)
-        except IntegrityError:
-            db.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El nuevo nombre de evento que intentas usar ya existe."
-            )
-    @staticmethod
-    def eliminar_solicitud(db: Session, id_solicitud: int, usuario_actual: Usuario):
-        # 1. Buscar solicitud
+    def enviar_solicitud_para_revision(db: Session, id_solicitud: int, usuario_actual: Usuario):
         solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario_actual)
         
-        # 2. Verificar que sea el dueño
+        # Validación de dueño
         if solicitud.id_usuario != usuario_actual.id_usuario:
-            raise HTTPException(status_code=403, detail="No puedes eliminar una solicitud que no es tuya.")
+            raise HTTPException(status_code=403, detail="No puedes enviar una solicitud ajena.")
             
-        # 3. Regla de Oro: Solo borrar Borradores (4) o Pendientes (1)
-        # Si ya está Aprobada (2) o Rechazada (3), no se toca (historial).
+        # SOLO enviar si es Borrador (4).
+        if solicitud.id_estado_solicitud != 4:
+            raise HTTPException(
+                status_code=400, 
+                detail="Solo se pueden enviar solicitudes que están en Borrador."
+            )
+            
+        return Solicitud_PublicacionCRUD.enviar_solicitud(db, id_solicitud)
+
+    # 2. Regla para EDITAR (Estricta Gmail: Solo editas si no has enviado)
+    @staticmethod
+    def actualizar_solicitud(db: Session, id_solicitud: int, datos: SolicitudPublicacionCreate, usuario: Usuario):
+        solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario)
+        
+        if solicitud.id_usuario != usuario.id_usuario:
+             raise HTTPException(status_code=403, detail="Acceso denegado")
+
+        # Si ya la enviaste (es 1, 2 o 3), NO se edita. 
+        # Tienes que borrarla y hacer otra, o esperar.
+        if solicitud.id_estado_solicitud != 4:
+            raise HTTPException(
+                status_code=400,
+                detail="Solo puedes editar solicitudes en 'Borrador'. Si ya la enviaste, no se puede modificar."
+            )
+
+        return Solicitud_PublicacionCRUD.actualizar_solicitud(db, id_solicitud, datos)
+
+    # 3. Regla para ELIMINAR (Borradores o Pendientes)
+    @staticmethod
+    def eliminar_solicitud(db: Session, id_solicitud: int, usuario_actual: Usuario):
+        solicitud = EventoSolicitudService.obtener_solicitud(db, id_solicitud, usuario_actual)
+        
+        if solicitud.id_usuario != usuario_actual.id_usuario:
+            raise HTTPException(status_code=403, detail="No es tu solicitud.")
+            
+        # Permitimos borrar Borradores (4) para limpiar.
+        # Permitimos borrar Pendientes (1) para "cancelar" el envío.
         if solicitud.id_estado_solicitud not in [1, 4]: 
             raise HTTPException(
                 status_code=400, 
                 detail="No se puede eliminar una solicitud que ya fue procesada (Aprobada o Rechazada)."
             )
             
-        # 4. Eliminar
         Solicitud_PublicacionCRUD.eliminar_solicitud(db, solicitud)
-        return {"detail": "Solicitud eliminada exitosamente"}
-    
-    @staticmethod
-    def enviar_solicitud_para_revision(
-        db: Session,
-        id_solicitud: int,
-        usuario_actual: Usuario
-    ):
-       
-        # Obtener solicitud
-        solicitud = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(
-            db, id_solicitud
-        )
-        
-        if not solicitud:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Solicitud con ID {id_solicitud} no encontrada"
-            )
-        
-        # Validar permisos usando el Service de Permisos
-        EventoPermisosService.validar_puede_enviar_solicitud(solicitud, usuario_actual)
-        
-        # Enviar solicitud (cambia id_estado de 1 a 2)
-        solicitud_actualizada = Solicitud_PublicacionCRUD.enviar_solicitud(
-            db, id_solicitud
-        )
-        
-        if not solicitud_actualizada:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al enviar la solicitud"
-            )
-        
-        return solicitud_actualizada
 
 # Alias para compatibilidad (si los usas en otros lugares)
 crear_solicitud_publicacion = Solicitud_PublicacionCRUD.crear_solicitud_publicacion

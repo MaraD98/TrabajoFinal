@@ -70,10 +70,18 @@ def consultar_solicitud(
 @router.patch(
     "/{id_solicitud}/enviar",
     response_model=SolicitudPublicacionResponse,
-    summary="Enviar solicitud para revisión",
-    description="Cambia el estado del evento de Borrador a Pendiente."
-    
+    summary="Enviar solicitud (Borrador -> Pendiente)",
+    description="Finaliza el borrador y lo envía a revisión."
 )
+def enviar_solicitud(
+    id_solicitud: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    return EventoSolicitudService.enviar_solicitud_para_revision(
+        db, id_solicitud, current_user
+    )
+
 @router.delete(
     "/{id_solicitud}",
     status_code=status.HTTP_204_NO_CONTENT,
