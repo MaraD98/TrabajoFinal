@@ -18,7 +18,9 @@ class EventoCreate(EventoBase):
     
     # La validación se queda aquí. Solo importa cuando creas o actualizas.
     @field_validator('fecha_evento')
+    @classmethod
     def validar_fecha_futura(cls, v):
+        # Solo validamos que sea futura cuando estamos CREANDO
         if v <= date.today():
             raise ValueError("La fecha del evento debe ser futura.")
         return v
@@ -32,3 +34,11 @@ class EventoResponse(EventoBase):
     # Configuración para que lea desde el modelo ORM (SQLAlchemy)
     model_config = ConfigDict(from_attributes=True)
     
+# --- TU SCHEMA NUEVO ---
+class MultimediaResponse(BaseModel):
+    id_multimedia: int
+    id_evento: int
+    url_archivo: str
+    tipo_archivo: str
+
+    model_config = ConfigDict(from_attributes=True)
