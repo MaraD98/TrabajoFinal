@@ -8,6 +8,6 @@ routers = [
     auth_router,
     eventos_router,
     router_evento_solicitud,
-    admin_eventos_router
+    admin_eventos_router,
     editar_evento_router
 ]

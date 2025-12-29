@@ -1,38 +1,33 @@
 from sqlalchemy.orm import Session
-from app.models.editar_models import Evento, HistorialEdicionEvento, DetalleCambioEvento
-
-from sqlalchemy.orm import Session
-
-# 1. Traemos 'Evento' desde TU archivo 'registro_models'
-from app.models.registro_models import Evento 
-
-# 2. Traemos los historiales desde 'editar_models'
-# (Asumo que el archivo se llama editar_models.py como vi en tu pestaña antes)
+# 1. ACTUALIZA ESTA LÍNEA DE IMPORTACIÓN:
+# Agrega 'EventoMultimedia' al final para poder usar la tabla de fotos
+from app.models.registro_models import Evento, EventoMultimedia 
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
 
+# --- TUS FUNCIONES EXISTENTES (DÉJALAS IGUAL) ---
 def obtener_evento_por_id(db: Session, id_evento: int):
-    """Solo busca el evento en la DB."""
     return db.query(Evento).filter(Evento.id_evento == id_evento).first()
 
 def guardar_cambios_auditoria(db: Session, evento: Evento, historial: HistorialEdicionEvento, detalles: list[DetalleCambioEvento]):
-    """
-    Recibe el evento modificado, el historial y la lista de detalles.
-    Guarda todo de una sola vez.
-    """
-    # 1. Agregamos el historial (la cabecera)
     db.add(historial)
-    db.flush() # Hacemos flush para que se genere el ID del historial
-    
-    # 2. Asignamos ese ID a cada detalle y los guardamos
+    db.flush()
     for detalle in detalles:
         detalle.id_historial_edicion = historial.id_historial_edicion
         db.add(detalle)
-        
-    # 3. El evento ya está modificado (porque SQLAlchemy sigue los objetos), 
-    # pero hacemos un add por seguridad o simplemente confirmamos al final.
-    db.add(evento) 
-    
-    # 4. Confirmamos todo junto (Commit)
+    db.add(evento)
     db.commit()
     db.refresh(evento)
     return evento
+
+# --- AGREGA ESTO AL FINAL DEL ARCHIVO (LO NUEVO) ---
+
+def obtener_multimedia_por_id(db: Session, id_multimedia: int):
+    """Busca una foto específica por su ID único."""
+    return db.query(EventoMultimedia).filter(EventoMultimedia.id_multimedia == id_multimedia).first()
+
+def actualizar_multimedia(db: Session, multimedia: EventoMultimedia):
+    """Guarda los cambios de la foto en la base de datos."""
+    db.add(multimedia)
+    db.commit()
+    db.refresh(multimedia)
+    return multimedia

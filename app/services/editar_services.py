@@ -1,15 +1,20 @@
+import os
+import shutil
 from datetime import date
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile # <--- Agregamos UploadFile
 
 # Importamos los modelos necesarios
-# Asumo que Evento está en registro_models (donde lo tenías originalmente)
-from app.models.registro_models import Evento 
-# Importamos tus nuevos modelos de historial
+from app.models.registro_models import Evento, EventoMultimedia # <--- Agregamos EventoMultimedia
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
+
+# --- CONFIGURACIÓN PARA TUS IMÁGENES ---
+DIRECTORIO_IMAGENES = "static/eventos"
+os.makedirs(DIRECTORIO_IMAGENES, exist_ok=True)
 
 class EditarEventoService:
 
+    # --- MÉTODO 1: LÓGICA DE TU COMPAÑERA (Edición de datos) ---
     @staticmethod
     def actualizar_evento(db: Session, id_evento: int, evento_update, id_usuario_actual: int):
         """
@@ -32,15 +37,13 @@ class EditarEventoService:
             )
 
         # 2. VALIDAR PERMISOS (Solo el creador puede editar)
-        # En tu tabla Evento el campo es 'id_usuario', no 'id_organizador'
         if evento_db.id_usuario != id_usuario_actual:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
-                detail="No tienes permisos para editar este evento (no eres administrador)."
+                detail="No tienes permisos para editar este evento."
             )
 
         # 3. VALIDAR REGLA DE NEGOCIO (No editar eventos pasados)
-        # Comparamos con la fecha de hoy
         if evento_db.fecha_evento < date.today():
              raise HTTPException(
                  status_code=status.HTTP_400_BAD_REQUEST, 
@@ -48,16 +51,11 @@ class EditarEventoService:
              )
 
         # 4. DETECCIÓN DE CAMBIOS (Core de la Auditoría)
-        # exclude_unset=True significa: "Solo dame lo que el usuario envió en el JSON"
         datos_nuevos = evento_update.model_dump(exclude_unset=True) 
         cambios_detectados = []
 
         for campo, valor_nuevo in datos_nuevos.items():
-            # Obtenemos el valor actual de la base de datos
             valor_anterior = getattr(evento_db, campo)
-
-            # Convertimos ambos a String para poder compararlos y guardarlos en la BD de texto
-            # Esto maneja Fechas, Decimales, Floats, etc. sin que Python explote.
             str_anterior = str(valor_anterior) if valor_anterior is not None else ""
             str_nuevo = str(valor_nuevo) if valor_nuevo is not None else ""
 
@@ -66,7 +64,7 @@ class EditarEventoService:
                     "campo": campo,
                     "anterior": str_anterior,
                     "nuevo": str_nuevo,
-                    "valor_real": valor_nuevo # Guardamos el valor original para actualizar la tabla Evento
+                    "valor_real": valor_nuevo
                 })
 
         # 5. TRANSACCIÓN DB (Si hubo cambios, guardamos todo)
@@ -76,12 +74,8 @@ class EditarEventoService:
                 nuevo_historial = HistorialEdicionEvento(
                     id_evento=id_evento,
                     id_usuario=id_usuario_actual
-                    # fecha_edicion es automática por la BD
                 )
                 db.add(nuevo_historial)
-                
-                # FLUSH: Envía la cabecera a la BD para obtener su 'id_historial_edicion' 
-                # pero NO confirma la transacción todavía.
                 db.flush() 
 
                 # B. Crear los DETALLES (Renglones)
@@ -97,13 +91,49 @@ class EditarEventoService:
                     # C. ACTUALIZAR EL EVENTO REAL
                     setattr(evento_db, cambio["campo"], cambio["valor_real"])
 
-                # Confirmamos todo el paquete junto
                 db.commit()
                 db.refresh(evento_db)
             
             except Exception as e:
-                db.rollback() # Si algo falla, volvemos atrás como si nada hubiera pasado
-                print(f"Error al guardar historial: {e}") # Log interno para debugear
+                db.rollback()
+                print(f"Error al guardar historial: {e}")
                 raise HTTPException(status_code=500, detail="Error interno al procesar la edición.")
         
         return evento_db
+
+    # --- MÉTODO 2: TU LÓGICA (HU-3.3 Actualizar Multimedia) ---
+    @staticmethod
+    def reemplazar_archivo_multimedia(db: Session, id_multimedia: int, archivo: UploadFile):
+        """
+        Busca una imagen existente por su ID y reemplaza el archivo físico
+        y la referencia en la base de datos.
+        """
+        # 1. Buscar imagen en la BD
+        imagen_bd = db.query(EventoMultimedia).filter(EventoMultimedia.id_multimedia == id_multimedia).first()
+
+        if not imagen_bd:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"No se encontró la imagen con ID {id_multimedia}"
+            )
+
+        # 2. Generar nombre de archivo y ruta (Mantenemos el ID para orden)
+        extension = archivo.filename.split(".")[-1]
+        nombre_nuevo = f"evento_media_{id_multimedia}.{extension}"
+        ruta_completa = os.path.join(DIRECTORIO_IMAGENES, nombre_nuevo)
+
+        # 3. Guardar archivo físico (Sobrescribiendo si existe)
+        try:
+            with open(ruta_completa, "wb") as buffer:
+                shutil.copyfileobj(archivo.file, buffer)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error al guardar el archivo: {str(e)}")
+
+        # 4. Actualizar referencia en BD
+        imagen_bd.url_archivo = ruta_completa
+        imagen_bd.tipo_archivo = archivo.content_type
+        
+        db.commit()
+        db.refresh(imagen_bd)
+        
+        return imagen_bd
