@@ -109,7 +109,7 @@ class Solicitud_PublicacionCRUD:
             joinedload(SolicitudPublicacion.estado_evento),
             joinedload(SolicitudPublicacion.estado_solicitud)
         ).filter(
-            SolicitudPublicacion.id_estado_solicitud == 1  
+            SolicitudPublicacion.id_estado_solicitud == 2  
         ).order_by(desc(SolicitudPublicacion.fecha_solicitud)).all()
     
     @staticmethod
@@ -163,8 +163,8 @@ class Solicitud_PublicacionCRUD:
         if not solicitud:
             return None
         
-        # Cambia de Borrador (4) a Pendiente (1)
-        solicitud.id_estado_solicitud = 1 
+        # Cambia de Borrador (1) a Pendiente (2)
+        solicitud.id_estado_solicitud = 2 
         # Actualizamos la fecha al momento real del envío
         solicitud.fecha_solicitud = date.today()
         

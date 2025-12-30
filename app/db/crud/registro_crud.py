@@ -5,13 +5,10 @@ from datetime import date
 from sqlalchemy import or_
 
 # -----------------------------------------------------------------------------
-# Si mañana cambia el ID de borrador, solo lo cambias acá.
-ID_ESTADO_BORRADOR = 1
-# -----------------------------------------------------------------------------
 # 1. CREATE (Crear) - 
 # -----------------------------------------------------------------------------
 # Agregamos 'user_id' como parámetro para saber quién crea el evento
-def create_evento(db: Session, evento: EventoCreate, user_id: int):
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado: int):
     
     # Creamos el objeto del modelo asignando CAMPO POR CAMPO (manualmente)
     # Así queda bien claro qué dato va en qué columna.
@@ -24,9 +21,9 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int):
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
         
-        # --- CORRECCIÓN ---
-        id_estado  = ID_ESTADO_BORRADOR, # Usamos la constante definida arriba
-        id_usuario = user_id             # Usamos el ID que recibimos por parámetro
+        
+        id_estado  = id_estado,      
+        id_usuario = user_id            
     )
     
     db.add(db_evento)
