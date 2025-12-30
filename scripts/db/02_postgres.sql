@@ -145,13 +145,13 @@ CREATE TABLE Evento_Multimedia (
 
 CREATE TABLE Notificacion (
     id_notificacion SERIAL PRIMARY KEY,
-    id_usuario INT NOT NULL,
-    id_solicitud INT NOT NULL,
-    mensaje TEXT NOT NULL,
+    id_usuario INT NOT NULL,                           -- destinatario
+    id_estado_solicitud INT NOT NULL,                  -- estado asociado
+    mensaje TEXT,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     leida BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
-    FOREIGN KEY (id_solicitud) REFERENCES Solicitud_Publicacion(id_solicitud)
+    CONSTRAINT fk_notificacion_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    CONSTRAINT fk_notificacion_estado FOREIGN KEY (id_estado_solicitud) REFERENCES EstadoSolicitud(id_estado_solicitud)
 );
 
 ----------------------------------------------------------------------------------------------------------------------------------
