@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from app.models.registro_models import Evento, EventoMultimedia #AGREGADO EventoMultimedia
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
+from sqlalchemy import or_
 
 # -----------------------------------------------------------------------------
 # Si mañana cambia el ID de borrador, solo lo cambias acá.
@@ -37,7 +38,18 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int):
 # 2. READ (Leer todos) - Esto se usa cuando llega un GET (lista)
 # -----------------------------------------------------------------------------
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Evento).offset(skip).limit(limit).all()
+    #return db.query(Evento).offset(skip).limit(limit).all()
+    return (
+        db.query(Evento)
+        .filter(
+            or_(
+                Evento.id_estado == 3                  # Publicado
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 # -----------------------------------------------------------------------------
 # 3. READ ONE (Leer uno solo) - Esto se usa cuando llega un GET con ID
