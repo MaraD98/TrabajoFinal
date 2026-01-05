@@ -45,6 +45,10 @@ class Evento(Base):
 
     # Fecha automática
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Coordenadas para mapa
+    lat = Column(DECIMAL(9, 6), nullable=True)
+    lng = Column(DECIMAL(9, 6), nullable=True)
    
     # ---(HU 1.3 y 1.4) ---
 class EventoMultimedia(Base):
