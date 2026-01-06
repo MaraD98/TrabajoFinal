@@ -4,9 +4,6 @@ from app.schemas.registro_schema import EventoCreate
 from datetime import date
 
 # -----------------------------------------------------------------------------
-# Si mañana cambia el ID de borrador, solo lo cambias acá.
-ID_ESTADO_BORRADOR = 1
-# -----------------------------------------------------------------------------
 # 1. CREATE (Crear) - 
 # -----------------------------------------------------------------------------
 # Agregamos 'user_id' como parámetro para saber quién crea el evento
