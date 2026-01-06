@@ -72,7 +72,8 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Pendiente'),
 ('Publicado'),
 ('Finalizado'),
-('Cancelado');
+('Cancelado'),
+('Pendiente de Eliminación');
 
 -----------------------------------------------------------------------------------------------------------------------------------
 -- TABLA EVENTO

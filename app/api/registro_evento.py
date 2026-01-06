@@ -10,7 +10,7 @@ from app.core.security import security
 from app.services.auth_services import AuthService
 
 # TUS Importaciones (Schemas y Services)
-from app.schemas.registro_schema import EventoCreate, EventoResponse
+from app.schemas.registro_schema import EventoCreate, EventoResponse, EventoCancelacionRequest
 from app.services.registro_services import EventoService
 
 # Definimos el router con prefijo y tags (igual que auth.py)
@@ -94,4 +94,64 @@ def agregar_multimedia_evento(
         db=db,
         id_evento=evento_id,
         archivo=archivo_imagen
+    )
+
+# ============ CANCELAR EVENTO (HU 4.1 - NUEVO) ============
+@router.patch(
+    "/{evento_id}/cancelar",
+    summary="Cancelar evento (Soft Delete)",
+    description="Cambia el estado a 'Cancelado' y guarda el motivo. Solo el creador o Admin pueden hacerlo."
+)
+def cancelar_evento(
+    evento_id: int,
+    datos_cancelacion: EventoCancelacionRequest, # Recibe el JSON con {"motivo": "..."}
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    
+    #Endpoint para realizar la cancelación lógica del evento.
+    #No borra el registro, lo pasa a estado Cancelado.
+
+    return EventoService.cancelar_evento_propio(
+        db=db,
+        evento_id=evento_id,
+        motivo=datos_cancelacion.motivo, # Extraemos el texto del objeto Pydantic
+        usuario_actual=current_user
+    )
+    # ============ HU 4.2: SOLICITUD DE ELIMINACIÓN ============
+@router.patch(
+    "/{evento_id}/solicitar-eliminacion",
+    summary="Solicitar eliminación (Organizador Externo)",
+    description="Si el evento está Publicado, cambia a 'Pendiente de Eliminación' y guarda el motivo para el Admin."
+)
+def solicitar_eliminacion(
+    evento_id: int,
+    datos: EventoCancelacionRequest, # JSON con {"motivo": "..."}
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return EventoService.solicitar_eliminacion_externo(
+        db=db,
+        evento_id=evento_id,
+        motivo=datos.motivo,
+        usuario_actual=current_user
+    )
+
+# ============ HU 4.3: ELIMINACIÓN DIRECTA (ADMIN/SUPERVISOR) ============
+@router.patch(
+    "/{evento_id}/admin-eliminar",
+    summary="Baja Administrativa (Limpieza)",
+    description="Permite a Administradores y Supervisores dar de baja eventos (ej: antiguos, abandonados o solicitudes pendientes)."
+)
+def admin_eliminar_evento(
+    evento_id: int,
+    datos: EventoCancelacionRequest, 
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    return EventoService.eliminar_evento_admin(
+        db=db,
+        evento_id=evento_id,
+        motivo=datos.motivo,
+        usuario_actual=current_user
     )

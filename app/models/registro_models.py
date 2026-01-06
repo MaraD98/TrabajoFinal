@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text
+from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text, Boolean
 from app.models.base import Base
 
 # --- MODELOS AUXILIARES ---
@@ -55,3 +55,23 @@ class EventoMultimedia(Base):
     url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto 
     tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' 
     fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # --- (NUEVO) HU 4.1: Tabla de Eliminación ---
+class EliminacionEvento(Base):
+    __tablename__ = "eliminacion_evento"
+
+    id_eliminacion = Column(Integer, primary_key=True, index=True)
+    id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
+    motivo_eliminacion = Column(Text, nullable=False)
+    fecha_eliminacion = Column(DateTime(timezone=True), server_default=func.now())
+    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False) # Quién eliminó
+    notificacion_enviada = Column(Boolean, default=False, nullable=False)
+    
+# HU 4.5 Definimos la tabla para que exista la relación de reservas de eventos
+class ReservaEvento(Base):
+    __tablename__ = "reserva_evento"
+    
+    id_reserva = Column(Integer, primary_key=True, index=True)
+    id_evento = Column(Integer, ForeignKey("evento.id_evento"))
+    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
+    fecha_reserva = Column(DateTime(timezone=True), server_default=func.now())
