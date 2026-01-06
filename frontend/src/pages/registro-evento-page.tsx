@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { createEvento } from "../services/eventos";
 import L from "leaflet";
@@ -18,12 +17,20 @@ export default function CreateEventPage() {
     lng: null as number | null,
   });
 
+  const [isSearching, setIsSearching] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<"idle" | "found" | "not-found">("idle");
+
   const token = localStorage.getItem("token");
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const searchTimeoutRef = useRef<number | null>(null);
+
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,25 +42,29 @@ export default function CreateEventPage() {
     try {
       const evento = await createEvento(formData, token);
       console.log("Evento creado:", evento);
+      alert("¡Evento creado exitosamente!");
     } catch (err) {
       console.error("Error al crear evento:", err);
+      alert("Error al crear el evento. Por favor intenta nuevamente.");
     }
   };
-
-  // Referencias para mapa y marcador
-  const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
 
   const initMap = () => {
     if (mapRef.current) {
       mapRef.current.remove();
     }
 
-    const map = L.map("map").setView([-31.4, -64.2], 5);
+    const map = L.map("map", {
+      center: [-31.4135, -64.181],
+      zoom: 13,
+      zoomControl: true,
+      scrollWheelZoom: true,
+    });
     mapRef.current = map;
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap contributors",
+      maxZoom: 19,
     }).addTo(map);
 
     map.on("click", async (e: L.LeafletMouseEvent) => {
@@ -61,16 +72,29 @@ export default function CreateEventPage() {
       setFormData((prev) => ({ ...prev, lat, lng }));
 
       if (markerRef.current) markerRef.current.remove();
-      markerRef.current = L.marker([lat, lng]).addTo(map);
+      
+      const customIcon = L.divIcon({
+        className: "custom-marker",
+        html: '<div class="marker-pin"></div>',
+        iconSize: [30, 42],
+        iconAnchor: [15, 42],
+      });
+      
+      markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(map);
 
-      // Reverse geocoding: coordenadas → texto
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14&addressdetails=1`
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+          {
+            headers: {
+              "User-Agent": "EventRegistrationApp/1.0",
+            },
+          }
         );
         const data = await res.json();
         if (data && data.display_name) {
           setFormData((prev) => ({ ...prev, ubicacion: data.display_name }));
+          setLocationStatus("found");
         }
       } catch (err) {
         console.error("Error obteniendo dirección:", err);
@@ -79,41 +103,75 @@ export default function CreateEventPage() {
   };
 
   useEffect(() => {
-    if (formData.ubicacion.trim() !== "") {
-      const timeout = setTimeout(async () => {
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ar&q=${encodeURIComponent(
-              formData.ubicacion
-            )}`
-          );
-          const data = await res.json();
-
-          if (data && data.length > 0) {
-            const lat = parseFloat(data[0].lat);
-            const lng = parseFloat(data[0].lon);
-
-            setFormData((prev) => ({ ...prev, lat, lng }));
-
-            if (mapRef.current) {
-              mapRef.current.setView([lat, lng], 12);
-              if (markerRef.current) markerRef.current.remove();
-              markerRef.current = L.marker([lat, lng]).addTo(mapRef.current);
-            }
-          } else {
-            setFormData((prev) => ({ ...prev, lat: null, lng: null }));
-            if (markerRef.current) {
-              markerRef.current.remove();
-              markerRef.current = null;
-            }
-          }
-        } catch (err) {
-          console.error("Error buscando ubicación:", err);
-        }
-      }, 500);
-
-      return () => clearTimeout(timeout);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+
+    if (formData.ubicacion.trim() === "") {
+      setLocationStatus("idle");
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setLocationStatus("idle");
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ar&q=${encodeURIComponent(
+            formData.ubicacion
+          )}&limit=1`,
+          {
+            headers: {
+              "User-Agent": "EventRegistrationApp/1.0",
+            },
+          }
+        );
+        const data = await res.json();
+
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+
+          setFormData((prev) => ({ ...prev, lat, lng }));
+          setLocationStatus("found");
+
+          if (mapRef.current) {
+            mapRef.current.setView([lat, lng], 16);
+            
+            if (markerRef.current) markerRef.current.remove();
+            
+            const customIcon = L.divIcon({
+              className: "custom-marker",
+              html: '<div class="marker-pin"></div>',
+              iconSize: [30, 42],
+              iconAnchor: [15, 42],
+            });
+            
+            markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(mapRef.current);
+          }
+        } else {
+          setFormData((prev) => ({ ...prev, lat: null, lng: null }));
+          setLocationStatus("not-found");
+          if (markerRef.current) {
+            markerRef.current.remove();
+            markerRef.current = null;
+          }
+        }
+      } catch (err) {
+        console.error("Error buscando ubicación:", err);
+        setLocationStatus("not-found");
+      } finally {
+        setIsSearching(false);
+      }
+    }, 800);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
   }, [formData.ubicacion]);
 
   useEffect(() => {
@@ -121,96 +179,162 @@ export default function CreateEventPage() {
   }, []);
 
   return (
-    <div className="event-page">
-      <div className="event-page__container">
-        <div className="event-page__header">
-          <h1 className="event-page__title">Crear Nuevo Evento</h1>
-          <p className="event-page__subtitle">
-            Completa los detalles de tu evento y selecciona la ubicación en el mapa
+    <div className="event-registration">
+      <div className="event-registration__container">
+        <div className="event-registration__header">
+          <h1 className="event-registration__title">Crear Nuevo Evento</h1>
+          <p className="event-registration__subtitle">
+            Completa la información del evento deportivo
           </p>
         </div>
 
-        <div className="event-page__content">
-          <div className="event-page__form-section">
+        <div className="event-registration__layout">
+          <div className="event-registration__form-wrapper">
             <form onSubmit={handleSubmit} className="event-form">
-              <div className="event-form__group">
-                <label htmlFor="nombre_evento" className="event-form__label">
-                  Nombre del evento
-                </label>
-                <input
-                  id="nombre_evento"
-                  type="text"
-                  name="nombre_evento"
-                  placeholder="Ej: Maratón Córdoba 2026"
-                  onChange={handleChange}
-                  className="event-form__input"
-                  required
-                />
-              </div>
-
-              <div className="event-form__group">
-                <label htmlFor="ubicacion" className="event-form__label">
-                  Ubicación
-                </label>
-                <input
-                  id="ubicacion"
-                  type="text"
-                  name="ubicacion"
-                  placeholder="Ej: Córdoba, Argentina"
-                  value={formData.ubicacion}
-                  onChange={handleChange}
-                  className="event-form__input"
-                  required
-                />
-                <span className="event-form__hint">
-                  Escribe una dirección o haz clic en el mapa
-                </span>
-              </div>
-
-              <div className="event-form__group">
-                <label htmlFor="fecha_evento" className="event-form__label">
-                  Fecha del evento
-                </label>
-                <input
-                  id="fecha_evento"
-                  type="date"
-                  name="fecha_evento"
-                  onChange={handleChange}
-                  className="event-form__input"
-                  required
-                />
-              </div>
-
-              <div className="event-form__group">
-                <label htmlFor="descripcion" className="event-form__label">
-                  Descripción
-                </label>
-                <textarea
-                  id="descripcion"
-                  name="descripcion"
-                  placeholder="Describe tu evento..."
-                  onChange={handleChange}
-                  className="event-form__textarea"
-                  rows={5}
-                  required
-                />
-              </div>
-
-              <div className="event-form__group">
-                <label htmlFor="costo_participacion" className="event-form__label">
-                  Costo de participación
-                </label>
-                <div className="event-form__input-wrapper">
-                  <span className="event-form__currency">$</span>
+              <div className="event-form__section">
+                <h2 className="event-form__section-title">Información General</h2>
+                
+                <div className="event-form__field">
+                  <label htmlFor="nombre_evento" className="event-form__label">
+                    Nombre del Evento *
+                  </label>
                   <input
-                    id="costo_participacion"
-                    type="number"
-                    name="costo_participacion"
-                    placeholder="0"
+                    id="nombre_evento"
+                    type="text"
+                    name="nombre_evento"
+                    placeholder="Ej: Maratón Córdoba 2026"
                     onChange={handleChange}
-                    className="event-form__input event-form__input--currency"
-                    min="0"
+                    className="event-form__input"
+                    required
                   />
+                </div>
+
+                <div className="event-form__field">
+                  <label htmlFor="fecha_evento" className="event-form__label">
+                    Fecha del Evento *
+                  </label>
+                  <input
+                    id="fecha_evento"
+                    type="date"
+                    name="fecha_evento"
+                    onChange={handleChange}
+                    className="event-form__input"
+                    required
+                  />
+                </div>
+
+                <div className="event-form__field">
+                  <label htmlFor="id_tipo" className="event-form__label">
+                    Tipo de Evento *
+                  </label>
+                  <select
+                    id="id_tipo"
+                    name="id_tipo"
+                    value={formData.id_tipo}
+                    onChange={handleChange}
+                    className="event-form__select"
+                    required
+                  >
+                    <option value={1}>Running</option>
+                    <option value={2}>Ciclismo</option>
+                    <option value={3}>Triatlón</option>
+                    <option value={4}>Natación</option>
+                  </select>
+                </div>
+
+                <div className="event-form__field">
+                  <label htmlFor="id_dificultad" className="event-form__label">
+                    Nivel de Dificultad *
+                  </label>
+                  <select
+                    id="id_dificultad"
+                    name="id_dificultad"
+                    value={formData.id_dificultad}
+                    onChange={handleChange}
+                    className="event-form__select"
+                    required
+                  >
+                    <option value={1}>Principiante</option>
+                    <option value={2}>Intermedio</option>
+                    <option value={3}>Avanzado</option>
+                    <option value={4}>Profesional</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="event-form__section">
+                <h2 className="event-form__section-title">Ubicación</h2>
+                
+                <div className="event-form__field">
+                  <label htmlFor="ubicacion" className="event-form__label">
+                    Dirección o Lugar *
+                  </label>
+                  <div className="event-form__input-group">
+                    <input
+                      id="ubicacion"
+                      type="text"
+                      name="ubicacion"
+                      placeholder="Ej: Colombres 879, Córdoba"
+                      value={formData.ubicacion}
+                      onChange={handleChange}
+                      className="event-form__input"
+                      required
+                    />
+                    {isSearching && (
+                      <span className="event-form__status event-form__status--searching">
+                        <span className="spinner"></span>
+                      </span>
+                    )}
+                    {!isSearching && locationStatus === "found" && (
+                      <span className="event-form__status event-form__status--success">✓</span>
+                    )}
+                    {!isSearching && locationStatus === "not-found" && (
+                      <span className="event-form__status event-form__status--error">✕</span>
+                    )}
+                  </div>
+                  <span className="event-form__hint">
+                    Escribe la dirección completa o haz clic en el mapa
+                  </span>
+                </div>
+              </div>
+
+              <div className="event-form__section">
+                <h2 className="event-form__section-title">Detalles Adicionales</h2>
+                
+                <div className="event-form__field">
+                  <label htmlFor="descripcion" className="event-form__label">
+                    Descripción del Evento *
+                  </label>
+                  <textarea
+                    id="descripcion"
+                    name="descripcion"
+                    placeholder="Describe los detalles del evento, recorrido, premios, etc."
+                    onChange={handleChange}
+                    className="event-form__textarea"
+                    rows={5}
+                    required
+                  />
+                </div>
+
+                <div className="event-form__field">
+                  <label htmlFor="costo_participacion" className="event-form__label">
+                    Costo de Participación
+                  </label>
+                  <div className="event-form__currency-wrapper">
+                    <span className="event-form__currency">$</span>
+                    <input
+                      id="costo_participacion"
+                      type="number"
+                      name="costo_participacion"
+                      placeholder="0"
+                      onChange={handleChange}
+                      className="event-form__input event-form__input--currency"
+                      min="0"
+                    />
+                  </div>
+                  <span className="event-form__hint">
+                    Dejar en 0 si el evento es gratuito
+                  </span>
                 </div>
               </div>
 
@@ -220,16 +344,15 @@ export default function CreateEventPage() {
             </form>
           </div>
 
-          <div className="event-page__map-section">
-            <div className="map-wrapper">
-              <div id="map" className="map-container"></div>
-              <div className="map-instructions">
-                <svg className="map-instructions__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Haz clic en el mapa para marcar la ubicación</span>
+          <div className="event-registration__map-wrapper">
+            <div className="map-card">
+              <div className="map-card__header">
+                <h3 className="map-card__title">Ubicación en el Mapa</h3>
+                <p className="map-card__subtitle">
+                  Haz clic en el mapa para marcar el punto exacto
+                </p>
               </div>
+              <div id="map" className="map-card__map"></div>
             </div>
           </div>
         </div>
