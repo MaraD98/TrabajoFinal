@@ -1,44 +1,452 @@
+/* ==========================================================================
+   REGISTRO DE EVENTOS - ESTILOS MODERNOS
+   ========================================================================== */
 
-.create-event-container {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 20px;
+/* Variables de diseño */
+:root {
+  --color-primary: #1a1a1a;
+  --color-secondary: #2d2d2d;
+  --color-accent: #4a90e2;
+  --color-text: #333333;
+  --color-text-light: #666666;
+  --color-text-hint: #999999;
+  --color-border: #e5e5e5;
+  --color-background: #ffffff;
+  --color-background-alt: #f8f9fa;
+  --color-success: #4caf50;
+  
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 1rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2rem;
+  --spacing-xl: 3rem;
+  --spacing-2xl: 4rem;
+  
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  
+  --transition-base: 0.2s ease;
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.create-event-form {
+/* ==========================================================================
+   CONTENEDOR PRINCIPAL
+   ========================================================================== */
+
+.event-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  padding: var(--spacing-xl) var(--spacing-md);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+}
+
+.event-page__container {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ==========================================================================
+   ENCABEZADO
+   ========================================================================== */
+
+.event-page__header {
+  text-align: center;
+  margin-bottom: var(--spacing-2xl);
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.event-page__title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.event-page__subtitle {
+  font-size: 1.125rem;
+  color: var(--color-text-light);
+  margin: 0;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   CONTENIDO PRINCIPAL
+   ========================================================================== */
+
+.event-page__content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.event-page__form-section,
+.event-page__map-section {
+  background: var(--color-background);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   FORMULARIO
+   ========================================================================== */
+
+.event-page__form-section {
+  padding: var(--spacing-xl);
+}
+
+.event-form__group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.event-form__group:last-of-type {
+  margin-bottom: var(--spacing-xl);
+}
+
+.event-form__label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.event-form__input,
+.event-form__textarea {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  color: var(--color-text);
+  background: var(--color-background-alt);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  outline: none;
+}
+
+.event-form__input:focus,
+.event-form__textarea:focus {
+  background: var(--color-background);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.event-form__input::placeholder,
+.event-form__textarea::placeholder {
+  color: var(--color-text-hint);
+}
+
+.event-form__textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.6;
+}
+
+/* Input de moneda */
+.event-form__input-wrapper {
+  position: relative;
+}
+
+.event-form__currency {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-light);
+  pointer-events: none;
+}
+
+.event-form__input--currency {
+  padding-left: 2rem;
+}
+
+/* Texto de ayuda */
+.event-form__hint {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--color-text-hint);
+  margin-top: var(--spacing-xs);
+  font-style: italic;
+}
+
+/* Botón de envío */
+.event-form__submit {
+  width: 100%;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-smooth);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.event-form__submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.event-form__submit:active {
+  transform: translateY(0);
+}
+
+/* ==========================================================================
+   MAPA
+   ========================================================================== */
+
+.event-page__map-section {
+  position: relative;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.create-event-form label {
-  font-weight: bold;
-  margin-bottom: 4px;
-}
-
-.create-event-form input,
-.create-event-form textarea {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-.create-event-form button {
-  margin-top: 12px;
-  padding: 10px;
-  background-color: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.create-event-form button:hover {
-  background-color: #1565c0;
+.map-wrapper {
+  position: relative;
+  height: 100%;
+  min-height: 600px;
 }
 
 .map-container {
-  height: 400px;
-  margin-top: 20px;
-  border: 1px solid #ccc;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  z-index: 1;
+}
+
+/* Instrucciones del mapa */
+.map-instructions {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  right: var(--spacing-md);
+  background: var(--color-background);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  z-index: 1000;
+  animation: slideInDown 0.4s ease-out 0.8s both;
+}
+
+.map-instructions__icon {
+  width: 24px;
+  height: 24px;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.map-instructions span {
+  font-size: 0.875rem;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .event-page__content {
+    grid-template-columns: 1fr;
+  }
+  
+  .event-page__map-section {
+    order: 2;
+  }
+  
+  .map-wrapper {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .event-page {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+  
+  .event-page__title {
+    font-size: 2rem;
+  }
+  
+  .event-page__subtitle {
+    font-size: 1rem;
+  }
+  
+  .event-page__header {
+    margin-bottom: var(--spacing-lg);
+  }
+  
+  .event-page__content {
+    gap: var(--spacing-md);
+  }
+  
+  .event-page__form-section {
+    padding: var(--spacing-md);
+  }
+  
+  .event-form__group {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .map-instructions {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .event-page__title {
+    font-size: 1.75rem;
+  }
+  
+  .event-form__submit {
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9375rem;
+  }
+}
+
+/* ==========================================================================
+   ANIMACIONES
+   ========================================================================== */
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   PERSONALIZACIÓN DEL MAPA LEAFLET
+   ========================================================================== */
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.leaflet-popup-content {
+  margin: var(--spacing-sm);
+  font-size: 0.875rem;
+}
+
+.leaflet-control-zoom {
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a {
+  width: 36px;
+  height: 36px;
+  line-height: 36px;
+  font-size: 20px;
+  border: none;
+  transition: all var(--transition-base);
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   ESTADOS DE VALIDACIÓN
+   ========================================================================== */
+
+.event-form__input:invalid:not(:placeholder-shown),
+.event-form__textarea:invalid:not(:placeholder-shown) {
+  border-color: #e74c3c;
+}
+
+.event-form__input:valid:not(:placeholder-shown),
+.event-form__textarea:valid:not(:placeholder-shown) {
+  border-color: var(--color-success);
+}
+
+/* ==========================================================================
+   MODO OSCURO (OPCIONAL)
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #ffffff;
+    --color-secondary: #e5e5e5;
+    --color-text: #e5e5e5;
+    --color-text-light: #b3b3b3;
+    --color-text-hint: #808080;
+    --color-border: #404040;
+    --color-background: #1a1a1a;
+    --color-background-alt: #2d2d2d;
+  }
+  
+  .event-page {
+    background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  }
+  
+  .event-page__form-section,
+  .event-page__map-section {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  
+  .map-instructions {
+    background: rgba(26, 26, 26, 0.95);
+    -webkit-backdrop-filter: blur(10px); /* soporte Safari/iOS */ 
+    backdrop-filter: blur(10px); /* estándar */
+  }
 }
