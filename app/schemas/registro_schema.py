@@ -15,10 +15,7 @@ class EventoBase(BaseModel):
 
 # 2. INPUT: Validaciones extra solo al crear
 class EventoCreate(EventoBase):
-    # --- AQUÍ ESTÁ LA SOLUCIÓN ---
-    # Agregamos este campo para que el Servicio pueda escribir el estado (1 o 3)
-    # Le ponemos valor por defecto 1 (Borrador) para que no sea obligatorio enviarlo desde el front.
-    id_estado: int = 1 
+   
 
     @field_validator('fecha_evento')
     @classmethod
