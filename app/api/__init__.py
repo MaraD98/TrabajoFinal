@@ -7,9 +7,9 @@ from .calendario import router as calendario_router
 
 routers = [
     auth_router,
+    calendario_router,
     eventos_router,
     router_evento_solicitud,
     admin_eventos_router,
-    editar_evento_router,
-    calendario_router
+    editar_evento_router
 ]

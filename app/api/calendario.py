@@ -4,7 +4,7 @@ from typing import List
 from app.db.database import get_db 
 from app.db.crud import calendario_crud as crud
 from app.schemas import calendario_schema as schemas
-from app.services import calendario_service as service     
+from app.services import calendario_services as service     
 
 router = APIRouter(tags=["Calendario"])
 calendario_srv = service.CalendarioService()

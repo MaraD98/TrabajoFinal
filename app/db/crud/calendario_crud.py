@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-# AJUSTA ESTA LÍNEA según tu estructura de carpetas:
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad 
 from datetime import date
 

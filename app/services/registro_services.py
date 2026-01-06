@@ -1,7 +1,6 @@
 import os
 import shutil
 from uuid import uuid4
-from app.models.registro_models import EventoMultimedia # Importar el modelo nuevo
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List
@@ -11,28 +10,21 @@ from app.schemas.registro_schema import EventoCreate, EventoResponse
 # Configuración de carpeta para guardar fotos
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-# --------------------------------------
-
-# Ya no necesitamos importar Evento (modelo) aquí, porque eso lo maneja el CRUD
 
 class EventoService:
 
     @staticmethod
     def crear_nuevo_evento(db: Session, evento_in: EventoCreate, usuario_actual) -> EventoResponse:
         
-        # ---------------------------------------------------------
-        # 1. VALIDACIÓN DE ROL 
-        # ---------------------------------------------------------
-        # Asumiendo que usuario_actual tiene el campo id_rol
+        # 1. VALIDACIÓN DE PERMISOS
+        # Roles 3 (Operario) y 4 (Cliente) no pueden crear
         if usuario_actual.id_rol in [3, 4]: 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Tu perfil no tiene permisos para crear eventos."
             )
 
-        # ---------------------------------------------------------
         # 2. VALIDACIÓN DE DUPLICADOS 
-        # ---------------------------------------------------------
         evento_existente = registro_crud.get_evento_por_nombre_y_fecha(
             db, 
             nombre=evento_in.nombre_evento, 
@@ -44,10 +36,14 @@ class EventoService:
                 detail=f"Ya existe un evento llamado '{evento_in.nombre_evento}' para esa fecha."
             )
         
-        # ---------------------------------------------------------
-        # 3. LLAMADA AL CRUD 
-        # ---------------------------------------------------------
-        # IMPORTANTE: Asumo que tu objeto usuario tiene 'id_usuario' o 'id'.
+        # 3. LÓGICA DE ESTADO (ADMIN Y SUPERVISOR PUBLICAN DIRECTO)
+        # Admin (1) o Supervisor (2) -> ID Estado 3 (Publicado)
+        if usuario_actual.id_rol in [1, 2]: 
+            evento_in.id_estado = 3 
+        else:
+            evento_in.id_estado = 1 
+
+        # 4. LLAMADA AL CRUD 
         nuevo_evento = registro_crud.create_evento(
             db=db, 
             evento=evento_in, 
@@ -81,24 +77,20 @@ class EventoService:
         registro_crud.delete_evento(db=db, evento_id=evento_id)
         return {"detail": "Evento eliminado correctamente"}
     
-    # --- TU SERVICIO NUEVO ---
     @staticmethod
     def agregar_detalles_multimedia(
         db: Session,
         id_evento: int,
         archivo: UploadFile = None
     ):
-        # 1. Validar que el evento exista (Usamos la función de tu compañero)
+        # 1. Validar que el evento exista
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
 
         resultados = []
 
-       
-
-        # 3. Procesar Imagen (HU 1.3)
-        # Guardamos la ruta en la tabla multimedia con tipo 'IMAGEN'
+        # 2. Procesar Imagen
         if archivo:
             # Validar formato
             if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:

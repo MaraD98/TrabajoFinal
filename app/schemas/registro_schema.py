@@ -3,7 +3,7 @@ from datetime import date
 from typing import Optional
 from decimal import Decimal
 
-# 1. BASE: Campos comunes (sin validación de fecha futura)
+# 1. BASE: Campos comunes
 class EventoBase(BaseModel):
     nombre_evento: str = Field(..., max_length=100, min_length=1, description="Nombre del evento")
     ubicacion: str = Field(..., max_length=255, min_length=1)
@@ -15,12 +15,14 @@ class EventoBase(BaseModel):
 
 # 2. INPUT: Validaciones extra solo al crear
 class EventoCreate(EventoBase):
-    
-    # La validación se queda aquí. Solo importa cuando creas o actualizas.
+    # --- AQUÍ ESTÁ LA SOLUCIÓN ---
+    # Agregamos este campo para que el Servicio pueda escribir el estado (1 o 3)
+    # Le ponemos valor por defecto 1 (Borrador) para que no sea obligatorio enviarlo desde el front.
+    id_estado: int = 1 
+
     @field_validator('fecha_evento')
     @classmethod
     def validar_fecha_futura(cls, v):
-        # Solo validamos que sea futura cuando estamos CREANDO
         if v <= date.today():
             raise ValueError("La fecha del evento debe ser futura.")
         return v
@@ -31,7 +33,6 @@ class EventoResponse(EventoBase):
     id_usuario: int
     id_estado: int
 
-    # Configuración para que lea desde el modelo ORM (SQLAlchemy)
     model_config = ConfigDict(from_attributes=True)
     
 # --- TU SCHEMA NUEVO ---
