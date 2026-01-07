@@ -4,16 +4,12 @@ from app.schemas.registro_schema import EventoCreate
 from datetime import date
 
 # -----------------------------------------------------------------------------
-# Si mañana cambia el ID de borrador, solo lo cambias acá.
-ID_ESTADO_BORRADOR = 1
-# -----------------------------------------------------------------------------
 # 1. CREATE (Crear) - 
 # -----------------------------------------------------------------------------
 # Agregamos 'user_id' como parámetro para saber quién crea el evento
-def create_evento(db: Session, evento: EventoCreate, user_id: int):
+# Agregamos "id_estado_final" en el paréntesis
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):
     
-    # Creamos el objeto del modelo asignando CAMPO POR CAMPO (manualmente)
-    # Así queda bien claro qué dato va en qué columna.
     db_evento = Evento(
         nombre_evento       = evento.nombre_evento,
         ubicacion           = evento.ubicacion,
@@ -23,9 +19,10 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int):
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
         
-        # --- CORRECCIÓN ---
-        id_estado  = ID_ESTADO_BORRADOR, # Usamos la constante definida arriba
-        id_usuario = user_id             # Usamos el ID que recibimos por parámetro
+        # --- AQUÍ ESTÁ EL CAMBIO ---
+        # Ahora usa el número que le pasamos, no el fijo
+        id_estado  = id_estado_final, 
+        id_usuario = user_id
     )
     
     db.add(db_evento)

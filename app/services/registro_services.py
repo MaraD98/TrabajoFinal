@@ -17,14 +17,14 @@ class EventoService:
     def crear_nuevo_evento(db: Session, evento_in: EventoCreate, usuario_actual) -> EventoResponse:
         
         # 1. VALIDACIÓN DE PERMISOS
-        # Roles 3 (Operario) y 4 (Cliente) no pueden crear
-        if usuario_actual.id_rol in [3, 4]: 
+        if usuario_actual.id_rol in [3, 4]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Tu perfil no tiene permisos para crear eventos."
             )
 
-        # 2. VALIDACIÓN DE DUPLICADOS 
+        # 2. VALIDACIÓN DE DUPLICADOS
+        # (Alineado correctamente con el resto del código)
         evento_existente = registro_crud.get_evento_por_nombre_y_fecha(
             db, 
             nombre=evento_in.nombre_evento, 
@@ -35,19 +35,21 @@ class EventoService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ya existe un evento llamado '{evento_in.nombre_evento}' para esa fecha."
             )
-        
-        # 3. LÓGICA DE ESTADO (ADMIN Y SUPERVISOR PUBLICAN DIRECTO)
-        # Admin (1) o Supervisor (2) -> ID Estado 3 (Publicado)
-        if usuario_actual.id_rol in [1, 2]: 
-            evento_in.id_estado = 3 
-        else:
-            evento_in.id_estado = 1 
 
-        # 4. LLAMADA AL CRUD 
+        # 3. CALCULAR EL ESTADO
+        # Admin (1) o Supervisor (2) -> Publicado (3)
+        # Otros -> Borrador (1)
+        if usuario_actual.id_rol in [1, 2]:
+            estado_calculado = 3 
+        else:
+            estado_calculado = 1 
+        
+        # 4. GUARDAR
         nuevo_evento = registro_crud.create_evento(
             db=db, 
             evento=evento_in, 
-            user_id=usuario_actual.id_usuario
+            user_id=usuario_actual.id_usuario,
+            id_estado_final=estado_calculado 
         )
         
         return nuevo_evento
