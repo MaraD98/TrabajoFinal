@@ -15,6 +15,8 @@ class SolicitudPublicacionCreate(BaseModel):
     id_dificultad: int = Field(..., gt=0, description="ID de dificultad (1=Básico, 2=Intermedio, 3=Avanzado)")
     descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción del evento")
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de participación")
+    lat: Optional[Decimal]
+    lng: Optional[Decimal]
     
     @field_validator('fecha_evento')
     @classmethod
