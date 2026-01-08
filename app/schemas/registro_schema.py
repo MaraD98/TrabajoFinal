@@ -14,6 +14,7 @@ class EventoBase(BaseModel):
     id_dificultad: int = Field(..., gt=0, description="ID de la dificultad")
     lat: Optional[Decimal]
     lng: Optional[Decimal]
+    cupo_maximo: int = Field(..., gt=0, description="Cupo máximo de participantes")
 
 
 # 2. INPUT: Validaciones extra solo al crear
