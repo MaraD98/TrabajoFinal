@@ -12,6 +12,8 @@ class EventoBase(BaseModel):
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de inscripción")
     id_tipo: int = Field(..., gt=0, description="ID del tipo de evento")
     id_dificultad: int = Field(..., gt=0, description="ID de la dificultad")
+    cupo_maximo: int = Field(..., gt=0, description="Cupo máximo de participantes")
+
 
 # 2. INPUT: Validaciones extra solo al crear
 class EventoCreate(EventoBase):

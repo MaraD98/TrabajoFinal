@@ -27,6 +27,8 @@ class SolicitudPublicacion(Base):
     ubicacion = Column(String(150), nullable=False)
     descripcion = Column(Text, nullable=True)
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)
+    cupo_maximo = Column(Integer, nullable=False, default=0) 
+
      # Auditoría
     fecha_solicitud = Column(Date, nullable=False)
     observaciones_admin = Column(Text, nullable=True) # Comentarios del admin al revisar la solicitud
