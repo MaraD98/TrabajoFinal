@@ -46,6 +46,10 @@ class Evento(Base):
 
     # Fecha automática
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Coordenadas para mapa
+    lat = Column(DECIMAL(9, 6), nullable=True)
+    lng = Column(DECIMAL(9, 6), nullable=True)
    
     # 4. Esto permite hacer 'evento.multimedia' y ver las fotos
     multimedia = relationship("EventoMultimedia", back_populates="evento")

@@ -71,7 +71,8 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Borrador'),
 ('Pendiente'),
 ('Publicado'),
-('Finalizado');
+('Finalizado'),
+('Cancelado');
 
 -----------------------------------------------------------------------------------------------------------------------------------
 -- TABLA EVENTO
@@ -79,7 +80,7 @@ INSERT INTO EstadoEvento (nombre) VALUES
 CREATE TABLE Evento (
     id_evento SERIAL PRIMARY KEY, 
     id_usuario INT NOT NULL,
-    nombre_evento VARCHAR(255) NOT NULL UNIQUE,
+    nombre_evento VARCHAR(255) NOT NULL,
     fecha_evento DATE NOT NULL,
     ubicacion VARCHAR(255) NOT NULL,
     id_tipo INT NOT NULL,       
@@ -88,6 +89,8 @@ CREATE TABLE Evento (
     costo_participacion DECIMAL(10,2) NOT NULL,     
     id_estado INT NOT NULL DEFAULT 1, 
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    lat DECIMAL(9,6),
+    lng DECIMAL(9,6),
 
     CONSTRAINT FK_Evento_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
     CONSTRAINT FK_Evento_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
@@ -104,6 +107,7 @@ CREATE TABLE EstadoSolicitud (
 
 -- Datos iniciales
 INSERT INTO EstadoSolicitud (nombre) VALUES
+('Borrador'),
 ('Pendiente'),
 ('Aprobada'),
 ('Rechazada');
@@ -111,7 +115,7 @@ INSERT INTO EstadoSolicitud (nombre) VALUES
 
 CREATE TABLE Solicitud_Publicacion (
     id_solicitud SERIAL PRIMARY KEY,
-    nombre_evento VARCHAR(100) NOT NULL UNIQUE,
+    nombre_evento VARCHAR(100) NOT NULL,
     fecha_evento DATE NOT NULL,
     ubicacion VARCHAR(150) NOT NULL, -- Ajustado a 150 según tu HU 1.2
     id_tipo INT NOT NULL,       
@@ -123,7 +127,9 @@ CREATE TABLE Solicitud_Publicacion (
     observaciones_admin TEXT,
     id_estado_solicitud INT,
     id_usuario INT NOT NULL,
-    
+    lat DECIMAL(9,6),
+    lng DECIMAL(9,6),
+
     CONSTRAINT FK_Solicitud_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
     CONSTRAINT FK_Solicitud_Dificultad FOREIGN KEY (id_dificultad) REFERENCES NivelDificultad(id_dificultad),
     CONSTRAINT FK_Solicitud_Estado FOREIGN KEY (id_estado) REFERENCES EstadoEvento(id_estado),
@@ -140,6 +146,17 @@ CREATE TABLE Evento_Multimedia (
     fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_evento) REFERENCES Evento(id_evento),
     FOREIGN KEY (id_solicitud) REFERENCES Solicitud_Publicacion(id_solicitud)
+);
+
+CREATE TABLE Notificacion (
+    id_notificacion SERIAL PRIMARY KEY,
+    id_usuario INT NOT NULL,                           -- destinatario
+    id_estado_solicitud INT NOT NULL,                  -- estado asociado
+    mensaje TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    leida BOOLEAN DEFAULT FALSE,
+    CONSTRAINT fk_notificacion_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    CONSTRAINT fk_notificacion_estado FOREIGN KEY (id_estado_solicitud) REFERENCES EstadoSolicitud(id_estado_solicitud)
 );
 
 ----------------------------------------------------------------------------------------------------------------------------------
