@@ -21,7 +21,7 @@ def get_eventos_calendario(db: Session, fecha_inicio: date, fecha_fin: date):
         # 2. LA MAGIA: Traemos el nombre de la otra tabla y lo RENOMBRAMOS
         # Usamos .label() para que coincida EXACTO con tu Schema ('nombre_tipo')
         TipoEvento.nombre.label("nombre_tipo"),           
-        NivelDificultad.nombre.label("nombre_dificultad") 
+        NivelDificultad.nombre.label("Nivel_dificultad") 
     )\
     .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)\
     .join(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad)\
