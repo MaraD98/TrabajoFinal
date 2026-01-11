@@ -67,10 +67,11 @@ export default function CalendarioPage() {
   };
 
   const obtenerEventosDelDia = (dia: number) => {
-    // Formato YYYY-MM-DD para comparar
+    // Formateamos la fecha para comparar (YYYY-MM-DD)
     const fechaBuscada = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-    // Usamos fecha_evento que es como viene del backend
-    return eventos.filter(e => e.fecha_evento === fechaBuscada);
+    
+    // Verificamos si es una lista válida y filtramos
+    return (Array.isArray(eventos) ? eventos : []).filter(evento => evento.fecha_evento === fechaBuscada);
   };
 
   const cambiarMes = (direccion: number) => {
