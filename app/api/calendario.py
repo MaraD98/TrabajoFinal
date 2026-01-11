@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
+# Asegúrate de que estos imports coincidan con tu estructura
 from app.db.database import get_db 
 from app.db.crud import calendario_crud as crud
 from app.schemas import calendario_schema as schemas
@@ -26,6 +27,21 @@ def obtener_calendario_mensual(
         return [] 
 
     # 2. Llamamos al CRUD (Base de datos)
-    eventos = crud.get_eventos_calendario(db, fecha_inicio, fecha_fin)
+    resultados_db = crud.get_eventos_calendario(db, fecha_inicio, fecha_fin)
     
-    return eventos
+    # 3. Mapeo manual (SOLUCIÓN FINAL)
+    lista_eventos = []
+    
+    for row in resultados_db:
+        evento_dict = {
+            # 👇 AQUÍ ESTABA EL ERROR: Cambiamos "id" por "id_evento"
+            "id_evento": row[0],       
+            "nombre_evento": row[1],
+            "fecha_evento": row[2],
+            "ubicacion": row[3],
+            "nombre_tipo": row[4],
+            "nombre_dificultad": row[5] if row[5] else "Sin dificultad"
+        }
+        lista_eventos.append(evento_dict)
+    
+    return lista_eventos
