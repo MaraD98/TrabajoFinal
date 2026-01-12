@@ -18,8 +18,7 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
-        
-        # --- AQUÍ ESTÁ EL CAMBIO ---
+        cupo_maximo         = evento.cupo_maximo,
         # Ahora usa el número que le pasamos, no el fijo
         id_estado  = id_estado_final, 
         id_usuario = user_id
@@ -69,6 +68,7 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
+        db_evento.cupo_maximo         = evento_data.cupo_maximo
         
         # Guardamos los cambios
         db.commit()
