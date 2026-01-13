@@ -18,14 +18,14 @@ export async function getEventos() {
   return res.data;
 }
 
-// 👇 ESTA ES LA QUE ESTABA FALLANDO
 export async function getEventosCalendario(month: number, year: number) {
-  // Escribimos la dirección COMPLETA del backend.
-  // Asegúrate de que tu backend corre en el puerto 8000 y tiene el prefijo /api/v1
-  const url = `http://127.0.0.1:8000/api/v1/eventos/calendario?month=${month}&year=${year}`;
-  
-  console.log("Intentando obtener eventos de:", url); // Esto te ayudará a ver la URL en la consola
-  
-  const res = await api.get(url);
+  // Al usar api.get y pasar los params así, Axios construye la URL:
+  // http://localhost:8000/api/v1/eventos/calendario?month=X&year=Y
+  const res = await api.get("/eventos/calendario", {
+    params: {
+      month: month,
+      year: year
+    }
+  });
   return res.data;
 }

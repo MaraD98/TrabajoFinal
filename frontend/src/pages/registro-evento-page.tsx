@@ -5,12 +5,14 @@ import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 
 export default function CreateEventPage() {
+  // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
   const [formData, setFormData] = useState({
     nombre_evento: "",
     ubicacion: "",
     fecha_evento: "",
     descripcion: "",
     costo_participacion: 0,
+    cupo_maximo: 0, // <--- NUEVO CAMPO AGREGADO
     id_tipo: 1,
     id_dificultad: 1,
     lat: null as number | null,
@@ -25,7 +27,6 @@ export default function CreateEventPage() {
   const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
 
-
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
@@ -39,10 +40,18 @@ export default function CreateEventPage() {
       alert("Debes estar logueada para crear eventos");
       return;
     }
+    
+    // Validación básica para cupo
+    if (formData.cupo_maximo <= 0) {
+        alert("El cupo máximo debe ser mayor a 0");
+        return;
+    }
+
     try {
       const evento = await createEvento(formData, token);
       console.log("Evento creado:", evento);
       alert("¡Evento creado exitosamente!");
+      // Opcional: Redirigir o limpiar formulario aquí
     } catch (err) {
       console.error("Error al crear evento:", err);
       alert("Error al crear el evento. Por favor intenta nuevamente.");
@@ -235,6 +244,7 @@ export default function CreateEventPage() {
                     className="event-form__select"
                     required
                   >
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Running</option>
                     <option value={2}>Ciclismo</option>
                     <option value={3}>Triatlón</option>
@@ -254,6 +264,7 @@ export default function CreateEventPage() {
                     className="event-form__select"
                     required
                   >
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Principiante</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
@@ -314,6 +325,26 @@ export default function CreateEventPage() {
                     rows={5}
                     required
                   />
+                </div>
+
+                {/* 2. AQUÍ ESTÁ EL INPUT VISUAL PARA CUPO MÁXIMO */}
+                <div className="event-form__field">
+                  <label htmlFor="cupo_maximo" className="event-form__label">
+                    Cupo Máximo *
+                  </label>
+                  <input
+                    id="cupo_maximo"
+                    type="number"
+                    name="cupo_maximo"
+                    placeholder="Ej: 500"
+                    onChange={handleChange}
+                    className="event-form__input"
+                    min="1"
+                    required
+                  />
+                   <span className="event-form__hint">
+                    Límite de participantes
+                  </span>
                 </div>
 
                 <div className="event-form__field">
