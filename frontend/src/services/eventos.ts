@@ -1,6 +1,6 @@
 import { api } from "./api";
 
-// Crear un evento
+//Crear un evento
 export async function createEvento(eventoData: any, token: string) {
   const res = await api.post("/eventos", eventoData, {
     headers: {
