@@ -1,0 +1,152 @@
+/* src/styles/eventos-page.css */
+
+/* Variables para mantener consistencia */
+:root {
+  --primary-orange: #ff6b00;
+  --bg-dark: #121212;
+  --bg-card: #1e1e1e;
+  --text-white: #ffffff;
+  --text-gray: #b0b0b0;
+  --danger-red: #d32f2f;
+}
+
+/* Contenedor Principal */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  min-height: 100vh;
+  color: var(--text-white);
+  font-family: sans-serif;
+}
+
+.page-title {
+  color: var(--primary-orange);
+  border-bottom: 2px solid #333;
+  padding-bottom: 15px;
+  margin-bottom: 30px;
+  text-transform: uppercase;
+}
+
+/* GRILLA DE TARJETAS (Responsive) */
+.grid-eventos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Se acomodan solas */
+  gap: 25px;
+}
+
+/* DISEÑO DE LA TARJETA */
+.card-evento {
+  background-color: var(--bg-card);
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-evento:hover {
+  transform: translateY(-5px); /* Efecto de flotar al pasar el mouse */
+  border-color: var(--primary-orange);
+  box-shadow: 0 5px 15px rgba(255, 107, 0, 0.1);
+}
+
+.card-evento h3 {
+  margin-top: 0;
+  color: var(--text-white);
+  font-size: 1.25rem;
+}
+
+.card-info {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+
+/* ESTADOS (Verde/Rojo) */
+.estado-activo {
+  color: #4caf50;
+  font-weight: bold;
+}
+.estado-cancelado {
+  color: #ef5350;
+  font-weight: bold;
+}
+
+/* BOTÓN DE ELIMINAR */
+.btn-cancelar {
+  margin-top: 15px;
+  background-color: transparent;
+  border: 1px solid var(--danger-red);
+  color: var(--danger-red);
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+  transition: 0.3s;
+}
+
+.btn-cancelar:hover {
+  background-color: var(--danger-red);
+  color: white;
+}
+
+/* --- ESTILOS DEL MODAL (VENTANA EMERGENTE) --- */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.8); /* Fondo negro transparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.modal-content {
+  background: var(--bg-card);
+  padding: 30px;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 450px;
+  border-top: 4px solid var(--danger-red);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.modal-textarea {
+  width: 100%;
+  min-height: 80px;
+  margin: 15px 0;
+  background: #2c2c2c;
+  border: 1px solid #444;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-btn-confirm {
+  background-color: var(--danger-red);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.modal-btn-cancel {
+  background-color: transparent;
+  color: var(--text-gray);
+  border: 1px solid #555;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+}

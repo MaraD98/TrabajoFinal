@@ -140,7 +140,7 @@ def solicitar_eliminacion(
 # ============ HU 4.3: ELIMINACIÓN DIRECTA (ADMIN/SUPERVISOR) ============
 @router.patch(
     "/{evento_id}/admin-eliminar",
-    summary="Baja Administrativa (Limpieza)",
+    summary="Eliminación directa por Administrador(Limpieza)",
     description="Permite a Administradores y Supervisores dar de baja eventos (ej: antiguos, abandonados o solicitudes pendientes)."
 )
 def admin_eliminar_evento(

@@ -14,3 +14,27 @@ export async function getEventos() {
   const res = await api.get("/eventos");
   return res.data;
 }
+
+// HU 4.1: Cancelar mi propio evento
+export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
+    const response = await api.patch(`/eventos/${idEvento}/cancelar`, null, {
+        params: { motivo }
+    });
+    return response.data;
+};
+
+// HU 4.2: Solicitar baja (Usuario Externo)
+export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
+    const response = await api.patch(`/eventos/${idEvento}/solicitar-eliminacion`, null, {
+        params: { motivo }
+    });
+    return response.data;
+};
+
+// HU 4.3: Eliminar como Administrador
+export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
+    const response = await api.patch(`/eventos/${idEvento}/admin-eliminar`, null, {
+        params: { motivo }
+    });
+    return response.data;
+};
