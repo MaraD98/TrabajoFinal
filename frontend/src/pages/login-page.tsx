@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { login } from "../services/eventos";
+import { useNavigate, useLocation } from "react-router-dom";
+import { login, getCurrentUser } from "../services/eventos";
 import "../styles/login.css";
 
 export default function LoginPage() {
@@ -10,11 +10,35 @@ export default function LoginPage() {
     contrasenia: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const showAuthNotice = location.state?.reason === "auth"; 
+  const showRoleDeniedNotice = location.state?.reason === "role-denied";
 
+  // Chequear si ya hay token 
+  const token = localStorage.getItem("token");
+
+  // Si ya está logueado, mostrar mensaje y botón de logout
+  if (token) {
+    return (
+      <div className="login-page">
+        <h2>Ya estás logueado ✅</h2>
+        <button
+          onClick={() => {
+            localStorage.removeItem("token");
+            navigate("/login"); // refrescar login
+          }}
+        >
+          Cerrar sesión
+        </button>
+      </div>
+    );
+  }
+
+  // Si no hay token, mostrar el formulario normal
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -37,9 +61,12 @@ export default function LoginPage() {
 
       if (response.access_token) {
         localStorage.setItem("token", response.access_token);
-
         // Si querés guardar también el tipo de token
         localStorage.setItem("token_type", response.token_type);
+
+        // pedir usuario actual 
+        const usuario = await getCurrentUser(response.access_token);
+        localStorage.setItem("rol", usuario.id_rol.toString());
 
         // Redirigir al inicio o a los eventos
         navigate("/");
@@ -73,12 +100,23 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
-            {error && (
-              <div className="login-alert login-alert--error">
-                <span className="login-alert__icon">⚠️</span>
-                <span className="login-alert__message">{error}</span>
-              </div>
-            )}
+          {showAuthNotice && (
+          <div className="login-alert login-alert--error">
+            <span className="login-alert__icon">⚠️</span>
+            <span className="login-alert__message">Debes iniciar sesión primero</span>
+          </div>
+        )}
+
+        {showRoleDeniedNotice && (
+          <div className="login-alert login-alert--error">
+            <span className="login-alert__icon">⚠️</span>
+            <span className="login-alert__message">
+              No tienes permisos para crear eventos
+            </span>
+          </div>
+        )}
+
+
 
             <div className="login-form__group">
               <label htmlFor="email" className="login-form__label">
@@ -158,7 +196,7 @@ export default function LoginPage() {
           <div className="login-card__footer">
             <p className="login-footer__text">
               ¿No tienes cuenta?{" "}
-              <a href="/registro" className="login-footer__link">
+              <a href="/register" className="login-footer__link">
                 Regístrate aquí
               </a>
             </p>
@@ -199,8 +237,26 @@ export default function LoginPage() {
               Visualiza todos los eventos en un mapa interactivo
             </p>
           </div>
-          <div className="login-feature"
-            onClick={() => navigate("/registro-evento")} 
+          <div
+            className="login-feature"
+            onClick={() => {
+              const token = localStorage.getItem("token");
+              const rol = localStorage.getItem("rol");
+
+              const allowedRoles = [1, 2]; // IDs de admin y supervisor
+
+              if (!token) {
+                navigate("/login", { state: { reason: "auth" } });
+                return;
+              }
+
+              if (!rol || !allowedRoles.includes(Number(rol))) {
+                navigate("/login", { state: { reason: "role-denied" } });
+                return;
+              }
+
+              navigate("/registro-evento");
+            }}
           >
             <div className="login-feature__icon">🎯</div>
             <h3 className="login-feature__title">Crea tus Eventos</h3>
@@ -208,6 +264,7 @@ export default function LoginPage() {
               Organiza y publica tus propios eventos deportivos
             </p>
           </div>
+
         </div>
       </div>
     </div>
