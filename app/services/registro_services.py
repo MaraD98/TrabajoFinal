@@ -7,6 +7,7 @@ from fastapi import HTTPException, status, UploadFile
 from typing import List
 from app.db.crud import registro_crud
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 # Configuración de carpeta para guardar fotos
 UPLOAD_DIR = "static/uploads"
@@ -53,6 +54,13 @@ class EventoService:
             evento=evento_in, 
             user_id=usuario_actual.id_usuario,
             id_estado=estado_calculado
+        )
+         # regla de negocio: al crear usuario, crear notificación de bienvenida
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=usuario_actual.id_usuario,
+            id_estado_solicitud= estado_calculado,
+            mensaje=f"Se publicó el evento: {nuevo_evento.nombre_evento}"
         )
         
         return nuevo_evento

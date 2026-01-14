@@ -1,12 +1,10 @@
 from datetime import date
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-
-# Importamos los modelos necesarios
-# Asumo que Evento está en registro_models (donde lo tenías originalmente)
 from app.models.registro_models import Evento 
 # Importamos tus nuevos modelos de historial
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 class EditarEventoService:
 
@@ -100,7 +98,16 @@ class EditarEventoService:
                 # Confirmamos todo el paquete junto
                 db.commit()
                 db.refresh(evento_db)
-            
+
+            # 6. CREAR NOTIFICACIÓN (si alguien distinto al responsable editó)
+                if id_usuario_actual != evento_db.id_usuario:
+                    NotificacionCRUD.create_notificacion(
+                        db=db,
+                        id_usuario=evento_db.id_usuario,  # responsable original del evento
+                        id_estado_solicitud=None,
+                        mensaje=f"Tu evento '{evento_db.nombre_evento}' fue editado por un administrador."
+                    )
+
             except Exception as e:
                 db.rollback() # Si algo falla, volvemos atrás como si nada hubiera pasado
                 print(f"Error al guardar historial: {e}") # Log interno para debugear
