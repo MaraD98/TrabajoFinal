@@ -40,6 +40,26 @@ def create_evento(
     # Aquí llamamos a TU servicio PRO que tiene las validaciones
     return EventoService.crear_nuevo_evento(db=db, evento_in=evento,usuario_actual=current_user)
 
+# ============ Listar Mis Eventos (GET) ============
+@router.get(
+    "/mis-eventos",
+    response_model=List[EventoResponse],
+    summary="Listar solo los eventos creados por el usuario actual"
+)
+def read_mis_eventos(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)  # <--- Protegido, solo logueados
+):
+    return EventoService.listar_eventos_por_usuario(
+        db=db,
+        id_usuario=current_user.id_usuario,
+        skip=skip,
+        limit=limit
+    )
+
+
 # ============ Listar Eventos (GET) ============
 @router.get(
     "/", 

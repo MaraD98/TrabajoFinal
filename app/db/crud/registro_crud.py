@@ -49,6 +49,17 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
         .all()
     )
 
+# Traer todos mis eventos (el que faltaba)
+def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(Evento)
+        .filter(Evento.id_usuario == id_usuario)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+
 # -----------------------------------------------------------------------------
 # 3. READ ONE (Leer uno solo) - Esto se usa cuando llega un GET con ID
 # -----------------------------------------------------------------------------
