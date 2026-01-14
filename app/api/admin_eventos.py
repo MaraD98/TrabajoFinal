@@ -9,6 +9,7 @@ from app.models.auth_models import Usuario
 from app.core.security import security
 from app.services.auth_services import AuthService
 from app.services.evento_permisos_service import EventoPermisosService
+from app.services.evento_solicitud_service import EventoSolicitudService # Importamos el servicio de solicitudes
 
 router = APIRouter(prefix="/admin/solicitudes", tags=["Administración de Solicitudes"])
 
@@ -111,12 +112,12 @@ def obtener_detalle_solicitud(id_solicitud: int, db: Session = Depends(get_db),
     
     return solicitud
 
-# ============ Revisar solicitud ============
+# ============ Revisar solicitud (MODIFICADO) ============
 @router.patch(
     "/{id_solicitud}/revisar",
     response_model=SolicitudPublicacionResponse,
     summary="Revisar y cambiar estado de solicitud",
-    description="Cambia el estado de una solicitud y registra observaciones del administrador. Al aprobar, el evento cambia automáticamente a estado Publicado."
+    description="Si se Aprueba (estado 3), se crea automáticamente el Evento Publicado. Si se Rechaza, solo cambia el estado."
 )
 def revisar_solicitud(
     id_solicitud: int,
@@ -124,10 +125,30 @@ def revisar_solicitud(
     db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)
 ):
-    solicitud_actualizada = Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
     
+    #  LÓGICA DE APROBACIÓN (ID 3 = Aprobada)
+    if revision.id_estado_solicitud == 3:
+        # Usamos el servicio nuevo que hace el TRASPASO de datos
+        try:
+            EventoSolicitudService.aprobar_solicitud_y_publicar(
+                db=db,
+                id_solicitud=id_solicitud,
+                id_admin=admin.id_usuario
+            )
+            # Como el servicio devuelve un diccionario y el endpoint espera un modelo Pydantic,
+            # recargamos la solicitud actualizada desde la BD para devolverla
+            solicitud_actualizada = Solicitud_PublicacionCRUD.obtener_solicitud_detallada(db, id_solicitud)
+            
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+    #  LÓGICA DE RECHAZO U OTROS ESTADOS
+    else:
+        # Usamos el CRUD normal que solo cambia el estado
+        solicitud_actualizada = Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
+    
+    # Verificación final
     if not solicitud_actualizada:
-        from fastapi import HTTPException
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Solicitud con ID {id_solicitud} no encontrada"

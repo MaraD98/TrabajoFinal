@@ -5,6 +5,10 @@ from app.services.evento_permisos_service import EventoPermisosService
 from app.models.auth_models import Usuario
 from datetime import date, timedelta
 from fastapi import HTTPException, status
+#  NUEVO: Importamos el modelo de destino (Evento) para poder crear el publicado
+from app.models.registro_models import Evento 
+#  NUEVO: Importamos el modelo de origen para buscarlo si es necesario
+from app.models.evento_solicitud_models import SolicitudPublicacion
  
     #Servicio para manejar lógica de negocio de solicitudes de publicación
     
@@ -141,6 +145,65 @@ class EventoSolicitudService:
         
         return solicitud_actualizada
 
+    @staticmethod
+    def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int):
+        """
+        1. Cambia estado de solicitud a APROBADA (3).
+        2. COPIA los datos de la solicitud a la tabla EVENTO con estado PUBLICADO (3).
+        """
+        
+        # 1. Buscar la Solicitud
+        solicitud = db.query(SolicitudPublicacion).filter(SolicitudPublicacion.id_solicitud == id_solicitud).first()
+        
+        if not solicitud:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+        if solicitud.id_estado_solicitud == 3: # Ya estaba aprobada
+             raise HTTPException(status_code=400, detail="Esta solicitud ya fue aprobada anteriormente")
+
+        # 2. Actualizar Estado de la Solicitud (Origen)
+        # Según tu SQL: 3 = Aprobada en EstadoSolicitud
+        solicitud.id_estado_solicitud = 3 
+        solicitud.observaciones_admin = f"Aprobado por Admin ID {id_admin}"
+
+        # 3. CREAR EL EVENTO PUBLICADO (Destino - La Convertibilidad)
+        # Copiamos campo por campo desde la solicitud hacia el nuevo Evento
+        # Según tu SQL: 3 = Publicado en EstadoEvento
+        
+        nuevo_evento = Evento(
+            id_usuario          = solicitud.id_usuario,
+            nombre_evento       = solicitud.nombre_evento,
+            fecha_evento        = solicitud.fecha_evento,
+            ubicacion           = solicitud.ubicacion,
+            id_tipo             = solicitud.id_tipo,
+            id_dificultad       = solicitud.id_dificultad,
+            descripcion         = solicitud.descripcion,
+            costo_participacion = solicitud.costo_participacion,
+            lat                 = solicitud.lat,
+            lng                 = solicitud.lng,
+            id_estado           = 3  # <--- IMPORTANTE: Forzamos estado PUBLICADO
+        )
+
+        try:
+            # Guardamos el nuevo evento
+            db.add(nuevo_evento)
+            # Guardamos los cambios en la solicitud (estado aprobado)
+            db.add(solicitud)
+            
+            db.commit()
+            db.refresh(nuevo_evento)
+            
+            return {
+                "mensaje": "Solicitud aprobada y evento publicado con éxito",
+                "evento_publicado_id": nuevo_evento.id_evento,
+                "solicitud_id": solicitud.id_solicitud
+            }
+            
+        except Exception as e:
+            db.rollback()
+            print(f"Error al publicar evento: {e}")
+            raise HTTPException(status_code=500, detail=f"Error interno al publicar el evento: {str(e)}")
+    
 # Alias para compatibilidad (si los usas en otros lugares)
 crear_solicitud_publicacion = Solicitud_PublicacionCRUD.crear_solicitud_publicacion
 obtener_solicitud_por_id = Solicitud_PublicacionCRUD.obtener_solicitud_por_id
