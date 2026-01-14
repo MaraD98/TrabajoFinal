@@ -150,8 +150,8 @@ CREATE TABLE Evento_Multimedia (
 
 CREATE TABLE Notificacion (
     id_notificacion SERIAL PRIMARY KEY,
-    id_usuario INT NOT NULL,                           -- destinatario
-    id_estado_solicitud INT NOT NULL,                  -- estado asociado
+    id_usuario INT NOT NULL,                          
+    id_estado_solicitud INT,                  
     mensaje TEXT,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     leida BOOLEAN DEFAULT FALSE,
