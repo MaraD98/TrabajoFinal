@@ -12,6 +12,9 @@ from app.services.auth_services import AuthService
 # TUS Importaciones (Schemas y Services)
 from app.schemas.registro_schema import EventoCreate, EventoResponse
 from app.services.registro_services import EventoService
+#PARA MULTIMEDIA
+from typing import List # <--- IMPORTANTE: No olvides importar esto
+from fastapi import File, UploadFile, Form
 
 # Definimos el router con prefijo y tags (igual que auth.py)
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
@@ -98,20 +101,34 @@ def update_evento(
 ):
     return EventoService.actualizar_evento(db, evento_id, evento) """
     
-    # --- TU ENDPOINT NUEVO (HU 1.3 y 1.4) ---
+    # --- TU ENDPOINT NUEVO (HU 1.3) ---
 @router.post(
     "/{evento_id}/multimedia",
-    summary="Multimedia: Agregar imagen o archivo multimedia al evento",
-    description="Sube una imagen y/o link al evento creado."
+    summary="Multimedia: Agregar múltiples imágenes o links",
+    description="Permite subir una lista de imágenes y/o un link externo."
 )
 def agregar_multimedia_evento(
     evento_id: int,
-    archivo_imagen: UploadFile = File(None), # Opcional
+    # 1. CAMBIO AQUÍ: Ahora aceptamos una LISTA de archivos
+    archivos_imagenes: List[UploadFile] = File(None), 
+    
+    # 2. Url opcional (por si quiere poner un link de YouTube también)
+    url_multimedia: str = Form(None),       
+    
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
+    # Validamos que mande al menos algo
+    if not archivos_imagenes and not url_multimedia:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Debes enviar al menos una imagen o una URL."
+        )
+
+    # Llamamos al servicio (que tendremos que adaptar para que procese la lista)
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
-        archivo=archivo_imagen
+        lista_archivos=archivos_imagenes, # Pasamos la lista entera
+        url_externa=url_multimedia
     )

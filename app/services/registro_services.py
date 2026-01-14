@@ -1,9 +1,9 @@
 import os
 import shutil
 from uuid import uuid4
-from app.models.registro_models import EventoMultimedia # Importar el modelo nuevo
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
+from typing import List, Optional
 from typing import List
 from app.db.crud import registro_crud
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
@@ -86,44 +86,61 @@ class EventoService:
         registro_crud.delete_evento(db=db, evento_id=evento_id)
         return {"detail": "Evento eliminado correctamente"}
     
-    # --- TU SERVICIO NUEVO ---
+    # ---------------------------------------------------------
+    #  AQUÍ ESTÁ LA LÓGICA DE MULTIMEDIA ACTUALIZADA 
+    # ---------------------------------------------------------
     @staticmethod
     def agregar_detalles_multimedia(
         db: Session,
         id_evento: int,
-        archivo: UploadFile = None
+        lista_archivos: List[UploadFile] = None, 
+        url_externa: str = None                  # Ahora recibe un STRING opcional
     ):
-        # 1. Validar que el evento exista (Usamos la función de tu compañero)
+        # 1. Validar que el evento exista
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
 
         resultados = []
 
-       
-
-        # 3. Procesar Imagen (HU 1.3)
-        # Guardamos la ruta en la tabla multimedia con tipo 'IMAGEN'
-        if archivo:
-            # Validar formato
-            if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-                raise HTTPException(status_code=400, detail="Formato inválido. Solo JPG/PNG.")
-            
-            # Guardar archivo físico
-            extension = archivo.filename.split(".")[-1]
-            nombre_archivo = f"{uuid4()}.{extension}"
-            ruta_final = f"{UPLOAD_DIR}/{nombre_archivo}"
-            
-            with open(ruta_final, "wb") as buffer:
-                shutil.copyfileobj(archivo.file, buffer)
-
-            # Guardar en BD
-            imagen_entry = registro_crud.create_multimedia(
+        # 2. PROCESAR URL EXTERNA (Si existe)
+        if url_externa:
+            link_entry = registro_crud.create_multimedia(
                 db=db,
                 id_evento=id_evento,
-                url=ruta_final,
-                tipo="IMAGEN" 
+                url=url_externa,
+                tipo="ENLACE" # O "VIDEO", según prefieras clasificarlo
             )
-            resultados.append(imagen_entry)
+            resultados.append(link_entry)
+
+        # 3. PROCESAR LISTA DE IMÁGENES (Si existen)
+        if lista_archivos:
+            for archivo in lista_archivos:
+                # Validar formato de CADA archivo
+                if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+                    # Si uno falla, lanzamos error (o podrías usar 'continue' para saltarlo)
+                    raise HTTPException(status_code=400, detail=f"El archivo {archivo.filename} no es una imagen válida (JPG/PNG).")
+                
+                # Generar nombre único
+                extension = archivo.filename.split(".")[-1]
+                nombre_archivo = f"{uuid4()}.{extension}"
+                ruta_relativa = f"static/uploads/{nombre_archivo}" # Ruta para guardar en BD
+                ruta_fisica = f"{UPLOAD_DIR}/{nombre_archivo}"     # Ruta para guardar en disco
+                
+                # Guardar archivo físico en disco
+                try:
+                    with open(ruta_fisica, "wb") as buffer:
+                        shutil.copyfileobj(archivo.file, buffer)
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Error guardando imagen: {str(e)}")
+
+                # Guardar referencia en Base de Datos
+                imagen_entry = registro_crud.create_multimedia(
+                    db=db,
+                    id_evento=id_evento,
+                    url=ruta_relativa, # Guardamos "static/uploads/foto.jpg"
+                    tipo="IMAGEN" 
+                )
+                resultados.append(imagen_entry)
 
         return resultados if resultados else {"mensaje": "No se enviaron datos nuevos"}

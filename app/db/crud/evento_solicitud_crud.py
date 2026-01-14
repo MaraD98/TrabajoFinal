@@ -109,7 +109,20 @@ class Solicitud_PublicacionCRUD:
             joinedload(SolicitudPublicacion.estado_evento),
             joinedload(SolicitudPublicacion.estado_solicitud)
         ).filter(
-            SolicitudPublicacion.id_estado_solicitud == 2  
+            SolicitudPublicacion.id_estado_solicitud == 1  
+        ).order_by(desc(SolicitudPublicacion.fecha_solicitud)).all()
+    
+    @staticmethod
+    def obtener_solicitudes_rechazadas(db: Session) -> list[SolicitudPublicacion]:
+        return db.query(SolicitudPublicacion).options(
+            joinedload(SolicitudPublicacion.usuario),
+            joinedload(SolicitudPublicacion.tipo_evento),
+            joinedload(SolicitudPublicacion.nivel_dificultad),
+            joinedload(SolicitudPublicacion.estado_evento),
+            joinedload(SolicitudPublicacion.estado_solicitud)
+        ).filter(
+            # El 3 es Rechazada
+            SolicitudPublicacion.id_estado_solicitud == 3
         ).order_by(desc(SolicitudPublicacion.fecha_solicitud)).all()
     
     @staticmethod
