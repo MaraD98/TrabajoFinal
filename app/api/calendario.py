@@ -18,6 +18,7 @@ def obtener_calendario_mensual(
 ):
     """
     Endpoint para el calendario mensual.
+    Devuelve eventos con detalles completos (IDs, Nombres, Coordenadas, etc.)
     """
     
     # 1. Llamamos al servicio (Lógica de fechas)
@@ -27,20 +28,38 @@ def obtener_calendario_mensual(
         return [] 
 
     # 2. Llamamos al CRUD (Base de datos)
+    # IMPORTANTE: El CRUD debe devolver las columnas en el orden que mapeamos abajo
     resultados_db = crud.get_eventos_calendario(db, fecha_inicio, fecha_fin)
     
-    # 3. Mapeo manual (SOLUCIÓN FINAL)
+    # 3. Mapeo manual (ACTUALIZADO CON TODOS LOS CAMPOS)
     lista_eventos = []
     
     for row in resultados_db:
         evento_dict = {
-            # 👇 AQUÍ ESTABA EL ERROR: Cambiamos "id" por "id_evento"
+            # --- Datos Básicos ---
             "id_evento": row[0],       
             "nombre_evento": row[1],
             "fecha_evento": row[2],
             "ubicacion": row[3],
-            "nombre_tipo": row[4],
-            "nombre_dificultad": row[5] if row[5] else "Sin dificultad"
+
+            # --- Tipo (ID y Nombre) ---
+            # Asumimos que row[4] es ID y row[5] es Nombre
+            "id_tipo": row[4] if row[4] is not None else 0,
+            "nombre_tipo": row[5] if row[5] is not None else "General",
+
+            # --- Dificultad (ID y Nombre) ---
+            # Asumimos que row[6] es ID y row[7] es Nombre
+            "id_dificultad": row[6] if row[6] is not None else 0,
+            "nombre_dificultad": row[7] if row[7] is not None else "General",
+
+            # --- Detalles Extra ---
+            "descripcion": row[8] if row[8] is not None else "",
+            "costo_participacion": row[9] if row[9] is not None else 0.0,
+            "cupo_maximo": row[10] if row[10] is not None else 0,
+
+            # --- Coordenadas ---
+            "lat": row[11] if row[11] is not None else None,
+            "lng": row[12] if row[12] is not None else None
         }
         lista_eventos.append(evento_dict)
     
