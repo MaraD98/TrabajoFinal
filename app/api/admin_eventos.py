@@ -125,29 +125,26 @@ def revisar_solicitud(
     db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)
 ):
-    
-    #  LÓGICA DE APROBACIÓN (ID 3 = Aprobada)
-    if revision.id_estado_solicitud == 3:
-        # Usamos el servicio nuevo que hace el TRASPASO de datos
+
+    #  LÓGICA DE APROBACIÓN (ID 2 = Aprobada)
+    if revision.id_estado_solicitud == 2:
         try:
+            # Llamamos al servicio que publica el evento
             EventoSolicitudService.aprobar_solicitud_y_publicar(
                 db=db,
                 id_solicitud=id_solicitud,
                 id_admin=admin.id_usuario
             )
-            # Como el servicio devuelve un diccionario y el endpoint espera un modelo Pydantic,
-            # recargamos la solicitud actualizada desde la BD para devolverla
+            # Recargamos para devolver el objeto actualizado
             solicitud_actualizada = Solicitud_PublicacionCRUD.obtener_solicitud_detallada(db, id_solicitud)
             
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e))
 
-    #  LÓGICA DE RECHAZO U OTROS ESTADOS
+    # Lógica para Rechazar (3) u otros estados
     else:
-        # Usamos el CRUD normal que solo cambia el estado
         solicitud_actualizada = Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
     
-    # Verificación final
     if not solicitud_actualizada:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

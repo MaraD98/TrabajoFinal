@@ -148,8 +148,8 @@ class EventoSolicitudService:
     @staticmethod
     def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int):
         """
-        1. Cambia estado de solicitud a APROBADA (3).
-        2. COPIA los datos de la solicitud a la tabla EVENTO con estado PUBLICADO (3).
+        1. Cambia estado de solicitud a APROBADA (2).
+        2. COPIA los datos a la tabla EVENTO con estado PUBLICADO (3).
         """
         
         # 1. Buscar la Solicitud
@@ -158,18 +158,15 @@ class EventoSolicitudService:
         if not solicitud:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")
 
-        if solicitud.id_estado_solicitud == 3: # Ya estaba aprobada
+        # Verificamos si ya estaba en estado 2 (Aprobada)
+        if solicitud.id_estado_solicitud == 2: 
              raise HTTPException(status_code=400, detail="Esta solicitud ya fue aprobada anteriormente")
 
         # 2. Actualizar Estado de la Solicitud (Origen)
-        # Según tu SQL: 3 = Aprobada en EstadoSolicitud
-        solicitud.id_estado_solicitud = 3 
+        solicitud.id_estado_solicitud = 2  
         solicitud.observaciones_admin = f"Aprobado por Admin ID {id_admin}"
 
-        # 3. CREAR EL EVENTO PUBLICADO (Destino - La Convertibilidad)
-        # Copiamos campo por campo desde la solicitud hacia el nuevo Evento
-        # Según tu SQL: 3 = Publicado en EstadoEvento
-        
+        # 3. CREAR EL EVENTO PUBLICADO (Destino)
         nuevo_evento = Evento(
             id_usuario          = solicitud.id_usuario,
             nombre_evento       = solicitud.nombre_evento,
@@ -181,13 +178,11 @@ class EventoSolicitudService:
             costo_participacion = solicitud.costo_participacion,
             lat                 = solicitud.lat,
             lng                 = solicitud.lng,
-            id_estado           = 3  # <--- IMPORTANTE: Forzamos estado PUBLICADO
+            id_estado           = 3  # Estado del EVENTO (Publicado)
         )
 
         try:
-            # Guardamos el nuevo evento
             db.add(nuevo_evento)
-            # Guardamos los cambios en la solicitud (estado aprobado)
             db.add(solicitud)
             
             db.commit()
