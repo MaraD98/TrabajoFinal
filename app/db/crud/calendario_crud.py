@@ -8,22 +8,33 @@ ID_ESTADO_PUBLICADO = 3
 def get_eventos_calendario(db: Session, fecha_inicio: date, fecha_fin: date):
     """
     Busca eventos publicados dentro del rango de fechas.
-    Hace JOIN con Tipo y Dificultad para traer los nombres en vez de los IDs.
+    Trae TODA la info: IDs, nombres, descripción, costos y coordenadas.
     """
     
     return db.query(
-        # 1. Seleccionamos campos específicos de la tabla Evento
-        Evento.id_evento,
-        Evento.nombre_evento,
-        Evento.fecha_evento,
-        Evento.ubicacion,
+        # --- 0 al 3: Datos básicos del Evento ---
+        Evento.id_evento,          # row[0]
+        Evento.nombre_evento,      # row[1]
+        Evento.fecha_evento,       # row[2]
+        Evento.ubicacion,          # row[3]
         
-        Evento.cupo_maximo,          # <--- FALTABA ESTE
-        Evento.costo_participacion,  # <--- FALTABA ESTE
-        # 2. LA MAGIA: Traemos el nombre de la otra tabla y lo RENOMBRAMOS
-        # Usamos .label() para que coincida EXACTO con tu Schema ('nombre_tipo')
-        TipoEvento.nombre.label("nombre_tipo"),           
-        NivelDificultad.nombre.label("nivel_dificultad") 
+        # --- 4 y 5: Datos del TIPO ---
+        TipoEvento.id_tipo,                     # row[4] (Nuevo: ID)
+        TipoEvento.nombre.label("nombre_tipo"), # row[5] (Nombre)
+        
+        # --- 6 y 7: Datos de la DIFICULTAD ---
+        NivelDificultad.id_dificultad,                    # row[6] (Nuevo: ID)
+        NivelDificultad.nombre.label("nombre_dificultad"),# row[7] (Nombre)
+
+        # --- 8, 9, 10: Detalles extra ---
+        Evento.descripcion,          # row[8]
+        Evento.costo_participacion,  # row[9]
+        Evento.cupo_maximo,          # row[10]
+
+        # --- 11 y 12: Coordenadas ---
+        Evento.lat,                  # row[11]
+        Evento.lng                   # row[12]
+        
     )\
     .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)\
     .join(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad)\
