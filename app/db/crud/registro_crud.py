@@ -2,15 +2,13 @@ from sqlalchemy.orm import Session
 from app.models.registro_models import Evento, EventoMultimedia #AGREGADO EventoMultimedia
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
+from sqlalchemy import or_
 
-# -----------------------------------------------------------------------------
-# Si mañana cambia el ID de borrador, solo lo cambias acá.
-ID_ESTADO_BORRADOR = 1
 # -----------------------------------------------------------------------------
 # 1. CREATE (Crear) - 
 # -----------------------------------------------------------------------------
 # Agregamos 'user_id' como parámetro para saber quién crea el evento
-def create_evento(db: Session, evento: EventoCreate, user_id: int):
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado: int):
     
     # Creamos el objeto del modelo asignando CAMPO POR CAMPO (manualmente)
     # Así queda bien claro qué dato va en qué columna.
@@ -22,10 +20,11 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int):
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
+        lat = evento.lat,  
+        lng = evento.lng,
         
-        # --- CORRECCIÓN ---
-        id_estado  = ID_ESTADO_BORRADOR, # Usamos la constante definida arriba
-        id_usuario = user_id             # Usamos el ID que recibimos por parámetro
+        id_estado  = id_estado,      
+        id_usuario = user_id            
     )
     
     db.add(db_evento)
@@ -37,7 +36,18 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int):
 # 2. READ (Leer todos) - Esto se usa cuando llega un GET (lista)
 # -----------------------------------------------------------------------------
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Evento).offset(skip).limit(limit).all()
+    #return db.query(Evento).offset(skip).limit(limit).all()
+    return (
+        db.query(Evento)
+        .filter(
+            or_(
+                Evento.id_estado == 3                  # Publicado
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 # -----------------------------------------------------------------------------
 # 3. READ ONE (Leer uno solo) - Esto se usa cuando llega un GET con ID
@@ -61,6 +71,9 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
+        db_evento.lat = evento_data.lat
+        db_evento.lng = evento_data.lng
+
         
         # Guardamos los cambios
         db.commit()

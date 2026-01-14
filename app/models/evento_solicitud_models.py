@@ -30,6 +30,9 @@ class SolicitudPublicacion(Base):
      # Auditoría
     fecha_solicitud = Column(Date, nullable=False)
     observaciones_admin = Column(Text, nullable=True) # Comentarios del admin al revisar la solicitud
+    # Coordenadas para mapa
+    lat = Column(DECIMAL(9, 6), nullable=True)
+    lng = Column(DECIMAL(9, 6), nullable=True)
     
     # Foreign Keys
     id_tipo = Column(Integer, ForeignKey('tipoevento.id_tipo'), nullable=False)

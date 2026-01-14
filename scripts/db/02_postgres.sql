@@ -71,7 +71,8 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Borrador'),
 ('Pendiente'),
 ('Publicado'),
-('Finalizado');
+('Finalizado'),
+('Cancelado');
 
 -----------------------------------------------------------------------------------------------------------------------------------
 -- TABLA EVENTO
@@ -88,6 +89,8 @@ CREATE TABLE Evento (
     costo_participacion DECIMAL(10,2) NOT NULL,     
     id_estado INT NOT NULL DEFAULT 1, 
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    lat DECIMAL(9,6),
+    lng DECIMAL(9,6),
 
     CONSTRAINT FK_Evento_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
     CONSTRAINT FK_Evento_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
@@ -124,7 +127,9 @@ CREATE TABLE Solicitud_Publicacion (
     observaciones_admin TEXT,
     id_estado_solicitud INT,
     id_usuario INT NOT NULL,
-    
+    lat DECIMAL(9,6),
+    lng DECIMAL(9,6),
+
     CONSTRAINT FK_Solicitud_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
     CONSTRAINT FK_Solicitud_Dificultad FOREIGN KEY (id_dificultad) REFERENCES NivelDificultad(id_dificultad),
     CONSTRAINT FK_Solicitud_Estado FOREIGN KEY (id_estado) REFERENCES EstadoEvento(id_estado),

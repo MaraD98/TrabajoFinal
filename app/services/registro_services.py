@@ -23,12 +23,12 @@ class EventoService:
         # ---------------------------------------------------------
         # 1. VALIDACIÓN DE ROL 
         # ---------------------------------------------------------
-        # Asumiendo que usuario_actual tiene el campo id_rol
-        if usuario_actual.id_rol in [3, 4]: 
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Tu perfil no tiene permisos para crear eventos."
-            )
+       # 1 = Admin, 2 = Supervisor -> Publicado (3)
+        # Otros -> Borrador (1)
+        if usuario_actual.id_rol in [1, 2]:
+            estado_calculado = 3
+        else:
+            estado_calculado = 1
 
         # ---------------------------------------------------------
         # 2. VALIDACIÓN DE DUPLICADOS 
@@ -51,7 +51,8 @@ class EventoService:
         nuevo_evento = registro_crud.create_evento(
             db=db, 
             evento=evento_in, 
-            user_id=usuario_actual.id_usuario
+            user_id=usuario_actual.id_usuario,
+            id_estado=estado_calculado
         )
         
         return nuevo_evento

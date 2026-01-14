@@ -36,10 +36,12 @@ TrabajoFinal/
 │   ├── schemas/      # Esquemas Pydantic (validación de datos)
 │   ├── services/     # Lógica de negocio (auth, reglas de negocio, cálculos)
 │   └── tests/        # Pruebas unitarias e integración
-├── main.py           # Punto de entrada FastAPI
+├───── main.py           # Punto de entrada FastAPI
 ├── scripts/          # Scripts auxiliares (migraciones, inicialización)
 │   └── db/ 
 │       └── README.md
+├── static/
+│       └── uploads/  # imagenes descargadas // esto se movera al front despues 
 ├── .env              # Variables de entorno (DB, SECRET_KEY, etc.)
 ├── .gitattributes
 ├── .gitignore
