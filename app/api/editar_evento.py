@@ -19,14 +19,16 @@ def editar_evento(
     current_user = Depends(get_current_user)
 ):
     """
-    Permite al organizador (dueño) editar un evento.
+    Permite editar un evento.
     
-    - **Validaciones:** Verifica que el evento sea futuro y que el usuario sea el propietario.
-    - **Auditoría:** Si hay cambios, se guardan automáticamente en 'Historial_Edicion_Evento' y 'Detalle_Cambio_Evento'.
+    - **Roles:** - Admin/Supervisor: Pueden editar cualquier evento.
+        - Usuario (Dueño): Solo puede editar sus eventos si NO están publicados.
+    - **Auditoría:** Se guardan los cambios en el historial.
     """
     return EditarEventoService.actualizar_evento(
         db=db, 
         id_evento=id_evento, 
         evento_update=evento_data, 
-        id_usuario_actual=current_user.id_usuario
+        id_usuario_actual=current_user.id_usuario,
+        id_rol_actual=current_user.id_rol  # <--- ¡AQUÍ ESTÁ LA CLAVE!
     )
