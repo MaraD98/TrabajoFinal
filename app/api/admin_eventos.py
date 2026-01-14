@@ -44,7 +44,7 @@ def require_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
     summary="Listar todas las solicitudes",
 )
 def listar_todas_solicitudes(
-    id_estado_solicitud: int = Query(None, ge=1, le=3),
+    id_estado_solicitud: int = Query(None, ge=1, le=3, description="Filtro por estado: 1=Pendiente, 2=Aprobada, 3=Rechazada"),
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -73,12 +73,16 @@ def listar_todas_solicitudes(
     "/pendientes",
     response_model=list[SolicitudPublicacionResponse],
     summary="Listar solicitudes pendientes",
-    description="Vista rápida de todas las solicitudes que esperan revisión"
+    description="Vista rápida de todas las solicitudes que esperan revisión (Estado 1)"
 )
-def listar_pendientes(db: Session = Depends(get_db),
-    admin: Usuario = Depends(require_admin)):
+def listar_pendientes(
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)
+):
+    # Ahora el CRUD filtrará por id=1 correctamente
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_pendientes(db)
     return solicitudes
+
 
 # ============ Listar solicitudes aprobadas ============
 @router.get(
@@ -90,6 +94,20 @@ def listar_pendientes(db: Session = Depends(get_db),
 def listar_aprobadas(db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)):
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_aprobadas(db)
+    return solicitudes
+
+# ============ Listar solicitudes rechazadas ============
+@router.get(
+    "/rechazadas",
+    response_model=list[SolicitudPublicacionResponse],
+    summary="Listar solicitudes rechazadas",
+    description="Obtiene todas las solicitudes que han sido rechazadas (Estado 3)"
+)
+def listar_rechazadas(
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)
+):
+    solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_rechazadas(db)
     return solicitudes
 
 # ============ Obtener detalle de solicitud ============
