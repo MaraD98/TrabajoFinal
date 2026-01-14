@@ -59,6 +59,10 @@ class EventoService:
         )
         
         return nuevo_evento
+    
+    @staticmethod
+    def listar_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
+        return registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
 
     @staticmethod
     def listar_todos_los_eventos(db: Session, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
