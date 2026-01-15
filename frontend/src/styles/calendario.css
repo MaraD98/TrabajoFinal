@@ -1,473 +1,144 @@
-/* === Paleta de colores WakeUp Bikes === */
+/* --- CONFIGURACIÓN BASE Y TEMA --- */
 :root {
-  --color-fondo: #000000;
-  --color-fondo-secundario: #0a0a0a;
-  --color-fondo-card: #111111;
-  --color-texto-principal: #ffffff;
-  --color-texto-secundario: #b0b0b0;
-  --color-acento: #ffd700;
-  --color-acento-hover: #ffed4e;
-  --color-borde: #222222;
-  --color-evento: #ff6600;
-  --color-dia-inactivo: #1a1a1a;
-  
-  /* Colores de estado y dificultad */
-  --color-experto: #e74c3c;
-  --color-intermedio: #f39c12;
-  --color-principiante: #27ae60;
-  --color-texto-oscuro: #2c3e50;
-  --bg-card-blanco: #ffffff;
-  --bg-form-gris: #f9f9f9;
+  --cal-bg: #121212;
+  --cal-card-bg: #1e1e1e;
+  --cal-gold: #FFD700;
+  --cal-gold-dim: rgba(255, 215, 0, 0.15);
+  --cal-text: #ffffff;
+  --cal-text-muted: #aaaaaa;
+  --cal-border: #333333;
 }
 
-/* === Utilidades === */
-.no-select {
-  user-select: none;
-  cursor: default;
-}
-
-/* === Contenedor principal === */
 .calendario-container {
+  background-color: var(--cal-bg);
   min-height: 100vh;
-  background-color: var(--color-fondo);
+  color: var(--cal-text);
+  font-family: 'Montserrat', sans-serif;
   padding: 2rem 1rem;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  width: 100%;
-}
-
-.calendario-wrapper {
-  max-width: 1400px;
-  margin: 0 auto;
-  background-color: var(--color-fondo-card);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.1);
-  overflow: hidden;
-}
-
-/* === Header === */
-.calendario-header {
-  background: linear-gradient(135deg, var(--color-fondo-secundario) 0%, var(--color-fondo-card) 100%);
-  padding: 2rem;
-  border-bottom: 2px solid var(--color-acento);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 4rem; 
-}
-
-.calendario-titulo {
-  color: var(--color-texto-principal);
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  white-space: nowrap; 
-}
-
-.calendario-navegacion {
-  display: flex;
-  align-items: center;
-  gap: 2rem; 
-}
-
-.mes-actual {
-  color: var(--color-acento);
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-  min-width: 220px; 
-  text-align: center;
-}
-
-.btn-navegacion {
-  background-color: transparent;
-  border: 2px solid var(--color-acento);
-  color: var(--color-acento);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-navegacion:hover {
-  background-color: var(--color-acento);
-  color: var(--color-fondo);
-  transform: scale(1.1);
-}
-
-.btn-navegacion:active {
-  transform: scale(0.95);
-}
-
-/* === Estado de carga (LA BICI) === */
-.calendario-cargando {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4rem 2rem;
 }
 
-.loader-texto {
-  margin-top: 20px;
-  color: #555;
-  font-size: 1.2rem;
-  font-weight: 500;
-}
+.no-select { user-select: none; }
 
-/* Animación de las ruedas (Movida desde el JS) */
-@keyframes spin-wheel {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* --- HEADER --- */
+.cal-header {
+  width: 100%; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--cal-border); padding-bottom: 20px;
 }
+.cal-branding { display: flex; align-items: center; gap: 15px; }
+.cal-logo { height: 60px; width: auto; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.4)); transition: transform 0.3s ease; }
+.cal-logo:hover { transform: scale(1.05); }
+.cal-title-wrapper { display: flex; flex-direction: column; }
+.cal-title { font-size: 1.8rem; font-weight: 800; margin: 0; line-height: 1; letter-spacing: 2px; color: #fff; }
+.cal-subtitle { font-size: 0.9rem; color: var(--cal-gold); letter-spacing: 4px; font-weight: 600; }
 
-.wheel-spinning {
-  animation: spin-wheel 0.8s linear infinite;
-  /* El transform-origin se maneja mejor en el SVG inline o aquí si son IDs fijos, 
-     pero como estaba inline en el path, lo dejamos ahí en el SVG para asegurar el eje correcto */
-}
+/* --- CONTROLES SELECT --- */
+.cal-controls { display: flex; gap: 15px; }
+.select-wrapper { position: relative; }
+.cal-select { appearance: none; background-color: var(--cal-card-bg); border: 1px solid var(--cal-gold); color: var(--cal-gold); padding: 10px 35px 10px 15px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; outline: none; transition: all 0.3s ease; text-transform: uppercase; min-width: 120px; }
+.cal-select:hover { background-color: var(--cal-gold); color: #000; box-shadow: 0 0 15px var(--cal-gold-dim); }
+.select-wrapper::after { content: '▼'; font-size: 0.7rem; color: var(--cal-gold); position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.select-wrapper:hover::after { color: #000; }
 
-/* === Grid del calendario === */
-.calendario-grid-wrapper {
-  padding: 2rem;
-  background-color: var(--color-fondo-card);
-}
+/* --- GRID DEL CALENDARIO --- */
+.calendario-wrapper { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
+.calendario-grid-wrapper { background: var(--cal-card-bg); border-radius: 8px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--cal-border); }
+.calendario-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.dia-semana-header { text-align: center; font-weight: bold; color: var(--cal-gold); padding: 10px 0; text-transform: uppercase; font-size: 0.9rem; }
 
-.calendario-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  background-color: var(--color-borde);
-  border: 1px solid var(--color-borde);
-  border-radius: 8px;
-  overflow: hidden;
-}
+.dia-celda { background-color: #252525; min-height: 80px; border-radius: 4px; padding: 8px; position: relative; border: 1px solid transparent; transition: all 0.2s ease; color: #aaa; }
+.dia-celda:not(.dia-vacio):not(.dia-pasado):hover { background-color: #333; border-color: #555; z-index: 2; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.dia-celda.dia-vacio { background: transparent; }
+.dia-celda.dia-pasado { background-color: #1a1a1a; color: #444; opacity: 0.6; }
+.dia-celda.dia-hoy { border: 1px solid #555; background-color: #2a2a2a; }
+.dia-celda.dia-hoy .dia-numero { color: #fff; text-decoration: underline; text-decoration-color: var(--cal-gold); }
+.dia-celda.dia-con-eventos { background-color: rgba(255, 215, 0, 0.05); border: 1px solid rgba(255, 215, 0, 0.3); cursor: pointer; }
+.dia-celda.dia-seleccionado { background-color: var(--cal-gold); color: #000 !important; border-color: var(--cal-gold); box-shadow: 0 0 15px var(--cal-gold); }
+.dia-celda.dia-seleccionado .dia-numero { color: #000; font-weight: 900; }
+.dia-celda.dia-seleccionado .icono-evento-bici { color: #000 !important; }
+.dia-numero { font-size: 1.1rem; font-weight: 500; }
 
-.dia-semana-header {
-  background-color: var(--color-fondo-secundario);
-  color: var(--color-acento);
-  text-align: center;
-  padding: 1rem;
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+.icono-evento-bici { position: absolute; bottom: 5px; right: 5px; color: var(--cal-gold); }
+.icono-evento-bici svg { display: block; /* Asegura que no haya espacio extra debajo del SVG */ }
 
-.dia-celda {
-  background-color: var(--color-fondo-card);
-  min-height: 100px; 
-  padding: 0.75rem;
-  position: relative;
-  transition: all 0.2s ease;
-  cursor: pointer; 
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
+/* --- CARGANDO --- */
+.calendario-cargando { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--cal-gold); }
+.wheel-spinning { animation: spin 1s infinite linear; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.dia-celda:hover {
-  background-color: var(--color-fondo-secundario);
-}
-
-.dia-seleccionado {
-  background-color: #3b82f6 !important; 
-  border: 2px solid #60a5fa !important; 
-  transform: scale(0.98);
-  box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
-}
-
-.dia-seleccionado .dia-numero {
-  color: #ffffff !important;
-}
-
-.dia-seleccionado .icono-evento-bici {
-    color: #ffffff; 
-}
-
-.dia-vacio {
-  background-color: var(--color-dia-inactivo);
-  cursor: default;
-}
-
-.dia-pasado {
-  background-color: #1a1a1a;
-  opacity: 0.5;
-  cursor: not-allowed !important;
-  border-color: #222;
-}
-
-.dia-hoy .dia-numero {
-  color: var(--color-acento);
-  text-decoration: underline;
-  font-size: 1.2rem;
-}
-
-.dia-numero {
-  color: var(--color-texto-principal);
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.dia-con-eventos {
-  background-color: rgba(255, 215, 0, 0.05);
-  border: 1px solid rgba(255, 215, 0, 0.3);
-}
-
-.dia-con-eventos:hover {
-  background-color: rgba(255, 215, 0, 0.15);
-  box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.1);
-}
-
-.icono-evento-bici {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: auto; 
-    margin-bottom: 5px;
-    color: var(--color-acento);
-    animation: aparecerBici 0.5s ease-out;
-}
-
-.dia-celda:hover .icono-evento-bici {
-    transform: scale(1.2);
-    transition: transform 0.2s;
-}
-
-@keyframes aparecerBici {
-    from { opacity: 0; transform: translateY(5px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* === Panel de Reserva y Detalles (Ex-Inline) === */
-.reserva-panel {
-  padding: 2rem;
-  background-color: var(--color-fondo-secundario);
-  border-top: 2px solid var(--color-acento);
-  animation: slideUp 0.3s ease-out;
-  margin-top: 1rem;
-}
-
-.reserva-panel h3 {
-  color: var(--color-acento);
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  text-align: center;
-}
-
-.lista-eventos-disponibles {
-  margin-bottom: 20px;
-}
+/* --- PANEL DE RESERVA Y DETALLES (ESTRUCTURA VERTICAL) --- */
+.reserva-panel { background: var(--cal-card-bg); border-radius: 8px; padding: 20px; border: 1px solid var(--cal-border); animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.panel-titulo { color: #fff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.fecha-destacada { color: var(--cal-gold); }
 
 .evento-card {
-  background: var(--bg-card-blanco);
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  text-align: left;
-  transition: all 0.3s ease;
-}
-
-/* Cuando el evento está seleccionado/abierto */
-.evento-card.abierto {
-  border: 2px solid var(--color-acento); /* Antes era inline #f1c40f */
-  background-color: #fffff0; /* Un tono muy sutil para diferenciar */
-}
-
-.evento-titulo {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--color-texto-oscuro);
-}
-
-.evento-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  color: #555;
-  font-size: 0.9rem;
-  margin-top: 8px;
-}
-
-.badge-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.texto-dificultad {
-  font-weight: bold;
-  /* El color se asigna con clases específicas abajo */
-}
-
-.dificultad-experto { color: var(--color-experto); }
-.dificultad-intermedio { color: var(--color-intermedio); }
-.dificultad-principiante { color: var(--color-principiante); }
-.dificultad-general { color: var(--color-texto-oscuro); }
-
-.evento-info-extra {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #eee;
-  font-size: 0.95rem;
-  color: #333;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cupo-ilimitado { color: green; }
-
-.evento-ubicacion {
-  color: #7f8c8d;
-  font-size: 0.9rem;
-  margin-top: 5px;
-}
-
-.evento-acciones {
-  margin-top: 15px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-accion {
-  padding: 8px 16px;
-  background-color: var(--color-texto-oscuro);
-  color: white;
-  border: none;
+  background: #252525;
+  border: 1px solid #333;
+  border-left: 4px solid var(--cal-gold);
   border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.3s;
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+.evento-card:hover { background: #2a2a2a; }
+
+/* ESTO ES CLAVE PARA EL ORDEN VERTICAL: */
+/* Aplica margen inferior a cada bloque directo dentro del contenido */
+.evento-card-content > div {
+    margin-bottom: 15px;
+}
+.evento-card-content > div:last-child {
+    margin-bottom: 0; /* El último no necesita margen extra */
 }
 
-.btn-accion:hover {
-  opacity: 0.9;
-}
+.evento-cabecera { display: flex; justify-content: space-between; align-items: flex-start; }
+.evento-titulo { font-size: 1.4rem; font-weight: 700; color: #fff; margin: 0; }
+.evento-precio { font-weight: bold; color: var(--cal-gold); font-size: 1.1rem; white-space: nowrap; margin-left: 10px;}
 
-.btn-accion.cancelar {
-  background-color: var(--color-experto); /* Rojo */
-}
+.evento-badges { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; }
+.badge-dificultad, .badge-tipo, .badge-cupo { padding: 5px 12px; border-radius: 20px; font-weight: 600; background: #333; color: #ccc; }
+.dificultad-experto { color: #ff4d4d; border: 1px solid #ff4d4d; }
+.dificultad-intermedio { color: #ffa500; border: 1px solid #ffa500; }
+.dificultad-principiante { color: #2ecc71; border: 1px solid #2ecc71; }
 
-/* Formulario incrustado en la tarjeta */
-.formulario-container {
-  margin-top: 15px;
-  padding: 15px;
-  background-color: var(--bg-form-gris);
-  border-radius: 6px;
-  border: 1px solid #ddd;
-  animation: fadeIn 0.3s ease-in-out;
-}
+.evento-descripcion { font-style: italic; color: var(--cal-text-muted); line-height: 1.5; display: block; }
 
-.formulario-titulo {
-  margin-top: 0;
-  color: #333;
-}
+.evento-ubicacion { font-size: 0.95rem; color: var(--cal-text-muted); display: flex; align-items: flex-start; gap: 8px; }
+.ubicacion-icono { margin-top: 2px; }
+.ubicacion-texto { line-height: 1.4; }
+.ver-mapa-link { display: inline-block; margin-left: 8px; color: var(--cal-gold); text-decoration: none; border-bottom: 1px dotted var(--cal-gold); font-size: 0.85rem; }
 
-.reserva-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  /* Hereda max-width del contenedor padre si es necesario, 
-     pero aquí queremos que ocupe el ancho de la tarjeta */
-}
+/* BOTONES Y FORMULARIO */
+.evento-acciones { margin-top: 20px; } /* Espacio extra antes del botón */
+.btn-accion { width: 100%; padding: 12px; border: none; font-weight: 800; cursor: pointer; border-radius: 4px; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+.btn-accion.inscribir { background-color: transparent; border: 1px solid var(--cal-gold); color: var(--cal-gold); }
+.btn-accion.inscribir:hover { background-color: var(--cal-gold); color: #000; }
+.btn-accion.cancelar { background-color: #333; color: #fff; }
+.btn-accion.cancelar:hover { background-color: #ff4d4d; }
 
-.form-grupo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+.formulario-container { margin-top: 25px; padding-top: 20px; border-top: 1px dashed #444; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.formulario-titulo { color: var(--cal-gold); margin-bottom: 15px; }
+.form-grupo { margin-bottom: 12px; }
+.form-grupo input { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.form-grupo input:focus { border-color: var(--cal-gold); outline: none; }
+.btn-confirmar { width: 100%; background: var(--cal-gold); color: #000; font-weight: 900; padding: 14px; border: none; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
+.btn-confirmar:hover { background: #ffed4a; }
+.mensaje-vacio { text-align: center; color: #666; font-style: italic; padding: 20px; }
 
-.form-grupo label {
-  color: #555; /* Era texto-secundario pero en fondo blanco se ve poco, oscurecido */
-  font-size: 0.9rem;
-}
-
-.form-grupo input {
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  background-color: #fff;
-  color: #333; /* Texto negro para input en fondo blanco */
-  outline: none;
-}
-
-.form-grupo input:focus {
-  border-color: var(--color-acento);
-}
-
-.btn-confirmar {
-  margin-top: 1rem;
-  padding: 12px;
-  background-color: var(--color-acento);
-  color: var(--color-fondo);
-  font-weight: bold;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: transform 0.2s;
-  width: 100%;
-}
-
-.btn-confirmar:hover {
-  background-color: var(--color-acento-hover);
-  transform: scale(1.02);
-}
-
-.mensaje-vacio {
-  color: #666;
-  font-style: italic;
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-/* === Responsive === */
-@media (max-width: 1024px) {
-  .calendario-wrapper { margin: 0 0.5rem; }
-  .calendario-header { flex-direction: column; gap: 1.5rem; }
-  .calendario-titulo { font-size: 1.5rem; white-space: normal; }
-  .mes-actual { font-size: 1.25rem; min-width: 160px; }
-}
-
+/* MOBILE */
 @media (max-width: 768px) {
-  .calendario-container { padding: 1rem 0.5rem; }
-  .calendario-header { padding: 1.5rem 1rem; }
-  .calendario-titulo { font-size: 1.25rem; margin-bottom: 0; }
-  .calendario-navegacion { gap: 1rem; }
-  .mes-actual { font-size: 1.1rem; min-width: 140px; }
-  .btn-navegacion { width: 40px; height: 40px; }
-  
-  .calendario-grid-wrapper { padding: 1rem; }
-  .calendario-grid { gap: 0.5px; }
-  .dia-semana-header { padding: 0.75rem 0.5rem; font-size: 0.75rem; }
-  .dia-celda { min-height: 80px; padding: 0.5rem; } 
-  .dia-numero { font-size: 0.875rem; }
-  .icono-evento-bici svg { width: 16px; height: 16px; }
-}
-
-@media (max-width: 480px) {
-  .calendario-titulo { font-size: 1rem; }
-  .mes-actual { font-size: 1rem; min-width: 120px; }
-  .dia-semana-header { font-size: 0.65rem; padding: 0.5rem 0.25rem; }
-  .dia-celda { min-height: 60px; padding: 0.4rem; }
-  .dia-numero { font-size: 0.75rem; }
+  .cal-header { flex-direction: column; align-items: flex-start; }
+  .cal-branding { width: 100%; justify-content: center; margin-bottom: 15px; }
+  .cal-controls { width: 100%; gap: 10px; }
+  .select-wrapper { flex: 1; }
+  .cal-select { width: 100%; }
+  .dia-numero { font-size: 0.9rem; }
+  .calendario-grid-wrapper { padding: 5px; }
+  .dia-celda { min-height: 60px; padding: 5px;}
+  /* Ajuste del ícono para móvil */
+  .icono-evento-bici svg { width: 18px; height: 18px; }
 }
