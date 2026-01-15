@@ -34,31 +34,32 @@ export default function CreateEventPage() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) {
-      alert("Debes estar logueada para crear eventos");
-      return;
-    }
-    
-    // Validación básica para cupo
-    if (formData.cupo_maximo <= 0) {
-        alert("El cupo máximo debe ser mayor a 0");
-        return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!token) {
+    alert("Debes estar logueada para crear eventos");
+    return;
+  }
+  if (formData.lat === null || formData.lng === null) {
+    alert("Debes seleccionar una ubicación en el mapa o escribir una dirección válida");
+    return;
+  }
+  // Validación básica para cupo
+  if (formData.cupo_maximo <= 0) {
+    alert("El cupo máximo debe ser mayor a 0");
+    return;
+  }
+  try {
+    const evento = await createEvento(formData, token);
+    console.log("Evento creado:", evento);
+    alert("¡Evento creado exitosamente!");
+  } catch (err) {
+    console.error("Error al crear evento:", err);
+    alert("Error al crear el evento. Por favor intenta nuevamente.");
+  }
+};
 
-    try {
-      const evento = await createEvento(formData, token);
-      console.log("Evento creado:", evento);
-      alert("¡Evento creado exitosamente!");
-      // Opcional: Redirigir o limpiar formulario aquí
-    } catch (err) {
-      console.error("Error al crear evento:", err);
-      alert("Error al crear el evento. Por favor intenta nuevamente.");
-    }
-  };
-
-  const initMap = () => {
+const initMap = () => {
     if (mapRef.current) {
       mapRef.current.remove();
     }
@@ -314,7 +315,7 @@ export default function CreateEventPage() {
                 
                 <div className="event-form__field">
                   <label htmlFor="descripcion" className="event-form__label">
-                    Descripción del Evento *
+                    Descripción del Evento 
                   </label>
                   <textarea
                     id="descripcion"
@@ -323,7 +324,6 @@ export default function CreateEventPage() {
                     onChange={handleChange}
                     className="event-form__textarea"
                     rows={5}
-                    required
                   />
                 </div>
 

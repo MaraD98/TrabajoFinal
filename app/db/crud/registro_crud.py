@@ -22,13 +22,16 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         # --- AQUÍ ESTÁ EL CAMBIO ---
         # Ahora usa el número que le pasamos, no el fijo
         id_estado  = id_estado_final, 
-        id_usuario = user_id
+        id_usuario = user_id,
+        lat = evento.lat,  
+        lng = evento.lng   
     )
     
     db.add(db_evento)
     db.commit()
     db.refresh(db_evento)
     return db_evento
+    
 
 # -----------------------------------------------------------------------------
 # 2. READ (Leer todos) - Esto se usa cuando llega un GET (lista)
@@ -46,6 +49,17 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
         .limit(limit)
         .all()
     )
+
+# Traer todos mis eventos (el que faltaba)
+def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
+    return (
+        db.query(Evento)
+        .filter(Evento.id_usuario == id_usuario)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
 
 # -----------------------------------------------------------------------------
 # 3. READ ONE (Leer uno solo) - Esto se usa cuando llega un GET con ID
@@ -69,6 +83,9 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
+        db_evento.lat = evento_data.lat
+        db_evento.lng = evento_data.lng
+
         
         # Guardamos los cambios
         db.commit()

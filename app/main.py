@@ -1,12 +1,20 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles # Para subir archivos estáticos
 from app.api import routers
+import os
 
 app = FastAPI(
     title="Gestor de Eventos",
     description="API para gestionar usuarios, roles, contactos y eventos con autenticación JWT y PostgreSQL",
     version="1.0.0"
 )
+# 👇 2. CONFIGURAR LA CARPETA ESTÁTICA
+# Creamos la carpeta si no existe para evitar errores
+os.makedirs("static/uploads", exist_ok=True)
+
+# "Mount" significa: Todo lo que vaya a la url /static, búscalo en la carpeta física "static"
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Configurar CORS
 app.add_middleware(

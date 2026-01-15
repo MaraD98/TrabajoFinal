@@ -70,7 +70,7 @@ class SolicitudPublicacionResponse(BaseModel):
     id_dificultad: int
     descripcion: Optional[str]
     costo_participacion: Decimal
-    id_estado: int
+    #id_estado: int
     id_estado_solicitud: Optional[int]
     fecha_solicitud: date
     observaciones_admin: Optional[str]
@@ -79,7 +79,7 @@ class SolicitudPublicacionResponse(BaseModel):
     # Información adicional (opcional, se carga con joinedload)
     usuario: Optional[UsuarioBasico] = None
     estado_solicitud: Optional[EstadoSolicitudInfo] = None
-    estado_evento: Optional[EstadoEventoInfo] = None
+    #estado_evento: Optional[EstadoEventoInfo] = None
     
     
     class Config:
