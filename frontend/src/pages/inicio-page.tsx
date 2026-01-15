@@ -2,16 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/inicio.css';
 import logoWakeUp from '../assets/wakeup-logo.png';
+// Importamos la función que ya arreglamos. ¡No reinventemos la rueda!
+import { getEventos } from '../services/eventos'; 
 
-const API_URL = "http://127.0.0.1:8000";
+// Obtenemos la URL base (http://localhost:8000) quitándole el "/api/v1" para las imágenes
+const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
 // --- 1. DICCIONARIO DE IMÁGENES ---
 const IMAGENES_TIPO: Record<number | string, string> = {
-    1: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=800&auto=format&fit=crop", // Carrera
-    2: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=800&auto=format&fit=crop", // Paseo
-    3: "https://images.unsplash.com/photo-1471506480208-91b3a4cc78be?q=80&w=800&auto=format&fit=crop", // Entrenamiento
-    4: "https://images.unsplash.com/photo-1475666675596-cca2035b3d79?q=80&w=800&auto=format&fit=crop", // Cicloturismo
-    default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop" // Genérica
+    1: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=800&auto=format&fit=crop", 
+    2: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=800&auto=format&fit=crop", 
+    3: "https://images.unsplash.com/photo-1471506480208-91b3a4cc78be?q=80&w=800&auto=format&fit=crop", 
+    4: "https://images.unsplash.com/photo-1475666675596-cca2035b3d79?q=80&w=800&auto=format&fit=crop", 
+    default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop" 
 };
 
 // --- NOMBRES PARA LA ETIQUETA ---
@@ -39,12 +42,10 @@ export default function InicioPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchEventos = async () => {
+        const cargarEventos = async () => {
             try {
-                const response = await fetch(`${API_URL}/api/v1/eventos/`);
-                if (!response.ok) throw new Error('Error al conectar con el servidor');
-                
-                const data = await response.json();
+                // CAMBIO CLAVE: Usamos la función del servicio, no un fetch manual
+                const data = await getEventos(); 
                 
                 const hoy = new Date();
                 hoy.setHours(0, 0, 0, 0);
@@ -69,7 +70,7 @@ export default function InicioPage() {
                 setLoading(false);
             }
         };
-        fetchEventos();
+        cargarEventos();
     }, []);
 
     // --- LÓGICA DE IMAGEN ---
@@ -78,7 +79,8 @@ export default function InicioPage() {
 
         if (url && url.includes("static/uploads")) {
             const cleanPath = url.startsWith("/") ? url.substring(1) : url;
-            return `${API_URL}/${cleanPath}`;
+            // Usamos la URL calculada dinámicamente arriba
+            return `${API_BASE_URL}/${cleanPath}`;
         }
         if (url && url.startsWith("http") && url.length > 15) {
             return url;
@@ -119,8 +121,6 @@ export default function InicioPage() {
                 
                 <div className="grid-eventos">
                     {eventos.map((evento) => {
-                        // Limpiamos la fecha para asegurarnos de pasar solo YYYY-MM-DD
-                        // (Por si la base de datos devuelve 2026-01-22T00:00:00)
                         const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
 
                         return (
@@ -156,7 +156,6 @@ export default function InicioPage() {
                                     paddingTop: '10px'
                                 }}>
                                     
-                                    {/* TIPO */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <span title="Tipo">🏷️</span> 
                                         <span style={{ fontWeight: 'bold', color: '#e2e8f0' }}>
@@ -164,13 +163,11 @@ export default function InicioPage() {
                                         </span>
                                     </div>
 
-                                    {/* FECHA */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <span title="Fecha">📅</span> 
                                         <span>{fechaLimpia}</span>
                                     </div>
 
-                                    {/* UBICACIÓN */}
                                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                         <span style={{ marginTop: '2px' }} title="Ubicación">📍</span> 
                                         <span style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>
@@ -179,16 +176,15 @@ export default function InicioPage() {
                                     </div>
                                 </div>
 
-                                {/* --- CAMBIO IMPORTANTE: AHORA ES UN LINK --- */}
                                 <Link 
                                     to={`/calendario?fecha=${fechaLimpia}&id=${evento.id_evento}`}
                                     className="btn-ver-detalle"
                                     style={{ 
                                         marginTop: '20px', 
                                         width: '100%',
-                                        display: 'block',     // Para que respete el width
-                                        textAlign: 'center',  // Para centrar el texto
-                                        textDecoration: 'none' // Quitar subrayado del link
+                                        display: 'block',    
+                                        textAlign: 'center', 
+                                        textDecoration: 'none'
                                     }}
                                 >
                                     VER DETALLE
