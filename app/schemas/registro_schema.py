@@ -23,7 +23,7 @@ class EventoBase(BaseModel):
     
     # CAMBIO 2: IMPORTANTE
     # 'ge=0' permite que sea 0. 'default=0' hace que no sea obligatorio enviarlo.
-    cupo_maximo: int = Field(default=0, ge=0, description="Cupo máximo de participantes")
+    cupo_maximo: Optional [int] = Field(default=0, ge=0, description="Cupo máximo de participantes")
 
 
 # 2. INPUT: Validaciones extra solo al crear
