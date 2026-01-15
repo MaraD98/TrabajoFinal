@@ -1,26 +1,23 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom'; // Asegúrate de tener instalado react-router-dom
 import { getEventosCalendario } from '../services/eventos'; 
 import '../styles/Calendario.css';
+// IMPORTANTE: Ajusta la ruta de tu logo aquí
+import logoWakeUp from '../assets/wakeup-logo.png'; 
 
-// 1. INTERFACE ACTUALIZADA CON TODOS LOS DATOS DEL BACKEND
 interface Evento {
   id_evento: number;
   nombre_evento: string;
   fecha_evento: string;
   ubicacion?: string;
-  
-  // Datos nuevos
   descripcion?: string;
   costo_participacion?: number;
   lat?: number;
   lng?: number;
-
-  // Relaciones (ID y Nombre)
   id_tipo?: number;
   nombre_tipo?: string;
   id_dificultad?: number;
   nombre_dificultad?: string;
-  
   cupo_maximo?: number; 
 }
 
@@ -29,6 +26,10 @@ const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
+
+// Generamos un rango de años (Desde el actual hasta 5 años más)
+const ANIO_ACTUAL = new Date().getFullYear();
+const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL + i);
 
 export default function CalendarioPage() {
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
@@ -51,12 +52,14 @@ export default function CalendarioPage() {
 
   useEffect(() => {
     cargarEventos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, anio]);
 
   const cargarEventos = async () => {
     setCargando(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Simulación de carga visual
+      await new Promise(resolve => setTimeout(resolve, 500));
       const data = await getEventosCalendario(mes + 1, anio);
       setEventos(data || []);
     } catch (error) {
@@ -89,8 +92,18 @@ export default function CalendarioPage() {
     });
   };
 
-  const cambiarMes = (direccion: number) => {
-    const nuevaFecha = new Date(anio, mes + direccion, 1);
+  // --- NUEVA LÓGICA DE NAVEGACIÓN POR DROPDOWN ---
+  const cambiarMesDropdown = (nuevoMes: number) => {
+    // Al cambiar mes, mantenemos el año, reseteamos al día 1
+    const nuevaFecha = new Date(anio, nuevoMes, 1);
+    setFechaNavegacion(nuevaFecha);
+    setFechaSeleccionada(null);
+    setIdEventoSeleccionado(null);
+  };
+
+  const cambiarAnioDropdown = (nuevoAnio: number) => {
+    // Al cambiar año, mantenemos el mes, reseteamos al día 1
+    const nuevaFecha = new Date(nuevoAnio, mes, 1);
     setFechaNavegacion(nuevaFecha);
     setFechaSeleccionada(null);
     setIdEventoSeleccionado(null);
@@ -128,7 +141,6 @@ export default function CalendarioPage() {
   const dias = obtenerDiasDelMes();
 
   const getClaseDificultad = (dificultad?: string) => {
-    // Convertimos a minúsculas para comparar mejor por si acaso
     const dif = dificultad?.toLowerCase() || '';
     if (dif.includes('experto') || dif.includes('avanzado')) return 'dificultad-experto';
     if (dif.includes('intermedio')) return 'dificultad-intermedio';
@@ -138,20 +150,48 @@ export default function CalendarioPage() {
 
   return (
     <div className="calendario-container">
-      <div className="calendario-wrapper">
-        <header className="calendario-header">
-          <h1 className="calendario-titulo no-select">Calendario de Eventos</h1>
-          <div className="calendario-navegacion">
-            <button className="btn-navegacion" onClick={() => cambiarMes(-1)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-            </button>
-            <h2 className="mes-actual no-select">{MESES[mes]} {anio}</h2>
-            <button className="btn-navegacion" onClick={() => cambiarMes(1)}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6" /></svg>
-            </button>
-          </div>
+        {/* --- HEADER NUEVO: LOGO Y SELECTORES --- */}
+        <header className="cal-header">
+            <div className="cal-branding">
+                <Link to="/">
+                    <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo" />
+                </Link>
+                <div className="cal-title-wrapper">
+                    <h1 className="cal-title">CALENDARIO</h1>
+                    <span className="cal-subtitle">DE EVENTOS</span>
+                </div>
+            </div>
+
+            {/* Controles desplegables */}
+            <div className="cal-controls">
+                <div className="select-wrapper">
+                    <select 
+                        value={mes} 
+                        onChange={(e) => cambiarMesDropdown(Number(e.target.value))}
+                        className="cal-select"
+                    >
+                        {MESES.map((nombreMes, index) => (
+                            <option key={index} value={index}>{nombreMes}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="select-wrapper">
+                    <select 
+                        value={anio} 
+                        onChange={(e) => cambiarAnioDropdown(Number(e.target.value))}
+                        className="cal-select"
+                    >
+                        {ANIOS_DISPONIBLES.map(year => (
+                            <option key={year} value={year}>{year}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
         </header>
 
+      <div className="calendario-wrapper">
+        
         {cargando ? (
           <div className="calendario-cargando">
             <svg viewBox="0 0 24 24" fill="currentColor" width="80px" height="80px" color="#FFD700">
@@ -189,16 +229,12 @@ export default function CalendarioPage() {
                       ${esPasado ? 'dia-pasado' : ''} 
                       ${esHoy ? 'dia-hoy' : ''}
                     `}
-                    style={{ 
-                        userSelect: 'none', 
-                        cursor: esPasado ? 'not-allowed' : 'pointer' 
-                    }}
                   >
                     <div className="dia-numero">{dia}</div>
                     
                     {tieneEventos && (
                       <div className="icono-evento-bici">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px" color="#FFD700">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="20px" height="20px" color="#FFD700">
                           <path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.9-.6-4-1.5l-2.5 2.5c-1 1-2.5 1.5-3.8 1.5H7.1L5.5 17h-2l2-6.5c.3-1 .8-2 1.9-2.7L10.8 5l-.6 2.5zm7.7 4.5c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/>
                         </svg>
                       </div>
@@ -213,7 +249,9 @@ export default function CalendarioPage() {
         {/* --- SECCIÓN DE DETALLES Y RESERVA --- */}
         {fechaSeleccionada && (
           <div className="reserva-panel">
-            <h3 className="no-select">Eventos del {fechaSeleccionada}</h3>
+            <h3 className="panel-titulo no-select">
+                RUTAS DEL <span className="fecha-destacada">{fechaSeleccionada}</span>
+            </h3>
             
             {(() => {
                 const eventosDia = obtenerEventosDelDia(parseInt(fechaSeleccionada.split('-')[2]));
@@ -228,65 +266,39 @@ export default function CalendarioPage() {
                                 return (
                                 <div key={e.id_evento} className={`evento-card ${estaAbierto ? 'abierto' : ''}`}>
                                     <div className="no-select">
-                                        <div className="evento-titulo">
-                                            {e.nombre_evento}
+                                        <div className="evento-cabecera">
+                                            <div className="evento-titulo">{e.nombre_evento}</div>
+                                            <div className="evento-precio">
+                                                {e.costo_participacion && e.costo_participacion > 0 
+                                                    ? `$${e.costo_participacion}`
+                                                    : 'GRATIS'}
+                                            </div>
                                         </div>
 
                                         <div className="evento-badges">
-                                            <span className="badge-item">
-                                                ⚡ <span className={`texto-dificultad ${claseDificultad}`}>
-                                                    {e.nombre_dificultad || 'General'}
-                                                </span>
+                                            <span className={`badge-dificultad ${claseDificultad}`}>
+                                                {e.nombre_dificultad || 'General'}
                                             </span>
-                                            <span className="badge-item">
-                                                🚴 {e.nombre_tipo || 'Ruta'}
+                                            <span className="badge-tipo">
+                                                {e.nombre_tipo || 'Ruta'}
+                                            </span>
+                                            <span className="badge-cupo">
+                                                 {e.cupo_maximo ? `Cupo: ${e.cupo_maximo}` : 'Cupo Libre'}
                                             </span>
                                         </div>
 
-                                        {/* 2. MOSTRAR DESCRIPCIÓN */}
                                         {e.descripcion && (
-                                            <div style={{ margin: '10px 0', fontStyle: 'italic', fontSize: '0.9rem', color: '#555' }}>
+                                            <div className="evento-descripcion">
                                                 "{e.descripcion}"
                                             </div>
                                         )}
-
-                                        <div className="evento-info-extra">
-                                           {/* 3. MOSTRAR COSTO */}
-                                           <span className="info-item">
-                                                💰 {e.costo_participacion && e.costo_participacion > 0 
-                                                    ? <span>${e.costo_participacion}</span> 
-                                                    : <span style={{color: 'green', fontWeight: 'bold'}}>Gratis</span>}
-                                           </span>
-
-                                           <span className="info-item">
-                                                👥 
-                                                {e.cupo_maximo && e.cupo_maximo > 0 ? (
-                                                    <span><strong>Cupo:</strong> {e.cupo_maximo}</span>
-                                                ) : (
-                                                    <span className="cupo-ilimitado">Ilimitado</span>
-                                                )}
-                                           </span>
-                                        </div>
                                         
                                         {e.ubicacion && (
-                                            <div className="evento-ubicacion" style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                                <span>📍 {e.ubicacion}</span>
-                                                
-                                                {/* 4. BOTÓN VER MAPA (Si hay lat/lng) */}
+                                            <div className="evento-ubicacion">
+                                                📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a 
-                                                        href={`https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}`} 
-                                                        target="_blank" 
-                                                        rel="noopener noreferrer"
-                                                        className="ver-mapa-link"
-                                                        style={{ 
-                                                            fontSize: '0.8rem', 
-                                                            color: '#2563eb', 
-                                                            textDecoration: 'underline',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        Ver en mapa 🗺️
+                                                    <a href={`https://www.google.com/maps?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
+                                                        Ver mapa
                                                     </a>
                                                 )}
                                             </div>
@@ -296,49 +308,46 @@ export default function CalendarioPage() {
                                     <div className="evento-acciones">
                                         <button 
                                             onClick={() => toggleReserva(e.id_evento)}
-                                            className={`btn-accion ${estaAbierto ? 'cancelar' : ''}`}
+                                            className={`btn-accion ${estaAbierto ? 'cancelar' : 'inscribir'}`}
                                         >
-                                            {estaAbierto ? 'Cancelar Inscripción' : 'Inscribirme a este evento'}
+                                            {estaAbierto ? 'CERRAR' : 'INSCRIBIRME'}
                                         </button>
                                     </div>
 
                                     {estaAbierto && (
                                         <div className="formulario-container">
-                                            <h4 className="formulario-titulo no-select">Completa tus datos:</h4>
+                                            <h4 className="formulario-titulo no-select">Tus Datos</h4>
                                             
                                             <form className="reserva-form" onSubmit={(evt) => manejarEnvioReserva(evt, e.nombre_evento)}>
                                                 <div className="form-grupo">
-                                                    <label className="no-select">Nombre Completo:</label>
                                                     <input 
                                                         type="text" 
                                                         value={nombre} 
                                                         onChange={(ev) => setNombre(ev.target.value)} 
                                                         required 
-                                                        placeholder="Tu nombre" 
+                                                        placeholder="Nombre Completo" 
                                                     />
                                                 </div>
                                                 <div className="form-grupo">
-                                                    <label className="no-select">Teléfono:</label>
                                                     <input 
                                                         type="tel" 
                                                         value={telefono} 
                                                         onChange={(ev) => setTelefono(ev.target.value)} 
                                                         required 
-                                                        placeholder="Para contactarte" 
+                                                        placeholder="Teléfono" 
                                                     />
                                                 </div>
                                                 <div className="form-grupo">
-                                                    <label className="no-select">Email:</label>
                                                     <input 
                                                         type="email" 
                                                         value={email} 
                                                         onChange={(ev) => setEmail(ev.target.value)} 
                                                         required 
-                                                        placeholder="ejemplo@correo.com" 
+                                                        placeholder="Email" 
                                                     />
                                                 </div>
                                                 <button type="submit" className="btn-confirmar">
-                                                    Confirmar Reserva
+                                                    CONFIRMAR ASISTENCIA
                                                 </button>
                                             </form>
                                         </div>
@@ -349,7 +358,7 @@ export default function CalendarioPage() {
                         </div>
                     )
                 } else {
-                    return <p className="mensaje-vacio no-select">No hay rutas programadas para este día.</p>
+                    return <p className="mensaje-vacio no-select">No hay salidas programadas para hoy.</p>
                 }
             })()}
           </div>
