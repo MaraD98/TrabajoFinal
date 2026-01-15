@@ -11,3 +11,5 @@ ENV/
 *.db
 *.sqlite3
 .DS_Store
+/frontend/node_modules
+/frontend/node_modules

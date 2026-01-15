@@ -1,0 +1,473 @@
+/* === Paleta de colores WakeUp Bikes === */
+:root {
+  --color-fondo: #000000;
+  --color-fondo-secundario: #0a0a0a;
+  --color-fondo-card: #111111;
+  --color-texto-principal: #ffffff;
+  --color-texto-secundario: #b0b0b0;
+  --color-acento: #ffd700;
+  --color-acento-hover: #ffed4e;
+  --color-borde: #222222;
+  --color-evento: #ff6600;
+  --color-dia-inactivo: #1a1a1a;
+  
+  /* Colores de estado y dificultad */
+  --color-experto: #e74c3c;
+  --color-intermedio: #f39c12;
+  --color-principiante: #27ae60;
+  --color-texto-oscuro: #2c3e50;
+  --bg-card-blanco: #ffffff;
+  --bg-form-gris: #f9f9f9;
+}
+
+/* === Utilidades === */
+.no-select {
+  user-select: none;
+  cursor: default;
+}
+
+/* === Contenedor principal === */
+.calendario-container {
+  min-height: 100vh;
+  background-color: var(--color-fondo);
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  width: 100%;
+}
+
+.calendario-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  background-color: var(--color-fondo-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(255, 215, 0, 0.1);
+  overflow: hidden;
+}
+
+/* === Header === */
+.calendario-header {
+  background: linear-gradient(135deg, var(--color-fondo-secundario) 0%, var(--color-fondo-card) 100%);
+  padding: 2rem;
+  border-bottom: 2px solid var(--color-acento);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4rem; 
+}
+
+.calendario-titulo {
+  color: var(--color-texto-principal);
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap; 
+}
+
+.calendario-navegacion {
+  display: flex;
+  align-items: center;
+  gap: 2rem; 
+}
+
+.mes-actual {
+  color: var(--color-acento);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  min-width: 220px; 
+  text-align: center;
+}
+
+.btn-navegacion {
+  background-color: transparent;
+  border: 2px solid var(--color-acento);
+  color: var(--color-acento);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-navegacion:hover {
+  background-color: var(--color-acento);
+  color: var(--color-fondo);
+  transform: scale(1.1);
+}
+
+.btn-navegacion:active {
+  transform: scale(0.95);
+}
+
+/* === Estado de carga (LA BICI) === */
+.calendario-cargando {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 2rem;
+}
+
+.loader-texto {
+  margin-top: 20px;
+  color: #555;
+  font-size: 1.2rem;
+  font-weight: 500;
+}
+
+/* Animación de las ruedas (Movida desde el JS) */
+@keyframes spin-wheel {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.wheel-spinning {
+  animation: spin-wheel 0.8s linear infinite;
+  /* El transform-origin se maneja mejor en el SVG inline o aquí si son IDs fijos, 
+     pero como estaba inline en el path, lo dejamos ahí en el SVG para asegurar el eje correcto */
+}
+
+/* === Grid del calendario === */
+.calendario-grid-wrapper {
+  padding: 2rem;
+  background-color: var(--color-fondo-card);
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: var(--color-borde);
+  border: 1px solid var(--color-borde);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dia-semana-header {
+  background-color: var(--color-fondo-secundario);
+  color: var(--color-acento);
+  text-align: center;
+  padding: 1rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dia-celda {
+  background-color: var(--color-fondo-card);
+  min-height: 100px; 
+  padding: 0.75rem;
+  position: relative;
+  transition: all 0.2s ease;
+  cursor: pointer; 
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.dia-celda:hover {
+  background-color: var(--color-fondo-secundario);
+}
+
+.dia-seleccionado {
+  background-color: #3b82f6 !important; 
+  border: 2px solid #60a5fa !important; 
+  transform: scale(0.98);
+  box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
+}
+
+.dia-seleccionado .dia-numero {
+  color: #ffffff !important;
+}
+
+.dia-seleccionado .icono-evento-bici {
+    color: #ffffff; 
+}
+
+.dia-vacio {
+  background-color: var(--color-dia-inactivo);
+  cursor: default;
+}
+
+.dia-pasado {
+  background-color: #1a1a1a;
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  border-color: #222;
+}
+
+.dia-hoy .dia-numero {
+  color: var(--color-acento);
+  text-decoration: underline;
+  font-size: 1.2rem;
+}
+
+.dia-numero {
+  color: var(--color-texto-principal);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.dia-con-eventos {
+  background-color: rgba(255, 215, 0, 0.05);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.dia-con-eventos:hover {
+  background-color: rgba(255, 215, 0, 0.15);
+  box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.1);
+}
+
+.icono-evento-bici {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: auto; 
+    margin-bottom: 5px;
+    color: var(--color-acento);
+    animation: aparecerBici 0.5s ease-out;
+}
+
+.dia-celda:hover .icono-evento-bici {
+    transform: scale(1.2);
+    transition: transform 0.2s;
+}
+
+@keyframes aparecerBici {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === Panel de Reserva y Detalles (Ex-Inline) === */
+.reserva-panel {
+  padding: 2rem;
+  background-color: var(--color-fondo-secundario);
+  border-top: 2px solid var(--color-acento);
+  animation: slideUp 0.3s ease-out;
+  margin-top: 1rem;
+}
+
+.reserva-panel h3 {
+  color: var(--color-acento);
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.lista-eventos-disponibles {
+  margin-bottom: 20px;
+}
+
+.evento-card {
+  background: var(--bg-card-blanco);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  text-align: left;
+  transition: all 0.3s ease;
+}
+
+/* Cuando el evento está seleccionado/abierto */
+.evento-card.abierto {
+  border: 2px solid var(--color-acento); /* Antes era inline #f1c40f */
+  background-color: #fffff0; /* Un tono muy sutil para diferenciar */
+}
+
+.evento-titulo {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--color-texto-oscuro);
+}
+
+.evento-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  color: #555;
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+
+.badge-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.texto-dificultad {
+  font-weight: bold;
+  /* El color se asigna con clases específicas abajo */
+}
+
+.dificultad-experto { color: var(--color-experto); }
+.dificultad-intermedio { color: var(--color-intermedio); }
+.dificultad-principiante { color: var(--color-principiante); }
+.dificultad-general { color: var(--color-texto-oscuro); }
+
+.evento-info-extra {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #eee;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cupo-ilimitado { color: green; }
+
+.evento-ubicacion {
+  color: #7f8c8d;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.evento-acciones {
+  margin-top: 15px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-accion {
+  padding: 8px 16px;
+  background-color: var(--color-texto-oscuro);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.btn-accion:hover {
+  opacity: 0.9;
+}
+
+.btn-accion.cancelar {
+  background-color: var(--color-experto); /* Rojo */
+}
+
+/* Formulario incrustado en la tarjeta */
+.formulario-container {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: var(--bg-form-gris);
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.formulario-titulo {
+  margin-top: 0;
+  color: #333;
+}
+
+.reserva-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  /* Hereda max-width del contenedor padre si es necesario, 
+     pero aquí queremos que ocupe el ancho de la tarjeta */
+}
+
+.form-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-grupo label {
+  color: #555; /* Era texto-secundario pero en fondo blanco se ve poco, oscurecido */
+  font-size: 0.9rem;
+}
+
+.form-grupo input {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  color: #333; /* Texto negro para input en fondo blanco */
+  outline: none;
+}
+
+.form-grupo input:focus {
+  border-color: var(--color-acento);
+}
+
+.btn-confirmar {
+  margin-top: 1rem;
+  padding: 12px;
+  background-color: var(--color-acento);
+  color: var(--color-fondo);
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: transform 0.2s;
+  width: 100%;
+}
+
+.btn-confirmar:hover {
+  background-color: var(--color-acento-hover);
+  transform: scale(1.02);
+}
+
+.mensaje-vacio {
+  color: #666;
+  font-style: italic;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* === Responsive === */
+@media (max-width: 1024px) {
+  .calendario-wrapper { margin: 0 0.5rem; }
+  .calendario-header { flex-direction: column; gap: 1.5rem; }
+  .calendario-titulo { font-size: 1.5rem; white-space: normal; }
+  .mes-actual { font-size: 1.25rem; min-width: 160px; }
+}
+
+@media (max-width: 768px) {
+  .calendario-container { padding: 1rem 0.5rem; }
+  .calendario-header { padding: 1.5rem 1rem; }
+  .calendario-titulo { font-size: 1.25rem; margin-bottom: 0; }
+  .calendario-navegacion { gap: 1rem; }
+  .mes-actual { font-size: 1.1rem; min-width: 140px; }
+  .btn-navegacion { width: 40px; height: 40px; }
+  
+  .calendario-grid-wrapper { padding: 1rem; }
+  .calendario-grid { gap: 0.5px; }
+  .dia-semana-header { padding: 0.75rem 0.5rem; font-size: 0.75rem; }
+  .dia-celda { min-height: 80px; padding: 0.5rem; } 
+  .dia-numero { font-size: 0.875rem; }
+  .icono-evento-bici svg { width: 16px; height: 16px; }
+}
+
+@media (max-width: 480px) {
+  .calendario-titulo { font-size: 1rem; }
+  .mes-actual { font-size: 1rem; min-width: 120px; }
+  .dia-semana-header { font-size: 0.65rem; padding: 0.5rem 0.25rem; }
+  .dia-celda { min-height: 60px; padding: 0.4rem; }
+  .dia-numero { font-size: 0.75rem; }
+}

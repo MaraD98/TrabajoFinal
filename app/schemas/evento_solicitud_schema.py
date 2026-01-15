@@ -17,6 +17,7 @@ class SolicitudPublicacionCreate(BaseModel):
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de participación")
     lat: Optional[Decimal]
     lng: Optional[Decimal]
+    cupo_maximo: int = Field(..., gt=0, description="Cupo máximo de participantes")
     
     @field_validator('fecha_evento')
     @classmethod

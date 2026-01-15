@@ -91,6 +91,7 @@ CREATE TABLE Evento (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     lat DECIMAL(9,6),
     lng DECIMAL(9,6),
+    cupo_maximo INT,
 
     CONSTRAINT FK_Evento_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
     CONSTRAINT FK_Evento_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
@@ -130,6 +131,8 @@ CREATE TABLE Solicitud_Publicacion (
     lat DECIMAL(9,6),
     lng DECIMAL(9,6),
 
+    cupo_maximo INT,
+    
     CONSTRAINT FK_Solicitud_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
     CONSTRAINT FK_Solicitud_Dificultad FOREIGN KEY (id_dificultad) REFERENCES NivelDificultad(id_dificultad),
     CONSTRAINT FK_Solicitud_Estado FOREIGN KEY (id_estado) REFERENCES EstadoEvento(id_estado),
