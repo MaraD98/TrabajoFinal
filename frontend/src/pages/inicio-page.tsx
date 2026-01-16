@@ -36,6 +36,8 @@ interface Evento {
     nombre_tipo?: string;
     nombre_dificultad?: string;
     cupo_maximo?: number;
+    // --- NUEVO: Array de multimedia que viene del backend ---
+    multimedia?: { url_archivo: string }[];
 }
 
 export default function InicioPage() {
@@ -96,15 +98,42 @@ export default function InicioPage() {
         cargarEventos();
     }, []);
 
+    // --- FUNCIÓN CORREGIDA PARA ARREGLAR RUTAS DE WINDOWS ---
     const obtenerImagen = (evento: Evento) => {
+        // 1. PRIORIDAD: Buscar en la tabla multimedia (lo nuevo)
+        if (evento.multimedia && evento.multimedia.length > 0) {
+            let mediaUrl = evento.multimedia[0].url_archivo;
+            
+            // 🔥 CORRECCIÓN CLAVE: Reemplazar barra invertida (\) por barra normal (/)
+            mediaUrl = mediaUrl.replace(/\\/g, "/");
+
+            // Si es un link externo (http...), lo retornamos directo
+            if (mediaUrl.startsWith('http')) {
+                return mediaUrl;
+            }
+            
+            // Si es un archivo local (static/...), le pegamos la URL base
+            // Quitamos la barra inicial si la tiene para evitar dobles //
+            const cleanPath = mediaUrl.startsWith("/") ? mediaUrl.substring(1) : mediaUrl;
+            
+            // Para debugging, puedes descomentar esto si sigue fallando:
+            // console.log("Intentando cargar imagen:", `${API_BASE_URL}/${cleanPath}`);
+            
+            return `${API_BASE_URL}/${cleanPath}`;
+        }
+
+        // 2. Fallback antiguo (por si acaso)
         const url = evento.imagen_url;
-        if (url && url.includes("static/uploads")) {
-            const cleanPath = url.startsWith("/") ? url.substring(1) : url;
+        if (url && (url.includes("static") || url.includes("uploads"))) {
+            let cleanPath = url.replace(/\\/g, "/"); // Corrección Windows aquí también
+            cleanPath = cleanPath.startsWith("/") ? cleanPath.substring(1) : cleanPath;
             return `${API_BASE_URL}/${cleanPath}`;
         }
         if (url && url.startsWith("http") && url.length > 15) {
             return url;
         }
+
+        // 3. Imagen por defecto según tipo
         const id = evento.id_tipo;
         if (IMAGENES_TIPO[id]) { return IMAGENES_TIPO[id]; }
         return IMAGENES_TIPO.default;
@@ -177,7 +206,7 @@ export default function InicioPage() {
                             {isDropdownOpen && (
                                 <div className="user-dropdown" style={dropdownStyle}>
                                     <div style={{ padding: '10px 20px', fontSize: '0.75rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #333' }}>
-                                        MI CUENTA
+                                        MIS EVENTOS
                                     </div>
                                     <Link to="/mis-eventos/inscriptos" style={dropdownItemStyle} className="dropdown-item-hover">
                                         Inscriptos
@@ -229,6 +258,7 @@ export default function InicioPage() {
                                         alt={evento.nombre_evento}
                                         className="card-img"
                                         onError={(e) => {
+                                            // Fallback por si la URL final sigue fallando
                                             e.currentTarget.onerror = null;
                                             e.currentTarget.src = IMAGENES_TIPO.default;
                                         }}
