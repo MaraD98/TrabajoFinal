@@ -218,7 +218,7 @@ class EventoService:
         roles_permitidos = [ID_ROL_ADMINISTRADOR, ID_ROL_SUPERVISOR]
         
         if usuario_actual.id_rol not in roles_permitidos:
-             raise HTTPException(status_code=403, detail="No tienes permisos de limpieza.")
+             raise HTTPException(status_code=403, detail="No tienes permisos de eliminar eventos.")
 
         evento = EventoService.obtener_evento_por_id(db, evento_id)
 
@@ -242,7 +242,7 @@ class EventoService:
         )
 
         return {
-            "mensaje": "Evento dado de baja administrativamente.",
+            "mensaje": "Evento dado de baja por administrador.",
             "id_evento": evento.id_evento,
             "nuevo_estado": "Cancelado (5)"
         }

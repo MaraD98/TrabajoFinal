@@ -1,152 +1,337 @@
 /* src/styles/eventos-page.css */
 
-/* Variables para mantener consistencia */
+/* ==========================================================================
+   ADAPTACIÓN DE ESTILOS - WAKE UP BIKES VIBRANTE
+   Basado en el diseño de Registro de Eventos de tu compañera
+   ========================================================================== */
+
 :root {
-  --primary-orange: #ff6b00;
-  --bg-dark: #121212;
-  --bg-card: #1e1e1e;
-  --text-white: #ffffff;
-  --text-gray: #b0b0b0;
-  --danger-red: #d32f2f;
+  /* Mismas variables que tu compañera para consistencia total */
+  --color-primary: #ff6b35;
+  --color-primary-dark: #e55a2b;
+  --color-secondary: #000000;
+  --color-accent: #ffa500;
+  --color-success: #00c853;
+  --color-error: #ff3d00;
+  --color-text: #212121;       /* Color de texto oscuro para que se lea bien */
+  --color-text-light: #757575;
+  --color-border: #e0e0e0;
+  --color-bg: #ffffff;
+  --color-bg-alt: #f5f5f5;
+  --color-bg-section: #fff8f5; /* Fondo cremita suave */
+  
+  --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius-lg: 12px;
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-colored: 0 4px 16px rgba(255, 107, 53, 0.3);
+  --transition: all 0.2s ease;
 }
 
-/* Contenedor Principal */
+/* --- CONTENEDOR PRINCIPAL --- */
 .page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 20px;
   min-height: 100vh;
-  color: var(--text-white);
-  font-family: sans-serif;
+  /* El mismo gradiente de fondo suave que usa ella */
+  background: linear-gradient(135deg, #fff8f5 0%, #ffffff 100%);
+  padding: 40px 20px;
+  font-family: var(--font-primary);
+  color: var(--color-text);
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 40px;
+  animation: fadeInDown 0.6s ease-out;
 }
 
 .page-title {
-  color: var(--primary-orange);
-  border-bottom: 2px solid #333;
-  padding-bottom: 15px;
-  margin-bottom: 30px;
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
   text-transform: uppercase;
+  letter-spacing: -0.5px;
+  /* Texto con gradiente como el título de ella */
+  background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* GRILLA DE TARJETAS (Responsive) */
-.grid-eventos {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Se acomodan solas */
-  gap: 25px;
+.page-header p {
+  color: var(--color-text-light);
+  font-weight: 500;
 }
 
-/* DISEÑO DE LA TARJETA */
-.card-evento {
-  background-color: var(--bg-card);
-  border: 1px solid #333;
-  border-radius: 12px;
+/* --- BARRA DE FILTROS --- */
+.filters-container {
+  max-width: 1200px;
+  margin: 0 auto 40px auto;
+  background: var(--color-bg);
   padding: 20px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-border); /* Borde estilo formulario */
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.filter-group {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+/* --- INPUTS Y SELECTS (CORREGIDO EL PROBLEMA DE VISIBILIDAD) --- */
+.filter-input, .filter-select {
+  padding: 12px 15px;
+  border: 2px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: var(--color-bg); /* Fondo Blanco */
+  color: var(--color-text);          /* Texto #212121 (Gris oscuro) - ESTO ARREGLA QUE NO SE VEA */
+  outline: none;
+  transition: var(--transition);
+  font-family: var(--font-primary);
+  min-width: 200px;
+}
+
+.filter-input::placeholder {
+  color: var(--color-text-light); /* Placeholder gris claro */
+}
+
+/* Efecto Focus Naranja (Igual al de tu compañera) */
+.filter-input:focus, .filter-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.15);
+  background-color: #fffbf9;
+}
+
+/* Icono en el select */
+.filter-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff6b35' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 40px;
+}
+
+/* --- BOTONES DE VISTA (Grilla/Lista) --- */
+.view-controls {
+  display: flex;
+  gap: 8px;
+  background: var(--color-bg-alt);
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.btn-view {
+  background: transparent;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--color-text-light);
+  transition: var(--transition);
+  font-size: 1.2rem;
+}
+
+.btn-view.active {
+  background-color: var(--color-bg);
+  color: var(--color-primary);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transform: scale(1.05);
+}
+
+/* --- GRID DE EVENTOS --- */
+.eventos-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 25px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.eventos-container.view-list {
+  grid-template-columns: 1fr;
+}
+
+/* --- TARJETA DE EVENTO (Estilo Map Card) --- */
+.card-evento {
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  position: relative;
 }
 
 .card-evento:hover {
-  transform: translateY(-5px); /* Efecto de flotar al pasar el mouse */
-  border-color: var(--primary-orange);
-  box-shadow: 0 5px 15px rgba(255, 107, 0, 0.1);
+  transform: translateY(-5px); /* Efecto elevación al pasar mouse */
+  border-color: var(--color-primary); /* Borde naranja suave al hover */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
-.card-evento h3 {
-  margin-top: 0;
-  color: var(--text-white);
-  font-size: 1.25rem;
+.card-image-header {
+  height: 180px;
+  background-color: #eee;
+  background-image: url('https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  /* Línea naranja superior como en el mapa de tu compañera */
+  border-bottom: 3px solid var(--color-primary); 
 }
 
-.card-info {
-  color: var(--text-gray);
-  font-size: 0.9rem;
-  margin-bottom: 5px;
-}
-
-/* ESTADOS (Verde/Rojo) */
-.estado-activo {
-  color: #4caf50;
-  font-weight: bold;
-}
-.estado-cancelado {
-  color: #ef5350;
-  font-weight: bold;
-}
-
-/* BOTÓN DE ELIMINAR */
-.btn-cancelar {
-  margin-top: 15px;
-  background-color: transparent;
-  border: 1px solid var(--danger-red);
-  color: var(--danger-red);
-  padding: 8px 15px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  width: 100%;
-  transition: 0.3s;
-}
-
-.btn-cancelar:hover {
-  background-color: var(--danger-red);
+.badge-estado {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--shadow-colored);
 }
 
-/* --- ESTILOS DEL MODAL (VENTANA EMERGENTE) --- */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.8); /* Fondo negro transparente */
+.card-body {
+  padding: 20px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  flex: 1;
+}
+
+.card-title {
+  margin: 0 0 15px 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--color-secondary);
+  text-transform: uppercase;
+}
+
+.card-meta {
+  color: var(--color-text-light);
+  font-size: 0.95rem;
+  margin-bottom: 8px;
+  display: flex;
   align-items: center;
-  z-index: 1000;
-  backdrop-filter: blur(3px);
+  gap: 8px;
+  font-weight: 500;
 }
 
-.modal-content {
-  background: var(--bg-card);
-  padding: 30px;
-  border-radius: 10px;
-  width: 90%;
-  max-width: 450px;
-  border-top: 4px solid var(--danger-red);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-}
-
-.modal-textarea {
-  width: 100%;
-  min-height: 80px;
-  margin: 15px 0;
-  background: #2c2c2c;
-  border: 1px solid #444;
-  color: white;
-  padding: 10px;
-  border-radius: 5px;
-}
-
-.modal-actions {
+.card-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--color-bg-alt);
   display: flex;
-  justify-content: flex-end;
   gap: 10px;
 }
 
-.modal-btn-confirm {
-  background-color: var(--danger-red);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  cursor: pointer;
+/* --- ESTILOS VISTA LISTA --- */
+.eventos-container.view-list .card-evento {
+  flex-direction: row;
+  align-items: center;
+  height: auto;
 }
 
-.modal-btn-cancel {
-  background-color: transparent;
-  color: var(--text-gray);
-  border: 1px solid #555;
-  padding: 10px 20px;
-  border-radius: 5px;
+.eventos-container.view-list .card-image-header {
+  width: 250px;
+  height: 100%;
+  min-height: 200px;
+  border-bottom: none;
+  border-right: 3px solid var(--color-primary);
+}
+
+.eventos-container.view-list .card-body {
+  padding: 25px;
+}
+
+/* --- BOTONES DE ACCIÓN (Estilo Submit Button) --- */
+.btn-action {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
   cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+  letter-spacing: 0.5px;
+  border: none;
+}
+
+/* Botón Eliminar Propio (Naranja sólido vibrante) */
+.btn-cancelar-propio {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  color: white;
+  box-shadow: var(--shadow-colored);
+}
+.btn-cancelar-propio:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+/* Botón Solicitar Baja (Outline Naranja) */
+.btn-solicitar-baja {
+  background: transparent;
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+}
+.btn-solicitar-baja:hover {
+  background: var(--color-bg-section);
+}
+
+/* Botón Admin Eliminar (Rojo Alerta) */
+.btn-admin-delete {
+  background: linear-gradient(135deg, #ff3d00 0%, #d50000 100%);
+  color: white;
+  box-shadow: 0 4px 10px rgba(213, 0, 0, 0.3);
+}
+.btn-admin-delete:hover {
+  transform: translateY(-2px);
+}
+
+/* Empty State */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-light);
+}
+
+/* Animaciones */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-container { padding: 20px 10px; }
+  .filters-container { flex-direction: column; align-items: stretch; }
+  .eventos-container.view-list .card-evento { flex-direction: column; }
+  .eventos-container.view-list .card-image-header { width: 100%; height: 180px; border-right: none; border-bottom: 3px solid var(--color-primary); }
 }

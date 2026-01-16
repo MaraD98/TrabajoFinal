@@ -14,11 +14,11 @@ class EditarEventoService:
     @staticmethod
     # ¡OJO! Agregué el parámetro id_rol_actual aquí
     def actualizar_evento(db: Session, id_evento: int, evento_update, id_usuario_actual: int, id_rol_actual: int):
-        """
+        
         Realiza la edición de un evento con validación de roles:
         - Admin (1) o Supervisor (2): Pueden editar SIEMPRE.
         - Dueño: Puede editar SOLO si el evento NO está Publicado (3).
-        """
+        
         
         # 1. BUSCAR EL EVENTO
         evento_db = db.query(Evento).filter(Evento.id_evento == id_evento).first()

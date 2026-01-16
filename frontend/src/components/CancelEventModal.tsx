@@ -1,53 +1,96 @@
 import { useState } from "react";
-import { cancelarEventoPropio } from "../services/eventos";
+import { cancelarEventoPropio, solicitarBajaEvento, adminEliminarEvento } from "../services/eventos";
 import "../styles/eventos-page.css"; 
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   idEvento: number;
-  onSuccess: () => void; // Para avisar que se borró y recargar la lista
+  tipoAccion: 'PROPIO' | 'SOLICITUD' | 'ADMIN' | null; 
+  onSuccess: () => void;
 }
 
-export default function CancelEventModal({ isOpen, onClose, idEvento, onSuccess }: Props) {
+export default function CancelEventModal({ isOpen, onClose, idEvento, tipoAccion, onSuccess }: Props) {
   const [motivo, setMotivo] = useState("");
   const [cargando, setCargando] = useState(false);
 
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
-    if (!motivo.trim()) return;
+    // Para Admin y Solicitud, pedimos motivo obligatorio. 
+    // Si quisieras que el Admin borre sin motivo, podrías quitar esta validación, 
+    // pero siempre es bueno dejar registro.
+    if (!motivo.trim()) {
+        alert("Por favor, ingresa un motivo para confirmar.");
+        return;
+    }
 
     try {
       setCargando(true);
-      // Llamamos a la función que ya tienes en tu servicio
-      await cancelarEventoPropio(idEvento, motivo);
       
-      alert("Evento cancelado correctamente.");
+      if (tipoAccion === 'PROPIO') {
+        await cancelarEventoPropio(idEvento, motivo);
+        alert("Evento cancelado correctamente.");
+      } else if (tipoAccion === 'SOLICITUD') {
+        await solicitarBajaEvento(idEvento, motivo);
+        alert("Solicitud enviada correctamente.");
+      } else if (tipoAccion === 'ADMIN') {
+        await adminEliminarEvento(idEvento, motivo);
+        alert("Evento eliminado permanentemente.");
+      }
+      
       setMotivo(""); 
-      onSuccess(); // Avisamos al padre (la lista) para que se actualice
-      onClose();   // Cerramos el modal
-    } catch (error) {
+      onSuccess(); 
+      onClose();   
+
+    } catch (error: any) {
       console.error(error);
-      alert("Error al cancelar el evento. Verifica tu conexión o permisos.");
+      const mensajeError = error.response?.data?.detail || "Error al procesar la solicitud.";
+      alert("Error: " + mensajeError);
     } finally {
       setCargando(false);
     }
   };
 
+  // --- LÓGICA DE TEXTOS (HU 4.4) ---
+  let titulo = "¿Confirmar acción?";
+  let pregunta = "¿Está seguro de realizar esta acción?";
+  let botonTexto = "Confirmar";
+  
+  if (tipoAccion === 'PROPIO') {
+    titulo = "Cancelar mi Evento";
+    pregunta = "¿Está seguro que desea cancelar su evento? Esta acción no se puede deshacer y se notificará a los inscritos.";
+    botonTexto = "Sí, Cancelar Evento";
+  } 
+  else if (tipoAccion === 'SOLICITUD') {
+    titulo = "Reportar / Solicitar Baja";
+    pregunta = "¿Está seguro que desea reportar este evento para que sea dado de baja por un administrador?";
+    botonTexto = "Enviar Solicitud";
+  } 
+  else if (tipoAccion === 'ADMIN') {
+    // TEXTO EXACTO DE LA HU 4.4
+    titulo = "Eliminar Evento (Administrador)";
+    pregunta = "¿Está seguro que desea eliminar este evento? Esta acción borrará el evento permanentemente del sistema.";
+    botonTexto = "Sí, Eliminar";
+  }
+
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <h3 className="modal-title">¿Cancelar Evento?</h3>
-        <p className="modal-text">
-          Esta acción cambiará el estado del evento a "CANCELADO" y notificará a los participantes.
+        <h3 className="modal-title" style={{ color: tipoAccion === 'ADMIN' ? '#d32f2f' : 'white' }}>
+            {titulo}
+        </h3>
+        
+        {/* Aquí está la confirmación visual de la HU 4.4 */}
+        <p className="modal-text" style={{ fontSize: '1.1rem', marginBottom: '20px' }}>
+          {pregunta}
         </p>
 
         <div className="modal-field">
-          <label>Motivo de la cancelación *</label>
+          <label>Motivo (Requerido):</label>
           <textarea
             className="modal-textarea"
-            placeholder="Ej: Malas condiciones climáticas, fuerza mayor..."
+            placeholder="Escribe la razón aquí..."
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             disabled={cargando}
@@ -55,15 +98,19 @@ export default function CancelEventModal({ isOpen, onClose, idEvento, onSuccess 
         </div>
 
         <div className="modal-actions">
+          {/* Botón de Cancelar la acción (El usuario se arrepiente) */}
           <button className="btn-secondary" onClick={onClose} disabled={cargando}>
-            Volver
+            Cancelar / Volver
           </button>
+          
+          {/* Botón de Confirmación Explícita */}
           <button 
             className="btn-danger" 
             onClick={handleConfirm}
             disabled={!motivo.trim() || cargando}
+            style={{ backgroundColor: tipoAccion === 'ADMIN' ? '#d32f2f' : undefined }}
           >
-            {cargando ? "Procesando..." : "Confirmar Cancelación"}
+            {cargando ? "Procesando..." : botonTexto}
           </button>
         </div>
       </div>

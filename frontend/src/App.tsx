@@ -14,7 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<h1>Inicio</h1>} />
         <Route path="/mapa" element={<EventsMapPage />} />
-        <Route path="/eventos" element={<EventosPage />} />
+        <Route path="/evento" element={<EventosPage />} />
         <Route path="/registro-evento"
           element={
             <ProtectedRoute allowedRoles={[1, 2]}>

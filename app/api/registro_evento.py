@@ -129,7 +129,7 @@ def agregar_multimedia_evento(
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
-        archivo=archivo_imagen
+        archivo=archivos_imagenes
     )
 
 # ============ CANCELAR EVENTO (HU 4.1 - NUEVO) ============
@@ -176,7 +176,7 @@ def solicitar_eliminacion(
 # ============ HU 4.3: ELIMINACIÓN DIRECTA (ADMIN/SUPERVISOR) ============
 @router.patch(
     "/{evento_id}/admin-eliminar",
-    summary="Eliminación directa por Administrador(Limpieza)",
+    summary="Eliminación directa por Administrador",
     description="Permite a Administradores y Supervisores dar de baja eventos (ej: antiguos, abandonados o solicitudes pendientes)."
 )
 def admin_eliminar_evento(
@@ -189,7 +189,7 @@ def admin_eliminar_evento(
         db=db,
         evento_id=evento_id,
         motivo=datos.motivo,
-        usuario_actual=current_user
-        lista_archivos=archivos_imagenes, # Pasamos la lista entera
-        url_externa=url_multimedia
-    )
+        usuario_actual=current_user,
+        #lista_archivos=archivos_imagenes, # Pasamos la lista entera
+        #url_externa=url_multimedia
+)
