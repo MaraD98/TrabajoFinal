@@ -1,7 +1,8 @@
 import type { FormEvent } from "react";
-import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { login, getCurrentUser } from "../services/eventos";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom"; // 🔥 Importamos Link
+import { login } from "../services/eventos"; 
+import { useAuth } from "../context/auth-context"; 
 import "../styles/login.css";
 
 export default function LoginPage() {
@@ -9,28 +10,43 @@ export default function LoginPage() {
     email: "",
     contrasenia: "",
   });
+  
+  // 👇 CAMBIO 1: Estado para el checkbox
+  const [rememberMe, setRememberMe] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const { loginOk, user, logout } = useAuth(); 
+
   const showAuthNotice = location.state?.reason === "auth"; 
   const showRoleDeniedNotice = location.state?.reason === "role-denied";
 
-  // Chequear si ya hay token 
-  const token = localStorage.getItem("token");
+  // 👇 CAMBIO 2: Efecto de "Cargar Email guardado"
+  // Al entrar a la página, miramos si hay un email en la memoria del navegador
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("rememberedEmail");
+    if (savedEmail) {
+      setFormData((prev) => ({ ...prev, email: savedEmail }));
+      setRememberMe(true); // Dejamos el tilde marcado visualmente
+    }
+  }, []);
 
-  // Si ya está logueado, mostrar mensaje y botón de logout
-  if (token) {
+  if (user) {
     return (
       <div className="login-page">
         <h2>Ya estás logueado ✅</h2>
+        <p>Hola, {user.nombre}</p>
         <button
           onClick={() => {
-            localStorage.removeItem("token");
-            navigate("/login"); // refrescar login
+            logout();
+            navigate("/login"); 
           }}
+          style={{ padding: '10px 20px', cursor: 'pointer', marginTop: '10px' }}
         >
           Cerrar sesión
         </button>
@@ -38,7 +54,6 @@ export default function LoginPage() {
     );
   }
 
-  // Si no hay token, mostrar el formulario normal
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -60,15 +75,19 @@ export default function LoginPage() {
       const response = await login(formData.email, formData.contrasenia);
 
       if (response.access_token) {
-        localStorage.setItem("token", response.access_token);
-        // Si querés guardar también el tipo de token
-        localStorage.setItem("token_type", response.token_type);
+        
+        // 👇 CAMBIO 3: Lógica de Guardar/Borrar Email
+        // Si el usuario tildó "Recordarme", guardamos el email en localStorage.
+        // Si no, lo borramos por seguridad.
+        if (rememberMe) {
+            localStorage.setItem("rememberedEmail", formData.email);
+        } else {
+            localStorage.removeItem("rememberedEmail");
+        }
 
-        // pedir usuario actual 
-        const usuario = await getCurrentUser(response.access_token);
-        localStorage.setItem("rol", usuario.id_rol.toString());
+        // Pasamos el token y el estado de rememberMe al contexto
+        await loginOk(response.access_token, rememberMe);
 
-        // Redirigir al inicio o a los eventos
         navigate("/");
       } else {
         setError("Error en la autenticación");
@@ -76,13 +95,12 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error("Error en login:", err);
       setError(
-        err.response?.data?.detail || // FastAPI suele devolver "detail"
+        err.response?.data?.detail || 
         "Email o contraseña incorrectos"
       );
     } finally {
       setLoading(false);
     }
-
   };
 
   return (
@@ -100,28 +118,24 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
-          {showAuthNotice && (
-          <div className="login-alert login-alert--error">
-            <span className="login-alert__icon">⚠️</span>
-            <span className="login-alert__message">Debes iniciar sesión primero</span>
-          </div>
-        )}
+            {showAuthNotice && (
+              <div className="login-alert login-alert--error">
+                <span className="login-alert__icon">⚠️</span>
+                <span className="login-alert__message">Debes iniciar sesión primero</span>
+              </div>
+            )}
 
-        {showRoleDeniedNotice && (
-          <div className="login-alert login-alert--error">
-            <span className="login-alert__icon">⚠️</span>
-            <span className="login-alert__message">
-              No tienes permisos para crear eventos
-            </span>
-          </div>
-        )}
-
-
+            {showRoleDeniedNotice && (
+              <div className="login-alert login-alert--error">
+                <span className="login-alert__icon">⚠️</span>
+                <span className="login-alert__message">
+                  No tienes permisos para crear eventos
+                </span>
+              </div>
+            )}
 
             <div className="login-form__group">
-              <label htmlFor="email" className="login-form__label">
-                Email
-              </label>
+              <label htmlFor="email" className="login-form__label">Email</label>
               <div className="login-form__input-wrapper">
                 <input
                   id="email"
@@ -140,9 +154,7 @@ export default function LoginPage() {
             </div>
 
             <div className="login-form__group">
-              <label htmlFor="contrasenia" className="login-form__label">
-                Contraseña
-              </label>
+              <label htmlFor="contrasenia" className="login-form__label">Contraseña</label>
               <div className="login-form__input-wrapper">
                 <input
                   id="contrasenia"
@@ -169,12 +181,20 @@ export default function LoginPage() {
 
             <div className="login-form__options">
               <label className="login-checkbox">
-                <input type="checkbox" className="login-checkbox__input" />
+                {/* 👇 CAMBIO 4: Input Checkbox conectado al estado */}
+                <input 
+                    type="checkbox" 
+                    className="login-checkbox__input" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                />
                 <span className="login-checkbox__label">Recordarme</span>
               </label>
-              <a href="#" className="login-link">
+
+              {/* 👇 CAMBIO 5: Usamos Link en lugar de <a> para no recargar la página */}
+              <Link to="/olvide-password" className="login-link">
                 ¿Olvidaste tu contraseña?
-              </a>
+              </Link>
             </div>
 
             <button
@@ -187,18 +207,17 @@ export default function LoginPage() {
                   <span className="login-spinner"></span>
                   Iniciando sesión...
                 </>
-              ) : (
-                "Iniciar Sesión"
-              )}
+              ) : "Iniciar Sesión"}
             </button>
           </form>
 
           <div className="login-card__footer">
             <p className="login-footer__text">
               ¿No tienes cuenta?{" "}
-              <a href="/register" className="login-footer__link">
+              {/* 👇 CAMBIO 6: Link para registro también */}
+              <Link to="/register" className="login-footer__link">
                 Regístrate aquí
-              </a>
+              </Link>
             </p>
           </div>
 
@@ -208,63 +227,46 @@ export default function LoginPage() {
 
           <div className="login-social">
             <button className="login-social__btn login-social__btn--google">
-              <span className="login-social__icon">G</span>
-              Google
+              <span className="login-social__icon">G</span> Google
             </button>
             <button className="login-social__btn login-social__btn--facebook">
-              <span className="login-social__icon">f</span>
-              Facebook
+              <span className="login-social__icon">f</span> Facebook
             </button>
           </div>
         </div>
 
+        {/* Features (sin cambios visuales, solo lógica de rol mantenida) */}
         <div className="login-features">
-          <div className="login-feature"
-            onClick={() => navigate("/eventos")}
-          >
+          <div className="login-feature" onClick={() => navigate("/eventos")}>
             <div className="login-feature__icon">🏆</div>
             <h3 className="login-feature__title">Descubre Eventos</h3>
-            <p className="login-feature__description">
-              Encuentra carreras, maratones y eventos deportivos cerca de ti
-            </p>
+            <p className="login-feature__description">Encuentra carreras, maratones y eventos deportivos cerca de ti</p>
           </div>
-          <div className="login-feature" 
-            onClick={() => navigate("/mapa")} 
-          >
+          <div className="login-feature" onClick={() => navigate("/mapa")}>
             <div className="login-feature__icon">🗺️</div>
             <h3 className="login-feature__title">Explora el Mapa</h3>
-            <p className="login-feature__description">
-              Visualiza todos los eventos en un mapa interactivo
-            </p>
+            <p className="login-feature__description">Visualiza todos los eventos en un mapa interactivo</p>
           </div>
           <div
             className="login-feature"
             onClick={() => {
-              const token = localStorage.getItem("token");
               const rol = localStorage.getItem("rol");
-
-              const allowedRoles = [1, 2]; // IDs de admin y supervisor
-
-              if (!token) {
+              const allowedRoles = [1, 2];
+              if (!user && !localStorage.getItem("token")) {
                 navigate("/login", { state: { reason: "auth" } });
                 return;
               }
-
               if (!rol || !allowedRoles.includes(Number(rol))) {
                 navigate("/login", { state: { reason: "role-denied" } });
                 return;
               }
-
               navigate("/registro-evento");
             }}
           >
             <div className="login-feature__icon">🎯</div>
             <h3 className="login-feature__title">Crea tus Eventos</h3>
-            <p className="login-feature__description">
-              Organiza y publica tus propios eventos deportivos
-            </p>
+            <p className="login-feature__description">Organiza y publica tus propios eventos deportivos</p>
           </div>
-
         </div>
       </div>
     </div>

@@ -1,29 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
 
+/* RESET GENERAL */
 :root {
-  --bg-color: #0d0d0d;        /* Negro casi puro */
-  --card-bg: #1a1a1a;         /* Gris oscuro para tarjetas */
-  --text-primary: #ffffff;    /* Blanco puro */
-  --text-secondary: #b0b0b0;  /* Gris suave */
-  --accent-color: #ccff00;    /* Amarillo Neón tipo "Wake Up" / Deportivo */
-  --hover-overlay: rgba(255, 255, 255, 0.1);
+  --bg-color: #0d0d0d;
+  --card-bg: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --accent-color: #ccff00; /* Amarillo Neón */
 }
 
 body {
   margin: 0;
   padding: 0;
   background-color: var(--bg-color);
-  font-family: 'Montserrat', sans-serif; /* Tipografía estilo WakeUp */
+  font-family: 'Montserrat', sans-serif;
   color: var(--text-primary);
 }
 
-/* --- HERO SECTION (Banner Gigante) --- */
-/* src/styles/inicio.css */
-
-/* --- MODIFICAMOS ESTO --- */
+/* --- HERO SECTION --- */
 .hero-section {
   position: relative;
-  /* CAMBIO: De 85vh a 92vh para que sea "un poquito más" alto */
   height: 92vh;
   width: 100%;
   background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)),
@@ -36,241 +32,8 @@ body {
   align-items: center;
   text-align: center;
   padding: 0 20px;
-  /* Importante para que el logo quede encima del fondo oscuro */
-  z-index: 1;
 }
 
-/* --- AGREGAMOS ESTO NUEVO PARA EL LOGO --- */
-.hero-logo-container {
-  position: absolute;
-  top: 30px;  /* Separación desde arriba */
-  left: 40px; /* Separación desde la izquierda */
-  z-index: 10; /* Asegura que quede POR ENCIMA de la imagen de fondo y el texto */
-}
-
-.hero-logo-container img {
-  width: 180px; /* Tamaño del logo. Ajustable. */
-  height: auto;
-  display: block;
-  /* Opcional: una sombra suave para que resalte más si el fondo es claro en esa parte */
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
-}
-
-/* Ajuste para celulares */
-@media (max-width: 768px) {
-  .hero-section {
-     height: 85vh; /* En celular lo dejamos un poco más chico */
-  }
-  .hero-logo-container {
-      top: 20px;
-      left: 20px;
-  }
-  .hero-logo-container img {
-      width: 130px; /* Logo más pequeño en celular */
-  }
-  /* ... el resto de tu media query existente ... */
-  .hero-content h1 { font-size: 2.5rem; }
-  .section-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-}
-
-.hero-content h1 {
-  font-size: 4rem; /* Texto gigante */
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  margin-bottom: 0.5rem;
-  line-height: 1.1;
-  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
-}
-
-.hero-content p {
-  font-size: 1.2rem;
-  color: #e0e0e0;
-  margin-bottom: 2.5rem;
-  font-weight: 400;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Botón estilo "Wake Up" */
-.cta-button {
-  background-color: transparent;
-  color: var(--text-primary);
-  border: 2px solid var(--text-primary);
-  padding: 15px 40px;
-  font-size: 1rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  display: inline-block;
-  letter-spacing: 1px;
-}
-
-.cta-button:hover {
-  background-color: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #000; /* Texto negro sobre fondo neón */
-  transform: translateY(-3px);
-  box-shadow: 0 0 20px rgba(204, 255, 0, 0.4);
-}
-
-/* --- SECCIÓN DE EVENTOS --- */
-.eventos-section {
-  max-width: 1400px; /* Ancho amplio profesional */
-  margin: 0 auto;
-  padding: 80px 20px;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 40px;
-  border-bottom: 1px solid #333;
-  padding-bottom: 20px;
-}
-
-.section-title {
-  font-size: 2.5rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.section-subtitle {
-  color: var(--accent-color);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-/* --- GRID DE TARJETAS --- */
-.grid-eventos {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 30px;
-}
-
-.evento-card {
-  background-color: var(--card-bg);
-  border: 1px solid #333; /* Borde sutil */
-  border-radius: 0; /* Bordes rectos más profesionales/industriales */
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.evento-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--accent-color); /* Borde neón al pasar mouse */
-}
-
-.card-img-wrapper {
-  overflow: hidden;
-  height: 250px;
-  position: relative;
-}
-
-.card-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.5s ease;
-  filter: grayscale(20%); /* Un toque desaturado elegante */
-}
-
-.evento-card:hover .card-img {
-  transform: scale(1.1); /* Efecto zoom */
-  filter: grayscale(0%);
-}
-
-.card-content {
-  padding: 25px;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.card-content h3 {
-  font-size: 1.5rem;
-  margin: 0 0 10px 0;
-  font-weight: 700;
-  color: var(--text-primary);
-  text-transform: uppercase;
-}
-
-.card-desc {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  line-height: 1.6;
-  margin-bottom: 20px;
-  flex-grow: 1;
-}
-
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  font-size: 0.85rem;
-  color: #888;
-  margin-top: auto;
-  border-top: 1px solid #333;
-  padding-top: 15px;
-}
-
-.card-meta span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.btn-ver-detalle {
-  margin-top: 20px;
-  background-color: #333;
-  color: white;
-  text-align: center;
-  padding: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 1px;
-  border: none;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.btn-ver-detalle:hover {
-  background-color: var(--accent-color);
-  color: black;
-}
-
-/* Loading */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: var(--bg-color);
-  color: var(--accent-color);
-  font-size: 1.5rem;
-  text-transform: uppercase;
-  font-weight: bold;
-}
-
-/* Responsividad */
-@media (max-width: 768px) {
-  .hero-content h1 { font-size: 2.5rem; }
-  .section-header { flex-direction: column; align-items: flex-start; gap: 10px; }
-}
-
-/* --- BARRA DE NAVEGACIÓN SUPERIOR --- */
 .hero-navbar {
   position: absolute;
   top: 20px;
@@ -280,84 +43,277 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0 40px;
-  z-index: 10; /* Asegura que quede por encima de la imagen de fondo */
-}
-
-.hero-logo-link {
-  display: block;
+  box-sizing: border-box; /* Importante para que no se salga del ancho */
+  z-index: 50;
 }
 
 .hero-logo {
-  width: 200px; /* Ajusta el tamaño del logo según prefieras */
+  width: 180px;
   height: auto;
-  display: block;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
-.hero-login-btn {
-  background-color: transparent;
-  color: var(--text-primary);
-  border: 2px solid var(--text-primary);
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  font-weight: 700;
+.hero-content h1 {
+  font-size: 4rem;
+  font-weight: 800;
   text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-  letter-spacing: 1px;
-  border-radius: 5px;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
 }
 
-.hero-login-btn:hover {
+.hero-content p {
+  font-size: 1.2rem;
+  color: #e0e0e0;
+  margin-bottom: 2.5rem;
+}
+
+.cta-button {
+  border: 2px solid var(--text-primary);
+  color: var(--text-primary);
+  padding: 15px 40px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: 0.3s;
+}
+
+.cta-button:hover {
   background-color: var(--accent-color);
   border-color: var(--accent-color);
   color: #000;
 }
 
-/* Ajustes para celulares */
-@media (max-width: 768px) {
-  .hero-navbar {
-    padding: 0 20px;
-    top: 15px;
-  }
-  .hero-logo {
-    width: 150px; /* Logo más pequeño en celular */
-  }
-  .hero-login-btn {
-    padding: 8px 15px;
-    font-size: 0.8rem;
-  }
+.hero-login-btn {
+  border: 2px solid var(--text-primary);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 5px;
 }
 
-/* Estilo para el enlace del calendario */
+/* --- ESTILOS DEL MENÚ DE USUARIO (SOLUCIÓN FONDO BLANCO) --- */
+
+.user-menu-container {
+  position: relative; /* Necesario para que el dropdown se posicione respecto a esto */
+  display: inline-block;
+  margin-left: 20px;
+}
+
+.user-menu-trigger {
+  background-color: #0d0d0d !important;
+  border: 1px solid var(--accent-color) !important;
+  color: var(--accent-color) !important;
+  padding: 10px 20px;
+  border-radius: 6px;
+  min-width: 200px; /* Ancho mínimo para nombres cortos */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.user-menu-trigger:hover {
+  background-color: rgba(204, 255, 0, 0.1) !important;
+  box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+}
+
+/* AQUÍ ESTÁ EL FIX DEL FONDO BLANCO */
+.user-dropdown {
+  position: absolute;
+  top: 110%; /* Un poquito separado del botón */
+  right: 0;
+  width: 100%;
+  min-width: 200px;
+  background-color: #1a1a1a !important; /* FORZADO OSCURO */
+  border: 1px solid #333;
+  box-shadow: 0px 10px 25px rgba(0,0,0,0.8);
+  border-radius: 6px;
+  z-index: 9999; /* Asegura que esté por encima de todo */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header {
+  padding: 15px;
+  background-color: #000 !important;
+  color: #888;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  color: #fff !important;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: var(--accent-color) !important;
+  color: #000 !important;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background-color: #333;
+  margin: 5px 0;
+}
+
+.logout-button {
+  color: #ff4444 !important;
+}
+.logout-button:hover {
+  background-color: #ff4444 !important;
+  color: white !important;
+}
+
+/* --- EVENTOS Y TARJETAS --- */
+.eventos-section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 80px 20px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid #333;
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0;
+}
+
 .enlace-calendario {
-    text-decoration: none; /* Quita el subrayado feo */
-    cursor: pointer;      /* Pone la manito al pasar el mouse */
-    transition: transform 0.2s ease, color 0.2s ease;
-    display: inline-block;
+  color: var(--accent-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
 }
 
-.enlace-calendario:hover {
-    color: #fff; /* Se pone blanco al pasar el mouse */
-    transform: translateX(5px); /* Se mueve un poquito a la derecha */
+.grid-eventos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 30px;
 }
 
-/* Agrega esto al final de tu CSS */
+.evento-card {
+  background-color: var(--card-bg);
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  transition: 0.3s;
+}
+
+.evento-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--accent-color);
+}
+
 .card-img-wrapper {
-    position: relative; /* Necesario para posicionar el badge */
+  height: 250px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(20%);
+  transition: 0.5s;
+}
+
+.evento-card:hover .card-img {
+  transform: scale(1.1);
+  filter: grayscale(0%);
 }
 
 .tipo-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: rgba(0, 0, 0, 0.7);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    backdrop-filter: blur(4px);
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.card-content {
+  padding: 25px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  /* SOLUCIÓN CURSOR 1: Cursor normal en todo el contenedor */
+  cursor: default; 
+}
+
+.card-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.card-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  flex-grow: 1;
+  /* SOLUCIÓN CURSOR 2: Refuerzo para el texto */
+  cursor: default;
+}
+
+.btn-ver-detalle {
+  margin-top: 20px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  padding: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  transition: 0.3s;
+  cursor: pointer; /* Solo este debe tener manito */
+}
+
+.btn-ver-detalle:hover {
+  background-color: var(--accent-color);
+  color: #000;
+}
+
+/* Móvil */
+@media (max-width: 768px) {
+  .hero-navbar { padding: 0 20px; }
+  .user-menu-trigger { min-width: auto; padding: 8px 12px; }
+  .user-name { display: none; }
 }
