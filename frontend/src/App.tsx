@@ -8,7 +8,7 @@ import LoginPage from "./pages/login-page";
 import ProtectedRoute from "./components/protected-route";
 import RegisterPage from './pages/register-page';
 import CalendarioPage from "./pages/calendario-page";
-
+import SolicitudEventoPage from './pages/solicitud-evento-page';
 // 👇 NUEVA IMPORTACIÓN (La página de inicio estilo WakeUp)
 import InicioPage from "./pages/inicio-page";
 
@@ -21,13 +21,14 @@ function App() {
         
         <Route path="/mapa" element={<EventsMapPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
-        
+        <Route path="/publicar-evento" element={<SolicitudEventoPage />} />
         <Route path="/registro-evento"
           element={
             <ProtectedRoute allowedRoles={[1, 2]}>
               <CreateEventPage />
             </ProtectedRoute>
           }
+          
         />
         
         <Route path="/login" element={<LoginPage />} />
