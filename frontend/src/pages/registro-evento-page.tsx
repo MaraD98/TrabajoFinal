@@ -5,12 +5,14 @@ import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 
 export default function CreateEventPage() {
+  // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
   const [formData, setFormData] = useState({
     nombre_evento: "",
     ubicacion: "",
     fecha_evento: "",
     descripcion: "",
     costo_participacion: 0,
+    cupo_maximo: 0, // <--- NUEVO CAMPO AGREGADO
     id_tipo: 1,
     id_dificultad: 1,
     lat: null as number | null,
@@ -24,7 +26,6 @@ export default function CreateEventPage() {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
-
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -41,6 +42,11 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
   if (formData.lat === null || formData.lng === null) {
     alert("Debes seleccionar una ubicación en el mapa o escribir una dirección válida");
+    return;
+  }
+  // Validación básica para cupo
+  if (formData.cupo_maximo <= 0) {
+    alert("El cupo máximo debe ser mayor a 0");
     return;
   }
   try {
@@ -239,6 +245,7 @@ const initMap = () => {
                     className="event-form__select"
                     required
                   >
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Running</option>
                     <option value={2}>Ciclismo</option>
                     <option value={3}>Triatlón</option>
@@ -258,6 +265,7 @@ const initMap = () => {
                     className="event-form__select"
                     required
                   >
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Principiante</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
@@ -317,6 +325,26 @@ const initMap = () => {
                     className="event-form__textarea"
                     rows={5}
                   />
+                </div>
+
+                {/* 2. AQUÍ ESTÁ EL INPUT VISUAL PARA CUPO MÁXIMO */}
+                <div className="event-form__field">
+                  <label htmlFor="cupo_maximo" className="event-form__label">
+                    Cupo Máximo *
+                  </label>
+                  <input
+                    id="cupo_maximo"
+                    type="number"
+                    name="cupo_maximo"
+                    placeholder="Ej: 500"
+                    onChange={handleChange}
+                    className="event-form__input"
+                    min="1"
+                    required
+                  />
+                   <span className="event-form__hint">
+                    Límite de participantes
+                  </span>
                 </div>
 
                 <div className="event-form__field">

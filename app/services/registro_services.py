@@ -15,28 +15,21 @@ from app.schemas.registro_schema import EventoCreate, EventoResponse
 # Configuración de carpeta para guardar fotos
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-# --------------------------------------
-
-# Ya no necesitamos importar Evento (modelo) aquí, porque eso lo maneja el CRUD
 
 class EventoService:
 
     @staticmethod
     def crear_nuevo_evento(db: Session, evento_in: EventoCreate, usuario_actual) -> EventoResponse:
         
-        # ---------------------------------------------------------
-        # 1. VALIDACIÓN DE ROL 
-        # ---------------------------------------------------------
-       # 1 = Admin, 2 = Supervisor -> Publicado (3)
-        # Otros -> Borrador (1)
-        if usuario_actual.id_rol in [1, 2]:
-            estado_calculado = 3
-        else:
-            estado_calculado = 1
+        # 1. VALIDACIÓN DE PERMISOS
+        if usuario_actual.id_rol in [3, 4]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tu perfil no tiene permisos para crear eventos."
+            )
 
-        # ---------------------------------------------------------
-        # 2. VALIDACIÓN DE DUPLICADOS 
-        # ---------------------------------------------------------
+        # 2. VALIDACIÓN DE DUPLICADOS
+        # (Alineado correctamente con el resto del código)
         evento_existente = registro_crud.get_evento_por_nombre_y_fecha(
             db, 
             nombre=evento_in.nombre_evento, 
@@ -47,16 +40,21 @@ class EventoService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Ya existe un evento llamado '{evento_in.nombre_evento}' para esa fecha."
             )
+
+        # 3. CALCULAR EL ESTADO
+        # Admin (1) o Supervisor (2) -> Publicado (3)
+        # Otros -> Borrador (1)
+        if usuario_actual.id_rol in [1, 2]:
+            estado_calculado = 3 
+        else:
+            estado_calculado = 1 
         
-        # ---------------------------------------------------------
-        # 3. LLAMADA AL CRUD 
-        # ---------------------------------------------------------
-        # IMPORTANTE: Asumo que tu objeto usuario tiene 'id_usuario' o 'id'.
+        # 4. GUARDAR
         nuevo_evento = registro_crud.create_evento(
             db=db, 
             evento=evento_in, 
             user_id=usuario_actual.id_usuario,
-            id_estado=estado_calculado
+            id_estado_final=estado_calculado 
         )
         
         return nuevo_evento

@@ -18,10 +18,8 @@ ID_ROL_SUPERVISOR = 2
 # 1. CREATE (Crear) - 
 # -----------------------------------------------------------------------------
 # Agregamos 'user_id' como parámetro para saber quién crea el evento
-def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado: int):
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):    
     
-    # Creamos el objeto del modelo asignando CAMPO POR CAMPO (manualmente)
-    # Así queda bien claro qué dato va en qué columna.
     db_evento = Evento(
         nombre_evento       = evento.nombre_evento,
         ubicacion           = evento.ubicacion,
@@ -30,17 +28,20 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado: in
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
-        lat = evento.lat,  
-        lng = evento.lng,
         
-        id_estado  = id_estado,      
-        id_usuario = user_id            
+        # --- AQUÍ ESTÁ EL CAMBIO ---
+        # Ahora usa el número que le pasamos, no el fijo
+        id_estado  = id_estado_final, 
+        id_usuario = user_id,
+        lat = evento.lat,  
+        lng = evento.lng   
     )
     
     db.add(db_evento)
     db.commit()
     db.refresh(db_evento)
     return db_evento
+    
 
 # -----------------------------------------------------------------------------
 # 2. READ (Leer todos) - Esto se usa cuando llega un GET (lista)

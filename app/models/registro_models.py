@@ -1,9 +1,9 @@
 from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text, Boolean
+from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text
+from sqlalchemy.orm import relationship # <--- 1. IMPORTANTE: Faltaba importar esto
 from app.models.base import Base
 
 # --- MODELOS AUXILIARES ---
-# Necesitamos definirlos para que las ForeignKey de abajo tengan a dónde apuntar.
-
 class TipoEvento(Base):
     __tablename__ = "tipoevento"
     id_tipo = Column(Integer, primary_key=True, index=True)
@@ -26,7 +26,7 @@ class Evento(Base):
 
     id_evento = Column(Integer, primary_key=True, index=True)
     
-    # 1. Relación con Usuario (Igual que contacto se relaciona con usuario en el código de ella)
+    # 1. Relación con Usuario (Quien crea el evento)
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
 
     nombre_evento = Column(String(255), nullable=False, index=True)
@@ -40,8 +40,10 @@ class Evento(Base):
     descripcion = Column(String(500), nullable=True)
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)    
     
-    
     id_estado = Column(Integer, ForeignKey("estadoevento.id_estado"), nullable=False, default=1)
+    
+
+    cupo_maximo = Column(Integer, nullable=False, default=0) 
 
     # Fecha automática
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
@@ -50,7 +52,9 @@ class Evento(Base):
     lat = Column(DECIMAL(9, 6), nullable=True)
     lng = Column(DECIMAL(9, 6), nullable=True)
    
-    # ---(HU 1.3 y 1.4) ---
+    # 4. Esto permite hacer 'evento.multimedia' y ver las fotos
+    multimedia = relationship("EventoMultimedia", back_populates="evento")
+
 class EventoMultimedia(Base):
     __tablename__ = "evento_multimedia"
 
@@ -79,3 +83,9 @@ class ReservaEvento(Base):
     id_evento = Column(Integer, ForeignKey("evento.id_evento"))
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
     fecha_reserva = Column(DateTime(timezone=True), server_default=func.now())
+    url_archivo = Column(String, nullable=False) 
+    tipo_archivo = Column(String(50), nullable=False) 
+    fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
+
+    # 5. EL RETORNO: Esto permite saber a qué evento pertenece una foto
+    evento = relationship("Evento", back_populates="multimedia")

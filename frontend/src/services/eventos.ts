@@ -1,16 +1,16 @@
 import { api } from "./api";
 
-//Crear un evento
+// Función para crear eventos
 export async function createEvento(eventoData: any, token: string) {
   const res = await api.post("/eventos", eventoData, {
     headers: {
-      Authorization: `Bearer ${token}`, // 👈 token del login
+      Authorization: `Bearer ${token}`,
     },
   });
   return res.data;
 }
 
-// Listar todos los eventos publicados
+// Función para obtener TODOS los eventos
 export async function getEventos() {
   const res = await api.get("/eventos");
   return res.data;
@@ -39,6 +39,15 @@ export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
     });
     return response.data;
 };
+export async function getEventosCalendario(month: number, year: number) {
+  const res = await api.get("/eventos/calendario", {
+    params: {
+      month: month,
+      year: year
+    }
+  });
+  return res.data;
+}
 // Login: recibe email y contrasenia, devuelve token
 export async function login(email: string, contrasenia: string) {
   const res = await api.post("/auth/login", {
