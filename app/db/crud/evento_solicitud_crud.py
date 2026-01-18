@@ -109,7 +109,7 @@ class Solicitud_PublicacionCRUD:
             joinedload(SolicitudPublicacion.estado_evento),
             joinedload(SolicitudPublicacion.estado_solicitud)
         ).filter(
-            SolicitudPublicacion.id_estado_solicitud == 1  
+            SolicitudPublicacion.id_estado_solicitud == 2  # El 2 es Pendiente  
         ).order_by(desc(SolicitudPublicacion.fecha_solicitud)).all()
     
     @staticmethod
@@ -121,8 +121,8 @@ class Solicitud_PublicacionCRUD:
             joinedload(SolicitudPublicacion.estado_evento),
             joinedload(SolicitudPublicacion.estado_solicitud)
         ).filter(
-            # El 3 es Rechazada
-            SolicitudPublicacion.id_estado_solicitud == 3
+            # El 4 es Rechazada
+            SolicitudPublicacion.id_estado_solicitud == 4
         ).order_by(desc(SolicitudPublicacion.fecha_solicitud)).all()
     
     @staticmethod
@@ -142,11 +142,10 @@ class Solicitud_PublicacionCRUD:
         solicitud.id_estado_solicitud = revision.id_estado_solicitud
         solicitud.observaciones_admin = revision.observaciones_admin
         
-        if revision.id_estado_solicitud == 2:  
+        if revision.id_estado_solicitud == 3:  
             solicitud.id_estado = 3  # Publicado
         
         db.commit()
-        db.refresh(solicitud)
         db.refresh(solicitud, ['estado_solicitud', 'estado_evento', 'usuario'])
         
         return solicitud
@@ -161,7 +160,7 @@ class Solicitud_PublicacionCRUD:
             joinedload(SolicitudPublicacion.estado_solicitud),
             joinedload(SolicitudPublicacion.estado_evento)
         ).filter(
-            SolicitudPublicacion.id_estado_solicitud == 2
+            SolicitudPublicacion.id_estado_solicitud == 3
         ).order_by(desc(SolicitudPublicacion.fecha_evento)).all()
     
     @staticmethod

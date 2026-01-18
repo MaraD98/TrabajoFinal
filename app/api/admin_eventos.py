@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.evento_solicitud_schema import (SolicitudPublicacionResponse, RevisionSolicitud, SolicitudesPaginadas)
 from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
+from app.db.crud import registro_crud
 from app.models.auth_models import Usuario
 from app.core.security import security
 from app.services.auth_services import AuthService
@@ -44,7 +45,7 @@ def require_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
     summary="Listar todas las solicitudes",
 )
 def listar_todas_solicitudes(
-    id_estado_solicitud: int = Query(None, ge=1, le=3, description="Filtro por estado: 1=Pendiente, 2=Aprobada, 3=Rechazada"),
+    id_estado_solicitud: int = Query(None, ge=1, le=4, description="Filtro por estado: 1=Pendiente, 2=Aprobada, 3=Rechazada"),
     pagina: int = Query(1, ge=1),
     por_pagina: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -73,13 +74,13 @@ def listar_todas_solicitudes(
     "/pendientes",
     response_model=list[SolicitudPublicacionResponse],
     summary="Listar solicitudes pendientes",
-    description="Vista rápida de todas las solicitudes que esperan revisión (Estado 1)"
+    description="Vista rápida de todas las solicitudes que esperan revisión (Estado 2)"
 )
 def listar_pendientes(
     db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)
 ):
-    # Ahora el CRUD filtrará por id=1 correctamente
+    # Ahora el CRUD filtrará por id=2 correctamente
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_pendientes(db)
     return solicitudes
 
@@ -94,20 +95,6 @@ def listar_pendientes(
 def listar_aprobadas(db: Session = Depends(get_db),
     admin: Usuario = Depends(require_admin)):
     solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_aprobadas(db)
-    return solicitudes
-
-# ============ Listar solicitudes rechazadas ============
-@router.get(
-    "/rechazadas",
-    response_model=list[SolicitudPublicacionResponse],
-    summary="Listar solicitudes rechazadas",
-    description="Obtiene todas las solicitudes que han sido rechazadas (Estado 3)"
-)
-def listar_rechazadas(
-    db: Session = Depends(get_db),
-    admin: Usuario = Depends(require_admin)
-):
-    solicitudes = Solicitud_PublicacionCRUD.obtener_solicitudes_rechazadas(db)
     return solicitudes
 
 # ============ Obtener detalle de solicitud ============
@@ -144,30 +131,42 @@ def revisar_solicitud(
     admin: Usuario = Depends(require_admin)
 ):
 
-    #  LÓGICA DE APROBACIÓN (ID 2 = Aprobada)
-    if revision.id_estado_solicitud == 2:
-        try:
-            # Llamamos al servicio que publica el evento
-            EventoSolicitudService.aprobar_solicitud_y_publicar(
-                db=db,
-                id_solicitud=id_solicitud,
-                id_admin=admin.id_usuario
-            )
-            # Recargamos para devolver el objeto actualizado
-            solicitud_actualizada = Solicitud_PublicacionCRUD.obtener_solicitud_detallada(db, id_solicitud)
-            
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-    # Lógica para Rechazar (3) u otros estados
+   # (Tu lógica existente para aprobar publicaciones)
+    if revision.id_estado_solicitud == 3: # Aprobado
+        EventoSolicitudService.aprobar_solicitud_y_publicar(db=db, id_solicitud=id_solicitud, id_admin=admin.id_usuario)
+        return Solicitud_PublicacionCRUD.obtener_solicitud_detallada(db, id_solicitud)
     else:
-        solicitud_actualizada = Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
-    
-    if not solicitud_actualizada:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Solicitud con ID {id_solicitud} no encontrada"
-        )
-    
-    return solicitud_actualizada
+        return Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
 
+# =================================================================
+#  NUEVO: GESTIÓN DE ELIMINACIONES(4.1-4.2) Y LIMPIEZA(4.3)
+# =================================================================
+
+# CASO 2: Admin Aprueba Solicitud de Baja -> Pasa de 6 a 5
+@router.patch("/eventos/{evento_id}/aprobar-baja", summary="Aprobar solicitud de baja (Admin)")
+def aprobar_baja_evento(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_admin)
+):
+    """
+    Aprueba una solicitud de baja (Estado 6).
+    El evento pasa a 'Cancelado' (Estado 5) para que quede en el historial.
+    """
+    # Reutilizamos la lógica del CRUD para pasar a estado 5
+    return registro_crud.cancelar_evento(db, evento_id, motivo="Baja aprobada por Admin")
+
+# CASO 3: Mantenimiento / Limpieza -> Pasa a Estado 7
+@router.patch("/eventos/{evento_id}/limpiar-definitivo", tags=["Admin Mantenimiento"])
+def limpiar_evento_definitivo(
+    evento_id: int,
+    motivo: str,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(require_admin)
+):
+    """
+    LIMPIEZA PROFUNDA: Mueve el evento a 'Depurado' (Estado 7).
+    - Desaparece de la app principal.
+    - Queda disponible para reportes SQL.
+    """
+    return registro_crud.depurar_evento(db, evento_id, motivo)

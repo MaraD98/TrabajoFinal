@@ -7,7 +7,6 @@ from app.models.auth_models import Usuario
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
-from typing import List
 from app.db.crud import registro_crud
 from app.db.crud.registro_crud import ID_ROL_ADMINISTRADOR, ID_ROL_SUPERVISOR, ID_ESTADO_CANCELADO, ID_ESTADO_PUBLICADO, ID_ESTADO_PENDIENTE_ELIMINACION
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
@@ -154,8 +153,8 @@ class EventoService:
         db.add(nueva_solicitud)
 
         # Cambiar estado a Pendiente (6)
-        evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION
-        
+        # evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION
+        pass
         db.commit()
         db.refresh(evento)
         

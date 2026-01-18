@@ -54,7 +54,8 @@ class Evento(Base):
    
     # 4. Esto permite hacer 'evento.multimedia' y ver las fotos
     multimedia = relationship("EventoMultimedia", back_populates="evento")
-
+    reservas = relationship("ReservaEvento", back_populates="evento") 
+    
 class EventoMultimedia(Base):
     __tablename__ = "evento_multimedia"
 
@@ -63,7 +64,7 @@ class EventoMultimedia(Base):
     url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto 
     tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' 
     fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
-    
+    evento = relationship("Evento", back_populates="multimedia")
     # --- (NUEVO) HU 4.1: Tabla de Eliminación ---
 class EliminacionEvento(Base):
     __tablename__ = "eliminacion_evento"
@@ -83,9 +84,9 @@ class ReservaEvento(Base):
     id_evento = Column(Integer, ForeignKey("evento.id_evento"))
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"))
     fecha_reserva = Column(DateTime(timezone=True), server_default=func.now())
-    url_archivo = Column(String, nullable=False) 
-    tipo_archivo = Column(String(50), nullable=False) 
-    fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
-
+    # url_archivo = Column(String, nullable=False) 
+    # tipo_archivo = Column(String(50), nullable=False) 
+    # fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
+    id_estado_reserva = Column(Integer, ForeignKey("estadoreserva.id_estado_reserva"))
     # 5. EL RETORNO: Esto permite saber a qué evento pertenece una foto
-    evento = relationship("Evento", back_populates="multimedia")
+    evento = relationship("Evento", back_populates="reservas")

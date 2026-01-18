@@ -17,9 +17,6 @@ export default function CancelEventModal({ isOpen, onClose, idEvento, tipoAccion
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
-    // Para Admin y Solicitud, pedimos motivo obligatorio. 
-    // Si quisieras que el Admin borre sin motivo, podrías quitar esta validación, 
-    // pero siempre es bueno dejar registro.
     if (!motivo.trim()) {
         alert("Por favor, ingresa un motivo para confirmar.");
         return;
@@ -28,69 +25,74 @@ export default function CancelEventModal({ isOpen, onClose, idEvento, tipoAccion
     try {
       setCargando(true);
       
+      let respuesta;
       if (tipoAccion === 'PROPIO') {
-        await cancelarEventoPropio(idEvento, motivo);
-        alert("Evento cancelado correctamente.");
+        respuesta = await cancelarEventoPropio(idEvento, motivo);
       } else if (tipoAccion === 'SOLICITUD') {
-        await solicitarBajaEvento(idEvento, motivo);
-        alert("Solicitud enviada correctamente.");
+        respuesta = await solicitarBajaEvento(idEvento, motivo);
       } else if (tipoAccion === 'ADMIN') {
-        await adminEliminarEvento(idEvento, motivo);
-        alert("Evento eliminado permanentemente.");
+        respuesta = await adminEliminarEvento(idEvento, motivo);
       }
       
+      // Si el backend devuelve un mensaje, lo mostramos (opcional)
+      if (respuesta?.mensaje || respuesta?.detail) {
+          alert(respuesta.mensaje || respuesta.detail);
+      } else {
+          alert("Operación realizada con éxito.");
+      }
+
       setMotivo(""); 
-      onSuccess(); 
+      onSuccess(); // Recargar lista
       onClose();   
 
     } catch (error: any) {
       console.error(error);
+      // Extraer mensaje de error del backend (FastAPI suele devolver { detail: "..." })
       const mensajeError = error.response?.data?.detail || "Error al procesar la solicitud.";
-      alert("Error: " + mensajeError);
+      alert("⚠️ Error: " + mensajeError);
     } finally {
       setCargando(false);
     }
   };
 
-  // --- LÓGICA DE TEXTOS (HU 4.4) ---
-  let titulo = "¿Confirmar acción?";
-  let pregunta = "¿Está seguro de realizar esta acción?";
+  // --- TEXTOS VISUALES ---
+ let titulo = "¿Confirmar?";
+  let pregunta = "¿Seguro?";
   let botonTexto = "Confirmar";
+  let colorTitulo = "white"; 
   
   if (tipoAccion === 'PROPIO') {
-    titulo = "Cancelar mi Evento";
-    pregunta = "¿Está seguro que desea cancelar su evento? Esta acción no se puede deshacer y se notificará a los inscritos.";
-    botonTexto = "Sí, Cancelar Evento";
+    titulo = "Solicitar Baja de Evento";
+    // TEXTO CORREGIDO PARA TU LÓGICA:
+    pregunta = "Como usuario, no puedes eliminar eventos directamente. Esta acción enviará una SOLICITUD DE BAJA al administrador. ¿Deseas continuar?";
+    botonTexto = "Enviar Solicitud";
+    colorTitulo = "#ccff00"; // Verde WakeUp
   } 
   else if (tipoAccion === 'SOLICITUD') {
-    titulo = "Reportar / Solicitar Baja";
-    pregunta = "¿Está seguro que desea reportar este evento para que sea dado de baja por un administrador?";
+    // ESTE CASO YA NO DEBERÍA OCURRIR SEGÚN TU REGLA 2, PERO LO DEJAMOS POR SEGURIDAD
+    titulo = "Reportar Evento";
+    pregunta = "¿Enviar solicitud de baja para este evento?";
     botonTexto = "Enviar Solicitud";
+    colorTitulo = "#f39c12"; 
   } 
   else if (tipoAccion === 'ADMIN') {
-    // TEXTO EXACTO DE LA HU 4.4
-    titulo = "Eliminar Evento (Administrador)";
-    pregunta = "¿Está seguro que desea eliminar este evento? Esta acción borrará el evento permanentemente del sistema.";
-    botonTexto = "Sí, Eliminar";
+    titulo = "Eliminar Evento (Admin)";
+    pregunta = "⚠️ Como Administrador, esta acción eliminará el evento inmediatamente (Soft Delete - Estado 6).";
+    botonTexto = "ELIMINAR AHORA";
+    colorTitulo = "#ff4444"; 
   }
 
   return (
     <div className="modal-overlay">
       <div className="modal-content">
-        <h3 className="modal-title" style={{ color: tipoAccion === 'ADMIN' ? '#d32f2f' : 'white' }}>
-            {titulo}
-        </h3>
-        
-        {/* Aquí está la confirmación visual de la HU 4.4 */}
-        <p className="modal-text" style={{ fontSize: '1.1rem', marginBottom: '20px' }}>
-          {pregunta}
-        </p>
+        <h3 className="modal-title" style={{ color: colorTitulo }}>{titulo}</h3>
+        <p className="modal-text">{pregunta}</p>
 
         <div className="modal-field">
           <label>Motivo (Requerido):</label>
           <textarea
             className="modal-textarea"
-            placeholder="Escribe la razón aquí..."
+            placeholder="Describe la razón..."
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             disabled={cargando}
@@ -98,17 +100,18 @@ export default function CancelEventModal({ isOpen, onClose, idEvento, tipoAccion
         </div>
 
         <div className="modal-actions">
-          {/* Botón de Cancelar la acción (El usuario se arrepiente) */}
           <button className="btn-secondary" onClick={onClose} disabled={cargando}>
-            Cancelar / Volver
+            Cancelar
           </button>
-          
-          {/* Botón de Confirmación Explícita */}
           <button 
             className="btn-danger" 
             onClick={handleConfirm}
             disabled={!motivo.trim() || cargando}
-            style={{ backgroundColor: tipoAccion === 'ADMIN' ? '#d32f2f' : undefined }}
+            style={{ 
+                backgroundColor: tipoAccion === 'ADMIN' ? '#d32f2f' : undefined,
+                color: tipoAccion === 'ADMIN' ? 'white' : undefined,
+                border: tipoAccion === 'ADMIN' ? '1px solid red' : undefined
+            }}
           >
             {cargando ? "Procesando..." : botonTexto}
           </button>

@@ -1,0 +1,139 @@
+/* ==========================================================================
+   OPCIÓN 1: DARK MODE (Estilo Inicio - Compañero)
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
+
+:root {
+  --bg-dark: #0d0d0d;
+  --card-dark: #1a1a1a;
+  --text-white: #ffffff;
+  --text-gray: #b0b0b0;
+  --neon-accent: #ccff00; /* El amarillo neón característico */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  font-family: 'Montserrat', sans-serif;
+  color: var(--text-white);
+}
+
+/* Contenedor Principal */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.9)),
+              url('https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  padding: 20px;
+}
+
+/* Tarjeta */
+.login-card {
+  background-color: var(--card-dark);
+  border: 1px solid #333;
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  transition: 0.3s;
+}
+
+.login-card:hover {
+  border-color: var(--neon-accent); /* Borde neón al pasar el mouse */
+  transform: translateY(-5px);
+}
+
+/* Títulos */
+.login-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-white);
+  margin-bottom: 10px;
+  letter-spacing: 2px;
+}
+
+.login-subtitle {
+  color: var(--text-gray);
+  margin-bottom: 30px;
+  font-size: 0.9rem;
+}
+
+/* Inputs */
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-label {
+  display: block;
+  color: var(--neon-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 15px;
+  background-color: #000;
+  border: 1px solid #333;
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 600;
+  box-sizing: border-box; /* Importante para que no se rompa */
+  transition: 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--neon-accent);
+  box-shadow: 0 0 10px rgba(204, 255, 0, 0.2);
+}
+
+/* Botón Principal */
+.btn-login {
+  width: 100%;
+  padding: 15px;
+  margin-top: 10px;
+  background-color: transparent;
+  border: 2px solid var(--neon-accent);
+  color: var(--neon-accent);
+  font-weight: 800;
+  text-transform: uppercase;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: 0.3s;
+}
+
+.btn-login:hover {
+  background-color: var(--neon-accent);
+  color: #000;
+  box-shadow: 0 0 20px rgba(204, 255, 0, 0.4);
+}
+
+/* Links */
+.login-footer {
+  margin-top: 25px;
+  font-size: 0.85rem;
+  color: var(--text-gray);
+}
+
+.login-link {
+  color: var(--text-white);
+  text-decoration: none;
+  font-weight: 700;
+  margin-left: 5px;
+  transition: 0.3s;
+}
+
+.login-link:hover {
+  color: var(--neon-accent);
+}

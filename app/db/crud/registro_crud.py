@@ -8,8 +8,10 @@ from sqlalchemy import or_
 # -----------------------------------------------------------------------------
 ID_ESTADO_BORRADOR = 1
 ID_ESTADO_PUBLICADO = 3
-ID_ESTADO_CANCELADO = 5  
-ID_ESTADO_PENDIENTE_ELIMINACION = 6
+ID_ESTADO_FINALIZADO = 4
+ID_ESTADO_CANCELADO = 5              # Baja lógica (visible en historial)
+ID_ESTADO_PENDIENTE_ELIMINACION = 6  # Solicitud de externo
+ID_ESTADO_DEPURADO = 7               # Mantenimiento (invisible)
 # CONSTANTES DE ROLES (Confirmados con tu DB)
 ID_ROL_ADMINISTRADOR = 1
 ID_ROL_SUPERVISOR = 2
@@ -28,9 +30,6 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
-        
-        # --- AQUÍ ESTÁ EL CAMBIO ---
-        # Ahora usa el número que le pasamos, no el fijo
         id_estado  = id_estado_final, 
         id_usuario = user_id,
         lat = evento.lat,  
@@ -50,6 +49,7 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     #return db.query(Evento).offset(skip).limit(limit).all()
     return (
         db.query(Evento)
+        .filter(Evento.id_estado != ID_ESTADO_DEPURADO) # Oculta la basura
         .filter(
             or_(
                 Evento.id_estado == 3                  # Publicado
@@ -112,7 +112,7 @@ def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
         Evento.fecha_evento == fecha
     ).first()
     
-# --- TU CRUD NUEVO ---
+
 def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     nuevo_registro = EventoMultimedia(
         id_evento=id_evento,
@@ -124,20 +124,52 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     db.refresh(nuevo_registro)
     return nuevo_registro
 
-# --- (NUEVO) HU 4.1: Cancelación con registro en historial ---
-def cancelar_evento_con_motivo(db: Session, evento: Evento, motivo: str, id_usuario_cancelador: int):
-    # 1. Insertar en tabla Eliminacion_Evento
-    nueva_eliminacion = EliminacionEvento(
-        id_evento=evento.id_evento,
-        motivo_eliminacion=motivo,
-        id_usuario=id_usuario_cancelador,
-        notificacion_enviada=False 
-    )
-    db.add(nueva_eliminacion)
+# -----------------------------------------------------------------------------
+# 4. GESTIÓN DE BAJAS Y ESTADOS (Lógica Nueva)
+# -----------------------------------------------------------------------------
 
-    # 2. Actualizar estado del Evento a CANCELADO (Soft Delete)
-    evento.id_estado = ID_ESTADO_CANCELADO
-    
-    db.commit()
-    db.refresh(evento)
+# HU 4.1 y 4.2 (Parte Admin/Aprobación): Mover a CANCELADO (5)
+def cancelar_evento(db: Session, evento_id: int, motivo: str):
+    evento = get_evento_by_id(db, evento_id)
+    if evento:
+        evento.id_estado = ID_ESTADO_CANCELADO
+        # Guardamos el motivo en el campo del evento (si existe)
+        # OJO: Si tu modelo Evento tiene campo 'motivo_baja', descomenta la linea de abajo
+        if hasattr(evento, 'motivo_baja'): evento.motivo_baja = motivo 
+        
+        db.commit()
+        db.refresh(evento)
+    return evento
+
+# HU 4.2 (Parte Usuario): Solicitar Baja -> PENDIENTE (6)
+def solicitar_baja_evento(db: Session, evento_id: int, motivo: str):
+    evento = get_evento_by_id(db, evento_id)
+    if evento:
+        evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION
+        if hasattr(evento, 'motivo_baja'): evento.motivo_baja = motivo
+        
+        db.commit()
+        db.refresh(evento)
+    return evento
+
+# HU 4.3 (Admin Mantenimiento): Limpiar -> DEPURADO (7)
+def depurar_evento(db: Session, evento_id: int, motivo: str):
+    evento = get_evento_by_id(db, evento_id)
+    if evento:
+        evento.id_estado = ID_ESTADO_DEPURADO
+        
+        # Opcional: Crear registro en tabla histórica si la tienes
+        try:
+            historial = EliminacionEvento(
+                id_evento=evento.id_evento,
+                motivo_eliminacion=f"[MANTENIMIENTO] {motivo}",
+                id_usuario=evento.id_usuario, # O el admin actual si lo pasaras
+                notificacion_enviada=False
+            )
+            db.add(historial)
+        except:
+            pass # Si falla la tabla historial, al menos cambia el estado
+
+        db.commit()
+        db.refresh(evento)
     return evento

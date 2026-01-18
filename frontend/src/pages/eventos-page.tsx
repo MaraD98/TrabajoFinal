@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-// import { useNavigate } from "react-router-dom"; // Comentado por ahora como pediste
+// import { useNavigate } from "react-router-dom"; 
 import { getEventos, getCurrentUser } from "../services/eventos";
 import CancelEventModal from "../components/CancelEventModal";
 import "../styles/eventos-page.css"; 
@@ -20,7 +20,7 @@ export default function EventosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("");
   const [fechaFiltro, setFechaFiltro] = useState("");
-  const [vista, setVista] = useState<'grid' | 'list'>('grid'); // 'grid' o 'list'
+  const [vista, setVista] = useState<'grid' | 'list'>('grid'); 
 
   // --- LÓGICA MODAL ---
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,24 +60,21 @@ export default function EventosPage() {
     setModalOpen(true);
   };
 
-  // --- LOGICA DE FILTRADO EN TIEMPO REAL (VERSIÓN BLINDADA) ---
+  // --- LOGICA DE FILTRADO EN TIEMPO REAL ---
   const eventosFiltrados = eventos.filter((evento) => {
     
-    // 1. DICCIONARIO: TRADUCTOR DE NÚMEROS A PALABRAS
-    // Esto conecta los IDs de tu base de datos con los nombres del Select
+    // 1. DICCIONARIO
     const mapaCategorias: { [key: number]: string } = {
-    1: "Carrera",
-    2: "Paseo",
-    3: "Entrenamiento",
-    4: "Cicloturismo"
-};
+        1: "Carrera",
+        2: "Paseo",
+        3: "Entrenamiento",
+        4: "Cicloturismo"
+    };
 
     // 2. DETECTIVE DE DATOS
-    // Buscamos el ID en las variables más comunes que suelen usar los backends
     const idEncontrado = evento.id_tipo_evento || evento.id_tipo || evento.tipo_evento_id;
     
     // 3. TRADUCCIÓN FINAL
-    // Si encontramos un ID numérico, usamos el mapa. Si ya venía texto (raro), usamos el texto.
     let categoriaReal = "Desconocida";
     
     if (idEncontrado && mapaCategorias[idEncontrado]) {
@@ -93,8 +90,7 @@ export default function EventosPage() {
       evento.nombre_evento?.toLowerCase().includes(busqueda.toLowerCase()) ||
       evento.ubicacion?.toLowerCase().includes(busqueda.toLowerCase());
 
-    // B. Filtro Categoría (Usando la traducción que acabamos de hacer)
-    // Comparamos peras con peras (Texto con Texto)
+    // B. Filtro Categoría
     const catMatch = categoria === "" 
         ? true 
         : categoriaReal.toLowerCase() === categoria.toLowerCase();
@@ -136,7 +132,7 @@ export default function EventosPage() {
           <select 
             className="filter-select"
             value={categoria} 
-            onChange={(e) => setCategoria(e.target.value)} // ¡Importante para conectar con el cerebro!
+            onChange={(e) => setCategoria(e.target.value)} 
           >
             <option value="">Todas las categorías</option>
             <option value="Carrera">Carrera</option>
@@ -198,7 +194,9 @@ export default function EventosPage() {
 
             let estadoTexto = evento.estado || "Desconocido";
             if (evento.id_estado === 3) estadoTexto = "Publicado";
-            if (evento.id_estado === 4) estadoTexto = "CANCELADO";
+            if (evento.id_estado === 5) estadoTexto = "CANCELADO"; 
+            if (evento.id_estado === 6) estadoTexto = "ELIMINADO";
+            if (evento.id_estado === 7) estadoTexto = "SOLICITUD BAJA";
 
             return (
               <div key={evento.id} className="card-evento">
@@ -220,44 +218,48 @@ export default function EventosPage() {
                     <span>🏆 {MAPA_CATEGORIAS[evento.id_tipo_evento] || MAPA_CATEGORIAS[evento.id_tipo] || MAPA_CATEGORIAS[evento.tipo_evento_id] || evento.tipo_evento || "Sin Categoría"}</span>
                   </div>
 
-                  {/* Botones de Acción (Solo si no está cancelado) */}
-                  {estadoTexto !== "CANCELADO" && (
+                  {/* Botones de Acción (LÓGICA CORREGIDA) */}
+                  {/* Muestra botones si: (No está cancelado NI eliminado) O (Soy Admin Y es una solicitud de baja) */}
+                  { ((estadoTexto !== "CANCELADO" && estadoTexto !== "ELIMINADO") || (soyAdmin && evento.id_estado === 7)) && (
                     <div className="card-footer">
-                      {esMio && (
+                      
+                      {/* 1. DUEÑO: Ve botón para SOLICITAR BAJA (si no está ya cancelado/eliminado/solicitado) */}
+                      {esMio && evento.id_estado !== 5 && evento.id_estado !== 6 && evento.id_estado !== 7 && (
                         <button 
                           className="btn-action btn-cancelar-propio"
                           onClick={() => handleOpenModal(evento.id, 'PROPIO')}
                         >
-                          Cancelar mi Evento
+                          Solicitar Baja
                         </button>
                       )}
 
-                      {!esMio && currentUser && !soyAdmin && (
-                         <button 
-                           className="btn-action btn-solicitar-baja"
-                           onClick={() => handleOpenModal(evento.id, 'SOLICITUD')}
-                         >
-                           Reportar / Baja
-                         </button>
+                      {/* 1.1 DUEÑO: Si ya solicitó baja, mostrar aviso (sin botón) */}
+                      {esMio && evento.id_estado === 7 && (
+                         <span style={{color: '#f39c12', fontSize: '0.9rem'}}>⏳ Solicitud Pendiente</span>
                       )}
 
-                      {soyAdmin && (
-                         <button 
-                           className="btn-action btn-admin-delete"
-                           onClick={() => handleOpenModal(evento.id, 'ADMIN')}
-                         >
-                           🗑️ Eliminar
-                         </button>
+                      {/* 2. TERCEROS: NO VEN NADA (Se eliminó el botón de reportar) */}
+
+                      {/* 3. ADMIN: Ve botón ELIMINAR siempre (para aprobar solicitudes o borrar directo) */}
+                      {soyAdmin && evento.id_estado !== 6 && (
+                          <button 
+                            className="btn-action btn-admin-delete"
+                            onClick={() => handleOpenModal(evento.id, 'ADMIN')}
+                            style={{ marginLeft: 'auto' }} // Para que se vaya a la derecha si está solo
+                          >
+                            🗑️ {evento.id_estado === 7 ? "Aprobar Baja" : "Eliminar"}
+                          </button>
                       )}
                     </div>
                   )}
-                </div>
-              </div>
+                </div> {/* Cierre de card-body */}
+              </div> /* Cierre de card-evento */
             );
           })}
-        </div>
+        </div> /* Cierre de eventos-container */
       )}
 
+      {/* El Modal va AFUERA del map pero DENTRO del container principal */}
       <CancelEventModal 
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -265,6 +267,6 @@ export default function EventosPage() {
         tipoAccion={accionTipo}
         onSuccess={cargarDatos} 
       />
-    </div>
+    </div> /* Cierre de page-container */
   );
 }

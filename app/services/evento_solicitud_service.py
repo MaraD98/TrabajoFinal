@@ -148,7 +148,7 @@ class EventoSolicitudService:
     @staticmethod
     def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int):
         """
-        1. Cambia estado de solicitud a APROBADA (2).
+        1. Cambia estado de solicitud a APROBADA (3).
         2. COPIA los datos a la tabla EVENTO con estado PUBLICADO (3).
         """
         
@@ -158,12 +158,12 @@ class EventoSolicitudService:
         if not solicitud:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")
 
-        # Verificamos si ya estaba en estado 2 (Aprobada)
-        if solicitud.id_estado_solicitud == 2: 
+        # Verificamos si ya estaba en estado 3 (Aprobada)
+        if solicitud.id_estado_solicitud == 3: 
              raise HTTPException(status_code=400, detail="Esta solicitud ya fue aprobada anteriormente")
 
         # 2. Actualizar Estado de la Solicitud (Origen)
-        solicitud.id_estado_solicitud = 2  
+        solicitud.id_estado_solicitud = 3  
         solicitud.observaciones_admin = f"Aprobado por Admin ID {id_admin}"
 
         # 3. CREAR EL EVENTO PUBLICADO (Destino)
@@ -178,6 +178,7 @@ class EventoSolicitudService:
             costo_participacion = solicitud.costo_participacion,
             lat                 = solicitud.lat,
             lng                 = solicitud.lng,
+            cupo_maximo         = solicitud.cupo_maximo,
             id_estado           = 3  # Estado del EVENTO (Publicado)
         )
 
@@ -188,16 +189,89 @@ class EventoSolicitudService:
             db.commit()
             db.refresh(nuevo_evento)
             
-            return {
-                "mensaje": "Solicitud aprobada y evento publicado con éxito",
-                "evento_publicado_id": nuevo_evento.id_evento,
-                "solicitud_id": solicitud.id_solicitud
-            }
+            return solicitud
             
         except Exception as e:
             db.rollback()
             print(f"Error al publicar evento: {e}")
             raise HTTPException(status_code=500, detail=f"Error interno al publicar el evento: {str(e)}")
+        
+    # ... (código existente de tus compañeros arriba) ...
+
+    # =================================================================
+    #  NUEVA LOGICA: ADMINISTRAR SOLICITUDES DE ELIMINACIÓN 4.1-4.2-4.3 (SOFT DELETE)
+    # =================================================================
+    
+    @staticmethod
+    def obtener_solicitudes_eliminacion_pendientes(db: Session):
+        """
+        Devuelve la lista de eventos que han solicitado baja.
+        """
+        # Importamos aquí para evitar ciclos
+        from app.models.registro_models import EliminacionEvento, Evento
+        from app.models.auth_models import Usuario
+
+        # Hacemos un JOIN para traer datos del evento y del usuario que pide la baja
+        consulta = (
+            db.query(EliminacionEvento, Evento.nombre_evento, Usuario.email)
+            .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
+            .join(Usuario, EliminacionEvento.id_usuario == Usuario.id_usuario)
+            .filter(EliminacionEvento.notificacion_enviada == False) # Usamos este flag o un campo 'estado' si tuvieras
+            # OJO: Si no tienes un campo de estado en EliminacionEvento, 
+            # asumimos que si el evento sigue en estado 3, la solicitud está pendiente.
+            .filter(Evento.id_estado != 6) # Solo mostramos si el evento NO ha sido eliminado aún
+            .all()
+        )
+        return consulta
+
+    @staticmethod
+    def aprobar_eliminacion_evento(db: Session, id_eliminacion: int, id_admin: int):
+        """
+        El Admin aprueba la solicitud -> El evento pasa a Estado 6 (Soft Delete).
+        """
+        from app.models.registro_models import EliminacionEvento, Evento
+        
+        # 1. Buscar la solicitud
+        solicitud = db.query(EliminacionEvento).filter(EliminacionEvento.id_eliminacion == id_eliminacion).first()
+        if not solicitud:
+            raise Exception("Solicitud de eliminación no encontrada.")
+
+        # 2. Buscar el evento asociado
+        evento = db.query(Evento).filter(Evento.id_evento == solicitud.id_evento).first()
+        if not evento:
+            raise Exception("Evento asociado no encontrado.")
+
+        # 3. APLICAR SOFT DELETE (Estado 6)
+        evento.id_estado = 6 
+        
+        # 4. (Opcional) Marcar solicitud como procesada/notificada
+        # Si usas el campo 'notificacion_enviada' como flag de 'Procesado':
+        solicitud.notificacion_enviada = True 
+
+        db.commit()
+        db.refresh(evento)
+        return evento
+
+    @staticmethod
+    def rechazar_eliminacion_evento(db: Session, id_eliminacion: int):
+        """
+        El Admin rechaza la baja. El evento se queda como estaba (Publicado/3).
+        Solo borramos o marcamos la solicitud.
+        """
+        from app.models.registro_models import EliminacionEvento
+        
+        solicitud = db.query(EliminacionEvento).filter(EliminacionEvento.id_eliminacion == id_eliminacion).first()
+        if not solicitud:
+            raise Exception("Solicitud no encontrada.")
+
+        # Opción A: Borrar la solicitud física de la tabla (si se rechazó, no hace falta guardarla)
+        db.delete(solicitud)
+        
+        # Opción B: Si tuvieras un estado en esta tabla, lo pondrías en "Rechazado".
+        # Como creo que no tienes esa columna, el delete es lo más limpio para "cancelar la solicitud".
+        
+        db.commit()
+        return {"mensaje": "Solicitud de eliminación rechazada. El evento sigue activo."}
     
 # Alias para compatibilidad (si los usas en otros lugares)
 crear_solicitud_publicacion = Solicitud_PublicacionCRUD.crear_solicitud_publicacion
