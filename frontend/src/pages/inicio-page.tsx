@@ -4,6 +4,7 @@ import '../styles/inicio.css';
 import logoWakeUp from '../assets/wakeup-logo.png';
 import { getEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
+import axios from 'axios'; // Agregamos axios aquí para el fix del nombre
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
@@ -15,7 +16,6 @@ const IMAGENES_TIPO: Record<number | string, string> = {
     default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop"
 };
 
-// Mantenemos esto como respaldo por si el backend no manda 'nombre_tipo'
 const NOMBRES_TIPO: Record<number | string, string> = {
     1: "Carrera",
     2: "Paseo",
@@ -32,29 +32,49 @@ interface Evento {
     imagen_url?: string;
     costo_participacion: number;
     id_tipo: number;
-    // Agregados para coincidir con Calendario
     nombre_tipo?: string;
     nombre_dificultad?: string;
     cupo_maximo?: number;
-    // --- NUEVO: Array de multimedia que viene del backend ---
     multimedia?: { url_archivo: string }[];
 }
 
 export default function InicioPage() {
     const { user, logout } = useAuth();
+    const [localUserName, setLocalUserName] = useState<string>("Usuario"); // Estado local para el nombre
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- LÓGICA DE DIFICULTAD (Traída del Calendario) ---
+    // --- FIX PARA EL NOMBRE "USUARIO" ---
+    useEffect(() => {
+        // 1. Si el contexto ya tiene nombre, úsalo.
+        if (user && user.nombre && user.nombre !== "Usuario") {
+            setLocalUserName(user.nombre);
+        } 
+        // 2. Si no, intenta buscarlo al backend (Parche rápido)
+        else if (user) {
+            const token = localStorage.getItem('token');
+            if (token) {
+                axios.get(`${import.meta.env.VITE_API_URL}/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).then(res => {
+                    if (res.data && res.data.nombre) {
+                        setLocalUserName(res.data.nombre);
+                    }
+                }).catch(err => console.log("No se pudo obtener nombre real", err));
+            }
+        }
+    }, [user]);
+
+    // --- LÓGICA DE DIFICULTAD ---
     const getClaseDificultad = (dificultad?: string) => {
         const dif = dificultad?.toLowerCase() || '';
-        if (dif.includes('experto') || dif.includes('avanzado')) return '#ff4444'; // Rojo
-        if (dif.includes('intermedio')) return '#ffaa00'; // Naranja
-        if (dif.includes('principiante') || dif.includes('básico')) return '#00cc66'; // Verde
-        return '#666'; // Gris default
+        if (dif.includes('experto') || dif.includes('avanzado')) return '#ff4444'; 
+        if (dif.includes('intermedio')) return '#ffaa00'; 
+        if (dif.includes('principiante') || dif.includes('básico')) return '#00cc66'; 
+        return '#666'; 
     };
 
     useEffect(() => {
@@ -98,51 +118,29 @@ export default function InicioPage() {
         cargarEventos();
     }, []);
 
-    // --- FUNCIÓN CORREGIDA PARA ARREGLAR RUTAS DE WINDOWS ---
     const obtenerImagen = (evento: Evento) => {
-        // 1. PRIORIDAD: Buscar en la tabla multimedia (lo nuevo)
         if (evento.multimedia && evento.multimedia.length > 0) {
             let mediaUrl = evento.multimedia[0].url_archivo;
-            
-            // 🔥 CORRECCIÓN CLAVE: Reemplazar barra invertida (\) por barra normal (/)
             mediaUrl = mediaUrl.replace(/\\/g, "/");
-
-            // Si es un link externo (http...), lo retornamos directo
-            if (mediaUrl.startsWith('http')) {
-                return mediaUrl;
-            }
-            
-            // Si es un archivo local (static/...), le pegamos la URL base
-            // Quitamos la barra inicial si la tiene para evitar dobles //
+            if (mediaUrl.startsWith('http')) return mediaUrl;
             const cleanPath = mediaUrl.startsWith("/") ? mediaUrl.substring(1) : mediaUrl;
-            
-            // Para debugging, puedes descomentar esto si sigue fallando:
-            // console.log("Intentando cargar imagen:", `${API_BASE_URL}/${cleanPath}`);
-            
             return `${API_BASE_URL}/${cleanPath}`;
         }
-
-        // 2. Fallback antiguo (por si acaso)
         const url = evento.imagen_url;
         if (url && (url.includes("static") || url.includes("uploads"))) {
-            let cleanPath = url.replace(/\\/g, "/"); // Corrección Windows aquí también
+            let cleanPath = url.replace(/\\/g, "/");
             cleanPath = cleanPath.startsWith("/") ? cleanPath.substring(1) : cleanPath;
             return `${API_BASE_URL}/${cleanPath}`;
         }
-        if (url && url.startsWith("http") && url.length > 15) {
-            return url;
-        }
-
-        // 3. Imagen por defecto según tipo
+        if (url && url.startsWith("http") && url.length > 15) return url;
         const id = evento.id_tipo;
-        if (IMAGENES_TIPO[id]) { return IMAGENES_TIPO[id]; }
+        if (IMAGENES_TIPO[id]) return IMAGENES_TIPO[id];
         return IMAGENES_TIPO.default;
     };
 
     if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
     if (error) return <div style={{ color: 'red', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{error}</div>;
 
-    // ESTILOS DE DROPDOWN
     const dropdownStyle: React.CSSProperties = {
         position: 'absolute',
         top: '120%',
@@ -199,13 +197,21 @@ export default function InicioPage() {
                                 }}
                             >
                                 <span className="user-icon">👤</span>
-                                <span className="user-name">{user.nombre || "Usuario"}</span>
+                                {/* USAMOS EL ESTADO LOCAL QUE SE ACTUALIZA AUTOMÁTICAMENTE */}
+                                <span className="user-name">{localUserName}</span>
                                 <span className="dropdown-arrow">▼</span>
                             </button>
 
                             {isDropdownOpen && (
                                 <div className="user-dropdown" style={dropdownStyle}>
                                     <div style={{ padding: '10px 20px', fontSize: '0.75rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #333' }}>
+                                        MI CUENTA
+                                    </div>
+                                    <Link to="/perfil" style={dropdownItemStyle} className="dropdown-item-hover" onClick={() => setIsDropdownOpen(false)}>
+                                        👤 Mi Perfil
+                                    </Link>
+
+                                    <div style={{ padding: '10px 20px', fontSize: '0.75rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #333', marginTop: '5px' }}>
                                         MIS EVENTOS
                                     </div>
                                     <Link to="/mis-eventos/inscriptos" style={dropdownItemStyle} className="dropdown-item-hover">
@@ -214,7 +220,9 @@ export default function InicioPage() {
                                     <Link to="/mis-eventos/creados" style={dropdownItemStyle} className="dropdown-item-hover">
                                         Creados
                                     </Link>
+                                    
                                     <div style={{ height: '1px', background: '#333', margin: '5px 0' }}></div>
+                                    
                                     <button
                                         onClick={logout}
                                         style={{ ...dropdownItemStyle, color: '#ff4444' }}
@@ -247,7 +255,6 @@ export default function InicioPage() {
                 <div className="grid-eventos">
                     {eventos.map((evento) => {
                         const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
-                        // Prioridad: nombre del tipo de la BD, sino mapeo manual
                         const nombreTipo = evento.nombre_tipo || NOMBRES_TIPO[evento.id_tipo] || "Evento";
                         
                         return (
@@ -258,99 +265,41 @@ export default function InicioPage() {
                                         alt={evento.nombre_evento}
                                         className="card-img"
                                         onError={(e) => {
-                                            // Fallback por si la URL final sigue fallando
                                             e.currentTarget.onerror = null;
                                             e.currentTarget.src = IMAGENES_TIPO.default;
                                         }}
                                     />
-                                    {/* Mantenemos el badge de tipo flotante sobre la imagen también, estilo moderno */}
-                                    <div className="tipo-badge">
-                                        {nombreTipo}
-                                    </div>
+                                    <div className="tipo-badge">{nombreTipo}</div>
                                 </div>
-
                                 <div className="card-content" style={{ cursor: 'default' }}>
-                                    
-                                    {/* --- CABECERA DE LA CARD (Título y Precio) --- */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                         <h3 style={{ margin: 0, fontSize: '1.2rem', lineHeight: 1.2 }}>{evento.nombre_evento}</h3>
-                                        <div style={{ 
-                                            backgroundColor: '#ccff00', 
-                                            color: '#000', 
-                                            padding: '4px 8px', 
-                                            borderRadius: '4px', 
-                                            fontWeight: 'bold', 
-                                            fontSize: '0.9rem',
-                                            whiteSpace: 'nowrap',
-                                            marginLeft: '10px'
-                                        }}>
-                                            {evento.costo_participacion && evento.costo_participacion > 0 
-                                                ? `$${evento.costo_participacion}`
-                                                : 'GRATIS'}
+                                        <div style={{ backgroundColor: '#ccff00', color: '#000', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap', marginLeft: '10px'}}>
+                                            {evento.costo_participacion && evento.costo_participacion > 0 ? `$${evento.costo_participacion}` : 'GRATIS'}
                                         </div>
                                     </div>
-
-                                    {/* --- BADGES (Dificultad, Cupo) --- */}
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                                        {/* Badge Dificultad */}
-                                        <span style={{
-                                            fontSize: '0.75rem',
-                                            padding: '3px 8px',
-                                            borderRadius: '12px',
-                                            border: `1px solid ${getClaseDificultad(evento.nombre_dificultad)}`,
-                                            color: getClaseDificultad(evento.nombre_dificultad),
-                                            textTransform: 'uppercase',
-                                            fontWeight: 600
-                                        }}>
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', border: `1px solid ${getClaseDificultad(evento.nombre_dificultad)}`, color: getClaseDificultad(evento.nombre_dificultad), textTransform: 'uppercase', fontWeight: 600 }}>
                                             {evento.nombre_dificultad || 'General'}
                                         </span>
-
-                                        {/* Badge Cupo */}
-                                        <span style={{
-                                            fontSize: '0.75rem',
-                                            padding: '3px 8px',
-                                            borderRadius: '12px',
-                                            backgroundColor: '#333',
-                                            color: '#aaa',
-                                            border: '1px solid #444'
-                                        }}>
+                                        <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '12px', backgroundColor: '#333', color: '#aaa', border: '1px solid #444' }}>
                                             {evento.cupo_maximo ? `Cupos: ${evento.cupo_maximo}` : 'Cupo Libre'}
                                         </span>
                                     </div>
-
                                     <p className="card-desc">
-                                        {evento.descripcion
-                                            ? (evento.descripcion.length > 80 ? evento.descripcion.substring(0, 80) + '...' : evento.descripcion)
-                                            : "Detalles próximamente."}
+                                        {evento.descripcion ? (evento.descripcion.length > 80 ? evento.descripcion.substring(0, 80) + '...' : evento.descripcion) : "Detalles próximamente."}
                                     </p>
-
-                                    <div style={{
-                                        marginTop: '15px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '10px',
-                                        fontSize: '0.9rem',
-                                        color: '#cccccc',
-                                        borderTop: '1px solid #333',
-                                        paddingTop: '10px'
-                                    }}>
+                                    <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem', color: '#cccccc', borderTop: '1px solid #333', paddingTop: '10px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                             <span title="Fecha" style={{ color: '#ccff00' }}>📅</span>
                                             <span>{fechaLimpia}</span>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                                             <span style={{ marginTop: '2px', color: '#ccff00' }} title="Ubicación">📍</span>
-                                            <span style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>
-                                                {evento.ubicacion}
-                                            </span>
+                                            <span style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>{evento.ubicacion}</span>
                                         </div>
                                     </div>
-
-                                    <Link
-                                        to={`/calendario?fecha=${fechaLimpia}&id=${evento.id_evento}`}
-                                        className="btn-ver-detalle"
-                                        style={{ cursor: 'pointer', marginTop: '15px', textAlign: 'center', display: 'block' }}
-                                    >
+                                    <Link to={`/calendario?fecha=${fechaLimpia}&id=${evento.id_evento}`} className="btn-ver-detalle" style={{ cursor: 'pointer', marginTop: '15px', textAlign: 'center', display: 'block' }}>
                                         VER DETALLE E INSCRIPCIÓN
                                     </Link>
                                 </div>

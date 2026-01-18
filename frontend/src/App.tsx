@@ -16,6 +16,9 @@ import InicioPage from "./pages/inicio-page";
 // 🔥 NUEVO IMPORT: La página de recuperar contraseña
 import ForgotPasswordPage from "./pages/forgot-password-page";
 
+// 👇 NUEVO IMPORT: La página de perfil
+import PerfilPage from "./pages/perfil-page";
+
 function App() {
   return (
     /* 👇 2. ENVOLVEMOS TODO CON EL AUTHPROVIDER */
@@ -38,8 +41,11 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* 🔥 NUEVA RUTA: Aquí conectamos la página */}
+          {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+
+          {/* 👇 NUEVA RUTA: Mi Perfil */}
+          <Route path="/perfil" element={<PerfilPage />} />
 
         </Routes>
       </Router>

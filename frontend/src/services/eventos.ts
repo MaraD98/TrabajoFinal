@@ -25,12 +25,29 @@ export async function getEventosCalendario(month: number, year: number) {
   });
   return res.data;
 }
+
 // Login: recibe email y contrasenia, devuelve token
 export async function login(email: string, contrasenia: string) {
-  const res = await api.post("/auth/login", {
-    email,
-    contrasenia,
+  // =========================================================================
+  // CAMBIO IMPORTANTE: Formato Formulario (OAuth2 Standard)
+  // =========================================================================
+  // ¿Por qué no usamos JSON aquí?
+  // FastAPI y Swagger usan el estándar "OAuth2PasswordRequestForm".
+  // Este estándar requiere que los datos se envíen como un formulario (x-www-form-urlencoded)
+  // y que los campos se llamen estrictamente 'username' y 'password'.
+  // Esto permite que el botón "Authorize" de la documentación (Swagger) funcione correctamente.
+  // =========================================================================
+
+  const formData = new URLSearchParams();
+  formData.append('username', email);       // El backend espera 'username', aunque le pasemos el email
+  formData.append('password', contrasenia); // El backend espera 'password'
+
+  const res = await api.post("/auth/login", formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded' // Avisamos que es un formulario
+    }
   });
+  
   return res.data; // { access_token, token_type }
 }
 
