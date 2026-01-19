@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Asegúrate de tener instalado react-router-dom
+import { Link, useLocation } from 'react-router-dom'; // <--- Agregamos useLocation
 import { getEventosCalendario } from '../services/eventos'; 
 import '../styles/Calendario.css';
 // IMPORTANTE: Ajusta la ruta de tu logo aquí
@@ -32,6 +32,9 @@ const ANIO_ACTUAL = new Date().getFullYear();
 const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL + i);
 
 export default function CalendarioPage() {
+  // --- HOOK PARA LEER LA URL ---
+  const location = useLocation(); 
+
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -50,10 +53,45 @@ export default function CalendarioPage() {
   const hoyReal = new Date();
   hoyReal.setHours(0, 0, 0, 0);
 
+  // --- EFECTO 1: CARGAR EVENTOS CUANDO CAMBIA MES/AÑO ---
   useEffect(() => {
     cargarEventos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, anio]);
+
+  // --- EFECTO 2: LEER URL Y ABRIR EVENTO (NUEVO) ---
+  useEffect(() => {
+    // Leemos los parámetros de la URL (ej: ?fecha=2024-05-20&id=10)
+    const params = new URLSearchParams(location.search);
+    const fechaParam = params.get('fecha');
+    const idParam = params.get('id');
+
+    if (fechaParam && idParam) {
+        // Desarmamos la fecha YYYY-MM-DD
+        const [yearStr, monthStr] = fechaParam.split('-');
+        
+        // Creamos la fecha para navegar el calendario al mes correcto
+        // OJO: monthStr viene "01" para Enero, pero Date usa 0 para Enero. Restamos 1.
+        const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+        
+        // 1. Movemos el calendario al mes del evento
+        setFechaNavegacion(fechaDestino);
+        
+        // 2. Seleccionamos el día para que abra el panel lateral
+        setFechaSeleccionada(fechaParam); // Pasamos "2024-05-20" directo
+
+        // 3. Seleccionamos el ID del evento para que se despliegue el formulario
+        setIdEventoSeleccionado(Number(idParam));
+
+        // 4. Hacemos scroll automático hacia el panel de reserva
+        setTimeout(() => {
+            const panel = document.querySelector('.reserva-panel');
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 800); // Damos un tiempito para que cargue la UI
+    }
+  }, [location.search]); // Se ejecuta cuando cambia la URL
 
   const cargarEventos = async () => {
     setCargando(true);
@@ -92,9 +130,8 @@ export default function CalendarioPage() {
     });
   };
 
-  // --- NUEVA LÓGICA DE NAVEGACIÓN POR DROPDOWN ---
+  // --- LÓGICA DE NAVEGACIÓN POR DROPDOWN ---
   const cambiarMesDropdown = (nuevoMes: number) => {
-    // Al cambiar mes, mantenemos el año, reseteamos al día 1
     const nuevaFecha = new Date(anio, nuevoMes, 1);
     setFechaNavegacion(nuevaFecha);
     setFechaSeleccionada(null);
@@ -102,7 +139,6 @@ export default function CalendarioPage() {
   };
 
   const cambiarAnioDropdown = (nuevoAnio: number) => {
-    // Al cambiar año, mantenemos el mes, reseteamos al día 1
     const nuevaFecha = new Date(nuevoAnio, mes, 1);
     setFechaNavegacion(nuevaFecha);
     setFechaSeleccionada(null);
@@ -254,7 +290,9 @@ export default function CalendarioPage() {
             </h3>
             
             {(() => {
-                const eventosDia = obtenerEventosDelDia(parseInt(fechaSeleccionada.split('-')[2]));
+                // Parseamos la fecha para asegurarnos de buscar por número de día
+                const diaNumero = parseInt(fechaSeleccionada.split('-')[2]);
+                const eventosDia = obtenerEventosDelDia(diaNumero);
                 
                 if(eventosDia.length > 0) {
                     return (
