@@ -43,7 +43,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 0 40px;
-  box-sizing: border-box; /* Importante para que no se salga del ancho */
+  box-sizing: border-box;
   z-index: 50;
 }
 
@@ -94,10 +94,10 @@ body {
   border-radius: 5px;
 }
 
-/* --- ESTILOS DEL MENÚ DE USUARIO (SOLUCIÓN FONDO BLANCO) --- */
+/* --- ESTILOS DEL MENÚ DE USUARIO --- */
 
 .user-menu-container {
-  position: relative; /* Necesario para que el dropdown se posicione respecto a esto */
+  position: relative;
   display: inline-block;
   margin-left: 20px;
 }
@@ -108,7 +108,7 @@ body {
   color: var(--accent-color) !important;
   padding: 10px 20px;
   border-radius: 6px;
-  min-width: 200px; /* Ancho mínimo para nombres cortos */
+  min-width: 200px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -125,18 +125,17 @@ body {
   box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
 }
 
-/* AQUÍ ESTÁ EL FIX DEL FONDO BLANCO */
 .user-dropdown {
   position: absolute;
-  top: 110%; /* Un poquito separado del botón */
+  top: 110%;
   right: 0;
   width: 100%;
   min-width: 200px;
-  background-color: #1a1a1a !important; /* FORZADO OSCURO */
+  background-color: #1a1a1a !important;
   border: 1px solid #333;
   box-shadow: 0px 10px 25px rgba(0,0,0,0.8);
   border-radius: 6px;
-  z-index: 9999; /* Asegura que esté por encima de todo */
+  z-index: 9999;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -150,6 +149,7 @@ body {
   font-weight: 800;
   text-transform: uppercase;
   border-bottom: 1px solid #333;
+  text-align: center; /* CENTRADO */
 }
 
 .dropdown-item {
@@ -161,9 +161,12 @@ body {
   text-transform: uppercase;
   background: transparent;
   border: none;
-  text-align: left;
+  text-align: center; /* CENTRADO (Antes estaba left) */
   cursor: pointer;
   transition: 0.2s;
+  width: 100%;
+  display: block;
+  box-sizing: border-box; 
 }
 
 .dropdown-item:hover {
@@ -180,6 +183,7 @@ body {
 .logout-button {
   color: #ff4444 !important;
 }
+
 .logout-button:hover {
   background-color: #ff4444 !important;
   color: white !important;
@@ -271,7 +275,6 @@ body {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  /* SOLUCIÓN CURSOR 1: Cursor normal en todo el contenedor */
   cursor: default; 
 }
 
@@ -287,7 +290,6 @@ body {
   font-size: 0.9rem;
   line-height: 1.6;
   flex-grow: 1;
-  /* SOLUCIÓN CURSOR 2: Refuerzo para el texto */
   cursor: default;
 }
 
@@ -303,7 +305,7 @@ body {
   font-size: 0.8rem;
   letter-spacing: 1px;
   transition: 0.3s;
-  cursor: pointer; /* Solo este debe tener manito */
+  cursor: pointer;
 }
 
 .btn-ver-detalle:hover {
