@@ -21,7 +21,8 @@ function App() {
         
         <Route path="/mapa" element={<EventsMapPage />} />
         <Route path="/calendario" element={<CalendarioPage />} />
-        <Route path="/publicar-evento" element={<SolicitudEventoPage />} />
+        {/* este es solicitud */}
+        <Route path="/publicar-evento" element={<SolicitudEventoPage />} /> 
         <Route path="/registro-evento"
           element={
             <ProtectedRoute allowedRoles={[1, 2]}>
