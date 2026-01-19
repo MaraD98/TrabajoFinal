@@ -65,9 +65,7 @@ export async function getCurrentUser(token: string) {
 export async function register(usuarioData: any) {
   const res = await api.post("/auth/register", usuarioData);
   return res.data; 
-<<<<<<< HEAD
 }
-
 
 // REPORTESS 
 
@@ -100,6 +98,3 @@ export async function exportReporteCSV(tipo: string, token: string) {
   link.click();
   document.body.removeChild(link);
 }
-=======
-}
->>>>>>> main
