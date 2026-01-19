@@ -4,7 +4,7 @@ import '../styles/inicio.css';
 import logoWakeUp from '../assets/wakeup-logo.png';
 import { getEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
-import axios from 'axios'; // Agregamos axios aquí para el fix del nombre
+import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
@@ -40,31 +40,38 @@ interface Evento {
 
 export default function InicioPage() {
     const { user, logout } = useAuth();
-    const [localUserName, setLocalUserName] = useState<string>("Usuario"); // Estado local para el nombre
+    const [localUserName, setLocalUserName] = useState<string>("Usuario"); 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- FIX PARA EL NOMBRE "USUARIO" ---
+    // --- FIX DEFINITIVO PARA EL NOMBRE ---
     useEffect(() => {
-        // 1. Si el contexto ya tiene nombre, úsalo.
-        if (user && user.nombre && user.nombre !== "Usuario") {
-            setLocalUserName(user.nombre);
-        } 
-        // 2. Si no, intenta buscarlo al backend (Parche rápido)
-        else if (user) {
-            const token = localStorage.getItem('token');
-            if (token) {
-                axios.get(`${import.meta.env.VITE_API_URL}/me`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                }).then(res => {
-                    if (res.data && res.data.nombre) {
-                        setLocalUserName(res.data.nombre);
-                    }
-                }).catch(err => console.log("No se pudo obtener nombre real", err));
+        const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                const nombreReal = parsed.nombre_y_apellido || parsed.nombre;
+                if (nombreReal && nombreReal !== "Usuario") {
+                    setLocalUserName(nombreReal);
+                }
+            } catch (e) {
+                console.error("Error leyendo datos locales", e);
             }
+        }
+
+        const token = localStorage.getItem('token');
+        if (token) {
+            axios.get(`${import.meta.env.VITE_API_URL}/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                const nombreDelServer = res.data.nombre_y_apellido || res.data.nombre;
+                if (nombreDelServer) {
+                    setLocalUserName(nombreDelServer);
+                }
+            }).catch(err => console.log("No se pudo refrescar el nombre desde el servidor", err));
         }
     }, [user]);
 
@@ -141,35 +148,6 @@ export default function InicioPage() {
     if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
     if (error) return <div style={{ color: 'red', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{error}</div>;
 
-    const dropdownStyle: React.CSSProperties = {
-        position: 'absolute',
-        top: '120%',
-        right: 0,
-        backgroundColor: '#1a1a1a',
-        border: '1px solid #333',
-        borderRadius: '8px',
-        padding: '10px 0',
-        minWidth: '200px',
-        zIndex: 1000,
-        boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
-        display: 'flex',
-        flexDirection: 'column'
-    };
-
-    const dropdownItemStyle: React.CSSProperties = {
-        padding: '12px 20px',
-        color: '#fff',
-        textDecoration: 'none',
-        fontSize: '0.9rem',
-        display: 'block',
-        transition: 'background 0.2s',
-        textAlign: 'left',
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        width: '100%'
-    };
-
     return (
         <div className="inicio-container">
             <header className="hero-section">
@@ -179,54 +157,36 @@ export default function InicioPage() {
                     </Link>
 
                     {user ? (
-                        <div className="user-menu-container" ref={dropdownRef} style={{ position: 'relative' }}>
+                        <div className="user-menu-container" ref={dropdownRef}>
                             <button
                                 className="user-menu-trigger"
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                style={{
-                                    cursor: 'pointer',
-                                    background: '#0d0d0d',
-                                    border: '1px solid #ccff00',
-                                    color: '#ccff00',
-                                    padding: '10px 20px',
-                                    borderRadius: '5px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    fontWeight: 'bold'
-                                }}
                             >
                                 <span className="user-icon">👤</span>
-                                {/* USAMOS EL ESTADO LOCAL QUE SE ACTUALIZA AUTOMÁTICAMENTE */}
                                 <span className="user-name">{localUserName}</span>
                                 <span className="dropdown-arrow">▼</span>
                             </button>
 
                             {isDropdownOpen && (
-                                <div className="user-dropdown" style={dropdownStyle}>
-                                    <div style={{ padding: '10px 20px', fontSize: '0.75rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #333' }}>
-                                        MI CUENTA
-                                    </div>
-                                    <Link to="/perfil" style={dropdownItemStyle} className="dropdown-item-hover" onClick={() => setIsDropdownOpen(false)}>
+                                <div className="user-dropdown">
+                                    <div className="dropdown-header">MI CUENTA</div>
+                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
                                     </Link>
 
-                                    <div style={{ padding: '10px 20px', fontSize: '0.75rem', color: '#888', fontWeight: 800, textTransform: 'uppercase', borderBottom: '1px solid #333', marginTop: '5px' }}>
-                                        MIS EVENTOS
-                                    </div>
-                                    <Link to="/mis-eventos/inscriptos" style={dropdownItemStyle} className="dropdown-item-hover">
+                                    <div className="dropdown-header">MIS EVENTOS</div>
+                                    <Link to="/mis-eventos/inscriptos" className="dropdown-item">
                                         Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" style={dropdownItemStyle} className="dropdown-item-hover">
+                                    <Link to="/mis-eventos/creados" className="dropdown-item">
                                         Creados
                                     </Link>
                                     
-                                    <div style={{ height: '1px', background: '#333', margin: '5px 0' }}></div>
+                                    <div className="dropdown-divider"></div>
                                     
                                     <button
                                         onClick={logout}
-                                        style={{ ...dropdownItemStyle, color: '#ff4444' }}
-                                        className="dropdown-item-hover"
+                                        className="dropdown-item logout-button"
                                     >
                                         Cerrar Sesión
                                     </button>
@@ -271,7 +231,7 @@ export default function InicioPage() {
                                     />
                                     <div className="tipo-badge">{nombreTipo}</div>
                                 </div>
-                                <div className="card-content" style={{ cursor: 'default' }}>
+                                <div className="card-content">
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                         <h3 style={{ margin: 0, fontSize: '1.2rem', lineHeight: 1.2 }}>{evento.nombre_evento}</h3>
                                         <div style={{ backgroundColor: '#ccff00', color: '#000', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.9rem', whiteSpace: 'nowrap', marginLeft: '10px'}}>
@@ -299,7 +259,7 @@ export default function InicioPage() {
                                             <span style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>{evento.ubicacion}</span>
                                         </div>
                                     </div>
-                                    <Link to={`/calendario?fecha=${fechaLimpia}&id=${evento.id_evento}`} className="btn-ver-detalle" style={{ cursor: 'pointer', marginTop: '15px', textAlign: 'center', display: 'block' }}>
+                                    <Link to={`/calendario?fecha=${fechaLimpia}&id=${evento.id_evento}`} className="btn-ver-detalle">
                                         VER DETALLE E INSCRIPCIÓN
                                     </Link>
                                 </div>
