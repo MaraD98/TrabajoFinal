@@ -16,6 +16,8 @@ import ForgotPasswordPage from "./pages/forgot-password-page";
 
 // 👇 3. AGREGADO: Importamos la página de Mis Eventos
 import MisEventosPage from "./pages/mis-eventos-page"; 
+// 👇 NUEVO IMPORT: La página de perfil
+import PerfilPage from "./pages/perfil-page";
 
 function App() {
   return (
@@ -53,6 +55,11 @@ function App() {
               
             }
           />
+          {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
+          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+
+          {/* 👇 NUEVA RUTA: Mi Perfil */}
+          <Route path="/perfil" element={<PerfilPage />} />
 
         </Routes>
       </Router>

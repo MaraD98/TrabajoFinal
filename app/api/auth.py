@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.core.security import security
 from app.schemas.auth_schema import UsuarioCreate, UsuarioResponse, LoginRequest, Token
 from app.services.auth_services import AuthService
+from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -22,13 +23,15 @@ def register(usuario_data: UsuarioCreate, db: Session = Depends(get_db)):
     return new_usuario
 
 # ============ Login ============
-@router.post(
-    "/login",
-    response_model=Token,
-    summary="Inicio de sesión",
-    description="Permite a un usuario autenticarse con su correo y contraseña. Devuelve un token JWT válido para acceder a los endpoints protegidos."
-)
-def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+@router.post("/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    
+    # 👇 AQUÍ ESTÁ EL CAMBIO
+    # Mapeamos lo que trae el formulario (ingles) a lo que espera tu modelo (español)
+    login_data = LoginRequest(
+        email=form_data.username,        # map username -> email
+        contrasenia=form_data.password   # map password -> contrasenia  <-- ESTO FALTABA
+    )
     token = AuthService.authenticate_usuario(db, login_data)
     return token
 
