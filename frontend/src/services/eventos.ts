@@ -49,3 +49,36 @@ export async function register(usuarioData: any) {
   const res = await api.post("/auth/register", usuarioData);
   return res.data; 
 }
+
+
+// REPORTESS 
+
+// Obtener un reporte en JSON (para mostrar en pantalla)
+export async function getReporte(tipo: string, token: string) {
+  const res = await api.get(`/reportes/${tipo}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data; // Devuelve el objeto JSON con el reporte
+}
+
+// Exportar un reporte en CSV (descargar archivo)
+export async function exportReporteCSV(tipo: string, token: string) {
+  const res = await api.get(`/reportes/export`, {
+    params: { tipo },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "blob", // 👈 importante para manejar archivos
+  });
+
+  // Crear un link temporal para descargar el archivo
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `${tipo}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
