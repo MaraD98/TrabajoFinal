@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom'; // <--- Agregamos useLocation
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+// import axios from 'axios'; 
 import { getEventosCalendario } from '../services/eventos'; 
+import { useAuth } from '../context/auth-context'; 
 import '../styles/Calendario.css';
-// IMPORTANTE: Ajusta la ruta de tu logo aquí
 import logoWakeUp from '../assets/wakeup-logo.png'; 
 
 interface Evento {
@@ -27,18 +28,19 @@ const MESES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-// Generamos un rango de años (Desde el actual hasta 5 años más)
 const ANIO_ACTUAL = new Date().getFullYear();
 const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL + i);
 
 export default function CalendarioPage() {
-  // --- HOOK PARA LEER LA URL ---
   const location = useLocation(); 
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  // const apiUrl = import.meta.env.VITE_API_URL; // Descomentar cuando uses axios
 
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cargando, setCargando] = useState(false);
-  
+   
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string | null>(null);
   const [idEventoSeleccionado, setIdEventoSeleccionado] = useState<number | null>(null);
 
@@ -47,56 +49,54 @@ export default function CalendarioPage() {
   const [telefono, setTelefono] = useState('');
   const [email, setEmail] = useState('');
 
+  // Estados para mensajes
+  const [msgExito, setMsgExito] = useState<string | null>(null);
+  const [msgError, setMsgError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
   const mes = fechaNavegacion.getMonth();
   const anio = fechaNavegacion.getFullYear();
 
   const hoyReal = new Date();
   hoyReal.setHours(0, 0, 0, 0);
 
-  // --- EFECTO 1: CARGAR EVENTOS CUANDO CAMBIA MES/AÑO ---
   useEffect(() => {
     cargarEventos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, anio]);
 
-  // --- EFECTO 2: LEER URL Y ABRIR EVENTO (NUEVO) ---
   useEffect(() => {
-    // Leemos los parámetros de la URL (ej: ?fecha=2024-05-20&id=10)
     const params = new URLSearchParams(location.search);
     const fechaParam = params.get('fecha');
     const idParam = params.get('id');
 
     if (fechaParam && idParam) {
-        // Desarmamos la fecha YYYY-MM-DD
         const [yearStr, monthStr] = fechaParam.split('-');
-        
-        // Creamos la fecha para navegar el calendario al mes correcto
-        // OJO: monthStr viene "01" para Enero, pero Date usa 0 para Enero. Restamos 1.
         const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
         
-        // 1. Movemos el calendario al mes del evento
         setFechaNavegacion(fechaDestino);
-        
-        // 2. Seleccionamos el día para que abra el panel lateral
-        setFechaSeleccionada(fechaParam); // Pasamos "2024-05-20" directo
-
-        // 3. Seleccionamos el ID del evento para que se despliegue el formulario
+        setFechaSeleccionada(fechaParam); 
         setIdEventoSeleccionado(Number(idParam));
 
-        // 4. Hacemos scroll automático hacia el panel de reserva
+        if (user) {
+            const nombreEncontrado = user.nombre_y_apellido || user.nombre || '';
+            setNombre(nombreEncontrado);            
+            setEmail(user.email || '');
+            setTelefono(user.telefono || ''); 
+        }
+
         setTimeout(() => {
             const panel = document.querySelector('.reserva-panel');
             if (panel) {
                 panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        }, 800); // Damos un tiempito para que cargue la UI
+        }, 800); 
     }
-  }, [location.search]); // Se ejecuta cuando cambia la URL
+  }, [location.search, user]); 
 
   const cargarEventos = async () => {
     setCargando(true);
     try {
-      // Simulación de carga visual
       await new Promise(resolve => setTimeout(resolve, 500));
       const data = await getEventosCalendario(mes + 1, anio);
       setEventos(data || []);
@@ -130,7 +130,6 @@ export default function CalendarioPage() {
     });
   };
 
-  // --- LÓGICA DE NAVEGACIÓN POR DROPDOWN ---
   const cambiarMesDropdown = (nuevoMes: number) => {
     const nuevaFecha = new Date(anio, nuevoMes, 1);
     setFechaNavegacion(nuevaFecha);
@@ -158,20 +157,55 @@ export default function CalendarioPage() {
   };
 
   const toggleReserva = (id: number) => {
+      setMsgError(null);
+      setMsgExito(null);
+
       if (idEventoSeleccionado === id) {
           setIdEventoSeleccionado(null);
       } else {
           setIdEventoSeleccionado(id);
-          setNombre('');
-          setTelefono('');
-          setEmail('');
+          if (user) {
+              const nombreEncontrado = user.nombre_y_apellido || user.nombre || '';
+              setNombre(nombreEncontrado);
+              setEmail(user.email || '');
+              setTelefono(user.telefono || '');
+          } else {
+              setNombre('');
+              setTelefono('');
+              setEmail('');
+          }
       }
   };
 
-  const manejarEnvioReserva = (e: React.FormEvent, nombreEvento: string) => {
+  const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
-    alert(`¡Reserva Enviada!\nEvento: ${nombreEvento}\nCliente: ${nombre}`);
-    setIdEventoSeleccionado(null);
+    setEnviando(true);
+    setMsgError(null);
+    setMsgExito(null);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const datosInscripcion = {
+        id_evento: idEventoSeleccionado,
+        nombre_completo: nombre,
+        email: email,
+        telefono: telefono,
+        id_usuario: user ? user.id_usuario : null
+    };
+
+    try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
+        setTimeout(() => {
+            setIdEventoSeleccionado(null);
+            setMsgExito(null);
+        }, 2000);
+
+    } catch (error: any) {
+        console.error("Error en inscripción:", error);
+        setMsgError("Ocurrió un error al procesar tu solicitud.");
+    } finally {
+        setEnviando(false);
+    }
   };
 
   const dias = obtenerDiasDelMes();
@@ -186,20 +220,30 @@ export default function CalendarioPage() {
 
   return (
     <div className="calendario-container">
-        {/* --- HEADER NUEVO: LOGO Y SELECTORES --- */}
+        {/* --- HEADER REDISEÑADO --- */}
         <header className="cal-header">
-            <div className="cal-branding">
-                <Link to="/">
-                    <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo" />
+            
+            {/* 1. IZQUIERDA: Botón Volver */}
+            <div className="header-left">
+                <Link to="/" className="btn-volver-inicio">
+                    <span className="icono-flecha">←</span> 
+                    <span className="texto-volver">VOLVER AL INICIO</span>
                 </Link>
-                <div className="cal-title-wrapper">
-                    <h1 className="cal-title">CALENDARIO</h1>
-                    <span className="cal-subtitle">DE EVENTOS</span>
+            </div>
+
+            {/* 2. CENTRO: Branding (Logo y Título) */}
+            <div className="header-center">
+                <div className="cal-branding-vertical">
+                    <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo-centered" />
+                    <div className="cal-title-wrapper-centered">
+                        <h1 className="cal-title">CALENDARIO</h1>
+                        <span className="cal-subtitle">DE EVENTOS</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Controles desplegables */}
-            <div className="cal-controls">
+            {/* 3. DERECHA: Controles */}
+            <div className="header-right">
                 <div className="select-wrapper">
                     <select 
                         value={mes} 
@@ -227,15 +271,9 @@ export default function CalendarioPage() {
         </header>
 
       <div className="calendario-wrapper">
-        
         {cargando ? (
           <div className="calendario-cargando">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="80px" height="80px" color="#FFD700">
-              <path d="M15.5,5.5c1.1,0,2-0.9,2-2s-0.9-2-2-2s-2,0.9-2,2S14.4,5.5,15.5,5.5z M10.8,5L10.2,7.5L12.6,5.1L13.4,5.9c1.3,1.3,3,2.1,5.1,2.1V9c-1.5,0-2.9-0.6-4-1.5l-2.5,2.5c-1,1-2.5,1.5-3.8,1.5H7.1L5.5,17h-2l2-6.5c0.3-1,0.8-2,1.9-2.7L10.8,5z" />
-              <path className="wheel-spinning" style={{transformOrigin: '5px 17px'}} d="M5,12c-2.8,0-5,2.2-5,5s2.2,5,5,5s5-2.2,5-5S7.8,12,5,12z M5,20.5c-1.9,0-3.5-1.6-3.5-3.5s1.6-3.5,3.5-3.5s3.5,1.6,3.5,3.5S6.9,20.5,5,20.5z" />
-              <path className="wheel-spinning" style={{transformOrigin: '19px 17px'}} d="M19,12c-2.8,0-5,2.2-5,5s2.2,5,5,5s5-2.2,5-5S21.8,12,19,12z M19,20.5c-1.9,0-3.5-1.6-3.5-3.5s1.6-3.5,3.5-3.5s3.5,1.6,3.5,3.5S20.9,20.5,19,20.5z" />
-            </svg>
-            <p className="loader-texto no-select">Pedaleando hacia las rutas...</p>
+             <p className="loader-texto no-select">Cargando eventos...</p>
           </div>
         ) : (
           <div className="calendario-grid-wrapper">
@@ -270,9 +308,7 @@ export default function CalendarioPage() {
                     
                     {tieneEventos && (
                       <div className="icono-evento-bici">
-                        <svg viewBox="0 0 24 24" fill="currentColor" width="20px" height="20px" color="#FFD700">
-                          <path d="M15.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM5 12c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5zm5.8-10l2.4-2.4.8.8c1.3 1.3 3 2.1 5.1 2.1V9c-1.5 0-2.9-.6-4-1.5l-2.5 2.5c-1 1-2.5 1.5-3.8 1.5H7.1L5.5 17h-2l2-6.5c.3-1 .8-2 1.9-2.7L10.8 5l-.6 2.5zm7.7 4.5c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5s1.6-3.5 3.5-3.5 3.5 1.6 3.5 3.5-1.6 3.5-3.5 3.5z"/>
-                        </svg>
+                        <span style={{fontSize: '12px'}}>🚴</span>
                       </div>
                     )}
                   </div>
@@ -282,7 +318,6 @@ export default function CalendarioPage() {
           </div>
         )}
 
-        {/* --- SECCIÓN DE DETALLES Y RESERVA --- */}
         {fechaSeleccionada && (
           <div className="reserva-panel">
             <h3 className="panel-titulo no-select">
@@ -290,7 +325,6 @@ export default function CalendarioPage() {
             </h3>
             
             {(() => {
-                // Parseamos la fecha para asegurarnos de buscar por número de día
                 const diaNumero = parseInt(fechaSeleccionada.split('-')[2]);
                 const eventosDia = obtenerEventosDelDia(diaNumero);
                 
@@ -335,7 +369,7 @@ export default function CalendarioPage() {
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`https://www.google.com/maps?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
+                                                    <a href={`http://googleusercontent.com/maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
                                                         Ver mapa
                                                     </a>
                                                 )}
@@ -354,7 +388,12 @@ export default function CalendarioPage() {
 
                                     {estaAbierto && (
                                         <div className="formulario-container">
-                                            <h4 className="formulario-titulo no-select">Tus Datos</h4>
+                                            <h4 className="formulario-titulo no-select">
+                                                {user ? 'Tus Datos (Autocompletado)' : 'Ingresa tus Datos'}
+                                            </h4>
+
+                                            {msgExito && <div style={{padding: '10px', background: 'rgba(204, 255, 0, 0.2)', color: '#ccff00', border: '1px solid #ccff00', borderRadius: '4px', marginBottom: '10px', fontWeight: 'bold', textAlign: 'center'}}>{msgExito}</div>}
+                                            {msgError && <div style={{padding: '10px', background: 'rgba(255, 68, 68, 0.2)', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '4px', marginBottom: '10px', fontWeight: 'bold', textAlign: 'center'}}>{msgError}</div>}
                                             
                                             <form className="reserva-form" onSubmit={(evt) => manejarEnvioReserva(evt, e.nombre_evento)}>
                                                 <div className="form-grupo">
@@ -364,6 +403,8 @@ export default function CalendarioPage() {
                                                         onChange={(ev) => setNombre(ev.target.value)} 
                                                         required 
                                                         placeholder="Nombre Completo" 
+                                                        readOnly={!!user && nombre.trim().length > 0}
+                                                        style={(!!user && nombre.trim().length > 0) ? { opacity: 0.7, cursor: 'not-allowed', background: '#222' } : {}}
                                                     />
                                                 </div>
                                                 <div className="form-grupo">
@@ -371,8 +412,7 @@ export default function CalendarioPage() {
                                                         type="tel" 
                                                         value={telefono} 
                                                         onChange={(ev) => setTelefono(ev.target.value)} 
-                                                        required 
-                                                        placeholder="Teléfono" 
+                                                        placeholder="Teléfono (Opcional)" 
                                                     />
                                                 </div>
                                                 <div className="form-grupo">
@@ -382,10 +422,12 @@ export default function CalendarioPage() {
                                                         onChange={(ev) => setEmail(ev.target.value)} 
                                                         required 
                                                         placeholder="Email" 
+                                                        readOnly={!!user && email.trim().length > 0}
+                                                        style={(!!user && email.trim().length > 0) ? { opacity: 0.7, cursor: 'not-allowed', background: '#222' } : {}}
                                                     />
                                                 </div>
-                                                <button type="submit" className="btn-confirmar">
-                                                    CONFIRMAR ASISTENCIA
+                                                <button type="submit" className="btn-confirmar" disabled={enviando}>
+                                                    {enviando ? 'PROCESANDO...' : 'CONFIRMAR ASISTENCIA'}
                                                 </button>
                                             </form>
                                         </div>

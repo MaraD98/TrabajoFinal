@@ -142,3 +142,113 @@
   /* Ajuste del ícono para móvil */
   .icono-evento-bici svg { width: 18px; height: 18px; }
 }
+
+/* --- NUEVOS ESTILOS DEL HEADER (Versión Definitiva) --- */
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 40px;
+  background-color: #0d0d0d;
+  border-bottom: 1px solid #222;
+  flex-wrap: wrap; 
+  gap: 20px;
+}
+
+/* 1. Izquierda y Derecha ocupan el mismo espacio para centrar el medio */
+.header-left, 
+.header-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  justify-content: flex-end; /* Filtros a la derecha */
+  gap: 15px;
+}
+
+/* 2. Centro: Contenedor del Branding */
+.header-center {
+  flex: 0 0 auto; /* No se estira */
+  display: flex;
+  justify-content: center;
+}
+
+.cal-branding-vertical {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.cal-logo-centered {
+  height: 40px; /* Tamaño original que te gustaba */
+  width: auto;
+}
+
+.cal-title-wrapper-centered {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.cal-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: white;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.cal-subtitle {
+  font-size: 0.7rem;
+  color: #ccff00;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+/* 3. Estilo del Botón "Volver" - AHORA EN BLANCO */
+.btn-volver-inicio {
+  text-decoration: none;
+  color: #ffffff; /* <--- BLANCO PURO */
+  font-weight: 700; /* <--- MÁS GRUESITA LA LETRA */
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid #ffffff; /* <--- BORDE BLANCO */
+  border-radius: 30px; 
+  transition: all 0.3s ease;
+}
+
+.btn-volver-inicio:hover {
+  color: #000;
+  background-color: #ccff00;
+  border-color: #ccff00;
+}
+
+.icono-flecha {
+  font-size: 1.1rem;
+  margin-top: -2px; 
+}
+
+/* --- Ajuste Responsivo para Celulares --- */
+@media (max-width: 768px) {
+  .cal-header {
+    flex-direction: column;
+    padding: 15px 20px;
+  }
+  
+  .header-left, .header-center, .header-right {
+    width: 100%;
+    justify-content: center;
+    flex: auto;
+  }
+
+  .btn-volver-inicio {
+    width: 100%;
+    justify-content: center;
+  }
+}
