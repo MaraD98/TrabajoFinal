@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import '../styles/inicio.css';
+import '../styles/perfil.css'; 
 
 interface UserProfile {
     id_usuario?: number;
@@ -17,13 +17,18 @@ export default function PerfilPage() {
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    
-    // ESTADO NUEVO: Para mostrar mensajes de éxito bonitos
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
     // Modos de edición
     const [isEditing, setIsEditing] = useState(false); 
     const [isChangingPass, setIsChangingPass] = useState(false); 
+    
+    // ESTADO NUEVO: Modal de eliminar cuenta
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // ESTADOS NUEVOS: Ver contraseñas
+    const [showCurrentPass, setShowCurrentPass] = useState(false);
+    const [showNewPass, setShowNewPass] = useState(false);
 
     // Formularios
     const [editForm, setEditForm] = useState({
@@ -85,7 +90,7 @@ export default function PerfilPage() {
             setPerfil(usuarioActualizado);
             setIsEditing(false);
             
-            // Actualizar Header
+            // Actualizar LocalStorage
             const datosParaGuardar = {
                 ...usuarioActualizado,
                 nombre: usuarioActualizado.nombre_y_apellido 
@@ -93,19 +98,22 @@ export default function PerfilPage() {
             localStorage.setItem('user', JSON.stringify(datosParaGuardar));
             localStorage.setItem('usuario', JSON.stringify(datosParaGuardar));
             
-            window.location.reload(); 
+            setSuccessMsg("¡Datos actualizados!");
+            setTimeout(() => setSuccessMsg(null), 3000);
+            // Recarga suave u opcional
+            // window.location.reload(); 
 
         } catch (err: any) {
             console.error("Error al guardar datos:", err);
             const mensaje = err.response?.data?.detail || "Error al conectar con el servidor";
-            setError(mensaje); // Usamos el mensaje de error en pantalla
+            setError(mensaje);
             setTimeout(() => setError(null), 4000);
         }
     };
 
-    // 3. GUARDAR CONTRASEÑA (CON MENSAJE LINDO)
+    // 3. GUARDAR CONTRASEÑA
     const handleSavePassword = async () => {
-        setSuccessMsg(null); // Limpiamos mensajes anteriores
+        setSuccessMsg(null);
         setError(null);
 
         if (!passForm.password_actual || !passForm.password_nueva) {
@@ -122,11 +130,11 @@ export default function PerfilPage() {
                 }
             });
 
-            // MENSAJE DE ÉXITO INTEGRADO
             setSuccessMsg("¡Contraseña actualizada correctamente!");
-            setPassForm({ password_actual: '', password_nueva: '' }); 
+            setPassForm({ password_actual: '', password_nueva: '' });
+            setShowCurrentPass(false);
+            setShowNewPass(false);
             
-            // Opcional: Cerrar el formulario después de 2 segundos
             setTimeout(() => {
                 setSuccessMsg(null);
                 setIsChangingPass(false);
@@ -139,65 +147,78 @@ export default function PerfilPage() {
         }
     };
 
-    if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
+    // 4. ELIMINAR CUENTA (NUEVO)
+    const handleDeleteAccount = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            await axios.delete(`${apiUrl}/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            // Limpiar todo y salir
+            localStorage.clear();
+            navigate('/login');
+            window.location.reload();
+        } catch (err: any) {
+            console.error("Error al eliminar cuenta:", err);
+            setError("No se pudo eliminar la cuenta. Intenta nuevamente.");
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    if (loading) return <div className="loading-screen">CARGANDO...</div>;
 
     return (
-        <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="perfil-container">
             
-            <div className="section-header">
+            <div className="section-header-perfil">
                 <h2 className="section-title">Mi Perfil</h2>
             </div>
 
-            <div style={{ 
-                width: '100%',
-                maxWidth: '500px', 
-                background: '#1a1a1a', 
-                padding: '40px', 
-                borderRadius: '12px', 
-                border: '1px solid #333',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-            }}>
-                {/* --- MENSAJES DE ERROR O ÉXITO GLOBALES --- */}
-                {error && (
-                    <div style={{ padding: '10px', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid #ff4444', color: '#ff4444', borderRadius: '4px', textAlign: 'center', marginBottom: '20px' }}>
-                        {error}
-                    </div>
-                )}
-                
-                {successMsg && (
-                    <div style={{ padding: '10px', background: 'rgba(204, 255, 0, 0.1)', border: '1px solid #ccff00', color: '#ccff00', borderRadius: '4px', textAlign: 'center', marginBottom: '20px', fontWeight: 'bold' }}>
-                        {successMsg}
-                    </div>
-                )}
+            <div className="perfil-card">
+                {/* --- MENSAJES --- */}
+                {error && <div className="msg-box msg-error">{error}</div>}
+                {successMsg && <div className="msg-box msg-success">{successMsg}</div>}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className="form-content">
                     
                     {/* --- MODO: CAMBIAR CONTRASEÑA --- */}
                     {isChangingPass ? (
                         <>
-                            <h3 style={{color: 'white', textAlign: 'center', margin: 0}}>Seguridad</h3>
+                            <h3 className="form-subtitle">Seguridad</h3>
+                            
                             <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>CONTRASEÑA ACTUAL</label>
-                                <input 
-                                    type="password" 
-                                    value={passForm.password_actual}
-                                    onChange={(e) => setPassForm({...passForm, password_actual: e.target.value})}
-                                    style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>NUEVA CONTRASEÑA</label>
-                                <input 
-                                    type="password" 
-                                    value={passForm.password_nueva}
-                                    onChange={(e) => setPassForm({...passForm, password_nueva: e.target.value})}
-                                    style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                />
+                                <label className="form-label">CONTRASEÑA ACTUAL</label>
+                                <div className="password-wrapper">
+                                    <input 
+                                        type={showCurrentPass ? "text" : "password"} 
+                                        value={passForm.password_actual}
+                                        onChange={(e) => setPassForm({...passForm, password_actual: e.target.value})}
+                                        className="form-input"
+                                    />
+                                    <button type="button" className="eye-btn" onClick={() => setShowCurrentPass(!showCurrentPass)}>
+                                        {showCurrentPass ? '🚫' : '👁️'}
+                                    </button>
+                                </div>
                             </div>
 
-                            <div style={{ borderTop: '1px solid #333', marginTop: '20px', paddingTop: '20px', display: 'flex', gap: '15px' }}>
-                                <button onClick={() => { setIsChangingPass(false); setPassForm({password_actual: '', password_nueva: ''}); setError(null); }} style={{ padding: '12px 20px', background: 'transparent', border: '1px solid #ff4444', color: '#ff4444', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold' }}>CANCELAR</button>
-                                <button onClick={handleSavePassword} style={{ padding: '12px 20px', background: '#ccff00', border: 'none', color: '#000', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', flex: 1 }}>ACTUALIZAR CLAVE</button>
+                            <div className="form-group">
+                                <label className="form-label">NUEVA CONTRASEÑA</label>
+                                <div className="password-wrapper">
+                                    <input 
+                                        type={showNewPass ? "text" : "password"} 
+                                        value={passForm.password_nueva}
+                                        onChange={(e) => setPassForm({...passForm, password_nueva: e.target.value})}
+                                        className="form-input"
+                                    />
+                                    <button type="button" className="eye-btn" onClick={() => setShowNewPass(!showNewPass)}>
+                                        {showNewPass ? '🚫' : '👁️'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="actions-row">
+                                <button onClick={() => { setIsChangingPass(false); setPassForm({password_actual: '', password_nueva: ''}); setError(null); }} className="btn btn-outline-red">CANCELAR</button>
+                                <button onClick={handleSavePassword} className="btn btn-neon flex-grow">ACTUALIZAR CLAVE</button>
                             </div>
                         </>
                     ) : (
@@ -205,96 +226,61 @@ export default function PerfilPage() {
                         <>
                             {/* EMAIL */}
                             <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>EMAIL</label>
+                                <label className="form-label">EMAIL</label>
                                 {isEditing ? (
-                                    <input 
-                                        type="email" 
-                                        value={editForm.email}
-                                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                                        style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                    />
+                                    <input type="email" value={editForm.email} onChange={(e) => setEditForm({...editForm, email: e.target.value})} className="form-input" />
                                 ) : (
-                                    <div style={{ background: '#0d0d0d', padding: '12px', borderRadius: '6px', color: '#888', border: '1px solid #333' }}>
-                                        {perfil?.email}
-                                    </div>
+                                    <div className="form-input read-only">{perfil?.email}</div>
                                 )}
                             </div>
 
                             {/* NOMBRE Y APELLIDO */}
                             <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>NOMBRE Y APELLIDO</label>
+                                <label className="form-label">NOMBRE Y APELLIDO</label>
                                 {isEditing ? (
-                                    <input 
-                                        type="text" 
-                                        value={editForm.nombre_y_apellido}
-                                        onChange={(e) => setEditForm({...editForm, nombre_y_apellido: e.target.value})}
-                                        style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                    />
+                                    <input type="text" value={editForm.nombre_y_apellido} onChange={(e) => setEditForm({...editForm, nombre_y_apellido: e.target.value})} className="form-input" />
                                 ) : (
-                                    <div style={{ background: '#0d0d0d', padding: '12px', borderRadius: '6px', color: '#fff', border: '1px solid #444' }}>
-                                        {perfil?.nombre_y_apellido}
-                                    </div>
+                                    <div className="form-input read-only">{perfil?.nombre_y_apellido}</div>
                                 )}
                             </div>
 
                             {/* TELEFONO */}
                             <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>TELÉFONO</label>
+                                <label className="form-label">TELÉFONO</label>
                                 {isEditing ? (
-                                    <input 
-                                        type="text" 
-                                        value={editForm.telefono}
-                                        onChange={(e) => setEditForm({...editForm, telefono: e.target.value})}
-                                        style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                    />
+                                    <input type="text" value={editForm.telefono} onChange={(e) => setEditForm({...editForm, telefono: e.target.value})} className="form-input" />
                                 ) : (
-                                    <div style={{ background: '#0d0d0d', padding: '12px', borderRadius: '6px', color: '#fff', border: '1px solid #444' }}>
-                                        {perfil?.telefono || <span style={{color: '#666', fontStyle: 'italic'}}>Sin datos</span>}
-                                    </div>
+                                    <div className="form-input read-only">{perfil?.telefono || <span className="no-data">Sin datos</span>}</div>
                                 )}
                             </div>
 
                             {/* DIRECCIÓN */}
                             <div className="form-group">
-                                <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>DIRECCIÓN</label>
+                                <label className="form-label">DIRECCIÓN</label>
                                 {isEditing ? (
-                                    <input 
-                                        type="text" 
-                                        value={editForm.direccion}
-                                        onChange={(e) => setEditForm({...editForm, direccion: e.target.value})}
-                                        style={{ width: '100%', padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', borderRadius: '6px' }}
-                                    />
+                                    <input type="text" value={editForm.direccion} onChange={(e) => setEditForm({...editForm, direccion: e.target.value})} className="form-input" />
                                 ) : (
-                                    <div style={{ background: '#0d0d0d', padding: '12px', borderRadius: '6px', color: '#fff', border: '1px solid #444' }}>
-                                        {perfil?.direccion || <span style={{color: '#666', fontStyle: 'italic'}}>Sin datos</span>}
-                                    </div>
+                                    <div className="form-input read-only">{perfil?.direccion || <span className="no-data">Sin datos</span>}</div>
                                 )}
                             </div>
 
                             {/* BOTONES PRINCIPALES */}
-                            <div style={{ borderTop: '1px solid #333', marginTop: '20px', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div className="actions-column">
                                 {!isEditing ? (
                                     <>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button onClick={() => { setIsEditing(true); setError(null); }} style={{ padding: '12px', background: '#ccff00', border: 'none', color: '#000', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', flex: 1 }}>
-                                                EDITAR DATOS
-                                            </button>
-                                            <button onClick={() => { setIsChangingPass(true); setError(null); }} style={{ padding: '12px', background: '#333', border: '1px solid #ccff00', color: 'white', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', flex: 1 }}>
-                                                CAMBIAR CONTRASEÑA
-                                            </button>
+                                        <div className="actions-row">
+                                            <button onClick={() => { setIsEditing(true); setError(null); }} className="btn btn-neon flex-grow">EDITAR DATOS</button>
+                                            <button onClick={() => { setIsChangingPass(true); setError(null); }} className="btn btn-outline-neon flex-grow">CAMBIAR CONTRASEÑA</button>
                                         </div>
-                                        <button onClick={() => navigate('/')} style={{ padding: '12px', background: 'transparent', border: '1px solid #666', color: '#fff', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', width: '100%' }}>
-                                            VOLVER AL INICIO
-                                        </button>
+                                        <button onClick={() => navigate('/')} className="btn btn-outline-gray full-width">VOLVER AL INICIO</button>
+                                        
+                                        {/* BOTÓN DE ELIMINAR */}
+                                        <button onClick={() => setShowDeleteConfirm(true)} className="btn btn-text-red">⚠️ ELIMINAR CUENTA</button>
                                     </>
                                 ) : (
-                                    <div style={{ display: 'flex', gap: '15px' }}>
-                                        <button onClick={() => { setIsEditing(false); setError(null); }} style={{ padding: '12px', background: 'transparent', border: '1px solid #ff4444', color: '#ff4444', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', flex: 1 }}>
-                                            CANCELAR
-                                        </button>
-                                        <button onClick={handleSaveDatos} style={{ padding: '12px', background: '#ccff00', border: 'none', color: '#000', cursor: 'pointer', borderRadius: '4px', fontWeight: 'bold', flex: 1 }}>
-                                            GUARDAR CAMBIOS
-                                        </button>
+                                    <div className="actions-row">
+                                        <button onClick={() => { setIsEditing(false); setError(null); }} className="btn btn-outline-red flex-grow">CANCELAR</button>
+                                        <button onClick={handleSaveDatos} className="btn btn-neon flex-grow">GUARDAR CAMBIOS</button>
                                     </div>
                                 )}
                             </div>
@@ -302,6 +288,20 @@ export default function PerfilPage() {
                     )}
                 </div>
             </div>
+
+            {/* --- MODAL CONFIRMACIÓN ELIMINAR --- */}
+            {showDeleteConfirm && (
+                <div className="modal-overlay">
+                    <div className="modal-content">
+                        <h3 className="danger-text">¿Estás seguro?</h3>
+                        <p>Esta acción eliminará tu cuenta y tus datos <b>permanentemente</b>.</p>
+                        <div className="actions-row">
+                            <button onClick={() => setShowDeleteConfirm(false)} className="btn btn-outline-gray">CANCELAR</button>
+                            <button onClick={handleDeleteAccount} className="btn btn-solid-red">SÍ, ELIMINAR</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
