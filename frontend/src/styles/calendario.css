@@ -171,7 +171,7 @@
 
 /* 2. Centro: Contenedor del Branding */
 .header-center {
-  flex: 0 0 auto; /* No se estira */
+  flex: 0 0 auto;
   display: flex;
   justify-content: center;
 }
@@ -211,14 +211,14 @@
 /* 3. Estilo del Botón "Volver" - AHORA EN BLANCO */
 .btn-volver-inicio {
   text-decoration: none;
-  color: #ffffff; /* <--- BLANCO PURO */
-  font-weight: 700; /* <--- MÁS GRUESITA LA LETRA */
+  color: #ffffff; 
+  font-weight: 700;
   font-size: 0.9rem;
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border: 1px solid #ffffff; /* <--- BORDE BLANCO */
+  border: 1px solid #ffffff; 
   border-radius: 30px; 
   transition: all 0.3s ease;
 }

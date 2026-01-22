@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text
-from sqlalchemy.orm import relationship # <--- 1. IMPORTANTE: Faltaba importar esto
+from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text, Computed
+from sqlalchemy.orm import relationship 
 from app.models.base import Base
 
 # --- MODELOS AUXILIARES ---
@@ -18,7 +18,13 @@ class EstadoEvento(Base):
     id_estado = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
 
-# --- MODELO PRINCIPAL ---
+# --- NUEVO: ESTADO DE RESERVA (Pendiente, Confirmada, etc.) ---
+class EstadoReserva(Base):
+    __tablename__ = "estadoreserva"
+    id_estado_reserva = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(50), unique=True, nullable=False)
+
+# --- MODELO PRINCIPAL DE EVENTO ---
 
 class Evento(Base):
     __tablename__ = "evento"
@@ -41,7 +47,6 @@ class Evento(Base):
     
     id_estado = Column(Integer, ForeignKey("estadoevento.id_estado"), nullable=False, default=1)
     
-
     cupo_maximo = Column(Integer, nullable=False, default=0) 
 
     # Fecha automática
@@ -51,8 +56,12 @@ class Evento(Base):
     lat = Column(DECIMAL(9, 6), nullable=True)
     lng = Column(DECIMAL(9, 6), nullable=True)
    
-    # 4. Esto permite hacer 'evento.multimedia' y ver las fotos
+    # 4. Relaciones
     multimedia = relationship("EventoMultimedia", back_populates="evento")
+    
+    # NUEVO: Relación inversa para acceder a las reservas de este evento
+    reservas = relationship("Reserva_Evento", back_populates="evento")
+
 
 class EventoMultimedia(Base):
     __tablename__ = "evento_multimedia"
@@ -65,3 +74,31 @@ class EventoMultimedia(Base):
 
     # 5. EL RETORNO: Esto permite saber a qué evento pertenece una foto
     evento = relationship("Evento", back_populates="multimedia")
+
+# --- NUEVO MODELO PRINCIPAL DE RESERVA (SPRINT 3) ---
+
+class Reserva_Evento(Base):
+    __tablename__ = "reserva_evento"
+
+    id_reserva = Column(Integer, primary_key=True, index=True)
+    
+    id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
+    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
+    
+    fecha_reserva = Column(DateTime(timezone=True), server_default=func.now())
+    
+    id_estado_reserva = Column(Integer, ForeignKey("estadoreserva.id_estado_reserva"), default=1)
+    
+    categoria_participante = Column(String(100), nullable=True)
+
+    # AQUÍ ESTÁ LA MAGIA: Computed mapea el "GENERATED ALWAYS AS" de SQL
+    fecha_expiracion = Column(
+        DateTime(timezone=True), 
+        Computed("fecha_reserva + interval '3 days'")
+    )
+
+    # Relaciones
+    evento = relationship("Evento", back_populates="reservas")
+    estado = relationship("EstadoReserva")
+    # Nota: Si quisieras acceder al usuario desde la reserva, podrías agregar:
+    # usuario = relationship("Usuario")

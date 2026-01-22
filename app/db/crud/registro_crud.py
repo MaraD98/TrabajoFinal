@@ -1,13 +1,16 @@
 from sqlalchemy.orm import Session
-from app.models.registro_models import Evento, EventoMultimedia #AGREGADO EventoMultimedia
-from app.schemas.registro_schema import EventoCreate
+from sqlalchemy import or_, func
 from datetime import date
-from sqlalchemy import or_
+
+# Asegurate de importar Reserva_Evento y Usuario de donde los tengas definidos
+# (Generalmente en app.models.models si usas un solo archivo, o ajusta la ruta)
+from app.models.registro_models import Evento, EventoMultimedia, Reserva_Evento
+from app.models.auth_models import Usuario 
+from app.schemas.registro_schema import EventoCreate
 
 # -----------------------------------------------------------------------------
-# 1. CREATE (Crear) - 
+# 1. CREATE (Crear)
 # -----------------------------------------------------------------------------
-# Agregamos 'user_id' como parámetro para saber quién crea el evento
 def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):    
     
     db_evento = Evento(
@@ -19,12 +22,12 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
         
-        # --- AQUÍ ESTÁ EL CAMBIO ---
         # Ahora usa el número que le pasamos, no el fijo
         id_estado  = id_estado_final, 
         id_usuario = user_id,
         lat = evento.lat,  
-        lng = evento.lng   
+        lng = evento.lng,
+        cupo_maximo = evento.cupo_maximo # Aseguramos guardar el cupo
     )
     
     db.add(db_evento)
@@ -34,10 +37,9 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
     
 
 # -----------------------------------------------------------------------------
-# 2. READ (Leer todos) - Esto se usa cuando llega un GET (lista)
+# 2. READ (Leer todos)
 # -----------------------------------------------------------------------------
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
-    #return db.query(Evento).offset(skip).limit(limit).all()
     return (
         db.query(Evento)
         .filter(
@@ -50,7 +52,6 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
         .all()
     )
 
-# Traer todos mis eventos (el que faltaba)
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
     return (
         db.query(Evento)
@@ -62,20 +63,18 @@ def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: 
 
 
 # -----------------------------------------------------------------------------
-# 3. READ ONE (Leer uno solo) - Esto se usa cuando llega un GET con ID
+# 3. READ ONE (Leer uno solo)
 # -----------------------------------------------------------------------------
 def get_evento_by_id(db: Session, evento_id: int):
     return db.query(Evento).filter(Evento.id_evento == evento_id).first()
 
 # -----------------------------------------------------------------------------
-# 4. UPDATE (Actualizar) - Esto se usa cuando llega un PUT
+# 4. UPDATE (Actualizar)
 # -----------------------------------------------------------------------------
 def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
-    # Primero buscamos si el evento existe
     db_evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
     
     if db_evento:
-        # Si existe, actualizamos los campos con lo nuevo que llegó
         db_evento.nombre_evento       = evento_data.nombre_evento
         db_evento.ubicacion           = evento_data.ubicacion
         db_evento.fecha_evento        = evento_data.fecha_evento
@@ -85,16 +84,15 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.id_dificultad       = evento_data.id_dificultad
         db_evento.lat = evento_data.lat
         db_evento.lng = evento_data.lng
+        db_evento.cupo_maximo = evento_data.cupo_maximo
 
-        
-        # Guardamos los cambios
         db.commit()
         db.refresh(db_evento)
     
     return db_evento
 
 # -----------------------------------------------------------------------------
-# 5. DELETE (Borrar) - Esto se usa cuando llega un DELETE
+# 5. DELETE (Borrar)
 # -----------------------------------------------------------------------------
 def delete_evento(db: Session, evento_id: int):
     db_evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
@@ -105,15 +103,14 @@ def delete_evento(db: Session, evento_id: int):
 
 
 def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
-    """
-    Busca si existe un evento con el mismo nombre EXACTO en la misma fecha.
-    """
     return db.query(Evento).filter(
         Evento.nombre_evento == nombre,
         Evento.fecha_evento == fecha
     ).first()
     
-# --- TU CRUD NUEVO ---
+# -----------------------------------------------------------------------------
+# MULTIMEDIA
+# -----------------------------------------------------------------------------
 def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     nuevo_registro = EventoMultimedia(
         id_evento=id_evento,
@@ -124,3 +121,51 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     db.commit()
     db.refresh(nuevo_registro)
     return nuevo_registro
+
+# =============================================================================
+#  NUEVOS MÉTODOS SPRINT 3 (CUPOS Y RESERVAS) - HU 8.1 a 8.9
+# =============================================================================
+
+def count_reservas_activas(db: Session, id_evento: int) -> int:
+    """
+    Cuenta cuántas reservas hay en estado Pendiente (1) o Confirmada (2).
+    Ignora Canceladas (3) o Expiradas (4).
+    """
+    return db.query(func.count(Reserva_Evento.id_reserva))\
+        .filter(
+            Reserva_Evento.id_evento == id_evento,
+            Reserva_Evento.id_estado_reserva.in_([1, 2]) 
+        ).scalar()
+
+def get_reserva_activa_usuario(db: Session, id_evento: int, id_usuario: int):
+    """
+    Verifica si el usuario ya tiene una reserva activa para evitar duplicados.
+    """
+    return db.query(Reserva_Evento).filter(
+        Reserva_Evento.id_evento == id_evento,
+        Reserva_Evento.id_usuario == id_usuario,
+        Reserva_Evento.id_estado_reserva.in_([1, 2])
+    ).first()
+
+def create_reserva(db: Session, id_evento: int, id_usuario: int):
+    """
+    Crea la reserva. La fecha_expiracion la calcula PostgreSQL automáticamente
+    gracias a 'GENERATED ALWAYS AS ... STORED'.
+    """
+    nueva_reserva = Reserva_Evento(
+        id_evento=id_evento,
+        id_usuario=id_usuario,
+        id_estado_reserva=1 # 1 = Pendiente
+    )
+    db.add(nueva_reserva)
+    db.commit()
+    
+    # IMPORTANTE: El refresh trae de vuelta la fecha_expiracion calculada por la BD
+    db.refresh(nueva_reserva) 
+    return nueva_reserva
+
+def get_usuario_by_id(db: Session, id_usuario: int):
+    """
+    Necesario para obtener el email y enviar la notificación.
+    """
+    return db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
