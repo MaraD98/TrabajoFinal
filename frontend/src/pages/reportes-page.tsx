@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { exportReporteCSV } from "../services/eventos";
-
 import "../styles/reportes.css";
 
 interface ReporteData {
@@ -18,14 +17,6 @@ interface ReporteData {
   mis_notificaciones?: any[];
 }
 
-interface TarjetaReporte {
-  id: string;
-  titulo: string;
-  descripcion: string;
-  icono: string;
-  color: string;
-  rolesPermitidos: number[];
-}
 
 export default function ReportesPage() {
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
@@ -33,160 +24,50 @@ export default function ReportesPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
 
-  // 1. LEER LOS DATOS REALES DEL LOCALSTORAGE
+  // 1. DATOS DE SESIÓN Y ROL
   const token = localStorage.getItem("token");
   const rolGuardado = localStorage.getItem("rol");
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
-  // 2. PRIMERA PROTECCIÓN: Si no hay token, no ejecutar nada más
-  if (!token) {
+  useEffect(() => {
+    if (token && token !== "undefined") {
+      cargarReportes();
+    } else {
+      setLoading(false);
+    }
+  }, [token]);
+
+  // --- PROTECCIÓN DE ACCESO ---
+  if (!token || token === "undefined") {
     return (
       <div className="reportes-page">
         <div className="reportes-alert reportes-alert--error">
           <span className="reportes-alert__icon">🔒</span>
-          <span className="reportes-alert__message">
-            Debes iniciar sesión para acceder a los reportes.
-          </span>
-          <button onClick={() => window.location.href = "/login"} className="reportes-alert__retry">
-            Ir al Login
-          </button>
+          <span className="reportes-alert__message">Debes iniciar sesión para acceder a los reportes.</span>
+          <button onClick={() => window.location.href = "/login"} className="reportes-alert__retry">Ir al Login</button>
         </div>
       </div>
     );
   }
 
-  // Definir los reportes disponibles según rol
-  const reportesDisponibles: TarjetaReporte[] = [
-    {
-      id: "total_eventos",
-      titulo: "Total de Eventos",
-      descripcion: "Cantidad total de eventos registrados en el sistema",
-      icono: "📊",
-      color: "#ff6b35",
-      rolesPermitidos: [2],
-    },
-    {
-      id: "eventos_por_estado",
-      titulo: "Eventos por Estado",
-      descripcion: "Distribución de eventos según su estado actual",
-      icono: "📈",
-      color: "#ffa500",
-      rolesPermitidos: [2, 3],
-    },
-    {
-      id: "eventos_por_usuario",
-      titulo: "Eventos por Usuario",
-      descripcion: "Cantidad de eventos creados por cada usuario",
-      icono: "👥",
-      color: "#4caf50",
-      rolesPermitidos: [2],
-    },
-    {
-      id: "eventos_por_mes",
-      titulo: "Eventos por Mes",
-      descripcion: "Tendencia de eventos a lo largo del tiempo",
-      icono: "📅",
-      color: "#2196f3",
-      rolesPermitidos: [2],
-    },
-    {
-      id: "usuarios_total",
-      titulo: "Total de Usuarios",
-      descripcion: "Cantidad total de usuarios registrados",
-      icono: "👤",
-      color: "#9c27b0",
-      rolesPermitidos: [1],
-    },
-    {
-      id: "usuarios_por_rol",
-      titulo: "Usuarios por Rol",
-      descripcion: "Distribución de usuarios según su rol",
-      icono: "🎭",
-      color: "#e91e63",
-      rolesPermitidos: [1],
-    },
-    {
-      id: "eventos_por_tipo",
-      titulo: "Eventos por Tipo",
-      descripcion: "Clasificación de eventos según su tipo",
-      icono: "🏃‍♂️",
-      color: "#ff9800",
-      rolesPermitidos: [2],
-    },
-    {
-      id: "solicitudes_externas",
-      titulo: "Solicitudes Externas",
-      descripcion: "Estado de solicitudes externas pendientes",
-      icono: "📧",
-      color: "#00bcd4",
-      rolesPermitidos: [2],
-    },
-    {
-      id: "mis_eventos_total",
-      titulo: "Mis Eventos",
-      descripcion: "Total de eventos que has creado",
-      icono: "🎯",
-      color: "#ff6b35",
-      rolesPermitidos: [2, 3, 4],
-    },
-    {
-      id: "mis_eventos_por_estado",
-      titulo: "Mis Eventos por Estado",
-      descripcion: "Estado de tus eventos creados",
-      icono: "📊",
-      color: "#4caf50",
-      rolesPermitidos: [2, 3, 4],
-    },
-    {
-      id: "mis_inscripciones",
-      titulo: "Mis Inscripciones",
-      descripcion: "Eventos en los que estás inscrito",
-      icono: "✅",
-      color: "#2196f3",
-      rolesPermitidos: [2, 3, 4],
-    },
-    {
-      id: "mis_notificaciones",
-      titulo: "Mis Notificaciones",
-      descripcion: "Notificaciones recibidas",
-      icono: "🔔",
-      color: "#ffa500",
-      rolesPermitidos: [2, 3, 4],
-    },
-  ];
-
-  // 3. FILTRAR POR EL ROL REAL QUE VIENE DEL LOGIN
-  const reportesFiltrados = reportesDisponibles.filter((reporte) =>
-    reporte.rolesPermitidos.includes(usuarioRol)
-  );
-
-  useEffect(() => {
-    cargarReportes();
-  }, []);
-
   const cargarReportes = async () => {
-    // 1. Verificación estricta del token
-    const tokenActual = localStorage.getItem("token");
-    if (!tokenActual || tokenActual === "undefined") {
-        setError("Sesión inválida. Por favor, vuelve a loguearte.");
-        setLoading(false);
-        return;
-    }
-    
     try {
       setLoading(true);
       setError(null);
+
+      const baseUrl = import.meta.env.VITE_API_URL;
       
-      const response = await fetch("/api/reportes/", {
+      const response = await fetch(`${baseUrl}/reportes/`, {      
         headers: {
-          Authorization: `Bearer ${tokenActual}`,
+          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         },
       });
-    // 3. Verificar si la respuesta es HTML en lugar de JSON
+
+      // Evitar error de JSON si devuelve HTML (<!doctype)
       const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("El servidor no devolvió JSON. Revisa la URL de la API.");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error("El servidor devolvió una respuesta no válida (HTML). Verifica la ruta de la API.");
       }
 
       // Si el servidor dice que el token no vale (401), mandarlo al login
@@ -196,173 +77,187 @@ export default function ReportesPage() {
         return;
       }
 
-      if (!response.ok) throw new Error("Error al cargar reportes");
+      if (!response.ok) throw new Error("Error en la respuesta del servidor");
       
       const data = await response.json();
       setReporteData(data);
     } catch (err: any) {
-      console.error("Error cargando reportes:", err);
-      setError("No se pudieron cargar los reportes");
+      console.error("Error:", err);
+      setError(err.message || "Error al conectar con el servidor");
     } finally {
       setLoading(false);
     }
   };
 
   const handleExportarCSV = async (tipo: string) => {
-    const tokenParaExportar = localStorage.getItem("token"); // Siempre leer el más reciente
-    if (!tokenParaExportar) {
-        alert("Sesión expirada. Por favor, inicia sesión de nuevo.");
-        window.location.href = "/login";
-        return;
-    }
-    
     try {
       setExportando(tipo);
-      await exportReporteCSV(tipo, token);
+      await exportReporteCSV(tipo, token || "");
     } catch (err) {
-      console.error("Error exportando CSV:", err);
-      alert("Error al exportar el reporte");
+      alert("Error al exportar");
     } finally {
       setExportando(null);
     }
   };
 
-  const obtenerValorReporte = (id: string): string | number => {
-    if (!reporteData) return "N/A";
-    
-    switch (id) {
-      case "total_eventos":
-        return reporteData.total_eventos || 0;
-      case "eventos_por_estado":
-        return reporteData.eventos_por_estado?.length || 0;
-      case "eventos_por_usuario":
-        return reporteData.eventos_por_usuario?.length || 0;
-      case "eventos_por_mes":
-        return reporteData.eventos_por_mes?.length || 0;
-      case "usuarios_total":
-        return reporteData.usuarios_total || 0;
-      case "usuarios_por_rol":
-        return reporteData.usuarios_por_rol?.length || 0;
-      case "eventos_por_tipo":
-        return reporteData.eventos_por_tipo?.length || 0;
-      case "solicitudes_externas":
-        return reporteData.solicitudes_externas?.length || 0;
-      case "mis_eventos_total":
-        return reporteData.mis_eventos_total || 0;
-      case "mis_eventos_por_estado":
-        return reporteData.mis_eventos_por_estado?.length || 0;
-      case "mis_inscripciones":
-        return reporteData.mis_inscripciones?.length || 0;
-      case "mis_notificaciones":
-        return reporteData.mis_notificaciones?.length || 0;
-      default:
-        return "N/A";
-    }
-  };
+  // --- FORMATEADORES ---
+  const getNombreEstado = (id: number) => ({ 1: "Pendiente", 2: "Aprobado", 3: "Rechazado", 4: "Cancelado" }[id] || `Estado ${id}`);
+  const getNombreRol = (id: number) => ({ 1: "Admin", 2: "Supervisor", 3: "Operario", 4: "Cliente" }[id] || `Rol ${id}`);
+  const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
-  if (loading) {
+  // --- MÉTODOS DE RENDERIZADO DE GRÁFICOS ---
+  
+  const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
+    if (!data || data.length === 0) return <p>Sin datos</p>;
+    const maxValue = Math.max(...data.map(item => item[valueKey]));
     return (
-      <div className="reportes-page">
-        <div className="reportes-loading">
-          <div className="spinner-large"></div>
-          <p>Cargando reportes...</p>
-        </div>
+      <div className="grafico-barras">
+        {data.map((item, index) => (
+          <div key={index} className="grafico-barras__item">
+            <div className="grafico-barras__label">{getLabelFn ? getLabelFn(item[labelKey]) : item[labelKey]}</div>
+            <div className="grafico-barras__bar-container">
+              <div className="grafico-barras__bar" style={{ width: `${(item[valueKey] / maxValue) * 100}%` }}>
+                <span className="grafico-barras__valor">{item[valueKey]}</span>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
-  }
+  };
+
+  const renderGraficoLinea = (data: any[]) => {
+  if (!data || data.length === 0) return <p>Sin datos</p>;
+
+  // 1. ORDENAR CRONOLÓGICAMENTE
+  const dataOrdenada = [...data].sort((a, b) => {
+    // Si el año es distinto, ordena por año
+    if (a.anio !== b.anio) return a.anio - b.anio;
+    // Si el año es igual, ordena por mes
+    return a.mes - b.mes;
+  });
+
+  const maxValue = Math.max(...dataOrdenada.map(item => item.cantidad), 1);
+
+  return (
+    <div className="grafico-linea">
+      <div className="grafico-linea__grid">
+        {dataOrdenada.map((item, index) => (
+          <div key={index} className="grafico-linea__columna">
+            <span style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>
+              {item.cantidad}
+            </span>
+            <div 
+              className="grafico-linea__barra" 
+              style={{ height: `${(item.cantidad / maxValue) * 80}%` }}
+            ></div>
+            <div className="grafico-linea__label">
+              {getNombreMes(item.mes)} <br/> {item.anio}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+  const renderGraficoPie = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
+    if (!data || data.length === 0) return <p>Sin datos</p>;
+    const total = data.reduce((sum, item) => sum + item[valueKey], 0);
+    const colores = ["#ff6b35", "#ffa500", "#4caf50", "#2196f3", "#9c27b0"];
+    return (
+      <div className="grafico-pie">
+        {data.map((item, index) => (
+          <div key={index} className="grafico-pie__item">
+            <div className="grafico-pie__color" style={{ backgroundColor: colores[index % colores.length] }}></div>
+            <div className="grafico-pie__info">
+              <span className="grafico-pie__label">{getLabelFn ? getLabelFn(item[labelKey]) : item[labelKey]}</span>
+              <span className="grafico-pie__valor">{item[valueKey]} ({((item[valueKey]/total)*100).toFixed(1)}%)</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  if (loading) return <div className="reportes-page"><div className="spinner-large"></div><p>Cargando datos...</p></div>;
 
   return (
     <div className="reportes-page">
       <div className="reportes-page__container">
         <div className="reportes-header">
-          <div className="reportes-header__content">
-            <h1 className="reportes-header__title">Reportes y Estadísticas</h1>
-            <p className="reportes-header__subtitle">
-              Visualiza y exporta información clave de la plataforma
-            </p>
+          <div>
+            <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
+            <p className="reportes-header__subtitle">Información analítica del sistema</p>
           </div>
-          <button onClick={cargarReportes} className="reportes-header__refresh">
-            <span className="refresh-icon">↻</span>
-            Actualizar
-          </button>
+          <button onClick={cargarReportes} className="reportes-header__refresh">↻ Actualizar</button>
         </div>
 
-        {error && (
-          <div className="reportes-alert reportes-alert--error">
-            <span className="reportes-alert__icon">⚠️</span>
-            <span className="reportes-alert__message">{error}</span>
-            <button onClick={cargarReportes} className="reportes-alert__retry">
-              Reintentar
-            </button>
+        {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
+
+        {/* TARJETAS RESUMEN */}
+        <div className="reportes-resumen">
+          <div className="stat-card stat-card--primary">
+            <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
+            <div className="stat-card__label">Total Eventos</div>
           </div>
-        )}
+          <div className="stat-card stat-card--success">
+            <div className="stat-card__valor">{reporteData?.usuarios_total || 0}</div>
+            <div className="stat-card__label">Usuarios</div>
+          </div>
+          <div className="stat-card stat-card--info">
+            <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
+            <div className="stat-card__label">Mis Eventos</div>
+          </div>
+        </div>
 
-        <div className="reportes-grid">
-          {reportesFiltrados.map((reporte) => (
-            <div
-              key={reporte.id}
-              className="reporte-card"
-              style={{ "--card-color": reporte.color } as React.CSSProperties}
-            >
-              <div className="reporte-card__header">
-                <div className="reporte-card__icon">{reporte.icono}</div>
-                <div className="reporte-card__info">
-                  <h3 className="reporte-card__title">{reporte.titulo}</h3>
-                  <p className="reporte-card__description">
-                    {reporte.descripcion}
-                  </p>
-                </div>
+        {/* SECCIÓN DE GRÁFICOS */}
+        <div className="reportes-graficos">
+          
+          {/* Eventos por Mes (Línea) - Admin/Supervisor */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_mes && (
+            <div className="grafico-card grafico-card--wide">
+              <div className="grafico-card__header">
+                <h3>📅 Tendencia Mensual de Eventos</h3>
+                <button onClick={() => handleExportarCSV("eventos_por_mes")}>📥 CSV</button>
               </div>
-
-              <div className="reporte-card__body">
-                <div className="reporte-card__valor">
-                  {obtenerValorReporte(reporte.id)}
-                </div>
-              </div>
-
-              <div className="reporte-card__footer">
-                <button
-                  onClick={() => handleExportarCSV(reporte.id)}
-                  className="reporte-card__export"
-                  disabled={exportando === reporte.id}
-                >
-                  {exportando === reporte.id ? (
-                    <>
-                      <span className="mini-spinner"></span>
-                      Exportando...
-                    </>
-                  ) : (
-                    <>
-                      <span className="export-icon">📥</span>
-                      Exportar CSV
-                    </>
-                  )}
-                </button>
-              </div>
+              <div className="grafico-card__body">{renderGraficoLinea(reporteData.eventos_por_mes)}</div>
             </div>
-          ))}
-        </div>
+          )}
 
-        {reportesFiltrados.length === 0 && (
-          <div className="reportes-empty">
-            <div className="reportes-empty__icon">📊</div>
-            <h2 className="reportes-empty__title">No hay reportes disponibles</h2>
-            <p className="reportes-empty__message">
-              No tienes permisos para visualizar reportes en este momento
-            </p>
-          </div>
-        )}
+          {/* Usuarios por Rol (Pie) - Solo Admin */}
+          {usuarioRol === 1 && reporteData?.usuarios_por_rol && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🎭 Usuarios por Rol</h3>
+                <button onClick={() => handleExportarCSV("usuarios_por_rol")}>📥 CSV</button>
+              </div>
+              <div className="grafico-card__body">{renderGraficoPie(reporteData.usuarios_por_rol, "rol", "cantidad", getNombreRol)}</div>
+            </div>
+          )}
 
-        <div className="reportes-info">
-          <div className="reportes-info__card">
-            <h3 className="reportes-info__title">💡 Información</h3>
-            <ul className="reportes-info__list">
-              <li>Los reportes se actualizan en tiempo real</li>
-              <li>Puedes exportar cualquier reporte a formato CSV</li>
-              <li>Los datos exportados incluyen toda la información detallada</li>
-              <li>Los permisos dependen de tu rol en el sistema</li>
-            </ul>
-          </div>
+          {/* Mis Eventos por Estado (Barras) - Todos */}
+          {reporteData?.mis_eventos_por_estado && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>📊 Mi Actividad por Estado</h3>
+                <button onClick={() => handleExportarCSV("mis_eventos_por_estado")}>📥 CSV</button>
+              </div>
+              <div className="grafico-card__body">{renderGraficoBarras(reporteData.mis_eventos_por_estado, "estado", "cantidad", getNombreEstado)}</div>
+            </div>
+          )}
+
+          {/* Eventos por Tipo (Pie) */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🏃‍♂️ Eventos por Tipo</h3>
+                <button onClick={() => handleExportarCSV("eventos_por_tipo")}>📥 CSV</button>
+              </div>
+              <div className="grafico-card__body">{renderGraficoPie(reporteData.eventos_por_tipo, "tipo", "cantidad")}</div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
