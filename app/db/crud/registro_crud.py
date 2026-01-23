@@ -1,8 +1,9 @@
 from sqlalchemy.orm import Session
 from app.models.registro_models import Evento, EventoMultimedia, EliminacionEvento
 from app.schemas.registro_schema import EventoCreate
-from datetime import date
+from datetime import date, datetime
 from sqlalchemy import or_
+from fastapi import HTTPException
 
 # CONSTANTES DE ESTADO (Las ponemos acá arriba para orden)
 # -----------------------------------------------------------------------------
@@ -129,17 +130,82 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
 # -----------------------------------------------------------------------------
 
 # HU 4.1 y 4.2 (Parte Admin/Aprobación): Mover a CANCELADO (5)
-def cancelar_evento(db: Session, evento_id: int, motivo: str):
-    evento = get_evento_by_id(db, evento_id)
-    if evento:
-        evento.id_estado = ID_ESTADO_CANCELADO
-        # Guardamos el motivo en el campo del evento (si existe)
-        # OJO: Si tu modelo Evento tiene campo 'motivo_baja', descomenta la linea de abajo
-        if hasattr(evento, 'motivo_baja'): evento.motivo_baja = motivo 
+def cancelar_evento(db: Session, id_evento: int, motivo: str):
+    """
+    ✅ SOFT DELETE: Cambia el evento a estado 5 (Cancelado).
+    
+    El evento NO se elimina físicamente, solo cambia su estado.
+    Se crea/actualiza el registro en eliminacion_evento para auditoría.
+    """
+    from app.models.registro_models import Evento, EliminacionEvento
+    
+    try:
+        print(f"🔍 [DEBUG] Iniciando cancelación del evento {id_evento}")
         
+        # 1. Buscar el evento
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+        if not evento:
+            print(f"❌ [ERROR] Evento {id_evento} no encontrado")
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+        print(f"✅ [DEBUG] Evento encontrado: {evento.nombre_evento}, Estado actual: {evento.id_estado}")
+        
+        # 2. Validar que se pueda cancelar
+        if evento.id_estado == ID_ESTADO_CANCELADO:
+            print(f"⚠️ [WARN] El evento ya está cancelado")
+            raise HTTPException(status_code=400, detail="El evento ya está cancelado")
+        
+        # 3. Buscar si ya existe un registro de eliminación
+        eliminacion_existente = db.query(EliminacionEvento).filter(
+            EliminacionEvento.id_evento == id_evento
+        ).first()
+        
+        if eliminacion_existente:
+            print(f"📝 [DEBUG] Actualizando registro de eliminación existente ID: {eliminacion_existente.id_eliminacion}")
+            eliminacion_existente.motivo_eliminacion = motivo
+            eliminacion_existente.fecha_eliminacion = datetime.now()
+        else:
+            print(f"📝 [DEBUG] Creando nuevo registro de eliminación")
+            nueva_eliminacion = EliminacionEvento(
+                id_evento=id_evento,
+                motivo_eliminacion=motivo,
+                fecha_eliminacion=datetime.now(),
+                id_usuario=evento.id_usuario,
+                notificacion_enviada=False
+            )
+            db.add(nueva_eliminacion)
+        
+        # 4. ✅ SOFT DELETE: Cambiar estado a 5 (Cancelado)
+        estado_anterior = evento.id_estado
+        evento.id_estado = ID_ESTADO_CANCELADO
+        print(f"✅ [DEBUG] Cambiando estado de {estado_anterior} a {ID_ESTADO_CANCELADO}")
+        
+        # 5. Commit
         db.commit()
         db.refresh(evento)
-    return evento
+        
+        print(f"🎉 [SUCCESS] Evento cancelado exitosamente")
+        
+        return {
+            "mensaje": "Evento cancelado exitosamente (Soft Delete)",
+            "id_evento": evento.id_evento,
+            "nombre_evento": evento.nombre_evento,
+            "estado_anterior": estado_anterior,
+            "estado_actual": "Cancelado",
+            "id_estado": ID_ESTADO_CANCELADO
+        }
+        
+    except HTTPException as he:
+        # Re-lanzar excepciones HTTP tal cual
+        raise he
+    except Exception as e:
+        print(f"💥 [ERROR CRÍTICO] {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error al cancelar evento: {str(e)}"
+        )
+
 
 # HU 4.2 (Parte Usuario): Solicitar Baja -> PENDIENTE (6)
 def solicitar_baja_evento(db: Session, evento_id: int, motivo: str):
@@ -153,23 +219,37 @@ def solicitar_baja_evento(db: Session, evento_id: int, motivo: str):
     return evento
 
 # HU 4.3 (Admin Mantenimiento): Limpiar -> DEPURADO (7)
-def depurar_evento(db: Session, evento_id: int, motivo: str):
-    evento = get_evento_by_id(db, evento_id)
-    if evento:
+def depurar_evento(db: Session, id_evento: int, motivo: str):
+    """
+    ✅ HARD DELETE LÓGICO: Cambia el evento a estado 7 (Depurado).
+    """
+    from app.models.registro_models import Evento, EliminacionEvento
+    
+    try:
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+        if not evento:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        
+        # Crear registro de auditoría
+        nueva_eliminacion = EliminacionEvento(
+            id_evento=id_evento,
+            motivo_eliminacion=f"[DEPURACIÓN ADMIN] {motivo}",
+            fecha_eliminacion=datetime.now(),
+            id_usuario=evento.id_usuario,
+            notificacion_enviada=False
+        )
+        db.add(nueva_eliminacion)
+        
+        # Cambiar a estado 7 (Depurado)
         evento.id_estado = ID_ESTADO_DEPURADO
         
-        # Opcional: Crear registro en tabla histórica si la tienes
-        try:
-            historial = EliminacionEvento(
-                id_evento=evento.id_evento,
-                motivo_eliminacion=f"[MANTENIMIENTO] {motivo}",
-                id_usuario=evento.id_usuario, # O el admin actual si lo pasaras
-                notificacion_enviada=False
-            )
-            db.add(historial)
-        except:
-            pass # Si falla la tabla historial, al menos cambia el estado
-
         db.commit()
-        db.refresh(evento)
-    return evento
+        
+        return {
+            "mensaje": "Evento depurado exitosamente",
+            "id_evento": evento.id_evento,
+            "estado_nuevo": "Depurado por Admin"
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al depurar evento: {str(e)}")

@@ -75,7 +75,8 @@ class EliminacionEvento(Base):
     fecha_eliminacion = Column(DateTime(timezone=True), server_default=func.now())
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False) # Quién eliminó
     notificacion_enviada = Column(Boolean, default=False, nullable=False)
-    
+    # ✅ AGREGAR ESTA RELACIÓN si no existe:
+    evento = relationship("Evento", foreign_keys=[id_evento])
 # HU 4.5 Definimos la tabla para que exista la relación de reservas de eventos
 class ReservaEvento(Base):
     __tablename__ = "reserva_evento"

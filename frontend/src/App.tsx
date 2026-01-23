@@ -18,6 +18,8 @@ import ForgotPasswordPage from "./pages/forgot-password-page";
 
 // 👇 3. AGREGADO: Importamos la página de Mis Eventos
 import MisEventosPage from "./pages/mis-eventos-page"; 
+// 👇 AGREGADO: DASHBOARD DE ADMIN
+import AdminDashboardPage from "./pages/admin-dashboard-page";
 // 👇 NUEVO IMPORT: La página de perfil
 import PerfilPage from "./pages/perfil-page";
 
@@ -59,6 +61,15 @@ function App() {
               
             }
           />
+          {/* 3. Admin Dashboard - Protegido para admins */}
+          <Route path="/admin" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <AdminDashboardPage/>
+              </ProtectedRoute>
+            }
+          />
+
           {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
 

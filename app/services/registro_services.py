@@ -1,7 +1,7 @@
 import os
 import shutil
 from uuid import uuid4
-from datetime import date
+from datetime import date, datetime
 from app.models.registro_models import EventoMultimedia, EliminacionEvento, ReservaEvento, Evento
 from app.models.auth_models import Usuario
 from sqlalchemy.orm import Session
@@ -143,18 +143,20 @@ class EventoService:
                 detail=f"Solo se pueden solicitar bajar eventos publicados. Estado actual: {evento.id_estado}"
             )
 
-        # Crear solicitud
+        # 1. Crear solicitud en la tabla EliminacionEvento
         nueva_solicitud = EliminacionEvento(
             id_evento=evento.id_evento,
             motivo_eliminacion=motivo,
             id_usuario=usuario_actual.id_usuario,
+            fecha_eliminacion=datetime.now(), # <--- IMPORTANTE: Guardamos fecha y hora actual
             notificacion_enviada=False 
         )
         db.add(nueva_solicitud)
 
-        # Cambiar estado a Pendiente (6)
-        # evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION
-        pass
+        # 2. Cambiar estado a Pendiente (6)
+        # ESTO ESTABA COMENTADO EN TU CÓDIGO, HAY QUE DESCOMENTARLO:
+        evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION 
+        
         db.commit()
         db.refresh(evento)
         
