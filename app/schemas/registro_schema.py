@@ -74,7 +74,6 @@ class ReservaResponseSchema(BaseModel):
     id_evento: int
     id_usuario: int
     fecha_reserva: datetime
-    categoria_participante: Optional[str]
     fecha_expiracion: Optional[datetime] #Para mostrar cuándo vence
     id_estado_reserva: int
 

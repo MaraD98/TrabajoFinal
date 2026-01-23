@@ -9,15 +9,14 @@ from app.core.security import security
 from app.services.auth_services import AuthService
 
 # TUS Importaciones (Schemas y Services)
-# AGREGAMOS: EventoConCuposResponse, ReservaCreate, ReservaResponseSchema
+# NOTA: Verifica si tu archivo se llama registro_service.py o registro_services.py
 from app.schemas.registro_schema import (
     EventoCreate, 
     EventoResponse, 
     EventoConCuposResponse, 
-    ReservaCreate, 
     ReservaResponseSchema
 )
-from app.services.registro_services import EventoService
+from app.services.registro_services import EventoService 
 
 # Definimos el router
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
@@ -65,7 +64,6 @@ def read_mis_eventos(
 
 
 # ============ Listar Eventos (GET - Público con CUPOS) ============
-# OJO AQUÍ: Cambiamos el response_model para devolver los cupos calculados
 @router.get(
     "/", 
     response_model=List[EventoConCuposResponse], 
@@ -124,19 +122,34 @@ def agregar_multimedia_evento(
 )
 def reservar_cupo(
     evento_id: int,
-    reserva_in: ReservaCreate,
+    # reserva_in: ReservaCreate,  <-- BORRADO: Ya no pedimos body, solo ID URL y Token
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user) 
 ):
     """
     1. Verifica cupos disponibles.
     2. Verifica que el usuario no esté ya anotado.
-    3. Crea la reserva (Estado: Pendiente).
+    3. Si es gratis -> Inscripto (2). Si es pago -> Pendiente (1).
     4. Simula envío de email.
     """
     return EventoService.registrar_reserva(
         db=db,
         id_evento=evento_id,
-        id_usuario=current_user.id_usuario, # Usamos el ID del token
-        datos_reserva=reserva_in
+        id_usuario=current_user.id_usuario 
     )
+
+# ==========================================
+#  NUEVO: ENDPOINT DE SIMULACIÓN DE PAGO
+# ==========================================
+@router.post(
+    "/reservas/{id_reserva}/pagar",
+    summary="Simular Pago (Admin/Demo)",
+    description="Pasa una reserva de estado Pendiente (1) a Inscripto (2)"
+)
+def pagar_reserva(
+    id_reserva: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user) # Opcional: Podrías validar que sea Admin
+):
+    # Aquí llamamos a la función nueva del service
+    return EventoService.confirmar_pago_simulado(db, id_reserva)

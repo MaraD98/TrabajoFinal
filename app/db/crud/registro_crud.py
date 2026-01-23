@@ -3,7 +3,6 @@ from sqlalchemy import or_, func
 from datetime import date
 
 # Asegurate de importar Reserva_Evento y Usuario de donde los tengas definidos
-# (Generalmente en app.models.models si usas un solo archivo, o ajusta la ruta)
 from app.models.registro_models import Evento, EventoMultimedia, Reserva_Evento
 from app.models.auth_models import Usuario 
 from app.schemas.registro_schema import EventoCreate
@@ -12,7 +11,6 @@ from app.schemas.registro_schema import EventoCreate
 # 1. CREATE (Crear)
 # -----------------------------------------------------------------------------
 def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):    
-    
     db_evento = Evento(
         nombre_evento       = evento.nombre_evento,
         ubicacion           = evento.ubicacion,
@@ -147,15 +145,16 @@ def get_reserva_activa_usuario(db: Session, id_evento: int, id_usuario: int):
         Reserva_Evento.id_estado_reserva.in_([1, 2])
     ).first()
 
-def create_reserva(db: Session, id_evento: int, id_usuario: int):
+# --- MODIFICADO: AHORA RECIBE EL ESTADO COMO PARÁMETRO ---
+def create_reserva(db: Session, id_evento: int, id_usuario: int, id_estado: int):
     """
-    Crea la reserva. La fecha_expiracion la calcula PostgreSQL automáticamente
-    gracias a 'GENERATED ALWAYS AS ... STORED'.
+    Crea la reserva. 
+    id_estado vendrá del Service (1 si es pago, 2 si es gratis).
     """
     nueva_reserva = Reserva_Evento(
         id_evento=id_evento,
         id_usuario=id_usuario,
-        id_estado_reserva=1 # 1 = Pendiente
+        id_estado_reserva=id_estado # <--- Dinámico ahora
     )
     db.add(nueva_reserva)
     db.commit()
@@ -169,3 +168,20 @@ def get_usuario_by_id(db: Session, id_usuario: int):
     Necesario para obtener el email y enviar la notificación.
     """
     return db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first()
+
+# --- AGREGADOS PARA EL ADMIN / CONFIRMACIÓN DE PAGO ---
+
+def get_reserva_por_id(db: Session, id_reserva: int):
+    """
+    Busca una reserva puntual para que el Admin pueda confirmarla.
+    """
+    return db.query(Reserva_Evento).filter(Reserva_Evento.id_reserva == id_reserva).first()
+
+def confirmar_reserva_pago(db: Session, reserva: Reserva_Evento):
+    """
+    Cambia el estado de una reserva a 2 (Inscripto/Pagado).
+    """
+    reserva.id_estado_reserva = 2
+    db.commit()
+    db.refresh(reserva)
+    return reserva

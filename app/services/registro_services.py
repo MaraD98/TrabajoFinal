@@ -10,8 +10,7 @@ from app.db.crud import registro_crud
 from app.schemas.registro_schema import (
     EventoCreate,
     EventoResponse,
-    EventoConCuposResponse, # <--- Ahora sí se va a usar
-    ReservaCreate,          # <--- Ahora sí se va a usar
+    EventoConCuposResponse,
 )
 
 # Configuración de carpeta para guardar fotos
@@ -30,7 +29,7 @@ class EventoService:
                 detail="Tu perfil no tiene permisos para crear eventos."
             )
 
-        # 2. VALIDACIÓN DE DUPLICADOS (Mismo nombre y fecha)
+        # 2. VALIDACIÓN DE DUPLICADOS
         evento_existente = registro_crud.get_evento_por_nombre_y_fecha(
             db, evento_in.nombre_evento, evento_in.fecha_evento
         )
@@ -40,16 +39,14 @@ class EventoService:
                 detail="Ya existe un evento con ese nombre en esa fecha."
             )
 
-        # 3. LÓGICA DE ESTADO (Automático según fecha)
+        # 3. LÓGICA DE ESTADO
         from datetime import date
         hoy = date.today()
         
-        # Si la fecha es hoy o futura -> Publicado (3)
         if evento_in.fecha_evento >= hoy:
-            id_estado_final = 3 
+            id_estado_final = 3 # Publicado
         else:
-            # Si es fecha vieja -> Finalizado (4)
-            id_estado_final = 4
+            id_estado_final = 4 # Finalizado
 
         # 4. CREAR EN BD
         nuevo_evento = registro_crud.create_evento(
@@ -73,28 +70,23 @@ class EventoService:
 
     @staticmethod
     def agregar_detalles_multimedia(db: Session, id_evento: int, lista_archivos: List[UploadFile], url_externa: str):
-        # 1. Verificar que el evento exista
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
 
         resultados = []
 
-        # 2. Procesar IMÁGENES (Si hay)
+        # Procesar IMÁGENES
         if lista_archivos:
             for archivo in lista_archivos:
-                # Generar nombre único
                 nombre_archivo = f"{uuid4()}_{archivo.filename}"
                 ruta_archivo = os.path.join(UPLOAD_DIR, nombre_archivo)
                 
-                # Guardar en disco
                 with open(ruta_archivo, "wb") as buffer:
                     shutil.copyfileobj(archivo.file, buffer)
                 
-                # Generar URL para la BD
                 url_final = f"/static/uploads/{nombre_archivo}"
                 
-                # Guardar en BD
                 media = registro_crud.create_multimedia(
                     db=db, 
                     id_evento=id_evento, 
@@ -103,7 +95,7 @@ class EventoService:
                 )
                 resultados.append(media)
 
-        # 3. Procesar LINK DE VIDEO (Si hay)
+        # Procesar VIDEO
         if url_externa:
             media_video = registro_crud.create_multimedia(
                 db=db, 
@@ -116,43 +108,29 @@ class EventoService:
         return resultados
 
     # =========================================================================
-    #  NUEVOS MÉTODOS SPRINT 3 (CUPOS Y RESERVAS)
+    #  MÉTODOS DE INSCRIPCIÓN Y CUPOS
     # =========================================================================
 
     @staticmethod
     def listar_eventos_con_cupos(db: Session, skip: int, limit: int) -> List[EventoConCuposResponse]:
-        """
-        Obtiene los eventos y calcula dinámicamente cuántos lugares quedan.
-        """
-        # 1. Traer todos los eventos publicados
         eventos = registro_crud.get_eventos(db, skip, limit)
-        
         lista_respuesta = []
         
         for ev in eventos:
-            # 2. Consultar cuántas reservas confirmadas/pendientes tiene este evento
             ocupados = registro_crud.count_reservas_activas(db, ev.id_evento)
-            
-            # 3. Calcular disponibilidad (Matemática simple)
             disponibles = ev.cupo_maximo - ocupados
+            if disponibles < 0: disponibles = 0
             
-            # 4. Asegurar que no dé negativo (por si acaso)
-            if disponibles < 0:
-                disponibles = 0
-            
-            # 5. Armar el objeto de respuesta "híbrido" (Datos Evento + Dato Calculado)
-            # Convertimos el modelo de SQLAlchemy al esquema de Pydantic manualmente o desempaquetando
             evento_con_cupo = EventoConCuposResponse(
                 id_evento=ev.id_evento,
                 nombre_evento=ev.nombre_evento,
                 fecha_evento=ev.fecha_evento,
                 ubicacion=ev.ubicacion,
                 descripcion=ev.descripcion,
-                costo_participacion=ev.costo_participacion,
+                costo_participacion=ev.costo_participacion if ev.costo_participacion else 0.0,
                 cupo_maximo=ev.cupo_maximo,
                 lat=ev.lat,
                 lng=ev.lng,
-                # Agregamos los calculados:
                 cupos_disponibles=disponibles,
                 cupos_ocupados=ocupados
             )
@@ -161,47 +139,80 @@ class EventoService:
         return lista_respuesta
 
     @staticmethod
-    def registrar_reserva(db: Session, id_evento: int, id_usuario: int, datos_reserva: ReservaCreate):
+    def registrar_reserva(db: Session, id_evento: int, id_usuario: int):
         """
-        Maneja la lógica de inscripción: validaciones y envío de mail simulado.
+        Lógica:
+        1. Verifica Cupos.
+        2. Determina si es Gratis (Estado 2) o Pago (Estado 1).
+        3. Crea reserva (sin categoría).
+        4. Simula email.
         """
-        # A. Verificar que el evento exista
+        # A. Verificar Evento
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
 
-        # B. Verificar que el usuario no esté ya inscripto
+        # B. Verificar Duplicados
         reserva_existente = registro_crud.get_reserva_activa_usuario(db, id_evento, id_usuario)
         if reserva_existente:
             raise HTTPException(
                 status_code=400, 
-                detail="Ya tienes una reserva activa para este evento."
+                detail="Ya tienes una inscripción o reserva activa para este evento."
             )
 
-        # C. Verificar Cupos (Critical Section)
+        # C. Verificar Cupos
         ocupados = registro_crud.count_reservas_activas(db, id_evento)
         if ocupados >= evento.cupo_maximo:
             raise HTTPException(
                 status_code=400, 
-                detail="Lo sentimos, no hay cupos disponibles para este evento."
+                detail="Lo sentimos, no hay cupos disponibles."
             )
 
-        # D. Crear la reserva
+        # D. DETERMINAR ESTADO (Gratis vs Pago)
+        costo = evento.costo_participacion
+        
+        if costo is None or costo == 0:
+            estado_reserva = 2 # Inscrito Directo
+            msg_tipo = "GRATUITO - Confirmado"
+        else:
+            estado_reserva = 1 # Reserva Pendiente
+            msg_tipo = "DE PAGO - Pendiente"
+
+        # E. Crear la reserva (IMPORTANTE: No pasamos categoría aquí)
         nueva_reserva = registro_crud.create_reserva(
             db=db, 
             id_evento=id_evento, 
             id_usuario=id_usuario,
-            categoria=datos_reserva.categoria_participante
+            id_estado=estado_reserva 
         )
         
-        # E. Simulación de Envío de Correo (HU 8.6)
+        # F. Simulación de Envío de Correo (Recuperado de tu código)
         usuario = registro_crud.get_usuario_by_id(db, id_usuario)
         email_usuario = usuario.email if usuario else "desconocido"
         
         print(f"===========================================================")
         print(f"📧 [EMAIL SERVICE] Enviando confirmación a: {email_usuario}")
-        print(f"   Asunto: Reserva Confirmada - {evento.nombre_evento}")
-        print(f"   Tu cupo expira el: {nueva_reserva.fecha_expiracion}")
+        print(f"   Evento: {evento.nombre_evento}")
+        print(f"   Tipo: {msg_tipo}")
+        print(f"   Estado Reserva ID: {nueva_reserva.id_reserva}")
         print(f"===========================================================")
-
+        
         return nueva_reserva
+
+    @staticmethod
+    def confirmar_pago_simulado(db: Session, id_reserva: int):
+        """
+        Pasa una reserva de estado 1 (Pendiente) a 2 (Confirmada).
+        """
+        reserva = registro_crud.get_reserva_por_id(db, id_reserva)
+        
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+            
+        if reserva.id_estado_reserva == 2:
+             raise HTTPException(status_code=400, detail="Esta reserva ya estaba pagada/confirmada.")
+             
+        reserva_actualizada = registro_crud.confirmar_reserva_pago(db, reserva)
+        
+        print(f"💰 [PAGO] Dinero recibido para Reserva {id_reserva}. Estado cambiado a INSCRIPTO.")
+        return reserva_actualizada
