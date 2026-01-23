@@ -2,7 +2,7 @@ import './App.css';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/auth-context";
 
-// Importaciones existentes
+// 2. Componentes y Páginas
 import EventsMapPage from "./pages/mapa-page";
 import CreateEventPage from "./pages/registro-evento-page";
 import LoginPage from "./pages/login-page";
@@ -11,20 +11,36 @@ import RegisterPage from './pages/register-page';
 import CalendarioPage from "./pages/calendario-page";
 import SolicitudEventoPage from './pages/solicitud-evento-page';
 import InicioPage from "./pages/inicio-page";
-import ReportesPage from './pages/reportes-page';
 import ForgotPasswordPage from "./pages/forgot-password-page";
+import ReportesPage from './pages/reportes-page';
+
+// 👇 3. AGREGADO: Importamos la página de Mis Eventos
+import MisEventosPage from "./pages/mis-eventos-page"; 
+// 👇 AGREGADO: DASHBOARD DE ADMIN
+import AdminDashboardPage from "./pages/admin-dashboard-page";
+// 👇 NUEVO IMPORT: La página de perfil
 import PerfilPage from "./pages/perfil-page";
 
 function App() {
   return (
-    /* 👇 2. ENVOLVEMOS TODO CON EL AUTHPROVIDER */
     <AuthProvider>
       <Router>
         <Routes>
+          {/* Ruta Pública: Inicio */}
           <Route path="/" element={<InicioPage />} />
           
+          {/* Rutas Públicas de Funcionalidad */}
           <Route path="/mapa" element={<EventsMapPage />} />
           <Route path="/calendario" element={<CalendarioPage />} />
+          
+          {/* Rutas de Autenticación */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+
+          {/* 👇 RUTAS PROTEGIDAS (Requieren Login) 👇 */}
+          
+          {/* 1. Crear Evento */}
           {/* este es solicitud */}
           <Route path="/publicar-evento" element={<SolicitudEventoPage />} />
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
@@ -38,7 +54,32 @@ function App() {
               <ProtectedRoute allowedRoles={[1, 2]}>
                 <CreateEventPage />
               </ProtectedRoute>
-            }/>
+            }
+          />
+
+          {/* 2. Mis Eventos (AGREGADA) */}
+          <Route path="/mis-eventos"
+            element={
+              
+                <MisEventosPage />
+              
+            }
+          />
+          {/* 3. Admin Dashboard - Protegido para admins */}
+          <Route path="/admin" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <AdminDashboardPage/>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
+          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+
+          {/* 👇 NUEVA RUTA: Mi Perfil */}
+          <Route path="/perfil" element={<PerfilPage />} />
+
         </Routes>
       </Router>
     </AuthProvider>

@@ -80,9 +80,35 @@ export default function LoginPage() {
         } else {
             localStorage.removeItem("rememberedEmail");
         }
-
+        // ========================================
+        // ✅ NUEVO: Guardar información del usuario
+        // ========================================
+        // El backend ahora devuelve un objeto "user" con:
+        // { id_usuario, nombre_y_apellido, email, id_rol, telefono, direccion, enlace_redes }
+        if (response.user) {
+          // Guardamos el usuario completo en localStorage para que el AdminDashboard pueda acceder
+          localStorage.setItem('user', JSON.stringify(response.user));
+          // Guardamos el rol por separado para mantener compatibilidad con código existente
+          localStorage.setItem('rol', response.user.id_rol.toString());
+          
+          console.log('✅ Usuario guardado en localStorage:', response.user);
+        }
+        // ========================================
+        // Pasamos el token y el estado de rememberMe al contexto
         await loginOk(response.access_token, rememberMe);
-        navigate("/");
+        // ✅ NUEVO: Redirigir según el rol del usuario
+        // ========================================
+        // Si es Admin (1) o Supervisor (2) -> Dashboard de Admin
+        // Si es otro rol -> Página de inicio
+        if (response.user && [1, 2].includes(response.user.id_rol)) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+         // ========================================
+        
+        // ANTES ERA ASÍ (lo dejamos comentado para referencia):
+        // navigate("/")
       } else {
         setError("Error en la autenticación");
       }

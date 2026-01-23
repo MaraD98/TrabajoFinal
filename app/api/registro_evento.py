@@ -6,11 +6,12 @@ from fastapi import File, Form, UploadFile
 
 # Bases de datos y Seguridad
 from app.db.database import get_db
+from app.db.crud import registro_crud
 from app.core.security import security
 from app.services.auth_services import AuthService
 
 # TUS Importaciones (Schemas y Services)
-from app.schemas.registro_schema import EventoCreate, EventoResponse
+from app.schemas.registro_schema import EventoCreate, EventoResponse, EventoCancelacionRequest
 from app.services.registro_services import EventoService
 #PARA MULTIMEDIA
 from typing import List # <--- IMPORTANTE: No olvides importar esto
@@ -129,6 +130,60 @@ def agregar_multimedia_evento(
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
-        lista_archivos=archivos_imagenes, # Pasamos la lista entera
-        url_externa=url_multimedia
+        archivo=archivos_imagenes
     )
+    
+# ============ CANCELAR / ELIMINAR EVENTO (HU 4.1 y 4.2) ============
+@router.patch("/{evento_id}/cancelar", summary="Cancelar o Solicitar Baja de evento")
+def cancelar_evento(
+    evento_id: int, 
+    request_body: EventoCancelacionRequest, # <--- CAMBIO CLAVE: Recibe JSON, no string suelto
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Lógica Inteligente:
+    - Si es ADMIN: Cancela/Elimina directamente (Estado 5 o 6 según tu CRUD).
+    - Si es DUEÑO: Genera una SOLICITUD DE BAJA (Estado 7).
+    """
+    evento = registro_crud.get_evento_by_id(db, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    es_admin = current_user.id_rol in [1, 2] # Asumiendo 1=SuperAdmin, 2=Admin
+    es_duenio = evento.id_usuario == current_user.id_usuario
+
+    if not es_duenio and not es_admin:
+        raise HTTPException(status_code=403, detail="No tienes permisos para gestionar este evento")
+
+    motivo = request_body.motivo
+
+    # --- CAMINO A: ADMIN (Eliminación Directa) ---
+    if es_admin:
+        # Aquí asumo que 'cancelar_evento' en tu CRUD pone el estado definitivo (ej. 6 ELIMINADO)
+        return registro_crud.cancelar_evento(db, evento_id, motivo)
+    
+    # --- CAMINO B: DUEÑO (Solicitud de Baja) ---
+    if es_duenio:
+        # Aquí forzamos que si es el dueño, se use la lógica de SOLICITUD (Estado 7)
+        # Asegurate que 'solicitar_baja_evento' en tu CRUD ponga id_estado = 7
+        return registro_crud.solicitar_baja_evento(db, evento_id, motivo)
+
+
+# Mantenemos este endpoint por si acaso se llama explícitamente, 
+# pero le arreglamos el error 422 también.
+@router.patch("/{evento_id}/solicitar-eliminacion", summary="Solicitar baja explícita")
+def solicitar_eliminacion(
+    evento_id: int, 
+    request_body: EventoCancelacionRequest, # <--- CORREGIDO AQUI TAMBIÉN
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    evento = registro_crud.get_evento_by_id(db, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    if evento.id_usuario != current_user.id_usuario:
+        raise HTTPException(status_code=403, detail="No puedes solicitar baja de un evento ajeno")
+
+    return registro_crud.solicitar_baja_evento(db, evento_id, request_body.motivo)

@@ -56,3 +56,16 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+    
+# ✅ NUEVO: Schema para la respuesta del login
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UsuarioResponse
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
