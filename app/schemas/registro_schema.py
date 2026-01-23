@@ -78,3 +78,7 @@ class ReservaResponseSchema(BaseModel):
     id_estado_reserva: int
 
     model_config = ConfigDict(from_attributes=True)
+    
+    # --- (NUEVO) HU 4.1: Input para cancelar evento ---
+class EventoCancelacionRequest(BaseModel):
+    motivo: str = Field(..., min_length=5, description="Motivo por el cual se cancela el evento")

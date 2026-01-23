@@ -1,6 +1,6 @@
 import type { FormEvent } from "react";
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom"; // 🔥 Importamos Link
+import { useNavigate, useLocation, Link } from "react-router-dom"; 
 import { login } from "../services/eventos"; 
 import { useAuth } from "../context/auth-context"; 
 import "../styles/login.css";
@@ -11,11 +11,12 @@ export default function LoginPage() {
     contrasenia: "",
   });
   
-  // 👇 CAMBIO 1: Estado para el checkbox
   const [rememberMe, setRememberMe] = useState(false);
-
   const [loading, setLoading] = useState(false);
-  const [, setError] = useState<string | null>(null);
+
+  // 🔥 CORRECCIÓN 1: Agregamos la variable 'error' que antes estaba ignorada con una coma
+  const [error, setError] = useState<string | null>(null);
+  
   const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
@@ -26,13 +27,11 @@ export default function LoginPage() {
   const showAuthNotice = location.state?.reason === "auth"; 
   const showRoleDeniedNotice = location.state?.reason === "role-denied";
 
-  // 👇 CAMBIO 2: Efecto de "Cargar Email guardado"
-  // Al entrar a la página, miramos si hay un email en la memoria del navegador
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberedEmail");
     if (savedEmail) {
       setFormData((prev) => ({ ...prev, email: savedEmail }));
-      setRememberMe(true); // Dejamos el tilde marcado visualmente
+      setRememberMe(true); 
     }
   }, []);
 
@@ -57,6 +56,7 @@ export default function LoginPage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    // Limpiamos el error cuando el usuario empieza a escribir de nuevo
     setError(null);
   };
 
@@ -75,25 +75,46 @@ export default function LoginPage() {
       const response = await login(formData.email, formData.contrasenia);
 
       if (response.access_token) {
-        
-        // 👇 CAMBIO 3: Lógica de Guardar/Borrar Email
-        // Si el usuario tildó "Recordarme", guardamos el email en localStorage.
-        // Si no, lo borramos por seguridad.
         if (rememberMe) {
             localStorage.setItem("rememberedEmail", formData.email);
         } else {
             localStorage.removeItem("rememberedEmail");
         }
-
+        // ========================================
+        // ✅ NUEVO: Guardar información del usuario
+        // ========================================
+        // El backend ahora devuelve un objeto "user" con:
+        // { id_usuario, nombre_y_apellido, email, id_rol, telefono, direccion, enlace_redes }
+        if (response.user) {
+          // Guardamos el usuario completo en localStorage para que el AdminDashboard pueda acceder
+          localStorage.setItem('user', JSON.stringify(response.user));
+          // Guardamos el rol por separado para mantener compatibilidad con código existente
+          localStorage.setItem('rol', response.user.id_rol.toString());
+          
+          console.log('✅ Usuario guardado en localStorage:', response.user);
+        }
+        // ========================================
         // Pasamos el token y el estado de rememberMe al contexto
         await loginOk(response.access_token, rememberMe);
-
-        navigate("/");
+        // ✅ NUEVO: Redirigir según el rol del usuario
+        // ========================================
+        // Si es Admin (1) o Supervisor (2) -> Dashboard de Admin
+        // Si es otro rol -> Página de inicio
+        if (response.user && [1, 2].includes(response.user.id_rol)) {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
+         // ========================================
+        
+        // ANTES ERA ASÍ (lo dejamos comentado para referencia):
+        // navigate("/")
       } else {
         setError("Error en la autenticación");
       }
     } catch (err: any) {
       console.error("Error en login:", err);
+      // Aquí capturamos el mensaje exacto
       setError(
         err.response?.data?.detail || 
         "Email o contraseña incorrectos"
@@ -118,6 +139,8 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="login-form">
+            
+            {/* Alertas existentes */}
             {showAuthNotice && (
               <div className="login-alert login-alert--error">
                 <span className="login-alert__icon">⚠️</span>
@@ -131,6 +154,14 @@ export default function LoginPage() {
                 <span className="login-alert__message">
                   No tienes permisos para crear eventos
                 </span>
+              </div>
+            )}
+
+            {/* 🔥 CORRECCIÓN 2: Aquí agregamos el cartel de error de contraseña/login */}
+            {error && (
+              <div className="login-alert login-alert--error">
+                <span className="login-alert__icon">❌</span>
+                <span className="login-alert__message">{error}</span>
               </div>
             )}
 
@@ -181,7 +212,6 @@ export default function LoginPage() {
 
             <div className="login-form__options">
               <label className="login-checkbox">
-                {/* 👇 CAMBIO 4: Input Checkbox conectado al estado */}
                 <input 
                     type="checkbox" 
                     className="login-checkbox__input" 
@@ -191,7 +221,6 @@ export default function LoginPage() {
                 <span className="login-checkbox__label">Recordarme</span>
               </label>
 
-              {/* 👇 CAMBIO 5: Usamos Link en lugar de <a> para no recargar la página */}
               <Link to="/olvide-password" className="login-link">
                 ¿Olvidaste tu contraseña?
               </Link>
@@ -214,7 +243,6 @@ export default function LoginPage() {
           <div className="login-card__footer">
             <p className="login-footer__text">
               ¿No tienes cuenta?{" "}
-              {/* 👇 CAMBIO 6: Link para registro también */}
               <Link to="/register" className="login-footer__link">
                 Regístrate aquí
               </Link>
@@ -235,7 +263,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Features (sin cambios visuales, solo lógica de rol mantenida) */}
+        {/* Features sin cambios */}
         <div className="login-features">
           <div className="login-feature" onClick={() => navigate("/eventos")}>
             <div className="login-feature__icon">🏆</div>

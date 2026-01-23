@@ -1,5 +1,6 @@
 import { api } from "./api";
 
+
 // Función para crear eventos
 export async function createEvento(eventoData: any, token: string) {
   const res = await api.post("/eventos", eventoData, {
@@ -10,11 +11,56 @@ export async function createEvento(eventoData: any, token: string) {
   return res.data;
 }
 
-// Función para obtener TODOS los eventos
+// Función para obtener TODOS los eventos (Público)
 export async function getEventos() {
   const res = await api.get("/eventos");
   return res.data;
 }
+
+// --- OBTENER SOLO MIS EVENTOS ---
+export async function getMisEventos() {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get("/eventos/mis-eventos", {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+}
+
+// HU 4.1: Cancelar mi propio evento
+export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    // URL CORRECTA: /eventos/{id}/cancelar
+    // BODY: { "motivo": "..." }
+    const response = await api.patch(`/eventos/${idEvento}/cancelar`, 
+        { motivo }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+};
+
+// HU 4.2: Solicitar baja (Usuario Externo)
+export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    // URL CORRECTA: /eventos/{id}/solicitar-eliminacion
+    const response = await api.patch(`/eventos/${idEvento}/solicitar-eliminacion`, 
+        { motivo }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+};
+
+// HU 4.3: Eliminar como Administrador
+export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    // URL CORRECTA: /eventos/{id}/admin-eliminar
+    const response = await api.patch(`/eventos/${idEvento}/admin-eliminar`, 
+        { motivo }, 
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+};
 
 export async function getEventosCalendario(month: number, year: number) {
   const res = await api.get("/eventos/calendario", {
