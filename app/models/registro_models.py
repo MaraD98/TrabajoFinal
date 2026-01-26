@@ -108,13 +108,9 @@ class Reserva_Evento(Base):
     
     id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
     id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False)
-    
     fecha_reserva = Column(DateTime(timezone=True), server_default=func.now())
-    
     id_estado_reserva = Column(Integer, ForeignKey("estadoreserva.id_estado_reserva"), default=1)
-    
     categoria_participante = Column(String(100), nullable=True)
-
     # AQUÍ ESTÁ LA MAGIA: Computed mapea el "GENERATED ALWAYS AS" de SQL
     fecha_expiracion = Column(
         DateTime(timezone=True), 
@@ -124,5 +120,4 @@ class Reserva_Evento(Base):
     # Relaciones
     evento = relationship("Evento", back_populates="reservas")
     estado = relationship("EstadoReserva")
-    # Nota: Si quisieras acceder al usuario desde la reserva, podrías agregar:
-    # usuario = relationship("Usuario")
+   

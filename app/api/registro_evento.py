@@ -86,8 +86,8 @@ def read_eventos(
 # ============ Obtener un Evento (GET ID) ============
 @router.get(
     "/{evento_id}", 
-    response_model=EventoResponse,
-    summary="Obtener detalle de un evento"
+    response_model=EventoConCuposResponse, # <--- CAMBIO AQUÍ
+    summary="Obtener detalle de un evento con sus cupos actualizados"
 )
 def read_one_evento(evento_id: int, db: Session = Depends(get_db)):
     return EventoService.obtener_evento_por_id(db, evento_id)

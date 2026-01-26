@@ -2,7 +2,7 @@ import os
 import shutil
 from uuid import uuid4
 from datetime import date, datetime
-from app.models.registro_models import EventoMultimedia, EliminacionEvento, ReservaEvento, Evento
+from app.models.registro_models import EventoMultimedia, EliminacionEvento, Reserva_Evento, Evento
 from app.models.auth_models import Usuario
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
@@ -44,7 +44,6 @@ class EventoService:
             )
 
         # 3. LÓGICA DE ESTADO
-        from datetime import date
         hoy = date.today()
         
         if evento_in.fecha_evento >= hoy:
@@ -65,12 +64,48 @@ class EventoService:
     def listar_eventos_por_usuario(db: Session, id_usuario: int, skip: int, limit: int):
         return registro_crud.get_eventos_por_usuario(db, id_usuario, skip, limit)
 
+    # ==========================================================
+    # 🔥 ESTE ES EL MÉTODO QUE ACTUALIZAMOS NOSOTROS 🔥
+    # ==========================================================
     @staticmethod
-    def obtener_evento_por_id(db: Session, evento_id: int):
-        evento = registro_crud.get_evento_by_id(db, evento_id)
+    def obtener_evento_por_id(db: Session, id_evento: int) -> EventoConCuposResponse:
+        # 1. Buscar el evento base
+        evento = registro_crud.get_evento(db, id_evento)
         if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
-        return evento
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"El evento con id {id_evento} no existe"
+            )
+
+        # 2. Calcular ocupación en tiempo real
+        ocupados = registro_crud.count_reservas_activas(db, id_evento)
+        disponibles = evento.cupo_maximo - ocupados
+        if disponibles < 0: 
+            disponibles = 0
+
+        # 3. Retornar el objeto completo con datos calculados + Relaciones
+        return EventoConCuposResponse(
+            id_evento=evento.id_evento,
+            nombre_evento=evento.nombre_evento,
+            fecha_evento=evento.fecha_evento,
+            ubicacion=evento.ubicacion,
+            descripcion=evento.descripcion,
+            costo_participacion=evento.costo_participacion if evento.costo_participacion else 0.0,
+            cupo_maximo=evento.cupo_maximo,
+            lat=evento.lat,
+            lng=evento.lng,
+            
+            # Mapeo de relaciones (Para evitar el error 500)
+            id_tipo=evento.id_tipo,
+            nombre_tipo=evento.tipo.nombre if evento.tipo else "Sin tipo",
+            id_dificultad=evento.id_dificultad,
+            nombre_dificultad=evento.dificultad.nombre if evento.dificultad else "Sin dificultad",
+            
+            # Datos Calculados
+            cupos_disponibles=disponibles,
+            cupos_ocupados=ocupados,
+            esta_lleno=(disponibles == 0)
+        )
 
     @staticmethod
     def agregar_detalles_multimedia(db: Session, id_evento: int, lista_archivos: List[UploadFile], url_externa: str):
@@ -139,8 +174,16 @@ class EventoService:
                 cupo_maximo=ev.cupo_maximo,
                 lat=ev.lat,
                 lng=ev.lng,
+                
+                # Relaciones agregadas para que coincida con el Schema
+                id_tipo=ev.id_tipo,
+                nombre_tipo=ev.tipo.nombre if ev.tipo else "Sin tipo",
+                id_dificultad=ev.id_dificultad,
+                nombre_dificultad=ev.dificultad.nombre if ev.dificultad else "Sin dificultad",
+
                 cupos_disponibles=disponibles,
-                cupos_ocupados=ocupados
+                cupos_ocupados=ocupados,
+                esta_lleno=(disponibles == 0)
             )
             lista_respuesta.append(evento_con_cupo)
             
@@ -150,7 +193,7 @@ class EventoService:
         """
         Busca reservas manualmente y notifica a los usuarios.
         """
-        # 1. BUSCAR RESERVAS: "SELECT * FROM reserva_evento WHERE id_evento = X"
+        # 1. BUSCAR RESERVAS
         reservas = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).all()
 
         if not reservas:
@@ -159,18 +202,15 @@ class EventoService:
 
         print(f"--- [MOCK EMAIL] Iniciando notificación a {len(reservas)} inscriptos ---")
         
-        # 2. Obtener datos del organizador (Dueño del evento)
         organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
         contacto_org = organizador.email if organizador else "soporte@tuapp.com"
 
         count = 0
         for reserva in reservas:
-            # 3. BUSCAR USUARIO PARTICIPANTE
             participante = db.query(Usuario).filter(Usuario.id_usuario == reserva.id_usuario).first()
             
             if participante and participante.email:
                 destinatario = participante.email
-                # Simulación del envío de correo
                 print(f" >> Enviando email a: {destinatario}")
                 print(f"    Asunto: EVENTO CANCELADO - {evento.nombre_evento}")
                 print(f"    Mensaje: El evento ha sido cancelado. Motivo: {motivo}")
@@ -180,7 +220,6 @@ class EventoService:
         
         print(f"--- [INFO] Fin notificaciones. Total enviados: {count} ---")
 
-        # 4. Actualizar flag en la tabla de eliminación
         eliminacion = db.query(EliminacionEvento).filter(EliminacionEvento.id_eliminacion == id_eliminacion).first()
         if eliminacion:
             eliminacion.notificacion_enviada = True
@@ -191,7 +230,10 @@ class EventoService:
     # ==========================================
     @staticmethod
     def solicitar_eliminacion_externo(db: Session, evento_id: int, motivo: str, usuario_actual):
-        evento = EventoService.obtener_evento_por_id(db, evento_id)
+        # Usamos el crud básico aquí para no gatillar cálculos innecesarios aun
+        evento = registro_crud.get_evento_by_id(db, evento_id)
+        if not evento:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
 
         if evento.id_usuario != usuario_actual.id_usuario:
              raise HTTPException(status_code=403, detail="No tienes permiso para gestionar este evento.")
@@ -208,13 +250,12 @@ class EventoService:
             id_evento=evento.id_evento,
             motivo_eliminacion=motivo,
             id_usuario=usuario_actual.id_usuario,
-            fecha_eliminacion=datetime.now(), # <--- IMPORTANTE: Guardamos fecha y hora actual
+            fecha_eliminacion=datetime.now(), 
             notificacion_enviada=False 
         )
         db.add(nueva_solicitud)
 
         # 2. Cambiar estado a Pendiente (6)
-        # ESTO ESTABA COMENTADO EN TU CÓDIGO, HAY QUE DESCOMENTARLO:
         evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION 
         
         db.commit()
@@ -250,7 +291,7 @@ class EventoService:
         if evento.id_estado == 4: # Asumiendo 4 es finalizado
              raise HTTPException(status_code=400, detail="El evento ya está finalizado.")
 
-        # 4. Ejecutar Cancelación (Manual para obtener ID para la notificación)
+        # 4. Ejecutar Cancelación
         nueva_eliminacion = EliminacionEvento(
             id_evento=evento.id_evento,
             motivo_eliminacion=motivo,
@@ -279,7 +320,9 @@ class EventoService:
         if usuario_actual.id_rol not in roles_permitidos:
              raise HTTPException(status_code=403, detail="No tienes permisos de eliminar eventos.")
 
-        evento = EventoService.obtener_evento_por_id(db, evento_id)
+        evento = registro_crud.get_evento_by_id(db, evento_id)
+        if not evento:
+             raise HTTPException(status_code=404, detail="El evento no existe.")
 
         # 2. Auditoría
         nueva_eliminacion = EliminacionEvento(
@@ -349,7 +392,7 @@ class EventoService:
             estado_reserva = 1 # Reserva Pendiente
             msg_tipo = "DE PAGO - Pendiente"
 
-        # E. Crear la reserva (IMPORTANTE: No pasamos categoría aquí)
+        # E. Crear la reserva
         nueva_reserva = registro_crud.create_reserva(
             db=db, 
             id_evento=id_evento, 
@@ -357,7 +400,7 @@ class EventoService:
             id_estado=estado_reserva 
         )
         
-        # F. Simulación de Envío de Correo (Recuperado de tu código)
+        # F. Simulación de Envío de Correo
         usuario = registro_crud.get_usuario_by_id(db, id_usuario)
         email_usuario = usuario.email if usuario else "desconocido"
         
