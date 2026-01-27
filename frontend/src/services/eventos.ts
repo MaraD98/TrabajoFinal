@@ -13,7 +13,7 @@ export async function createEvento(eventoData: any, token: string) {
 
 // Función para obtener TODOS los eventos (Público)
 export async function getEventos() {
-  const res = await api.get("/eventos");
+  const res = await api.get("/eventos/");
   return res.data;
 }
 
@@ -63,7 +63,7 @@ export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
 };
 
 export async function getEventosCalendario(month: number, year: number) {
-  const res = await api.get("/eventos/calendario", {
+  const res = await api.get("/eventos/calendario/", {
     params: {
       month: month,
       year: year
