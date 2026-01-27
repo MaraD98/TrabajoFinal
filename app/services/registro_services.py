@@ -7,8 +7,6 @@ from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
 
 # --- CORRECCIÓN DE IMPORTS PARA LA SEPARACIÓN ---
-# Evento y EventoMultimedia se quedan en registro_models
-# ReservaEvento se trae desde inscripcion_models (¡Esto es clave!)
 from app.models.registro_models import EventoMultimedia, EliminacionEvento, Evento
 from app.models.inscripcion_models import ReservaEvento 
 from app.models.auth_models import Usuario
@@ -69,11 +67,33 @@ class EventoService:
     
     @staticmethod
     def listar_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
-        return registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
+        eventos = registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
+        
+        # --- NUEVO: CALCULAR CUPOS PARA MIS EVENTOS ---
+        for evento in eventos:
+            ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+            total = evento.cupo_maximo if evento.cupo_maximo else 0
+            evento.cupos_disponibles = total - ocupados
+        # ----------------------------------------------
+        
+        return eventos
 
     @staticmethod
     def listar_todos_los_eventos(db: Session, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
-        return registro_crud.get_eventos(db=db, skip=skip, limit=limit)
+        # Traemos los eventos del CRUD tal cual estaban
+        eventos = registro_crud.get_eventos(db=db, skip=skip, limit=limit)
+        
+        # --- NUEVO: AQUÍ HACEMOS LA MAGIA DE LOS CUPOS ---
+        for evento in eventos:
+            # Contamos cuántos inscriptos hay en la tabla ReservaEvento
+            ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+            
+            # Hacemos la resta
+            total = evento.cupo_maximo if evento.cupo_maximo else 0
+            evento.cupos_disponibles = total - ocupados
+        # ------------------------------------------------
+        
+        return eventos
 
     @staticmethod
     def obtener_evento_por_id(db: Session, evento_id: int) -> EventoResponse:
@@ -83,6 +103,13 @@ class EventoService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No se encontró el evento con ID {evento_id}"
             )
+        
+        # --- NUEVO: CALCULAR CUPOS PARA UN SOLO EVENTO ---
+        ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+        total = evento.cupo_maximo if evento.cupo_maximo else 0
+        evento.cupos_disponibles = total - ocupados
+        # -------------------------------------------------
+        
         return evento
 
     @staticmethod

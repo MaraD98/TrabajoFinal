@@ -42,6 +42,7 @@ class EventoResponse(EventoBase):
     id_evento: int
     id_usuario: int
     id_estado: int
+    cupos_disponibles: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
     

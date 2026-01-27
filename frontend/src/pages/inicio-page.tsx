@@ -175,8 +175,9 @@ export default function InicioPage() {
                                     </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
-                                    <Link to="/mis-eventos/inscriptos" className="dropdown-item">
-                                        Inscriptos
+                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                         Inscriptos
                                     </Link>
                                     <Link to="/mis-eventos/creados" className="dropdown-item">
                                         Creados

@@ -21,6 +21,7 @@ class EventoCalendarioResponse(BaseModel):
     # Detalles
     costo_participacion: float
     cupo_maximo: int
+    cupos_disponibles: int
     
     # Coordenadas (Agregados)
     # Usamos float porque Google Maps y JSON manejan números, no Decimals

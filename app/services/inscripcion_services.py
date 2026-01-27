@@ -52,7 +52,7 @@ class InscripcionService:
             mensaje_exito = "Inscripción realizada con éxito. Tu lugar está confirmado."
         else:
             id_estado_inicial = ESTADO_PENDIENTE_PAGO
-            mensaje_exito = "Reserva creada. Tienes 24 horas para realizar el pago."
+            mensaje_exito = "Reserva creada. Tienes 72 horas para realizar el pago."
 
         # 6. Crear la reserva en BD
         nueva_reserva = inscripcion_crud.create_reserva(

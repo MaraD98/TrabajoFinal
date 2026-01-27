@@ -1,6 +1,8 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
+from decimal import Decimal
+
 
 # Importamos el esquema base del otro archivo para extenderlo
 from app.schemas.registro_schema import EventoResponse
@@ -30,3 +32,18 @@ class ReservaResponseSchema(BaseModel):
     id_estado_reserva: int
 
     model_config = ConfigDict(from_attributes=True)
+    
+class MiReservaDetalle(BaseModel):
+    id_reserva: int
+    fecha_reserva: datetime
+    estado: str             # Ej: "Pendiente de Pago"
+    
+    # Datos del Evento incrustados
+    id_evento: int
+    nombre_evento: str
+    ubicacion: str
+    fecha_evento: date
+    costo: Decimal
+
+    class Config:
+        from_attributes = True
