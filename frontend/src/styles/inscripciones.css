@@ -1,0 +1,160 @@
+/* =========================================
+   ESTILOS ESPECÍFICOS DE INSCRIPCIONES
+   (Extiende el diseño base de admin)
+   ========================================= */
+
+/* CONTENEDOR DE FILTROS */
+.filters-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  background-color: var(--bg-primary); /* Fondo más oscuro para diferenciar */
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+  
+  /* CORRECCIÓN DE ALINEACIÓN DEL BOTÓN */
+  align-items: end; /* Alinea todos los elementos hacia abajo */
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* =========================================
+   INPUTS Y SELECTS (CORREGIDO DARK MODE) 
+   ========================================= */
+.filter-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  
+  /* ESTO ARREGLA LOS MENÚS DESPLEGABLES Y CALENDARIOS NATIVOS */
+  color-scheme: dark; 
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+  background-color: var(--bg-secondary);
+}
+
+/* Arreglo para que las opciones del SELECT no salgan con fondo blanco */
+.filter-input option {
+  background-color: #1f2937; /* Color oscuro (mismo que sidebar) */
+  color: white;
+  padding: 10px;
+}
+
+/* Arreglo para volver blanco el ícono del calendario */
+::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* =========================================
+   RESTO DE ESTILOS
+   ========================================= */
+
+/* BOTÓN LIMPIAR (CORREGIDO) */
+.btn-limpiar {
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  
+  /* Ajustes de tamaño */
+  height: 42px; /* Misma altura exacta que los inputs */
+  width: 100%;  /* Ocupa todo el ancho de su columna */
+}
+
+.btn-limpiar:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+/* BADGE DE CONTADOR (El azulito) */
+.badge-resumen {
+  background-color: rgba(59, 130, 246, 0.2); /* Azul transparente */
+  color: #60a5fa; /* Azul claro */
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* BADGES DE TABLA ESPECÍFICOS */
+.badge-tipo {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+/* FOOTER DEL REPORTE */
+.reporte-footer {
+  margin-top: 24px;
+  padding: 20px;
+  background-color: rgba(16, 185, 129, 0.1); /* Verde muy suave */
+  border-left: 4px solid var(--accent-success);
+  border-radius: 8px;
+  color: var(--text-primary);
+}
+
+.reporte-footer h4 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+  color: var(--text-white);
+}
+
+.reporte-footer p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* DETALLES DE USUARIO EN TABLA */
+.user-cell {
+  display: flex;
+  flex-direction: column;
+}
+.user-email {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.user-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}

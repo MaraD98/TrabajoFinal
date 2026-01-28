@@ -31,6 +31,7 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
+        cupo_maximo         = evento.cupo_maximo,
         id_estado  = id_estado_final, 
         id_usuario = user_id,
         lat = evento.lat,  
@@ -94,6 +95,7 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
+        db_evento.cupo_maximo         = evento_data.cupo_maximo
         db_evento.lat = evento_data.lat
         db_evento.lng = evento_data.lng
 
