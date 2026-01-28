@@ -23,6 +23,10 @@ import AdminDashboardPage from "./pages/admin-dashboard-page";
 // 👇 NUEVO IMPORT: La página de perfil
 import PerfilPage from "./pages/perfil-page";
 
+// ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
+import TablaGestionPagos from "./pages/gestion-pagos-pages";
+import PanelInscriptos from "./pages/inscriptos-page";
+
 function App() {
   return (
     <AuthProvider>
@@ -56,16 +60,31 @@ function App() {
           {/* 2. Mis Eventos (AGREGADA) */}
           <Route path="/mis-eventos"
             element={
-              
                 <MisEventosPage />
-              
             }
           />
-          {/* 3. Admin Dashboard - Protegido para admins */}
+
+          {/* 3. ZONA ADMIN - Dashboard y sus páginas hijas */}
           <Route path="/admin" 
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
                 <AdminDashboardPage/>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* ✅ AQUÍ ESTABAN FALTANDO TUS RUTAS: Agregadas */}
+          <Route path="/admin/pagos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <TablaGestionPagos/>
+              </ProtectedRoute>
+            }
+          />
+           <Route path="/admin/inscriptos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <PanelInscriptos/>
               </ProtectedRoute>
             }
           />
