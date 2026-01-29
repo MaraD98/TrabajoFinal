@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/inicio.css'; 
 import logoWakeUp from '../assets/wakeup-logo.png';
-import { getEventos } from '../services/eventos';
+import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 
@@ -22,6 +22,11 @@ const NOMBRES_TIPO: Record<number | string, string> = {
     3: "Entrenamiento",
     4: "Cicloturismo"
 };
+
+interface CatalogoItem {
+  id: number;
+  nombre: string;
+}
 
 interface Evento {
     id_evento: number;
@@ -47,7 +52,81 @@ export default function InicioPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- FIX DEFINITIVO PARA EL NOMBRE ---
+    // ============================================================================
+    // ✅ ESTADOS SEPARADOS según HU 7.3 y 7.6
+    // ============================================================================
+    // HU 7.6: Búsqueda por NOMBRE del evento
+    const [busquedaInput, setBusquedaInput] = useState("");
+    const [busqueda, setBusqueda] = useState("");
+    
+    // HU 7.3: Búsqueda por UBICACIÓN (separado)
+    const [ubicacionInput, setUbicacionInput] = useState("");
+    const [ubicacion, setUbicacion] = useState("");
+    
+    const [fechaDesde, setFechaDesde] = useState("");
+    const [fechaHasta, setFechaHasta] = useState("");
+    const [tipoSeleccionado, setTipoSeleccionado] = useState<number | undefined>();
+    const [dificultadSeleccionada, setDificultadSeleccionada] = useState<number | undefined>();
+
+    // Catálogos
+    const [tiposEvento, setTiposEvento] = useState<CatalogoItem[]>([]);
+    const [nivelesDificultad, setNivelesDificultad] = useState<CatalogoItem[]>([]);
+
+    // Metadata
+    const [totalEventos, setTotalEventos] = useState(0);
+    const [mensajeResultado, setMensajeResultado] = useState("");
+    const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
+    // ============================================================================
+    // ✅ DEBOUNCE SEPARADO para cada campo de texto
+    // ============================================================================
+    const debounceTimerBusqueda = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimerUbicacion = useRef<NodeJS.Timeout | null>(null);
+
+    // Debounce para búsqueda de NOMBRE
+    useEffect(() => {
+        if (debounceTimerBusqueda.current) {
+            clearTimeout(debounceTimerBusqueda.current);
+        }
+
+        if (busquedaInput === "") {
+            setBusqueda("");
+            return;
+        }
+
+        debounceTimerBusqueda.current = setTimeout(() => {
+            setBusqueda(busquedaInput);
+        }, 500);
+
+        return () => {
+            if (debounceTimerBusqueda.current) {
+                clearTimeout(debounceTimerBusqueda.current);
+            }
+        };
+    }, [busquedaInput]);
+
+    // Debounce para búsqueda de UBICACIÓN
+    useEffect(() => {
+        if (debounceTimerUbicacion.current) {
+            clearTimeout(debounceTimerUbicacion.current);
+        }
+
+        if (ubicacionInput === "") {
+            setUbicacion("");
+            return;
+        }
+
+        debounceTimerUbicacion.current = setTimeout(() => {
+            setUbicacion(ubicacionInput);
+        }, 500);
+
+        return () => {
+            if (debounceTimerUbicacion.current) {
+                clearTimeout(debounceTimerUbicacion.current);
+            }
+        };
+    }, [ubicacionInput]);
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
         if (storedUser) {
@@ -75,7 +154,6 @@ export default function InicioPage() {
         }
     }, [user]);
 
-    // --- LÓGICA DE DIFICULTAD ---
     const getClaseDificultad = (dificultad?: string) => {
         const dif = dificultad?.toLowerCase() || '';
         if (dif.includes('experto') || dif.includes('avanzado')) return '#ff4444'; 
@@ -97,33 +175,73 @@ export default function InicioPage() {
     }, [dropdownRef]);
 
     useEffect(() => {
-        const cargarEventos = async () => {
-            try {
-                const data = await getEventos();
-                const hoy = new Date();
-                hoy.setHours(0, 0, 0, 0);
-
-                const eventosProcesados = data
-                    .filter((evento: Evento) => {
-                        const fechaEvento = new Date(evento.fecha_evento);
-                        return fechaEvento >= hoy;
-                    })
-                    .sort((a: Evento, b: Evento) => {
-                        const fechaA = new Date(a.fecha_evento).getTime();
-                        const fechaB = new Date(b.fecha_evento).getTime();
-                        return fechaA - fechaB;
-                    });
-
-                setEventos(eventosProcesados);
-            } catch (err) {
-                console.error(err);
-                setError('No se pudieron cargar los eventos.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        cargarEventos();
+        cargarCatalogos();
     }, []);
+
+    const cargarCatalogos = async () => {
+        try {
+            const catalogos = await obtenerCatalogosParaFiltros();
+            setTiposEvento(catalogos.tipos_evento || []);
+            setNivelesDificultad(catalogos.niveles_dificultad || []);
+        } catch (error) {
+            console.error("Error cargando catálogos:", error);
+        }
+    };
+
+    // ✅ Se ejecuta cuando cambian los valores finales (con debounce aplicado)
+    useEffect(() => {
+        cargarEventos();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [busqueda, fechaDesde, fechaHasta, ubicacion, tipoSeleccionado, dificultadSeleccionada]);
+
+    const cargarEventos = async () => {
+        setLoading(true);
+        try {
+            const filtros: FiltrosEventos = {};
+            if (busqueda.trim()) filtros.busqueda = busqueda.trim();
+            if (fechaDesde) filtros.fecha_desde = fechaDesde;
+            if (fechaHasta) filtros.fecha_hasta = fechaHasta;
+            if (ubicacion.trim()) filtros.ubicacion = ubicacion.trim();
+            if (tipoSeleccionado) filtros.id_tipo = tipoSeleccionado;
+            if (dificultadSeleccionada) filtros.id_dificultad = dificultadSeleccionada;
+
+            const resultado = await buscarEventosConFiltros(filtros);
+            const eventosFiltrados = resultado.eventos || [];
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            const eventosProcesados = eventosFiltrados
+                .filter((evento: Evento) => {
+                    const fechaEvento = new Date(evento.fecha_evento);
+                    return fechaEvento >= hoy;
+                })
+                .sort((a: Evento, b: Evento) => {
+                    const fechaA = new Date(a.fecha_evento).getTime();
+                    const fechaB = new Date(b.fecha_evento).getTime();
+                    return fechaA - fechaB;
+                });
+
+            setEventos(eventosProcesados);
+            setTotalEventos(resultado.total);
+            setMensajeResultado(resultado.mensaje);
+        } catch (err) {
+            console.error(err);
+            setError('No se pudieron cargar los eventos.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const limpiarFiltros = () => {
+        setBusquedaInput("");
+        setBusqueda("");
+        setUbicacionInput("");
+        setUbicacion("");
+        setFechaDesde("");
+        setFechaHasta("");
+        setTipoSeleccionado(undefined);
+        setDificultadSeleccionada(undefined);
+    };
 
     const obtenerImagen = (evento: Evento) => {
         if (evento.multimedia && evento.multimedia.length > 0) {
@@ -207,10 +325,146 @@ export default function InicioPage() {
             <section id="eventos" className="eventos-section">
                 <div className="section-header">
                     <h2 className="section-title">Próximos Eventos</h2>
-                    <Link to="/calendario" className="enlace-calendario">
-                        Calendario 2026 ➜
-                    </Link>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        <button 
+                            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                            className="btn-toggle-filtros"
+                            style={{
+                                background: mostrarFiltros ? '#ccff00' : '#333',
+                                color: mostrarFiltros ? '#000' : '#fff',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                transition: 'all 0.3s'
+                            }}
+                        >
+                            {mostrarFiltros ? '✕ Ocultar Filtros' : '🔍 Mostrar Filtros'}
+                        </button>
+                        <Link to="/calendario" className="enlace-calendario">
+                            Calendario 2026 ➜
+                        </Link>
+                    </div>
                 </div>
+
+                {/* ============================================================================ */}
+                {/* ✅ FILTROS CORREGIDOS según HU 7.3 y 7.6 (campos separados) */}
+                {/* ============================================================================ */}
+                {mostrarFiltros && (
+                    <div className="filters-container-advanced" style={{ marginBottom: '30px' }}>
+                        {/* HU 7.6: Búsqueda por NOMBRE del evento (separado) */}
+                        <div className="filter-row">
+                            <div className="filter-group-full">
+                                <label className="filter-label">🔍 Buscar por nombre del evento</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: Ciclovía, Mountain Bike..." 
+                                    className="filter-input"
+                                    value={busquedaInput}
+                                    onChange={(e) => setBusquedaInput(e.target.value)}
+                                />
+                                {busquedaInput !== busqueda && (
+                                    <small style={{ color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>
+                                        ⏳ Buscando...
+                                    </small>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="filter-row">
+                            <div className="filter-group">
+                                <label className="filter-label">📅 Desde</label>
+                                <input 
+                                    type="date" 
+                                    className="filter-input"
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <label className="filter-label">📅 Hasta</label>
+                                <input 
+                                    type="date" 
+                                    className="filter-input"
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* HU 7.3: Búsqueda por UBICACIÓN (separado) */}
+                        <div className="filter-row">
+                            <div className="filter-group-full">
+                                <label className="filter-label">📍 Ubicación</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: Córdoba, Buenos Aires, Rosario..." 
+                                    className="filter-input"
+                                    value={ubicacionInput}
+                                    onChange={(e) => setUbicacionInput(e.target.value)}
+                                />
+                                {ubicacionInput !== ubicacion && (
+                                    <small style={{ color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>
+                                        ⏳ Buscando...
+                                    </small>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="filter-row">
+                            <div className="filter-group">
+                                <label className="filter-label">🏆 Tipo de Evento</label>
+                                <select 
+                                    className="filter-select"
+                                    value={tipoSeleccionado || ""} 
+                                    onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)} 
+                                >
+                                    <option value="">Todos los tipos</option>
+                                    {tiposEvento.map(tipo => (
+                                        <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="filter-group">
+                                <label className="filter-label">💪 Dificultad</label>
+                                <select 
+                                    className="filter-select"
+                                    value={dificultadSeleccionada || ""}
+                                    onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}
+                                >
+                                    <option value="">Todas las dificultades</option>
+                                    {nivelesDificultad.map(nivel => (
+                                        <option key={nivel.id} value={nivel.id}>{nivel.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="filter-actions">
+                            <button 
+                                className="btn-limpiar-filtros"
+                                onClick={limpiarFiltros}
+                                style={{
+                                    background: '#ff4444',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '10px 20px',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                🗑️ Limpiar Filtros
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: '15px', color: '#ccff00', fontSize: '0.9rem' }}>
+                            {mensajeResultado} | Total: {totalEventos} eventos
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid-eventos">
                     {eventos.map((evento) => {

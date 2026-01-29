@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List , Optional
+from datetime import date
 from fastapi import File, Form, UploadFile
 
 # Bases de datos y Seguridad
@@ -13,6 +14,7 @@ from app.services.auth_services import AuthService
 # TUS Importaciones (Schemas y Services)
 from app.schemas.registro_schema import EventoCreate, EventoResponse, EventoCancelacionRequest
 from app.services.registro_services import EventoService
+
 #PARA MULTIMEDIA
 from typing import List # <--- IMPORTANTE: No olvides importar esto
 from fastapi import File, UploadFile, Form
@@ -64,6 +66,82 @@ def read_mis_eventos(
     )
 
 
+# ============================================================================
+# ✅ BÚSQUEDA AVANZADA (HU 7.1-7.10) - DEBE IR ANTES DE /{evento_id}
+# ============================================================================
+@router.get(
+    "/buscar",
+    summary="Búsqueda avanzada de eventos",
+    description="Filtrar eventos por fecha, ubicación, tipo, dificultad y búsqueda de texto"
+)
+def buscar_eventos_con_filtros(
+    busqueda: Optional[str] = None,
+    fecha_desde: Optional[date] = None,
+    fecha_hasta: Optional[date] = None,
+    fecha_exacta: Optional[date] = None,
+    ubicacion: Optional[str] = None,
+    id_tipo: Optional[int] = None,
+    id_dificultad: Optional[int] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Busca eventos con filtros opcionales."""
+    
+    # Validaciones
+    if limit > 100:
+        raise HTTPException(status_code=400, detail="Límite máximo: 100")
+    
+    if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
+        raise HTTPException(status_code=400, detail="Fecha inicial debe ser anterior a fecha final")
+    
+    # Llamar al CRUD
+    resultado = registro_crud.filtrar_eventos_avanzado(
+        db=db,
+        busqueda=busqueda,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        fecha_exacta=fecha_exacta,
+        ubicacion=ubicacion,
+        id_tipo=id_tipo,
+        id_dificultad=id_dificultad,
+        skip=skip,
+        limit=limit
+    )
+    
+    # Convertir eventos a dict
+    eventos_lista = []
+    for evento in resultado["eventos"]:
+        evento_dict = {
+            "id_evento": evento.id_evento,
+            "nombre_evento": evento.nombre_evento,
+            "ubicacion": evento.ubicacion,
+            "fecha_evento": str(evento.fecha_evento),
+            "descripcion": evento.descripcion or "",
+            "costo_participacion": float(evento.costo_participacion) if evento.costo_participacion else 0.0,
+            "id_tipo": evento.id_tipo,
+            "id_dificultad": evento.id_dificultad,
+            "id_estado": evento.id_estado,
+            "id_usuario": evento.id_usuario
+        }
+        eventos_lista.append(evento_dict)
+    
+    # Respuesta final
+    return {
+        "total": resultado["total"],
+        "eventos": eventos_lista,
+        "skip": resultado["skip"],
+        "limit": resultado["limit"],
+        "filtros_aplicados": resultado["filtros_aplicados"],
+        "mensaje": resultado["mensaje"]
+    }
+
+# ============ Catálogos para Filtros ============
+@router.get("/catalogos/filtros")
+def obtener_catalogos_para_filtros(db: Session = Depends(get_db)):
+    """Devuelve tipos y dificultades para los filtros."""
+    return registro_crud.obtener_catalogos_filtros(db)
+
 # ============ Listar Eventos (GET) ============
 @router.get(
     "/", 
@@ -74,8 +152,6 @@ def read_eventos(
     skip: int = 0, 
     limit: int = 100, 
     db: Session = Depends(get_db)
-    # Nota: Si quisieras que listar sea público, quitas el 'Depends(get_current_user)'
-    # Si quieres que sea privado, agrégalo aquí también.
 ):
     return EventoService.listar_todos_los_eventos(db, skip=skip, limit=limit)
 
@@ -168,22 +244,3 @@ def cancelar_evento(
         # Aquí forzamos que si es el dueño, se use la lógica de SOLICITUD (Estado 7)
         # Asegurate que 'solicitar_baja_evento' en tu CRUD ponga id_estado = 7
         return registro_crud.solicitar_baja_evento(db, evento_id, motivo)
-
-
-# Mantenemos este endpoint por si acaso se llama explícitamente, 
-# pero le arreglamos el error 422 también.
-@router.patch("/{evento_id}/solicitar-eliminacion", summary="Solicitar baja explícita")
-def solicitar_eliminacion(
-    evento_id: int, 
-    request_body: EventoCancelacionRequest, # <--- CORREGIDO AQUI TAMBIÉN
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-    evento = registro_crud.get_evento_by_id(db, evento_id)
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
-
-    if evento.id_usuario != current_user.id_usuario:
-        raise HTTPException(status_code=403, detail="No puedes solicitar baja de un evento ajeno")
-
-    return registro_crud.solicitar_baja_evento(db, evento_id, request_body.motivo)
