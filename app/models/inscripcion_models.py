@@ -9,7 +9,6 @@ class EstadoReserva(Base):
     nombre = Column(String(50), unique=True, nullable=False)
 
 # --- MODELO PRINCIPAL DE RESERVA (SPRINT 3) ---
-# Unificamos ReservaEvento y Reserva_Evento en una sola clase correcta.
 class ReservaEvento(Base):
     __tablename__ = "reserva_evento"
     
@@ -22,15 +21,23 @@ class ReservaEvento(Base):
     id_estado_reserva = Column(Integer, ForeignKey("estadoreserva.id_estado_reserva"), default=1)
     
     # Campos Nuevos del Sprint 3
-    categoria_participante = Column(String(100), nullable=True) # "General", "VIP", etc.
+    categoria_participante = Column(String(100), nullable=True) 
     
     # LÓGICA DE COMPUTED: Calcula fecha de vencimiento (3 días después de reservar)
-    # Esto es lo que querían mantener de la versión de tu compañera
     fecha_expiracion = Column(
         DateTime(timezone=True), 
         Computed("fecha_reserva + interval '3 days'")
     )
 
-    # Relaciones ORM
+    # ===============
+    # Relaciones ORM 
+    # ===============
+    
+    # Relación con Evento 
     evento = relationship("Evento", back_populates="reservas")
+    
+    # Relación con Estado 
     estado = relationship("EstadoReserva")
+
+
+    usuario = relationship("Usuario")

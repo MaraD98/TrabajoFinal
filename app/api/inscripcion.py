@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException # <--- AGREGAMOS HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from typing import List
 
 # DB y Auth
 from app.db.database import get_db
@@ -16,6 +17,26 @@ def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ):
     return AuthService.get_current_usuario_from_token(db, credentials.credentials)
+
+# ============ LISTAR TODAS (SOLO ROL 1 y 2) ============
+@router.get(
+    "",
+    summary="Listar todas las inscripciones",
+    description="Devuelve el listado completo. RESTRINGIDO: Solo Admin y Supervisor."
+)
+def listar_inscripciones(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # VALIDACIÓN DE ROL: Si no es 1 (Admin) ni 2 (Supervisor), lo echamos.
+    if current_user.id_rol not in [1, 2]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="No tienes permisos para ver el listado de pagos."
+        )
+
+    # Si pasa el filtro, llamamos al servicio
+    return InscripcionService.listar_todas(db)
 
 # ============ INSCRIBIRSE A UN EVENTO ============
 @router.post(
@@ -44,6 +65,13 @@ def confirmar_pago(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
+    # VALIDACIÓN DE ROL: Si no es 1 (Admin) ni 2 (Supervisor), lo echamos.
+    if current_user.id_rol not in [1, 2]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="No tienes permisos para confirmar pagos."
+        )
+
     return InscripcionService.confirmar_pago_manual(
         db=db, 
         id_reserva=id_reserva, 

@@ -34,6 +34,9 @@ class Evento(Base):
     # 2. Relaciones con las tablas de arriba (Solo ForeignKey)
     id_tipo = Column(Integer, ForeignKey("tipoevento.id_tipo"), nullable=False)
     id_dificultad = Column(Integer, ForeignKey("niveldificultad.id_dificultad"), nullable=False)
+
+    tipo_evento = relationship("TipoEvento")          # <--- NUEVO PARA QUE LEA EL FRONT LA PALABRA Y NO EL NUMERO
+    nivel_dificultad = relationship("NivelDificultad") # <--- NUEVO
     
     descripcion = Column(String(500), nullable=True)
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)    

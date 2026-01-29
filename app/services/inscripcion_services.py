@@ -11,6 +11,52 @@ ESTADO_EXPIRADO = 4
 
 class InscripcionService:
 
+    # ========================================================
+    #  NUEVO MÉTODO: LISTAR TODO (Lo que te faltaba)
+    # ========================================================
+    @staticmethod
+    def listar_todas(db: Session):
+        """
+        Recupera todas las reservas y formatea los datos para que el Frontend
+        pueda leer "Pendiente" en lugar de un número.
+        """
+        # 1. Traemos todas las reservas de la base de datos
+        # Usamos .options(joinedload(...)) si quisieramos optimizar, 
+        # pero por ahora confiamos en el lazy loading de SQLAlchemy.
+        reservas = db.query(ReservaEvento).all()
+        
+        datos_formateados = []
+
+        for r in reservas:
+            # Traducir el estado numérico a texto para el filtro del front
+            nombre_estado = "Desconocido"
+            if r.id_estado_reserva == ESTADO_PENDIENTE_PAGO:
+                nombre_estado = "Pendiente de Pago"
+            elif r.id_estado_reserva == ESTADO_CONFIRMADO:
+                nombre_estado = "Confirmado"
+            elif r.id_estado_reserva == ESTADO_CANCELADO:
+                nombre_estado = "Cancelado"
+            elif r.id_estado_reserva == ESTADO_EXPIRADO:
+                nombre_estado = "Expirado"
+
+            # Armamos el diccionario exacto que espera tu Frontend
+            # Usamos getattr(..., ..., "N/A") para evitar errores si se borró el usuario o evento
+            item = {
+                "id_reserva": r.id_reserva,
+                "usuario_email": r.usuario.email if r.usuario else "Usuario eliminado",
+                # 👇 CAMBIO ACÁ: de .titulo a .nombre_evento (según tu modelo)
+                "nombre_evento": r.evento.nombre_evento if r.evento else "Evento eliminado",
+                "estado_reserva": nombre_estado, # ¡Esto es lo que busca tu filtro!
+                "monto": r.evento.costo_participacion if r.evento else 0
+            }
+            datos_formateados.append(item)
+
+        return datos_formateados
+
+    # ========================================================
+    #  MÉTODOS EXISTENTES (Los dejé igual)
+    # ========================================================
+
     @staticmethod
     def crear_inscripcion(db: Session, id_evento: int, usuario_actual):
         """
