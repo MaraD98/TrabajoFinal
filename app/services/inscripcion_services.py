@@ -1,107 +1,124 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
+from sqlalchemy.orm import Session, joinedload
+from fastapi import HTTPException
 from app.db.crud import inscripcion_crud, registro_crud
 from app.models.inscripcion_models import ReservaEvento
-
-# Estados de Reserva (Deben coincidir con DB)
-ESTADO_PENDIENTE_PAGO = 1
-ESTADO_CONFIRMADO = 2
-ESTADO_CANCELADO = 3
-ESTADO_EXPIRADO = 4
+from app.models.auth_models import Usuario
+from app.models.registro_models import Evento
 
 class InscripcionService:
 
-    # ========================================================
-    #  NUEVO MÉTODO: LISTAR TODO (Lo que te faltaba)
-    # ========================================================
     @staticmethod
     def listar_todas(db: Session):
         """
-        Recupera todas las reservas y formatea los datos para que el Frontend
-        pueda leer "Pendiente" en lugar de un número.
+        Recupera reservas corrigiendo el error de atributo 'nombre'.
+        Usa 'nombre_y_apellido' como está definido en auth.models.
         """
-        # 1. Traemos todas las reservas de la base de datos
-        # Usamos .options(joinedload(...)) si quisieramos optimizar, 
-        # pero por ahora confiamos en el lazy loading de SQLAlchemy.
-        reservas = db.query(ReservaEvento).all()
-        
+        # Traemos la reserva con sus relaciones para no fallar al leer datos
+        reservas = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.usuario),
+            joinedload(ReservaEvento.evento).joinedload(Evento.tipo_evento),
+            joinedload(ReservaEvento.evento).joinedload(Evento.nivel_dificultad)
+        ).all()
+
         datos_formateados = []
 
         for r in reservas:
-            # Traducir el estado numérico a texto para el filtro del front
-            nombre_estado = "Desconocido"
-            if r.id_estado_reserva == ESTADO_PENDIENTE_PAGO:
-                nombre_estado = "Pendiente de Pago"
-            elif r.id_estado_reserva == ESTADO_CONFIRMADO:
-                nombre_estado = "Confirmado"
-            elif r.id_estado_reserva == ESTADO_CANCELADO:
-                nombre_estado = "Cancelado"
-            elif r.id_estado_reserva == ESTADO_EXPIRADO:
-                nombre_estado = "Expirado"
+            # 1. OBJETOS RELACIONADOS
+            evt = r.evento
+            usr = r.usuario
 
-            # Armamos el diccionario exacto que espera tu Frontend
-            # Usamos getattr(..., ..., "N/A") para evitar errores si se borró el usuario o evento
+            # 2. MAPEO DE ESTADOS (IDs a Texto)
+            nombre_estado = "Desconocido"
+            if r.id_estado_reserva == 1:
+                nombre_estado = "Pendiente"
+            elif r.id_estado_reserva == 2:
+                nombre_estado = "Confirmada"
+            elif r.id_estado_reserva == 3:
+                nombre_estado = "Cancelada"
+            elif r.id_estado_reserva == 4:
+                nombre_estado = "Expirada"
+
+            # 3. CORRECCIÓN DEL USUARIO (Aquí estaba el error 500)
+            # Usamos 'nombre_y_apellido' que es lo que existe en tu BD.
+            u_nombre_completo = usr.nombre_y_apellido if usr else "Usuario Eliminado"
+            u_email = usr.email if usr else "Sin Email"
+
+            # 4. DATOS DEL EVENTO (Para que se vea bonito en el front)
+            nombre_evt = evt.nombre_evento if evt else "Evento no encontrado"
+            
+            # Tipo y Dificultad: Si existen, sacamos el .nombre, si no "N/A"
+            tipo_txt = evt.tipo_evento.nombre if (evt and evt.tipo_evento) else "N/A"
+            dificultad_txt = evt.nivel_dificultad.nombre if (evt and evt.nivel_dificultad) else "N/A"
+            
+            # Fecha y Costo
+            fecha_evt = str(evt.fecha_evento) if (evt and evt.fecha_evento) else "-"
+            monto_real = float(evt.costo_participacion) if (evt and evt.costo_participacion) else 0.0
+
+            # Fecha Inscripción (formato string)
+            fecha_insc = str(r.fecha_reserva).split(".")[0] if r.fecha_reserva else "-"
+
             item = {
                 "id_reserva": r.id_reserva,
-                "usuario_email": r.usuario.email if r.usuario else "Usuario eliminado",
-                # 👇 CAMBIO ACÁ: de .titulo a .nombre_evento (según tu modelo)
-                "nombre_evento": r.evento.nombre_evento if r.evento else "Evento eliminado",
-                "estado_reserva": nombre_estado, # ¡Esto es lo que busca tu filtro!
-                "monto": r.evento.costo_participacion if r.evento else 0
+                
+                # CORRECCIÓN AQUÍ:
+                "usuario_nombre": u_nombre_completo, 
+                "usuario_apellido": "", # Lo dejamos vacío porque tu BD tiene todo junto en nombre_y_apellido
+                "usuario_email": u_email,
+
+                # DATOS DE EVENTO
+                "nombre_evento": nombre_evt,
+                "fecha_evento": fecha_evt,
+                "tipo_evento": tipo_txt,            # Ej: "Carrera"
+                "nivel_dificultad": dificultad_txt, # Ej: "Básico"
+                
+                # DATOS DE RESERVA
+                "fecha_inscripcion": fecha_insc,
+                "estado_reserva": nombre_estado,
+                "monto": monto_real
             }
             datos_formateados.append(item)
 
         return datos_formateados
 
-    # ========================================================
-    #  MÉTODOS EXISTENTES (Los dejé igual)
-    # ========================================================
+    # -------------------------------------------------------------------------
+    # MÉTODOS DE CREACIÓN Y PAGO (Sin cambios lógicos, solo limpieza)
+    # -------------------------------------------------------------------------
 
     @staticmethod
     def crear_inscripcion(db: Session, id_evento: int, usuario_actual):
-        """
-        Lógica principal de inscripción (HU 8.1 - 8.3)
-        """
-        # 1. Obtener datos del evento (Necesitamos costo y cupo)
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
 
-        # 2. Validar que el evento esté PUBLICADO (3)
+        # Verificar si está publicado (Estado 3 = Publicado)
         if evento.id_estado != 3:
              raise HTTPException(status_code=400, detail="No puedes inscribirte a un evento que no está publicado.")
 
-        # 3. Validar duplicidad (El usuario ya tiene reserva?)
+        # Verificar si ya tiene reserva
         reserva_existente = inscripcion_crud.get_reserva_activa_usuario(db, id_evento, usuario_actual.id_usuario)
         if reserva_existente:
-            estado_str = "Confirmada" if reserva_existente.id_estado_reserva == 2 else "Pendiente de Pago"
+            estado_txt = "Confirmada" if reserva_existente.id_estado_reserva == 2 else "Pendiente"
             raise HTTPException(
                 status_code=400, 
-                detail=f"Ya tienes una inscripción activa ({estado_str}) para este evento."
+                detail=f"Ya tienes una inscripción activa ({estado_txt}) para este evento."
             )
 
-        # 4. Validar Cupos (Si el evento tiene límite)
+        # Verificar cupos
         if evento.cupo_maximo and evento.cupo_maximo > 0:
-            inscritos_actuales = inscripcion_crud.count_reservas_activas(db, id_evento)
-            if inscritos_actuales >= evento.cupo_maximo:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Lo sentimos, no hay cupos disponibles para este evento."
-                )
+            inscritos = inscripcion_crud.count_reservas_activas(db, id_evento)
+            if inscritos >= evento.cupo_maximo:
+                raise HTTPException(status_code=400, detail="Lo sentimos, no hay cupos disponibles.")
 
-        # 5. Determinar Estado Inicial (Gratis vs Pago)
-        # Si costo es 0 o Null -> Confirmado directo (2)
-        # Si costo > 0       -> Pendiente de Pago (1)
+        # Costo 0 -> Confirmado (2), Costo > 0 -> Pendiente (1)
         costo = evento.costo_participacion or 0
         if costo == 0:
-            id_estado_inicial = ESTADO_CONFIRMADO
-            mensaje_exito = "Inscripción realizada con éxito. Tu lugar está confirmado."
+            id_estado_inicial = 2
+            mensaje = "Inscripción exitosa. Lugar confirmado."
         else:
-            id_estado_inicial = ESTADO_PENDIENTE_PAGO
-            mensaje_exito = "Reserva creada. Tienes 72 horas para realizar el pago."
+            id_estado_inicial = 1
+            mensaje = "Reserva creada. Tienes 72hs para pagar."
 
-        # 6. Crear la reserva en BD
-        nueva_reserva = inscripcion_crud.create_reserva(
+        nueva = inscripcion_crud.create_reserva(
             db=db,
             id_evento=id_evento,
             id_usuario=usuario_actual.id_usuario,
@@ -109,18 +126,15 @@ class InscripcionService:
         )
 
         return {
-            "mensaje": mensaje_exito,
-            "reserva_id": nueva_reserva.id_reserva,
-            "estado": "Confirmado" if id_estado_inicial == 2 else "Pendiente de Pago",
-            "fecha_expiracion": nueva_reserva.fecha_expiracion if id_estado_inicial == 1 else None
+            "mensaje": mensaje,
+            "reserva_id": nueva.id_reserva,
+            "estado": "Confirmada" if id_estado_inicial == 2 else "Pendiente",
+            "fecha_expiracion": nueva.fecha_expiracion if id_estado_inicial == 1 else None
         }
 
     @staticmethod
     def confirmar_pago_manual(db: Session, id_reserva: int, usuario_actual):
-        """
-        Para el Admin/Supervisor: Confirmar que recibieron la plata.
-        """
-        # Validar Rol Admin
+        # Solo Admin(1) o Supervisor(2)
         if usuario_actual.id_rol not in [1, 2]:
              raise HTTPException(status_code=403, detail="No tienes permisos para confirmar pagos.")
 
@@ -128,14 +142,14 @@ class InscripcionService:
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada.")
         
-        if reserva.id_estado_reserva == ESTADO_CONFIRMADO:
+        if reserva.id_estado_reserva == 2:
              raise HTTPException(status_code=400, detail="Esta reserva ya está confirmada.")
 
-        # Actualizar a Confirmado
-        reserva_actualizada = inscripcion_crud.confirmar_reserva_pago(db, reserva)
+        # Confirmar
+        reserva_act = inscripcion_crud.confirmar_reserva_pago(db, reserva)
         
         return {
-            "mensaje": "Pago registrado. La inscripción ha sido confirmada.",
-            "id_reserva": reserva_actualizada.id_reserva,
-            "nuevo_estado": "Confirmado"
+            "mensaje": "Pago registrado. Inscripción confirmada.",
+            "id_reserva": reserva_act.id_reserva,
+            "nuevo_estado": "Confirmada"
         }

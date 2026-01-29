@@ -1,34 +1,34 @@
 /* =========================================
-   CONTENEDOR PRINCIPAL (BLINDADO)
+   CONTENEDOR PRINCIPAL
    ========================================= */
 .pagos-container {
-    background-color: #121212; /* Fondo negro sólido para tapar lo de atrás */
-    min-height: 100vh;         /* Ocupa toda la altura de la pantalla */
+    background-color: #121212;
+    min-height: 100vh;
     width: 100%;
     padding: 30px;
     box-sizing: border-box;
-    position: relative;        /* Para manejar capas */
-    z-index: 10;               /* Asegura que esté por encima de otros elementos */
     font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #fff;
+    /* Forzamos alineación a la izquierda para evitar el centrado raro */
+    text-align: left; 
 }
 
 /* =========================================
-   HEADER Y TÍTULO
+   HEADER (Título y Badge)
    ========================================= */
 .pagos-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    display: flex; /* Flex para separar Título a la izq y Badge a la der */
+    justify-content: space-between; 
+    align-items: flex-start; /* Alineación arriba */
     margin-bottom: 30px;
-    background: #1e1e1e; /* Fondo gris para destacar el header */
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #333;
+    background: transparent; /* Sacamos fondo gris del header si molesta */
+    padding: 0;
+    width: 100%;
 }
 
 .pagos-title-block h1 {
     margin: 0;
-    font-size: 1.8rem;
+    font-size: 2rem;
     color: #ffffff;
     font-weight: 700;
 }
@@ -36,105 +36,110 @@
 .pagos-title-block p {
     margin: 5px 0 0 0;
     color: #aaaaaa;
-    font-size: 0.9rem;
+    font-size: 1rem;
 }
 
-/* BADGE TOTAL DE REGISTROS (El botón cyan) */
+/* BADGE TOTAL DE REGISTROS */
 .badge-total-registros {
     background-color: #00d4ff;
     color: #000;
-    padding: 10px 20px;
-    border-radius: 30px;
+    padding: 8px 16px;
+    border-radius: 20px;
     font-weight: 800;
     font-size: 0.9rem;
-    box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
     white-space: nowrap;
+    align-self: center; /* Centrado verticalmente respecto al título */
 }
 
 /* =========================================
-   FILTROS
+   FILTROS (La parte que se veía mal)
    ========================================= */
 .filtros-wrapper {
     background-color: #1e1e1e;
-    padding: 25px;
+    padding: 20px;
     border-radius: 12px;
     border: 1px solid #333;
     margin-bottom: 30px;
+    
+    /* Configuración Flex clave para que no se aplasten */
     display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
-    align-items: flex-end; /* Alinea los inputs abajo */
+    flex-wrap: wrap; /* Permite que bajen si no hay espacio */
+    gap: 20px;       /* Espacio entre inputs */
+    align-items: flex-end; /* Alinea los inputs y botones abajo */
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .filtro-group {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    flex: 1; /* Todos intentan ocupar espacio parejo */
-    min-width: 180px; /* Evita que se aplasten demasiado */
+    flex-direction: column; /* Label arriba, Input abajo */
+    flex: 1;                /* Ocupa espacio disponible equitativamente */
+    min-width: 200px;       /* Ancho mínimo para que no se rompa */
 }
 
 .filtro-group label {
-    color: #00d4ff; /* Texto cyan para las etiquetas */
-    font-size: 0.8rem;
+    color: #00d4ff;
+    font-size: 0.85rem;
     font-weight: 700;
+    margin-bottom: 8px; /* Espacio entre label e input */
     text-transform: uppercase;
-    letter-spacing: 1px;
+    display: block;
+    text-align: left; /* Asegura que el texto esté a la izq */
 }
 
 .input-dark {
-    background-color: #000000; /* Fondo negro puro para inputs */
+    background-color: #000;
     border: 1px solid #444;
     color: #fff;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 10px 15px;
+    border-radius: 6px;
     font-size: 1rem;
-    outline: none;
-    transition: border 0.3s;
-    height: 48px; /* Altura fija */
+    width: 100%; /* Ocupa todo el ancho de su grupo */
+    box-sizing: border-box; /* Para que el padding no agrande el ancho */
+    height: 45px;
 }
 
 .input-dark:focus {
     border-color: #00d4ff;
-    box-shadow: 0 0 8px rgba(0, 212, 255, 0.2);
+    outline: none;
 }
 
-/* Arreglo iconos calendario */
+/* Icono calendario blanco */
 .input-dark::-webkit-calendar-picker-indicator {
     filter: invert(1);
     cursor: pointer;
 }
 
-/* BOTONES */
+/* BOTONES BUSCAR / LIMPIAR */
 .filtro-actions {
     display: flex;
     gap: 10px;
-    padding-bottom: 2px; /* Ajuste fino de alineación */
+    /* Evita que los botones se estiren verticalmente */
+    height: 45px; 
 }
 
 .btn-buscar, .btn-limpiar {
-    height: 48px;
     padding: 0 25px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
     border: none;
     font-size: 0.9rem;
     text-transform: uppercase;
+    height: 100%; /* Misma altura que el input */
 }
 
 .btn-buscar {
-    background-color: #00d4ff; /* Botón principal Cyan */
+    background-color: #00d4ff;
     color: #000;
 }
-.btn-buscar:hover { background-color: #00b8dd; }
 
 .btn-limpiar {
     background-color: #333;
     color: #fff;
     border: 1px solid #555;
 }
-.btn-limpiar:hover { background-color: #444; }
 
 /* =========================================
    TABLA
@@ -143,49 +148,43 @@
     background-color: #1e1e1e;
     border-radius: 12px;
     border: 1px solid #333;
-    overflow: hidden; /* Para que las esquinas sean redondas */
-    padding: 0;
+    overflow-x: auto;
+    width: 100%;
 }
 
 .tabla-pagos {
     width: 100%;
     border-collapse: collapse;
+    min-width: 800px; /* Asegura que la tabla no se comprima demasiado */
 }
 
 .tabla-pagos th {
     background-color: #252525;
     color: #888;
     text-transform: uppercase;
-    font-size: 0.8rem;
-    padding: 18px;
+    font-size: 0.75rem;
+    padding: 15px;
     text-align: left;
     border-bottom: 2px solid #333;
 }
 
 .tabla-pagos td {
-    padding: 18px;
+    padding: 15px;
     border-bottom: 1px solid #2a2a2a;
     color: #eee;
     vertical-align: middle;
+    font-size: 0.9rem;
 }
 
-.tabla-pagos tr:last-child td { border-bottom: none; }
-.tabla-pagos tr:hover { background-color: #252525; } /* Efecto hover en filas */
+.tabla-pagos tr:hover {
+    background-color: #252525;
+}
 
-/* Celdas específicas */
+/* Estilos internos de celdas */
 .col-id { color: #666; font-family: monospace; }
-.user-email { display: block; font-weight: bold; color: #fff; margin-bottom: 4px; }
-.user-name { font-size: 0.85rem; color: #aaa; }
-.event-name { display: block; font-weight: bold; color: #fff; margin-bottom: 4px; }
-.event-date { color: #4caf50; font-size: 0.85rem; }
-.meta-tipo { display: block; font-weight: bold; color: #ddd; margin-bottom: 5px; }
-.meta-nivel { 
-    display: inline-block; 
-    background: #333; 
-    padding: 3px 8px; 
-    border-radius: 4px; 
-    font-size: 0.75rem; 
-    color: #ccc; 
-}
-.col-monto { font-size: 1.1rem; font-weight: bold; color: #00d4ff; }
-.tabla-mensaje { text-align: center; padding: 50px; color: #777; }
+.user-email { display: block; font-weight: bold; color: #fff; }
+.user-name { font-size: 0.8em; color: #aaa; }
+.event-name { display: block; font-weight: bold; color: #fff; }
+.event-date { color: #4caf50; font-size: 0.8em; }
+.col-monto { font-weight: bold; color: #00d4ff; font-size: 1rem; }
+.tabla-mensaje { text-align: center; padding: 40px; color: #777; }
