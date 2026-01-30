@@ -18,8 +18,8 @@ const TablaGestionPagos: React.FC = () => {
   const [cargando, setCargando] = useState<boolean>(true);
   
   // ESTADOS DE FILTRO
-  const [filtro, setFiltro] = useState<number>(0); // 0: Todos, 1: Pendientes, 2: Confirmados
-  const [busqueda, setBusqueda] = useState<string>(""); // <--- NUEVO ESTADO PARA EL BUSCADOR
+  const [filtro, setFiltro] = useState<number>(0); 
+  const [busqueda, setBusqueda] = useState<string>("");
 
   useEffect(() => {
     cargarReservas();
@@ -28,11 +28,9 @@ const TablaGestionPagos: React.FC = () => {
   const cargarReservas = async () => {
     try {
       setCargando(true);
-      
       const token = localStorage.getItem('token');
       
       if (!token) {
-        console.warn("No se encontró token.");
         alert("Debes iniciar sesión para ver los pagos.");
         setCargando(false);
         return;
@@ -50,7 +48,6 @@ const TablaGestionPagos: React.FC = () => {
         const data = await response.json();
         setReservas(data); 
       } else {
-        console.error("Error del servidor:", response.status);
         if (response.status === 401) alert("Sesión expirada.");
       }
 
@@ -87,36 +84,73 @@ const TablaGestionPagos: React.FC = () => {
     }
   };
 
-  // --- LÓGICA DE FILTRADO COMBINADA (Estado + Buscador) ---
-  const reservasFiltradas = reservas.filter((r) => {
-    // 1. Primero filtramos por ESTADO (Pendiente/Confirmado/Todos)
-    let pasaFiltroEstado = true;
-    if (filtro === 1) pasaFiltroEstado = r.estado_reserva.includes("Pendiente");
-    if (filtro === 2) pasaFiltroEstado = r.estado_reserva === "Confirmado";
+  const handleExportarCSV = () => {
+    if (reservasFiltradas.length === 0) {
+      alert("No hay datos para exportar.");
+      return;
+    }
+    const headers = ["ID", "Usuario", "Evento", "Monto", "Estado"];
+    const rows = reservasFiltradas.map(r => {
+      const esPendiente = (r.estado_reserva || "").toLowerCase().includes("pendiente");
+      return [
+        r.id_reserva,
+        r.usuario_email,
+        r.nombre_evento,
+        r.monto,
+        esPendiente ? "Pendiente" : "Confirmado"
+      ];
+    });
 
-    // 2. Después filtramos por TEXTO (Buscador)
+    const csvContent = [
+      headers.join(","), 
+      ...rows.map(row => row.join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "reporte_pagos.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImprimir = () => {
+    window.print();
+  };
+
+  // --- LÓGICA DE FILTRADO ---
+  const reservasFiltradas = reservas.filter((r) => {
+    const estadoStr = (r.estado_reserva || "").toLowerCase();
+    const esPendiente = estadoStr.includes("pendiente");
+
+    let pasaFiltroEstado = true;
+    if (filtro === 1) pasaFiltroEstado = esPendiente;
+    if (filtro === 2) pasaFiltroEstado = !esPendiente;
+
     const texto = busqueda.toLowerCase();
     const pasaBusqueda = 
-        r.usuario_email.toLowerCase().includes(texto) || // Busca por email
-        r.nombre_evento.toLowerCase().includes(texto) || // Busca por evento
-        r.id_reserva.toString().includes(texto);         // Busca por ID
+        (r.usuario_email || "").toLowerCase().includes(texto) || 
+        (r.nombre_evento || "").toLowerCase().includes(texto) || 
+        r.id_reserva.toString().includes(texto);
 
     return pasaFiltroEstado && pasaBusqueda;
   });
 
-  if (cargando) return <div className="pagos-container"><p>Cargando listado...</p></div>;
+  if (cargando) return <div className="pagos-container"><p style={{textAlign:'center', marginTop: '50px'}}>Cargando listado...</p></div>;
 
   return (
     <div className="pagos-container">
-      <div className="pagos-header">
+      <div className="pagos-header no-print">
         <div className="pagos-title">
           <h1>Gestión de Pagos</h1>
           <p>Control de inscripciones y confirmación de pagos.</p>
         </div>
       </div>
 
-      {/* --- BARRA DE HERRAMIENTAS: BOTONES + BUSCADOR --- */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px', marginTop: '10px' }}>
+      {/* --- BARRA DE HERRAMIENTAS --- */}
+      <div className="toolbar no-print">
         
         {/* BUSCADOR */}
         <input 
@@ -124,47 +158,31 @@ const TablaGestionPagos: React.FC = () => {
           placeholder="🔍 Buscar por email, evento o ID..." 
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          style={{
-            padding: '12px',
-            borderRadius: '8px',
-            border: '1px solid #444',
-            backgroundColor: '#222',
-            color: 'white',
-            fontSize: '1rem',
-            width: '100%',
-            maxWidth: '500px'
-          }}
+          className="input-buscador" 
         />
 
-        {/* BOTONES DE FILTRO */}
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button 
-            onClick={() => setFiltro(1)} 
-            style={{
-              padding: '10px 20px', cursor: 'pointer', borderRadius: '8px', border: 'none', fontWeight: 'bold',
-              backgroundColor: filtro === 1 ? '#ffc107' : '#333', color: filtro === 1 ? '#000' : '#fff'
-            }}
-          >
-            ⏳ Pendientes
-          </button>
-          <button 
-            onClick={() => setFiltro(2)} 
-            style={{
-              padding: '10px 20px', cursor: 'pointer', borderRadius: '8px', border: 'none', fontWeight: 'bold',
-              backgroundColor: filtro === 2 ? '#28a745' : '#333', color: '#fff'
-            }}
-          >
-            ✅ Confirmados
-          </button>
-          <button 
-            onClick={() => setFiltro(0)} 
-            style={{
-              padding: '10px 20px', cursor: 'pointer', borderRadius: '8px', border: 'none', fontWeight: 'bold',
-              backgroundColor: filtro === 0 ? '#007bff' : '#333', color: '#fff'
-            }}
-          >
-            📋 Todos
-          </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* BOTONES DE FILTRO */}
+            <button onClick={() => setFiltro(1)} className={`btn-filtro ${filtro === 1 ? 'btn-amarillo' : 'btn-gris'}`}>
+                ⏳ Pendientes
+            </button>
+            <button onClick={() => setFiltro(2)} className={`btn-filtro ${filtro === 2 ? 'btn-verde' : 'btn-gris'}`}>
+                ✅ Confirmados
+            </button>
+            <button onClick={() => setFiltro(0)} className={`btn-filtro ${filtro === 0 ? 'btn-azul' : 'btn-gris'}`}>
+                📋 Todos
+            </button>
+
+            {/* SEPARADOR */}
+            <div style={{width: '1px', height: '30px', background: '#444', margin: '0 5px'}}></div>
+
+            {/* BOTONES DE ACCIÓN */}
+            <button onClick={handleExportarCSV} className="btn-accion-pago" title="Exportar a CSV">
+                📂
+            </button>
+            <button onClick={handleImprimir} className="btn-accion-pago" title="Imprimir Listado">
+                🖨️
+            </button>
         </div>
       </div>
 
@@ -172,66 +190,53 @@ const TablaGestionPagos: React.FC = () => {
         <table className="tabla-pagos">
           <thead>
             <tr>
+              {/* ACÁ SACAMOS LAS CLASES ALIGN, CSS LO HACE TODO */}
               <th>ID</th>
               <th>Usuario</th>
               <th>Evento</th>
               <th>Monto</th>
               <th>Estado</th>
-              <th className="text-right">Acción</th>
             </tr>
           </thead>
           <tbody>
             {reservasFiltradas.length > 0 ? (
-              reservasFiltradas.map((res) => (
+              reservasFiltradas.map((res) => {
+                const esPendiente = (res.estado_reserva || "").toLowerCase().includes("pendiente");
+                
+                return (
                 <tr key={res.id_reserva}>
-                  <td>#{res.id_reserva}</td>
+                  <td className="cell-id">#{res.id_reserva}</td>
                   <td>{res.usuario_email || 'Usuario eliminado'}</td>
                   <td>{res.nombre_evento || 'Evento eliminado'}</td>
                   <td className="monto-cell">${res.monto}</td>
                   
-                  {/* ESTADO CON COLOR */}
                   <td>
-                    <span 
-                      className={`badge-estado`}
-                      style={{
-                        padding: '5px 10px',
-                        borderRadius: '15px',
-                        backgroundColor: res.estado_reserva === 'Confirmado' ? '#d4edda' : '#fff3cd',
-                        color: res.estado_reserva === 'Confirmado' ? '#155724' : '#856404',
-                        fontWeight: 'bold',
-                        fontSize: '0.9em'
-                      }}
-                    >
-                      {res.estado_reserva}
-                    </span>
-                  </td>
-
-                  {/* ACCIÓN */}
-                  <td className="text-right">
-                    {res.estado_reserva.includes("Pendiente") ? (
+                    {esPendiente ? (
                         <button 
                           onClick={() => handleConfirmarPago(res.id_reserva)}
-                          style={{ 
-                            cursor: 'pointer', backgroundColor: '#28a745', color: 'white', 
-                            border: 'none', padding: '8px 12px', borderRadius: '5px', fontWeight: 'bold'
-                          }}
+                          className="btn-cobrar no-print"
                         >
                           COBRAR 💵
                         </button>
                     ) : (
-                        <span style={{color: '#28a745', fontWeight: 'bold'}}>✅ Al día</span>
+                        <span className="badge-al-dia">
+                            ✅ Al día
+                        </span>
                     )}
+                    <span className="only-print">
+                        {esPendiente ? "PENDIENTE" : "PAGADO"}
+                    </span>
                   </td>
                 </tr>
-              ))
+              )})
             ) : (
               <tr>
-                <td colSpan={6} style={{textAlign: 'center', padding: '30px'}}>
+                <td colSpan={5} style={{textAlign: 'center', padding: '40px', color: '#777'}}>
                   {reservas.length > 0 ? (
-                     <h3>No se encontraron resultados para tu búsqueda 🔍</h3>
-                  ) : (
-                     <h3>No hay reservas registradas en el sistema.</h3>
-                  )}
+                      <h3>No se encontraron resultados 🔍</h3>
+                   ) : (
+                      <h3>No hay reservas registradas.</h3>
+                   )}
                 </td>
               </tr>
             )}

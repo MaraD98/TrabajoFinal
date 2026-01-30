@@ -1,19 +1,20 @@
 /* =========================================
-   ESTILOS GESTIÓN DE PAGOS (LIMPIO)
+   ESTILOS GESTIÓN DE PAGOS
    ========================================= */
 
 /* Contenedor Principal */
 .pagos-container {
     padding: 30px;
-    background-color: #121212; /* Fondo bien oscuro */
+    background-color: #121212;
     min-height: 100vh;
     color: #e0e0e0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-sizing: border-box;
 }
 
-/* Encabezado */
+/* Header */
 .pagos-header {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     border-bottom: 1px solid #333;
     padding-bottom: 15px;
 }
@@ -21,7 +22,8 @@
 .pagos-title h1 {
     margin: 0;
     font-size: 2rem;
-    color: #00d4ff; /* Un celeste neón para el título */
+    color: #00d4ff;
+    font-weight: 700;
 }
 
 .pagos-title p {
@@ -29,82 +31,175 @@
     color: #aaaaaa;
 }
 
-/* --- ESTILOS DE LA TABLA --- */
+/* Toolbar */
+.toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+    margin-top: 10px;
+}
+
+/* Input Buscador */
+.input-buscador {
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background-color: #0a0a0a;
+    color: white;
+    font-size: 1rem;
+    width: 100%;
+    max-width: 500px;
+    transition: all 0.2s;
+}
+
+.input-buscador:focus {
+    outline: none;
+    border-color: #00d4ff;
+    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+}
+
+/* Botones de Filtro */
+.btn-filtro {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-radius: 8px;
+    border: none;
+    font-weight: bold;
+    transition: transform 0.2s, filter 0.2s;
+}
+
+.btn-filtro:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.btn-gris { background-color: #333; color: #fff; }
+.btn-amarillo { background-color: #ffc107; color: #000; }
+.btn-verde { background-color: #28a745; color: #fff; }
+.btn-azul { background-color: #007bff; color: #fff; }
+
+/* Botones solo Icono (CSV e Imprimir) */
+.btn-accion-pago {
+    width: 42px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    background-color: #444;
+    border: 1px solid #555;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.btn-accion-pago:hover {
+    background-color: #00d4ff;
+    border-color: #00d4ff;
+    transform: scale(1.1);
+}
+
+/* Tabla Container */
 .tabla-container {
-    background-color: #1e1e1e; /* Un gris un poco más claro que el fondo */
+    background-color: #1e1e1e;
     border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); /* Sombra elegante */
-    overflow-x: auto; /* Para que no se rompa en celulares */
+    border: 1px solid #333;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
 }
 
 .tabla-pagos {
     width: 100%;
     border-collapse: collapse;
-    border-spacing: 0;
 }
 
-.tabla-pagos thead tr {
-    background-color: #2c2c2c;
-    color: #ffffff;
-    text-align: left;
-}
-
-.tabla-pagos th,
-.tabla-pagos td {
-    padding: 15px 20px;
-    border-bottom: 1px solid #333;
-}
-
+/* HEADERS Y CELDAS CENTRADAS 
+   Acá está el cambio para que TODO se centre.
+*/
 .tabla-pagos th {
-    font-weight: 600;
+    background-color: #252525;
+    color: #e0e0e0;
+    padding: 18px;
     text-transform: uppercase;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     letter-spacing: 1px;
+    border-bottom: 2px solid #333;
+    text-align: center; /* CENTRADO HORIZONTAL */
 }
 
-.tabla-pagos tbody tr:hover {
-    background-color: #2a2a2a; /* Efecto al pasar el mouse */
+.tabla-pagos td {
+    padding: 16px 18px;
+    border-bottom: 1px solid #2a2a2a;
+    color: #ccc;
+    vertical-align: middle; /* CENTRADO VERTICAL */
+    text-align: center;     /* CENTRADO HORIZONTAL */
 }
 
-/* Monto */
-.monto-cell {
-    font-family: 'Consolas', monospace;
+.tabla-pagos tr:hover {
+    background-color: #2a2a2a;
+}
+
+/* Celdas específicas */
+.cell-id { color: #666; font-family: monospace; }
+.monto-cell { color: #ffd700; font-weight: bold; }
+
+.badge-al-dia {
+    color: #28a745;
     font-weight: bold;
-    color: #ffd700; /* Dorado para el dinero */
-    font-size: 1.1em;
+    font-size: 0.9em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* Asegura centrado del badge */
+    gap: 5px;
 }
 
-/* Alineaciones */
-.text-right {
-    text-align: right;
+/* Botón Cobrar */
+.btn-cobrar {
+    cursor: pointer;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-weight: bold;
+    transition: background 0.2s;
 }
 
-/* Badge de Estado (Base) */
-.badge-estado {
-    display: inline-block;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+.btn-cobrar:hover {
+    background-color: #218838;
 }
 
-/* Input del Buscador (Mejora visual) */
-input[type="text"]:focus {
-    outline: none;
-    border-color: #00d4ff !important;
-    box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
-}
+.only-print { display: none; }
 
-/* Animación suave para los botones */
-button {
-    transition: all 0.2s ease-in-out;
-}
-
-button:hover {
-    transform: translateY(-2px); /* Se levanta un poquito al pasar el mouse */
-    filter: brightness(1.1);
-}
-
-button:active {
-    transform: translateY(0);
+/* =========================================
+   MEDIA QUERY: IMPRESIÓN 🖨️
+   ========================================= */
+@media print {
+    .pagos-container {
+        background-color: white;
+        color: black;
+        padding: 0;
+    }
+    .no-print, .btn-cobrar, .input-buscador, .btn-filtro, .btn-accion-pago, .pagos-header {
+        display: none !important;
+    }
+    .tabla-container {
+        border: none;
+        box-shadow: none;
+        background-color: white;
+    }
+    .tabla-pagos th {
+        background-color: #ddd;
+        color: black;
+        border-bottom: 2px solid black;
+        text-align: center;
+    }
+    .tabla-pagos td {
+        border-bottom: 1px solid #ccc;
+        color: black;
+        text-align: center;
+    }
+    .badge-al-dia { display: none; }
+    .only-print { display: block; font-weight: bold; }
 }
