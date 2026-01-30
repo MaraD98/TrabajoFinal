@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
-import '../styles/gestion-pagos.css'; // Asegúrate que este apunte a tu CSS nuevo
+import '../styles/inscripciones.css';
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ENDPOINT_INSCRIPCIONES = `${API_URL}/inscripciones`;
 
-// --- INTERFACES SIMPLIFICADAS (Sin Tipo ni Nivel) ---
+// --- INTERFACES ---
 interface Evento {
   id_evento: number;
   nombre_evento: string;
@@ -19,8 +19,6 @@ interface Usuario {
 
 interface Reserva {
   id_reserva: number;
-  fecha_inscripcion: string;
-  monto_total: number;
   usuario: Usuario;
   evento: Evento;
 }
@@ -29,12 +27,11 @@ const PanelInscriptos: React.FC = () => {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados de Inputs (Solo Buscador y Fechas)
+  // Estados de Inputs
   const [inputBusqueda, setInputBusqueda] = useState("");
   const [inputFechaInicio, setInputFechaInicio] = useState("");
   const [inputFechaFin, setInputFechaFin] = useState("");
 
-  // Estados de Filtros Aplicados
   const [filtrosAplicados, setFiltrosAplicados] = useState({
     busqueda: "", fechaInicio: "", fechaFin: ""
   });
@@ -53,17 +50,11 @@ const PanelInscriptos: React.FC = () => {
       
       if (response.ok) {
         const data = await response.json();
-        
-        // --- MAPEADO DE DATOS ---
         const reservasMapeadas: Reserva[] = data.map((item: any) => {
             const eventoData = item.evento || item; 
             const fechaReal = eventoData.fecha_evento || "2099-01-01";
-
             return {
                 id_reserva: item.id_reserva,
-                // Manejo robusto de fechas
-                fecha_inscripcion: item.fecha_creacion || item.fecha_reserva || new Date().toISOString(),
-                monto_total: item.monto || item.monto_total || 0,
                 usuario: {
                     email: item.usuario_email || item.usuario?.email || "Sin Email",
                     nombre: item.usuario_nombre || item.usuario?.nombre || "",
@@ -76,7 +67,6 @@ const PanelInscriptos: React.FC = () => {
                 }
             };
         });
-
         setReservas(reservasMapeadas);
       }
     } catch (error) {
@@ -87,17 +77,11 @@ const PanelInscriptos: React.FC = () => {
   };
 
   const handleBuscar = () => {
-      setFiltrosAplicados({
-          busqueda: inputBusqueda,
-          fechaInicio: inputFechaInicio,
-          fechaFin: inputFechaFin
-      });
+      setFiltrosAplicados({ busqueda: inputBusqueda, fechaInicio: inputFechaInicio, fechaFin: inputFechaFin });
   };
 
   const handleLimpiar = () => {
-      setInputBusqueda(""); 
-      setInputFechaInicio(""); 
-      setInputFechaFin("");
+      setInputBusqueda(""); setInputFechaInicio(""); setInputFechaFin("");
       setFiltrosAplicados({ busqueda: "", fechaInicio: "", fechaFin: "" });
   };
 
@@ -106,14 +90,12 @@ const PanelInscriptos: React.FC = () => {
     const { busqueda, fechaInicio, fechaFin } = filtrosAplicados;
     const termino = busqueda.toLowerCase();
     
-    // Buscador general (ID, Email, Nombre, Evento)
     const coincideBusqueda = 
       reserva.id_reserva.toString().includes(termino) ||
       reserva.usuario.email.toLowerCase().includes(termino) ||
       (reserva.usuario.nombre || "").toLowerCase().includes(termino) ||
       reserva.evento.nombre_evento.toLowerCase().includes(termino);
 
-    // Filtros de fecha (sobre la fecha del evento)
     const fechaEvento = new Date(reserva.evento.fecha_evento);
     const cumpleInicio = !fechaInicio || fechaEvento >= new Date(fechaInicio);
     
@@ -127,104 +109,99 @@ const PanelInscriptos: React.FC = () => {
     return coincideBusqueda && cumpleInicio && cumpleFin;
   });
 
+  const handleExportarCSV = () => {
+    const cabeceras = ["ID", "Nombre", "Apellido", "Email", "Evento", "Fecha Carrera"];
+    const filas = inscriptosFiltrados.map(r => [
+        r.id_reserva, r.usuario.nombre, r.usuario.apellido, r.usuario.email, r.evento.nombre_evento, r.evento.fecha_evento
+    ]);
+    const csvContent = [cabeceras.join(","), ...filas.map(f => f.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "inscriptos_confirmados.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleImprimir = () => { window.print(); };
+
   return (
-    <div className="pagos-container">
+    <div className="inscripciones-container">
       
-      {/* HEADER CON TÍTULO Y TOTAL */}
-      <div className="pagos-header">
-        <div className="pagos-title-block">
+      {/* HEADER */}
+      <div className="header-top">
+        <div className="title-block">
              <h1>👥 Reporte de Inscriptos</h1>
-             <p>Visualizá y filtrá todos los usuarios confirmados.</p>
+             <p>Visualizá todos los corredores confirmados.</p>
         </div>
-        <div className="badge-total-registros">
-             Total: {inscriptosFiltrados.length} Registros
+        
+        <div className="actions-block">
+             {/* BOTONES SOLO ICONOS */}
+             <button className="btn-action btn-csv" onClick={handleExportarCSV} title="Exportar a Excel/CSV">📂</button>
+             <button className="btn-action btn-print" onClick={handleImprimir} title="Imprimir Listado">🖨️</button>
+             
+             <div className="badge-count">
+                 Total: {inscriptosFiltrados.length}
+             </div>
         </div>
       </div>
 
-      {/* FILTROS (Sin Tipo ni Nivel) */}
-      <div className="filtros-wrapper">
-        
-        <div className="filtro-group">
-          <label>🔍 Buscar</label>
+      {/* BARRA DE FILTROS */}
+      <div className="filtros-bar no-print">
+        <div className="filtro-item item-grow">
+          <label>🔍 Buscar Corredor / Evento</label>
           <input 
-            type="text" 
-            className="input-dark"
-            placeholder="ID, Email, Evento..." 
-            value={inputBusqueda} 
-            onChange={(e) => setInputBusqueda(e.target.value)} 
+            type="text" className="input-custom" placeholder="ID, Nombre, Email..." 
+            value={inputBusqueda} onChange={(e) => setInputBusqueda(e.target.value)} 
           />
         </div>
-        
-        <div className="filtro-group">
-           <label>📅 Desde</label>
-           <input 
-             type="date" 
-             className="input-dark"
-             value={inputFechaInicio} 
-             onChange={(e) => setInputFechaInicio(e.target.value)} 
-           />
+        <div className="filtro-item">
+           <label>📅 Fecha Carrera Desde</label>
+           <input type="date" className="input-custom" value={inputFechaInicio} onChange={(e) => setInputFechaInicio(e.target.value)} />
         </div>
-        
-        <div className="filtro-group">
-           <label>📅 Hasta</label>
-           <input 
-             type="date" 
-             className="input-dark"
-             value={inputFechaFin} 
-             onChange={(e) => setInputFechaFin(e.target.value)} 
-           />
+        <div className="filtro-item">
+           <label>📅 Fecha Carrera Hasta</label>
+           <input type="date" className="input-custom" value={inputFechaFin} onChange={(e) => setInputFechaFin(e.target.value)} />
         </div>
-        
-        <div className="filtro-actions">
-            <button className="btn-buscar" onClick={handleBuscar}>BUSCAR</button>
-            <button className="btn-limpiar" onClick={handleLimpiar}>X</button>
+        <div className="botones-filtro">
+            <button className="btn-search" onClick={handleBuscar}>BUSCAR</button>
+            <button className="btn-clear" onClick={handleLimpiar}>X</button>
         </div>
       </div>
 
       {/* TABLA DE RESULTADOS */}
-      <div className="tabla-container">
+      <div className="tabla-wrapper">
         {loading ? (
-            <div className="tabla-mensaje">Cargando datos...</div>
+            <div className="loading-msg">Cargando datos...</div>
         ) : inscriptosFiltrados.length === 0 ? (
-            <div className="tabla-mensaje">Sin resultados.</div>
+            <div className="empty-msg">No se encontraron inscriptos.</div>
         ) : (
-            <table className="tabla-pagos">
+            <table className="tabla-inscriptos">
                 <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Usuario</th>
+                    <th>Corredor</th>
                     <th>Evento (Fecha Carrera)</th>
-                    <th>Fecha Inscripción</th>
-                    {/* COLUMNA TIPO/NIVEL ELIMINADA */}
-                    <th>Monto</th>
                 </tr>
                 </thead>
                 <tbody>
                 {inscriptosFiltrados.map((reserva) => (
                     <tr key={reserva.id_reserva}>
-                    <td className="col-id">#{reserva.id_reserva}</td>
-                    
-                    <td>
-                        <div className="user-cell">
-                            <span className="user-email">{reserva.usuario.email}</span>
-                            <span className="user-name">{reserva.usuario.nombre} {reserva.usuario.apellido}</span>
-                        </div>
-                    </td>
-                    
-                    <td>
-                        <div className="event-cell">
-                            <span className="event-name">{reserva.evento.nombre_evento}</span>
-                            <span className="event-date">
-                                🏁 {reserva.evento.fecha_evento}
-                            </span>
-                        </div>
-                    </td>
-                    
-                    <td>{new Date(reserva.fecha_inscripcion).toLocaleDateString()}</td>
-                    
-                    {/* CELDA TIPO/NIVEL ELIMINADA */}
-
-                    <td className="col-monto">${reserva.monto_total}</td>
+                        <td className="cell-id">#{reserva.id_reserva}</td>
+                        <td>
+                            <div className="cell-user">
+                                <span className="text-destacado">{reserva.usuario.nombre} {reserva.usuario.apellido}</span>
+                                <span className="text-sub">{reserva.usuario.email}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div className="cell-event">
+                                <span className="text-destacado">{reserva.evento.nombre_evento}</span>
+                                <span className="fecha-carrera">🏁 {reserva.evento.fecha_evento}</span>
+                            </div>
+                        </td>
                     </tr>
                 ))}
                 </tbody>

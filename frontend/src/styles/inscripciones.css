@@ -1,190 +1,200 @@
 /* =========================================
-   CONTENEDOR PRINCIPAL
+   ESTILOS INSCRIPCIONES (SOLO ICONOS + CENTRADO)
    ========================================= */
-.pagos-container {
+
+.inscripciones-container {
+    padding: 30px;
     background-color: #121212;
     min-height: 100vh;
-    width: 100%;
-    padding: 30px;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: #fff;
-    /* Forzamos alineación a la izquierda para evitar el centrado raro */
-    text-align: left; 
 }
 
-/* =========================================
-   HEADER (Título y Badge)
-   ========================================= */
-.pagos-header {
-    display: flex; /* Flex para separar Título a la izq y Badge a la der */
-    justify-content: space-between; 
-    align-items: flex-start; /* Alineación arriba */
+/* HEADER */
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 30px;
-    background: transparent; /* Sacamos fondo gris del header si molesta */
-    padding: 0;
-    width: 100%;
+    border-bottom: 1px solid #333;
+    padding-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
 }
 
-.pagos-title-block h1 {
+.title-block h1 {
     margin: 0;
     font-size: 2rem;
-    color: #ffffff;
+    color: #00d4ff; 
     font-weight: 700;
 }
 
-.pagos-title-block p {
-    margin: 5px 0 0 0;
-    color: #aaaaaa;
-    font-size: 1rem;
+.title-block p { margin: 5px 0 0; color: #aaaaaa; }
+
+/* BOTONES DE ACCIÓN (Solo Iconos) */
+.actions-block {
+    display: flex;
+    align-items: center;
+    gap: 15px; 
 }
 
-/* BADGE TOTAL DE REGISTROS */
-.badge-total-registros {
+.btn-action {
+    display: flex;              
+    align-items: center;        
+    justify-content: center;
+    
+    width: 50px;       /* ANCHO FIJO */
+    height: 50px;      /* ALTO FIJO (CUADRADOS) */
+    padding: 0;        /* Sin padding para centrar icono */
+    
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    color: white;
+    font-size: 1.6rem; /* Icono grande */
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.btn-csv { background-color: #2e7d32; } 
+.btn-print { background-color: #424242; }
+
+.btn-action:hover {
+    filter: brightness(1.2);
+    transform: translateY(-3px); 
+}
+
+/* Badge Total */
+.badge-count {
     background-color: #00d4ff;
     color: #000;
-    padding: 8px 16px;
-    border-radius: 20px;
+    padding: 8px 15px;
+    border-radius: 20px; 
     font-weight: 800;
     font-size: 0.9rem;
-    box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
     white-space: nowrap;
-    align-self: center; /* Centrado verticalmente respecto al título */
 }
 
-/* =========================================
-   FILTROS (La parte que se veía mal)
-   ========================================= */
-.filtros-wrapper {
+/* BARRA DE FILTROS */
+.filtros-bar {
     background-color: #1e1e1e;
-    padding: 20px;
+    padding: 25px;
     border-radius: 12px;
     border: 1px solid #333;
     margin-bottom: 30px;
-    
-    /* Configuración Flex clave para que no se aplasten */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     display: flex;
-    flex-wrap: wrap; /* Permite que bajen si no hay espacio */
-    gap: 20px;       /* Espacio entre inputs */
-    align-items: flex-end; /* Alinea los inputs y botones abajo */
+    flex-wrap: wrap; 
+    gap: 20px;
+    align-items: flex-end; 
+}
+
+.filtro-item { display: flex; flex-direction: column; }
+.item-grow { flex-grow: 2; min-width: 250px; }
+
+.filtro-item label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #00d4ff;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.input-custom {
+    background-color: #0a0a0a;
+    border: 1px solid #444;
+    color: white;
+    padding: 0 15px;
+    border-radius: 6px;
+    height: 45px; 
+    font-size: 0.95rem;
     width: 100%;
     box-sizing: border-box;
 }
+.input-custom:focus { outline: none; border-color: #00d4ff; }
 
-.filtro-group {
-    display: flex;
-    flex-direction: column; /* Label arriba, Input abajo */
-    flex: 1;                /* Ocupa espacio disponible equitativamente */
-    min-width: 200px;       /* Ancho mínimo para que no se rompa */
-}
-
-.filtro-group label {
-    color: #00d4ff;
-    font-size: 0.85rem;
-    font-weight: 700;
-    margin-bottom: 8px; /* Espacio entre label e input */
-    text-transform: uppercase;
-    display: block;
-    text-align: left; /* Asegura que el texto esté a la izq */
-}
-
-.input-dark {
-    background-color: #000;
-    border: 1px solid #444;
-    color: #fff;
-    padding: 10px 15px;
-    border-radius: 6px;
-    font-size: 1rem;
-    width: 100%; /* Ocupa todo el ancho de su grupo */
-    box-sizing: border-box; /* Para que el padding no agrande el ancho */
+/* Botones Buscar/Limpiar */
+.botones-filtro { display: flex; gap: 10px; }
+.btn-search, .btn-clear {
     height: 45px;
-}
-
-.input-dark:focus {
-    border-color: #00d4ff;
-    outline: none;
-}
-
-/* Icono calendario blanco */
-.input-dark::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-    cursor: pointer;
-}
-
-/* BOTONES BUSCAR / LIMPIAR */
-.filtro-actions {
-    display: flex;
-    gap: 10px;
-    /* Evita que los botones se estiren verticalmente */
-    height: 45px; 
-}
-
-.btn-buscar, .btn-limpiar {
     padding: 0 25px;
+    border: none;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
-    border: none;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    height: 100%; /* Misma altura que el input */
 }
+.btn-search { background-color: #00d4ff; color: #000; }
+.btn-search:hover { background-color: #33eaff; }
+.btn-clear { background-color: #333; color: #fff; border: 1px solid #555; }
+.btn-clear:hover { background-color: #444; }
 
-.btn-buscar {
-    background-color: #00d4ff;
-    color: #000;
-}
-
-.btn-limpiar {
-    background-color: #333;
-    color: #fff;
-    border: 1px solid #555;
-}
-
-/* =========================================
-   TABLA
-   ========================================= */
-.tabla-container {
+/* TABLA (CENTRADA) */
+.tabla-wrapper {
     background-color: #1e1e1e;
     border-radius: 12px;
     border: 1px solid #333;
-    overflow-x: auto;
-    width: 100%;
+    overflow: hidden; 
 }
 
-.tabla-pagos {
+.tabla-inscriptos {
     width: 100%;
     border-collapse: collapse;
-    min-width: 800px; /* Asegura que la tabla no se comprima demasiado */
 }
 
-.tabla-pagos th {
+.tabla-inscriptos th {
     background-color: #252525;
-    color: #888;
+    color: #e0e0e0;
+    padding: 18px;
     text-transform: uppercase;
     font-size: 0.75rem;
-    padding: 15px;
-    text-align: left;
+    letter-spacing: 1px;
     border-bottom: 2px solid #333;
+    
+    /* CENTRADO DE ENCABEZADOS */
+    text-align: center; 
 }
 
-.tabla-pagos td {
-    padding: 15px;
+.tabla-inscriptos td {
+    padding: 16px 18px;
     border-bottom: 1px solid #2a2a2a;
-    color: #eee;
-    vertical-align: middle;
-    font-size: 0.9rem;
+    color: #ccc;
+    vertical-align: middle; /* Centrado vertical */
+    
+    /* CENTRADO DE CELDAS */
+    text-align: center;
 }
 
-.tabla-pagos tr:hover {
-    background-color: #252525;
+.tabla-inscriptos tr:hover { background-color: #2a2a2a; }
+
+/* Celdas Específicas */
+.cell-id { color: #666; font-family: monospace; }
+
+/* Flexbox centrado para contenidos multilinea */
+.cell-user, .cell-event {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* ESTO CENTRA EL TEXTO INTERNAMENTE */
+    justify-content: center;
+    gap: 4px;
 }
 
-/* Estilos internos de celdas */
-.col-id { color: #666; font-family: monospace; }
-.user-email { display: block; font-weight: bold; color: #fff; }
-.user-name { font-size: 0.8em; color: #aaa; }
-.event-name { display: block; font-weight: bold; color: #fff; }
-.event-date { color: #4caf50; font-size: 0.8em; }
-.col-monto { font-weight: bold; color: #00d4ff; font-size: 1rem; }
-.tabla-mensaje { text-align: center; padding: 40px; color: #777; }
+.text-destacado { color: #fff; font-weight: 600; font-size: 0.95rem; }
+.text-sub { color: #888; font-size: 0.85rem; }
+.fecha-carrera { 
+    color: #00e676; 
+    font-weight: 600; font-size: 0.85rem;
+    display: inline-flex; align-items: center; gap: 5px;
+}
+
+.loading-msg, .empty-msg { text-align: center; padding: 60px; color: #777; }
+
+/* IMPRESION */
+@media print {
+    .no-print, .filtros-bar, .actions-block { display: none !important; }
+    .inscripciones-container { background: white; color: black; padding: 0; }
+    .tabla-wrapper { border: none; }
+    .tabla-inscriptos th { background: #eee !important; color: black !important; border: 1px solid #000; }
+    .tabla-inscriptos td { color: black !important; border: 1px solid #ccc; }
+    .title-block h1 { color: black !important; }
+}
