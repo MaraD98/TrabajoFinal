@@ -13,7 +13,7 @@ export async function createEvento(eventoData: any, token: string) {
 
 // Función para obtener TODOS los eventos (Público)
 export async function getEventos() {
-  const res = await api.get("/eventos");
+  const res = await api.get("/eventos/");
   return res.data;
 }
 
