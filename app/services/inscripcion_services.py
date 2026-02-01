@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from app.db.crud import inscripcion_crud, registro_crud
 from app.models.inscripcion_models import ReservaEvento
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
+from app.models.inscripcion_models import ReservaEvento as Inscripcion
 
 class InscripcionService:
 
@@ -153,3 +154,21 @@ class InscripcionService:
             "id_reserva": reserva_act.id_reserva,
             "nuevo_estado": "Confirmada"
         }
+    
+    @staticmethod
+    def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual):
+        # 1. Buscar la inscripción (recordá usar .id_reserva)
+        inscripcion = db.query(Inscripcion).filter(Inscripcion.id_reserva == id_inscripcion).first()
+        
+        if not inscripcion:
+            raise HTTPException(status_code=404, detail="La inscripción no existe.")
+
+        # 2. Seguridad... (verificación de usuario)
+        if usuario_actual.id_rol not in [1, 2] and inscripcion.id_usuario != usuario_actual.id_usuario:
+             raise HTTPException(status_code=403, detail="No tienes permiso...")
+
+        # 3. Borrar la inscripción
+        db.delete(inscripcion)
+        db.commit()
+        
+        return {"message": "Inscripción cancelada exitosamente"}

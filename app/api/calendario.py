@@ -18,7 +18,7 @@ def obtener_calendario_mensual(
 ):
     """
     Endpoint para el calendario mensual.
-    Devuelve eventos con detalles completos (IDs, Nombres, Coordenadas, etc.)
+    Devuelve eventos con detalles completos y lógica de cupos corregida.
     """
     
     # 1. Llamamos al servicio (Lógica de fechas)
@@ -30,21 +30,28 @@ def obtener_calendario_mensual(
     # 2. Llamamos al CRUD (Base de datos)
     resultados_db = crud.get_eventos_calendario(db, fecha_inicio, fecha_fin)
     
-    # 3. Mapeo manual (ACTUALIZADO CON CÁLCULO DE CUPOS)
+    # 3. Mapeo manual
     lista_eventos = []
     
     for row in resultados_db:
         
-        # --- NUEVA LÓGICA: CALCULAR CUPOS ---
         id_evento_actual = row[0]
-        cupo_maximo_actual = row[10] if row[10] is not None else 0
+        cupo_db = row[10] # Valor crudo de la base de datos (puede ser None, 0 o un número)
         
         # Contamos cuántos inscriptos hay
         ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == id_evento_actual).count()
         
-        # Calculamos disponibles
-        disponibles = cupo_maximo_actual - ocupados
-        # ------------------------------------
+        # --- LÓGICA CORREGIDA AQUÍ ---
+        if cupo_db and cupo_db > 0:
+            # CASO A: Tiene límite (ej: 50). Calculamos la resta.
+            cupo_maximo_actual = cupo_db
+            disponibles = cupo_db - ocupados
+        else:
+            # CASO B: Es 0 o None (Ilimitado).
+            # No restamos. Enviamos None para que el front sepa que es libre.
+            cupo_maximo_actual = 0
+            disponibles = None 
+        # -----------------------------
 
         evento_dict = {
             # --- Datos Básicos ---
@@ -64,11 +71,9 @@ def obtener_calendario_mensual(
             # --- Detalles Extra ---
             "descripcion": row[8] if row[8] is not None else "",
             "costo_participacion": row[9] if row[9] is not None else 0.0,
+            
             "cupo_maximo": cupo_maximo_actual,
-
-            # --- AQUI AGREGAMOS EL RESULTADO ---
-            "cupos_disponibles": disponibles, 
-            # -----------------------------------
+            "cupos_disponibles": disponibles, # Ahora mandamos None si es ilimitado
 
             # --- Coordenadas ---
             "lat": row[11] if row[11] is not None else None,

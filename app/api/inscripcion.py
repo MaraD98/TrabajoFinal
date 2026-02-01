@@ -77,3 +77,22 @@ def confirmar_pago(
         id_reserva=id_reserva, 
         usuario_actual=current_user
     )
+
+# ============ CANCELAR INSCRIPCIÓN (Usuario o Admin) ============
+@router.delete(
+    "/{id_inscripcion}",
+    summary="Cancelar una inscripción y liberar cupo",
+    status_code=status.HTTP_204_NO_CONTENT
+)
+def cancelar_inscripcion(
+    id_inscripcion: int,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    # Llamamos al servicio para que haga la magia
+    InscripcionService.cancelar_inscripcion(
+        db=db, 
+        id_inscripcion=id_inscripcion, 
+        usuario_actual=current_user
+    )
+    return # Retorna 204 (sin contenido) al ser exitoso

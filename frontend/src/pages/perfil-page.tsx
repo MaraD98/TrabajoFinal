@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useLocation } from 'react-router-dom'; // Agregué useLocation
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/inicio.css';
 
 // --- INTERFACES ---
@@ -26,7 +26,7 @@ interface Inscripcion {
     costo: number;
 }
 
-// --- COMPONENTE CUENTA REGRESIVA (NUEVO) ---
+// --- COMPONENTE CUENTA REGRESIVA ---
 const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
     const [tiempoRestante, setTiempoRestante] = useState("");
     const [color, setColor] = useState("#ffbb00"); // Naranja inicial
@@ -46,7 +46,7 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
             }
 
             // Convertir ms a horas, minutos, segundos
-           const horas = Math.floor(diferencia / (1000 * 60 * 60));
+            const horas = Math.floor(diferencia / (1000 * 60 * 60));
             const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
 
@@ -112,19 +112,18 @@ export default function PerfilPage() {
     });
 
     const navigate = useNavigate();
-    const location = useLocation(); // Hook para leer la URL
+    const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
 
     // 1. LEER URL Y CARGAR PERFIL
     useEffect(() => {
-        // Si la URL tiene ?tab=inscripciones, cambiamos la pestaña activa
         const params = new URLSearchParams(location.search);
         if (params.get('tab') === 'inscripciones') {
             setActiveTab('inscripciones');
         }
         
         fetchPerfil();
-    }, [location]); // Se ejecuta al cargar o si cambia la URL
+    }, [location]);
 
     // 2. EFECTO: Si cambio a la pestaña inscripciones, cargo los datos
     useEffect(() => {
@@ -184,7 +183,6 @@ export default function PerfilPage() {
             setPerfil(usuarioActualizado);
             setIsEditing(false);
             
-            // Actualizar LocalStorage y Header
             const datosParaGuardar = {
                 ...usuarioActualizado,
                 nombre: usuarioActualizado.nombre_y_apellido 
@@ -232,6 +230,34 @@ export default function PerfilPage() {
             console.error("Error al cambiar password:", err);
             const mensaje = err.response?.data?.detail || "Error al cambiar la contraseña.";
             setError(mensaje);
+        }
+    };
+
+    // 5. CANCELAR RESERVA (NUEVO - LÓGICA AGREGADA)
+    const handleCancelarReserva = async (id_reserva: number) => {
+        if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        try {
+            // Asumiendo que el endpoint es /inscripciones/{id} para borrar
+            await axios.delete(`${apiUrl}/inscripciones/${id_reserva}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setSuccessMsg("Reserva cancelada correctamente.");
+            
+            // Recargamos la lista para que desaparezca la tarjeta
+            fetchInscripciones(); 
+            
+            setTimeout(() => setSuccessMsg(null), 3000);
+
+        } catch (err: any) {
+            console.error("Error al cancelar:", err);
+            const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
+            setError(mensaje);
+            setTimeout(() => setError(null), 4000);
         }
     };
 
@@ -483,7 +509,6 @@ export default function PerfilPage() {
                                         </span>
                                     </div>
                                     
-                                    {/* CONTADOR AGREGADO AQUI */}
                                     {ins.estado_reserva === 'Pendiente de Pago' && (
                                         <div>
                                             <ContadorPago fechaReserva={ins.fecha_reserva} />
@@ -498,8 +523,20 @@ export default function PerfilPage() {
 
                                     <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
                                         {ins.estado_reserva === 'Pendiente de Pago' && (
-                                            <button style={{ background: '#ff4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer' }}>
-                                                CANCELAR RESERVA
+                                            <button 
+                                                onClick={() => handleCancelarReserva(ins.id_reserva)}
+                                                style={{ 
+                                                    background: '#ff4444', 
+                                                    color: 'white', 
+                                                    border: 'none', 
+                                                    padding: '6px 12px', 
+                                                    borderRadius: '4px', 
+                                                    fontSize: '0.8rem', 
+                                                    cursor: 'pointer',
+                                                    fontWeight: 'bold'
+                                                }}
+                                            >
+                                                ✕ CANCELAR RESERVA
                                             </button>
                                         )}
                                     </div>

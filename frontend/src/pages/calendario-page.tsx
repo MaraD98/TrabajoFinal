@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 // import axios from 'axios'; 
-import { getEventosCalendario } from '../services/eventos'; 
+import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/Calendario.css';
 import logoWakeUp from '../assets/wakeup-logo.png'; 
@@ -19,7 +19,9 @@ interface Evento {
   nombre_tipo?: string;
   id_dificultad?: number;
   nombre_dificultad?: string;
-  cupo_maximo?: number; 
+  cupo_maximo?: number;
+  cupos_disponibles?: number | null; // Puede venir null si es libre
+  esta_lleno?: boolean; 
 }
 
 const DIAS_SEMANA = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -35,12 +37,12 @@ export default function CalendarioPage() {
   const location = useLocation(); 
   const navigate = useNavigate();
   const { user } = useAuth();
-  // const apiUrl = import.meta.env.VITE_API_URL; // Descomentar cuando uses axios
+  // const apiUrl = import.meta.env.VITE_API_URL; 
 
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cargando, setCargando] = useState(false);
-   
+    
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string | null>(null);
   const [idEventoSeleccionado, setIdEventoSeleccionado] = useState<number | null>(null);
 
@@ -79,7 +81,7 @@ export default function CalendarioPage() {
         setIdEventoSeleccionado(Number(idParam));
 
         if (user) {
-            const nombreEncontrado = user.nombre_y_apellido || user.nombre || '';
+            const nombreEncontrado = user.nombre_y_apellido || '';
             setNombre(nombreEncontrado);            
             setEmail(user.email || '');
             setTelefono(user.telefono || ''); 
@@ -125,6 +127,8 @@ export default function CalendarioPage() {
   const obtenerEventosDelDia = (dia: number) => {
     const fechaBuscada = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
     return (Array.isArray(eventos) ? eventos : []).filter(evento => {
+        if (!evento.fecha_evento) return false;
+        
         const fechaEventoStr = String(evento.fecha_evento).substring(0, 10);
         return fechaEventoStr === fechaBuscada;
     });
@@ -165,7 +169,7 @@ export default function CalendarioPage() {
       } else {
           setIdEventoSeleccionado(id);
           if (user) {
-              const nombreEncontrado = user.nombre_y_apellido || user.nombre || '';
+              const nombreEncontrado = user.nombre_y_apellido || '';
               setNombre(nombreEncontrado);
               setEmail(user.email || '');
               setTelefono(user.telefono || '');
@@ -179,30 +183,37 @@ export default function CalendarioPage() {
 
   const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
+    
+    if (!user) {
+        setMsgError("Debes iniciar sesión para inscribirte.");
+        return;
+    }
+
     setEnviando(true);
     setMsgError(null);
     setMsgExito(null);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const datosInscripcion = {
-        id_evento: idEventoSeleccionado,
-        nombre_completo: nombre,
-        email: email,
-        telefono: telefono,
-        id_usuario: user ? user.id_usuario : null
-    };
+    if (!idEventoSeleccionado) return;
 
     try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await inscribirseEvento(idEventoSeleccionado);
+        
         setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
+        
         setTimeout(() => {
             setIdEventoSeleccionado(null);
             setMsgExito(null);
+            cargarEventos();
         }, 2000);
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
-        setMsgError("Ocurrió un error al procesar tu solicitud.");
+        
+        if (error.response && error.response.data && error.response.data.detail) {
+            setMsgError(error.response.data.detail);
+        } else {
+            setMsgError("Ocurrió un error al procesar tu solicitud.");
+        }
     } finally {
         setEnviando(false);
     }
@@ -220,10 +231,8 @@ export default function CalendarioPage() {
 
   return (
     <div className="calendario-container">
-        {/* --- HEADER REDISEÑADO --- */}
+        {/* --- HEADER --- */}
         <header className="cal-header">
-            
-            {/* 1. IZQUIERDA: Botón Volver */}
             <div className="header-left">
                 <Link to="/" className="btn-volver-inicio">
                     <span className="icono-flecha">←</span> 
@@ -231,7 +240,6 @@ export default function CalendarioPage() {
                 </Link>
             </div>
 
-            {/* 2. CENTRO: Branding (Logo y Título) */}
             <div className="header-center">
                 <div className="cal-branding-vertical">
                     <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo-centered" />
@@ -242,7 +250,6 @@ export default function CalendarioPage() {
                 </div>
             </div>
 
-            {/* 3. DERECHA: Controles */}
             <div className="header-right">
                 <div className="select-wrapper">
                     <select 
@@ -335,6 +342,22 @@ export default function CalendarioPage() {
                                 const estaAbierto = idEventoSeleccionado === e.id_evento;
                                 const claseDificultad = getClaseDificultad(e.nombre_dificultad);
 
+                                // --- LÓGICA DE CUPOS CORREGIDA ---
+                                const cupoMaximo = e.cupo_maximo;
+                                const cuposDisponibles = e.cupos_disponibles;
+
+                                // 1. ¿Es un evento con cupo limitado? (Si es 0 o null, es ilimitado)
+                                const esCupoLimitado = cupoMaximo !== undefined && cupoMaximo !== null && cupoMaximo > 0;
+
+                                // 2. Definimos si está agotado SOLO si es limitado
+                                let estaAgotado = false;
+                                if (esCupoLimitado) {
+                                    if (cuposDisponibles !== undefined && cuposDisponibles !== null) {
+                                        estaAgotado = cuposDisponibles <= 0;
+                                    }
+                                }
+                                // --------------------------------
+
                                 return (
                                 <div key={e.id_evento} className={`evento-card ${estaAbierto ? 'abierto' : ''}`}>
                                     <div className="no-select">
@@ -354,9 +377,22 @@ export default function CalendarioPage() {
                                             <span className="badge-tipo">
                                                 {e.nombre_tipo || 'Ruta'}
                                             </span>
-                                            <span className="badge-cupo">
-                                                 {e.cupo_maximo ? `Cupo: ${e.cupo_maximo}` : 'Cupo Libre'}
-                                            </span>
+                                            
+                                            {/* BADGE DE CUPO INTELIGENTE */}
+                                            {estaAgotado ? (
+                                                <span className="badge-cupo agotado" style={{backgroundColor: '#ff4444', color: 'white', border: '1px solid #ff0000'}}>
+                                                    ⛔ ¡AGOTADO!
+                                                </span>
+                                            ) : (
+                                                <span className="badge-cupo" style={!esCupoLimitado ? {backgroundColor: '#28a745', color: 'white'} : {}}>
+                                                    {esCupoLimitado 
+                                                        ? (cuposDisponibles !== null && cuposDisponibles !== undefined 
+                                                            ? `🔥 Quedan: ${cuposDisponibles}` 
+                                                            : `Cupo: ${cupoMaximo}`)
+                                                        : '✅ Cupo Libre'
+                                                    }
+                                                </span>
+                                            )}
                                         </div>
 
                                         {e.descripcion && (
@@ -378,12 +414,14 @@ export default function CalendarioPage() {
                                     </div>
 
                                     <div className="evento-acciones">
-                                        <button 
-                                            onClick={() => toggleReserva(e.id_evento)}
-                                            className={`btn-accion ${estaAbierto ? 'cancelar' : 'inscribir'}`}
-                                        >
-                                            {estaAbierto ? 'CERRAR' : 'INSCRIBIRME'}
-                                        </button>
+                                            <button 
+                                                onClick={() => toggleReserva(e.id_evento)}
+                                                disabled={estaAgotado}
+                                                className={`btn-accion ${estaAbierto ? 'cancelar' : 'inscribir'}`}
+                                                style={estaAgotado ? { opacity: 0.5, cursor: 'not-allowed', background: '#555', borderColor: '#555' } : {}}
+                                            >
+                                                {estaAgotado ? 'SIN LUGAR' : (estaAbierto ? 'CERRAR' : 'INSCRIBIRME')}
+                                            </button>
                                     </div>
 
                                     {estaAbierto && (
