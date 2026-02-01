@@ -1,7 +1,17 @@
 import axios from "axios";
 
+console.log("🌍 Entorno:", import.meta.env.MODE);
+console.log("🔗 VITE_API_URL:", import.meta.env.VITE_API_URL);
+
+const baseURL = import.meta.env.VITE_API_URL;
+
+if (!baseURL) {
+  throw new Error("❌ VITE_API_URL no está configurada");
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: baseURL,
+  timeout: 30000,
 });
 
 // Interceptor para agregar el token de autenticación
