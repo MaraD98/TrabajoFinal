@@ -1,0 +1,144 @@
+/* --- CONFIGURACIÓN BASE Y TEMA --- */
+:root {
+  --cal-bg: #121212;
+  --cal-card-bg: #1e1e1e;
+  --cal-gold: #FFD700;
+  --cal-gold-dim: rgba(255, 215, 0, 0.15);
+  --cal-text: #ffffff;
+  --cal-text-muted: #aaaaaa;
+  --cal-border: #333333;
+}
+
+.calendario-container {
+  background-color: var(--cal-bg);
+  min-height: 100vh;
+  color: var(--cal-text);
+  font-family: 'Montserrat', sans-serif;
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.no-select { user-select: none; }
+
+/* --- HEADER --- */
+.cal-header {
+  width: 100%; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--cal-border); padding-bottom: 20px;
+}
+.cal-branding { display: flex; align-items: center; gap: 15px; }
+.cal-logo { height: 60px; width: auto; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.4)); transition: transform 0.3s ease; }
+.cal-logo:hover { transform: scale(1.05); }
+.cal-title-wrapper { display: flex; flex-direction: column; }
+.cal-title { font-size: 1.8rem; font-weight: 800; margin: 0; line-height: 1; letter-spacing: 2px; color: #fff; }
+.cal-subtitle { font-size: 0.9rem; color: var(--cal-gold); letter-spacing: 4px; font-weight: 600; }
+
+/* --- CONTROLES SELECT --- */
+.cal-controls { display: flex; gap: 15px; }
+.select-wrapper { position: relative; }
+.cal-select { appearance: none; background-color: var(--cal-card-bg); border: 1px solid var(--cal-gold); color: var(--cal-gold); padding: 10px 35px 10px 15px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; outline: none; transition: all 0.3s ease; text-transform: uppercase; min-width: 120px; }
+.cal-select:hover { background-color: var(--cal-gold); color: #000; box-shadow: 0 0 15px var(--cal-gold-dim); }
+.select-wrapper::after { content: '▼'; font-size: 0.7rem; color: var(--cal-gold); position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.select-wrapper:hover::after { color: #000; }
+
+/* --- GRID DEL CALENDARIO --- */
+.calendario-wrapper { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
+.calendario-grid-wrapper { background: var(--cal-card-bg); border-radius: 8px; padding: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--cal-border); }
+.calendario-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.dia-semana-header { text-align: center; font-weight: bold; color: var(--cal-gold); padding: 10px 0; text-transform: uppercase; font-size: 0.9rem; }
+
+.dia-celda { background-color: #252525; min-height: 80px; border-radius: 4px; padding: 8px; position: relative; border: 1px solid transparent; transition: all 0.2s ease; color: #aaa; }
+.dia-celda:not(.dia-vacio):not(.dia-pasado):hover { background-color: #333; border-color: #555; z-index: 2; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+.dia-celda.dia-vacio { background: transparent; }
+.dia-celda.dia-pasado { background-color: #1a1a1a; color: #444; opacity: 0.6; }
+.dia-celda.dia-hoy { border: 1px solid #555; background-color: #2a2a2a; }
+.dia-celda.dia-hoy .dia-numero { color: #fff; text-decoration: underline; text-decoration-color: var(--cal-gold); }
+.dia-celda.dia-con-eventos { background-color: rgba(255, 215, 0, 0.05); border: 1px solid rgba(255, 215, 0, 0.3); cursor: pointer; }
+.dia-celda.dia-seleccionado { background-color: var(--cal-gold); color: #000 !important; border-color: var(--cal-gold); box-shadow: 0 0 15px var(--cal-gold); }
+.dia-celda.dia-seleccionado .dia-numero { color: #000; font-weight: 900; }
+.dia-celda.dia-seleccionado .icono-evento-bici { color: #000 !important; }
+.dia-numero { font-size: 1.1rem; font-weight: 500; }
+
+.icono-evento-bici { position: absolute; bottom: 5px; right: 5px; color: var(--cal-gold); }
+.icono-evento-bici svg { display: block; /* Asegura que no haya espacio extra debajo del SVG */ }
+
+/* --- CARGANDO --- */
+.calendario-cargando { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--cal-gold); }
+.wheel-spinning { animation: spin 1s infinite linear; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* --- PANEL DE RESERVA Y DETALLES (ESTRUCTURA VERTICAL) --- */
+.reserva-panel { background: var(--cal-card-bg); border-radius: 8px; padding: 20px; border: 1px solid var(--cal-border); animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+.panel-titulo { color: #fff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.fecha-destacada { color: var(--cal-gold); }
+
+.evento-card {
+  background: #252525;
+  border: 1px solid #333;
+  border-left: 4px solid var(--cal-gold);
+  border-radius: 4px;
+  padding: 20px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+.evento-card:hover { background: #2a2a2a; }
+
+/* ESTO ES CLAVE PARA EL ORDEN VERTICAL: */
+/* Aplica margen inferior a cada bloque directo dentro del contenido */
+.evento-card-content > div {
+    margin-bottom: 15px;
+}
+.evento-card-content > div:last-child {
+    margin-bottom: 0; /* El último no necesita margen extra */
+}
+
+.evento-cabecera { display: flex; justify-content: space-between; align-items: flex-start; }
+.evento-titulo { font-size: 1.4rem; font-weight: 700; color: #fff; margin: 0; }
+.evento-precio { font-weight: bold; color: var(--cal-gold); font-size: 1.1rem; white-space: nowrap; margin-left: 10px;}
+
+.evento-badges { display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; }
+.badge-dificultad, .badge-tipo, .badge-cupo { padding: 5px 12px; border-radius: 20px; font-weight: 600; background: #333; color: #ccc; }
+.dificultad-experto { color: #ff4d4d; border: 1px solid #ff4d4d; }
+.dificultad-intermedio { color: #ffa500; border: 1px solid #ffa500; }
+.dificultad-principiante { color: #2ecc71; border: 1px solid #2ecc71; }
+
+.evento-descripcion { font-style: italic; color: var(--cal-text-muted); line-height: 1.5; display: block; }
+
+.evento-ubicacion { font-size: 0.95rem; color: var(--cal-text-muted); display: flex; align-items: flex-start; gap: 8px; }
+.ubicacion-icono { margin-top: 2px; }
+.ubicacion-texto { line-height: 1.4; }
+.ver-mapa-link { display: inline-block; margin-left: 8px; color: var(--cal-gold); text-decoration: none; border-bottom: 1px dotted var(--cal-gold); font-size: 0.85rem; }
+
+/* BOTONES Y FORMULARIO */
+.evento-acciones { margin-top: 20px; } /* Espacio extra antes del botón */
+.btn-accion { width: 100%; padding: 12px; border: none; font-weight: 800; cursor: pointer; border-radius: 4px; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+.btn-accion.inscribir { background-color: transparent; border: 1px solid var(--cal-gold); color: var(--cal-gold); }
+.btn-accion.inscribir:hover { background-color: var(--cal-gold); color: #000; }
+.btn-accion.cancelar { background-color: #333; color: #fff; }
+.btn-accion.cancelar:hover { background-color: #ff4d4d; }
+
+.formulario-container { margin-top: 25px; padding-top: 20px; border-top: 1px dashed #444; animation: fadeIn 0.3s; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.formulario-titulo { color: var(--cal-gold); margin-bottom: 15px; }
+.form-grupo { margin-bottom: 12px; }
+.form-grupo input { width: 100%; padding: 12px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 4px; }
+.form-grupo input:focus { border-color: var(--cal-gold); outline: none; }
+.btn-confirmar { width: 100%; background: var(--cal-gold); color: #000; font-weight: 900; padding: 14px; border: none; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
+.btn-confirmar:hover { background: #ffed4a; }
+.mensaje-vacio { text-align: center; color: #666; font-style: italic; padding: 20px; }
+
+/* MOBILE */
+@media (max-width: 768px) {
+  .cal-header { flex-direction: column; align-items: flex-start; }
+  .cal-branding { width: 100%; justify-content: center; margin-bottom: 15px; }
+  .cal-controls { width: 100%; gap: 10px; }
+  .select-wrapper { flex: 1; }
+  .cal-select { width: 100%; }
+  .dia-numero { font-size: 0.9rem; }
+  .calendario-grid-wrapper { padding: 5px; }
+  .dia-celda { min-height: 60px; padding: 5px;}
+  /* Ajuste del ícono para móvil */
+  .icono-evento-bici svg { width: 18px; height: 18px; }
+}

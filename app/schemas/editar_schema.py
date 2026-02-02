@@ -18,7 +18,8 @@ class EventoEditar(BaseModel):
     
     # ESTADO (Opcional, por si quiere cancelar o pausar el evento manualmente)
     id_estado: Optional[int] = Field(None, gt=0)
-
+    cupo_maximo: Optional [int] = Field(default=0, ge=0, description="Cupo máximo de participantes")
+    
     # 1. Validar que la fecha no sea pasada (Regla de Negocio)
     @field_validator('fecha_evento')
     def validar_fecha_futura(cls, v):

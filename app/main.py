@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles 
 from app.api import routers
+import os
 
 app = FastAPI(
     title="Gestor de Eventos",
@@ -8,14 +10,31 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configurar CORS
+# 👇 2. CONFIGURAR LA CARPETA ESTÁTICA
+os.makedirs("static/uploads", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+# ==========================================
+# 👇 ACÁ ESTÁ EL CAMBIO CLAVE (CORS) 👇
+# ==========================================
+
+# Definimos la lista de quiénes tienen permiso para pedir datos
+origins = [
+    "http://localhost:5173",             # Tu frontend en tu compu (Vite suele usar este)
+    "http://localhost:3000",             # Por si usas otro puerto local
+    "http://localhost:8000",             # Tu backend local
+    "https://trabajofinal-1-5r4j.onrender.com"  # 👈 TU FRONTEND EN RENDER (Sin la barra / al final)
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # Cuando pase a produccion, cambiar esto al dominio permitido
-    allow_credentials=True,
+    allow_origins=origins,       # 👈 Antes tenías ["*"], ahora va la lista "origins"
+    allow_credentials=True,      # Esto obliga a que la lista sea específica
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Incluir todos los routers
 for r in routers:
@@ -39,5 +58,5 @@ def read_root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-    
+    port = int(os.environ.get("PORT", 8000))  # ✅ IMPORTANTE: Lee el puerto de Render
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)  # reload=False en producción
