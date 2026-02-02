@@ -53,16 +53,10 @@ export default function InicioPage() {
     const [error, setError] = useState<string | null>(null);
 
     // ============================================================================
-    // ✅ ESTADOS SEPARADOS según HU 7.3 y 7.6
+    // ✅ ESTADOS DE FILTROS (SIN DEBOUNCE - Se aplican al presionar botón)
     // ============================================================================
-    // HU 7.6: Búsqueda por NOMBRE del evento
-    const [busquedaInput, setBusquedaInput] = useState("");
     const [busqueda, setBusqueda] = useState("");
-    
-    // HU 7.3: Búsqueda por UBICACIÓN (separado)
-    const [ubicacionInput, setUbicacionInput] = useState("");
     const [ubicacion, setUbicacion] = useState("");
-    
     const [fechaDesde, setFechaDesde] = useState("");
     const [fechaHasta, setFechaHasta] = useState("");
     const [tipoSeleccionado, setTipoSeleccionado] = useState<number | undefined>();
@@ -76,56 +70,6 @@ export default function InicioPage() {
     const [totalEventos, setTotalEventos] = useState(0);
     const [mensajeResultado, setMensajeResultado] = useState("");
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
-
-    // ============================================================================
-    // ✅ DEBOUNCE SEPARADO para cada campo de texto
-    // ============================================================================
-    const debounceTimerBusqueda = useRef<NodeJS.Timeout | null>(null);
-    const debounceTimerUbicacion = useRef<NodeJS.Timeout | null>(null);
-
-    // Debounce para búsqueda de NOMBRE
-    useEffect(() => {
-        if (debounceTimerBusqueda.current) {
-            clearTimeout(debounceTimerBusqueda.current);
-        }
-
-        if (busquedaInput === "") {
-            setBusqueda("");
-            return;
-        }
-
-        debounceTimerBusqueda.current = setTimeout(() => {
-            setBusqueda(busquedaInput);
-        }, 500);
-
-        return () => {
-            if (debounceTimerBusqueda.current) {
-                clearTimeout(debounceTimerBusqueda.current);
-            }
-        };
-    }, [busquedaInput]);
-
-    // Debounce para búsqueda de UBICACIÓN
-    useEffect(() => {
-        if (debounceTimerUbicacion.current) {
-            clearTimeout(debounceTimerUbicacion.current);
-        }
-
-        if (ubicacionInput === "") {
-            setUbicacion("");
-            return;
-        }
-
-        debounceTimerUbicacion.current = setTimeout(() => {
-            setUbicacion(ubicacionInput);
-        }, 500);
-
-        return () => {
-            if (debounceTimerUbicacion.current) {
-                clearTimeout(debounceTimerUbicacion.current);
-            }
-        };
-    }, [ubicacionInput]);
 
     useEffect(() => {
         const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
@@ -174,8 +118,13 @@ export default function InicioPage() {
         };
     }, [dropdownRef]);
 
+    // ============================================================================
+    // ✅ CARGA INICIAL: Cargar catálogos y eventos al montar
+    // ============================================================================
     useEffect(() => {
         cargarCatalogos();
+        cargarEventos(); // Carga inicial sin filtros
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const cargarCatalogos = async () => {
@@ -188,16 +137,15 @@ export default function InicioPage() {
         }
     };
 
-    // ✅ Se ejecuta cuando cambian los valores finales (con debounce aplicado)
-    useEffect(() => {
-        cargarEventos();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [busqueda, fechaDesde, fechaHasta, ubicacion, tipoSeleccionado, dificultadSeleccionada]);
-
+    // ============================================================================
+    // ✅ FUNCIÓN DE CARGA (Se ejecuta manualmente al presionar "Aplicar Filtros")
+    // ============================================================================
     const cargarEventos = async () => {
         setLoading(true);
         try {
             const filtros: FiltrosEventos = {};
+            
+            // Solo agregar filtros si tienen valor
             if (busqueda.trim()) filtros.busqueda = busqueda.trim();
             if (fechaDesde) filtros.fecha_desde = fechaDesde;
             if (fechaHasta) filtros.fecha_hasta = fechaHasta;
@@ -206,6 +154,57 @@ export default function InicioPage() {
             if (dificultadSeleccionada) filtros.id_dificultad = dificultadSeleccionada;
 
             const resultado = await buscarEventosConFiltros(filtros);
+            const eventosFiltrados = resultado.eventos || [];
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            // Filtrar solo eventos futuros (el backend ya lo hace, pero doble validación)
+            const eventosProcesados = eventosFiltrados
+                .filter((evento: Evento) => {
+                    const fechaEvento = new Date(evento.fecha_evento);
+                    return fechaEvento >= hoy;
+                })
+                .sort((a: Evento, b: Evento) => {
+                    const fechaA = new Date(a.fecha_evento).getTime();
+                    const fechaB = new Date(b.fecha_evento).getTime();
+                    return fechaA - fechaB;
+                });
+
+            setEventos(eventosProcesados);
+            setTotalEventos(resultado.total);
+            setMensajeResultado(resultado.mensaje);
+        } catch (err) {
+            console.error(err);
+            setError('No se pudieron cargar los eventos.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA APLICAR FILTROS (Botón manual)
+    // ============================================================================
+    const aplicarFiltros = () => {
+        cargarEventos();
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA LIMPIAR FILTROS
+    // ============================================================================
+    const limpiarFiltros = async () => {
+        // Limpiar todos los estados
+        setBusqueda("");
+        setUbicacion("");
+        setFechaDesde("");
+        setFechaHasta("");
+        setTipoSeleccionado(undefined);
+        setDificultadSeleccionada(undefined);
+        
+        // Recargar eventos sin filtros (llamada directa sin esperar estados)
+        setLoading(true);
+        try {
+            // Llamar al backend sin filtros (objeto vacío)
+            const resultado = await buscarEventosConFiltros({});
             const eventosFiltrados = resultado.eventos || [];
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
@@ -230,17 +229,6 @@ export default function InicioPage() {
         } finally {
             setLoading(false);
         }
-    };
-
-    const limpiarFiltros = () => {
-        setBusquedaInput("");
-        setBusqueda("");
-        setUbicacionInput("");
-        setUbicacion("");
-        setFechaDesde("");
-        setFechaHasta("");
-        setTipoSeleccionado(undefined);
-        setDificultadSeleccionada(undefined);
     };
 
     const obtenerImagen = (evento: Evento) => {
@@ -349,11 +337,11 @@ export default function InicioPage() {
                 </div>
 
                 {/* ============================================================================ */}
-                {/* ✅ FILTROS CORREGIDOS según HU 7.3 y 7.6 (campos separados) */}
+                {/* ✅ FILTROS CON BOTÓN MANUAL (SIN DEBOUNCE AUTOMÁTICO) */}
                 {/* ============================================================================ */}
                 {mostrarFiltros && (
                     <div className="filters-container-advanced" style={{ marginBottom: '30px' }}>
-                        {/* HU 7.6: Búsqueda por NOMBRE del evento (separado) */}
+                        {/* Búsqueda por nombre */}
                         <div className="filter-row">
                             <div className="filter-group-full">
                                 <label className="filter-label">🔍 Buscar por nombre del evento</label>
@@ -361,17 +349,16 @@ export default function InicioPage() {
                                     type="text" 
                                     placeholder="Ej: Ciclovía, Mountain Bike..." 
                                     className="filter-input"
-                                    value={busquedaInput}
-                                    onChange={(e) => setBusquedaInput(e.target.value)}
+                                    value={busqueda}
+                                    onChange={(e) => setBusqueda(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') aplicarFiltros();
+                                    }}
                                 />
-                                {busquedaInput !== busqueda && (
-                                    <small style={{ color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>
-                                        ⏳ Buscando...
-                                    </small>
-                                )}
                             </div>
                         </div>
 
+                        {/* Fechas */}
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">📅 Desde</label>
@@ -393,7 +380,7 @@ export default function InicioPage() {
                             </div>
                         </div>
 
-                        {/* HU 7.3: Búsqueda por UBICACIÓN (separado) */}
+                        {/* Ubicación */}
                         <div className="filter-row">
                             <div className="filter-group-full">
                                 <label className="filter-label">📍 Ubicación</label>
@@ -401,17 +388,16 @@ export default function InicioPage() {
                                     type="text" 
                                     placeholder="Ej: Córdoba, Buenos Aires, Rosario..." 
                                     className="filter-input"
-                                    value={ubicacionInput}
-                                    onChange={(e) => setUbicacionInput(e.target.value)}
+                                    value={ubicacion}
+                                    onChange={(e) => setUbicacion(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') aplicarFiltros();
+                                    }}
                                 />
-                                {ubicacionInput !== ubicacion && (
-                                    <small style={{ color: '#888', fontSize: '0.75rem', marginTop: '4px' }}>
-                                        ⏳ Buscando...
-                                    </small>
-                                )}
                             </div>
                         </div>
 
+                        {/* Tipo y Dificultad */}
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">🏆 Tipo de Evento</label>
@@ -442,7 +428,31 @@ export default function InicioPage() {
                             </div>
                         </div>
 
+                        {/* ✅ BOTONES DE ACCIÓN (APLICAR + LIMPIAR) */}
                         <div className="filter-actions">
+                            <button 
+                                className="btn-aplicar-filtros"
+                                onClick={aplicarFiltros}
+                                style={{
+                                    background: '#ccff00',
+                                    color: '#000',
+                                    border: 'none',
+                                    padding: '12px 30px',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.3s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                🔍 BUSCAR
+                            </button>
+
                             <button 
                                 className="btn-limpiar-filtros"
                                 onClick={limpiarFiltros}
@@ -450,17 +460,24 @@ export default function InicioPage() {
                                     background: '#ff4444',
                                     color: '#fff',
                                     border: 'none',
-                                    padding: '10px 20px',
+                                    padding: '12px 30px',
                                     borderRadius: '5px',
                                     cursor: 'pointer',
-                                    fontWeight: 'bold'
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.3s'
                                 }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                             >
-                                🗑️ Limpiar Filtros
+                                🗑️ LIMPIAR FILTROS
                             </button>
                         </div>
 
-                        <div style={{ marginTop: '15px', color: '#ccff00', fontSize: '0.9rem' }}>
+                        <div style={{ marginTop: '15px', color: '#ccff00', fontSize: '0.9rem', textAlign: 'center' }}>
                             {mensajeResultado} | Total: {totalEventos} eventos
                         </div>
                     </div>

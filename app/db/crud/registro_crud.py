@@ -53,24 +53,66 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
     db.commit()
     db.refresh(db_evento)
     return db_evento
+
+# ============================================================================
+# ✅ CORRECCIÓN: Actualizar eventos pasados automáticamente
+# ============================================================================
+def actualizar_eventos_finalizados(db: Session):
+    """
+    Cambia el estado de eventos publicados cuya fecha ya pasó a FINALIZADO (4).
+    Se ejecuta antes de cada consulta para mantener la base de datos actualizada.
+    """
+    hoy = date.today()
+    
+    # Buscar eventos publicados con fecha pasada
+    eventos_pasados = db.query(Evento).filter(
+        Evento.id_estado == ID_ESTADO_PUBLICADO,
+        Evento.fecha_evento < hoy
+    ).all()
+    
+    if eventos_pasados:
+        print(f"🔄 [AUTO-UPDATE] Finalizando {len(eventos_pasados)} eventos pasados...")
+        for evento in eventos_pasados:
+            evento.id_estado = ID_ESTADO_FINALIZADO
+            print(f"   ✅ Evento '{evento.nombre_evento}' ({evento.fecha_evento}) → FINALIZADO")
+        
+        db.commit()
+        print(f"✅ [AUTO-UPDATE] {len(eventos_pasados)} eventos actualizados")
     
 # -----------------------------------------------------------------------------
-# 2. READ (Leer todos)
+# 2. READ (Leer todos) - ✅ CORREGIDO: Filtra eventos pasados
 # -----------------------------------------------------------------------------
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
+    """
+    Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
+    ✅ Actualiza automáticamente eventos pasados a FINALIZADO antes de consultar.
+    """
+    # 1. Actualizar eventos pasados a FINALIZADO
+    actualizar_eventos_finalizados(db)
+    
+    # 2. Obtener fecha actual
+    hoy = date.today()
+    
+    # 3. Consultar solo eventos publicados y futuros
     return (
         db.query(Evento)
-        .filter(Evento.id_estado != ID_ESTADO_DEPURADO)
-        .filter(Evento.id_estado == 3)
+        .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)  # Solo publicados
+        .filter(Evento.fecha_evento >= hoy)               # ✅ Solo futuros
+        .order_by(Evento.fecha_evento.asc())              # Ordenar por fecha
         .offset(skip)
         .limit(limit)
         .all()
     )
 
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
+    """
+    Devuelve TODOS los eventos de un usuario (incluyendo pasados y borradores).
+    No filtra por fecha porque el usuario puede querer ver su historial.
+    """
     return (
         db.query(Evento)
         .filter(Evento.id_usuario == id_usuario)
+        .order_by(Evento.fecha_evento.desc())  # Más recientes primero
         .offset(skip)
         .limit(limit)
         .all()
@@ -203,15 +245,15 @@ def depurar_evento(db: Session, id_evento: int, motivo: str):
         raise HTTPException(status_code=500, detail=f"Error al depurar evento: {str(e)}")
 
 # ============================================================================
-# ✅ FILTRADO CORREGIDO: Búsqueda separada según HU 7.3 y 7.6
+# ✅ FILTRADO CORREGIDO: Búsqueda separada según HU 7.3 y 7.6 + Filtro de fecha
 # ============================================================================
 def filtrar_eventos_avanzado(
     db: Session,
-    busqueda: Optional[str] = None,       # HU 7.6: Solo busca en NOMBRE
+    busqueda: Optional[str] = None,
     fecha_desde: Optional[date] = None,
     fecha_hasta: Optional[date] = None,
     fecha_exacta: Optional[date] = None,
-    ubicacion: Optional[str] = None,      # HU 7.3: Solo busca en UBICACIÓN
+    ubicacion: Optional[str] = None,
     id_tipo: Optional[int] = None,
     id_dificultad: Optional[int] = None,
     skip: int = 0,
@@ -219,16 +261,25 @@ def filtrar_eventos_avanzado(
 ):
     """
     Filtra eventos publicados según múltiples criterios combinables.
-    ✅ HU 7.3: Ubicación es un filtro SEPARADO (solo busca en campo ubicacion)
-    ✅ HU 7.6: Búsqueda es SEPARADA (solo busca en nombre_evento)
-    ✅ Ambas búsquedas son insensibles a acentos
+    ✅ Solo muestra eventos FUTUROS (fecha_evento >= hoy)
+    ✅ Actualiza automáticamente eventos pasados a FINALIZADO
     """
     
-    # 1. BASE QUERY: Solo eventos PUBLICADOS (estado 3)
-    query = db.query(Evento).filter(Evento.id_estado == ID_ESTADO_PUBLICADO)
+    # 1. Actualizar eventos pasados
+    actualizar_eventos_finalizados(db)
+    
+    # 2. Obtener fecha actual
+    hoy = date.today()
+    
+    # 3. BASE QUERY: Solo eventos PUBLICADOS y FUTUROS
+    query = db.query(Evento).filter(
+        Evento.id_estado == ID_ESTADO_PUBLICADO,
+        Evento.fecha_evento >= hoy  # ✅ Solo eventos futuros
+    )
+    
     filtros_aplicados = {}
     
-    # 2. FILTRO POR FECHA
+    # 4. FILTRO POR FECHA (adicional)
     if fecha_exacta:
         query = query.filter(Evento.fecha_evento == fecha_exacta)
         filtros_aplicados['fecha_exacta'] = str(fecha_exacta)
@@ -240,7 +291,7 @@ def filtrar_eventos_avanzado(
             query = query.filter(Evento.fecha_evento <= fecha_hasta)
             filtros_aplicados['fecha_hasta'] = str(fecha_hasta)
     
-    # 3. ✅ HU 7.3: FILTRO POR UBICACIÓN (campo separado, solo busca en ubicacion)
+    # 5. FILTRO POR UBICACIÓN
     if ubicacion:
         ubicacion_normalizada = normalizar_texto(ubicacion)
         eventos_temp = query.all()
@@ -257,13 +308,13 @@ def filtrar_eventos_avanzado(
         
         filtros_aplicados['ubicacion'] = ubicacion
     
-    # 4. FILTRO POR TIPO
+    # 6. FILTRO POR TIPO
     if id_tipo:
         query = query.filter(Evento.id_tipo == id_tipo)
         tipo = db.query(TipoEvento).filter(TipoEvento.id_tipo == id_tipo).first()
         filtros_aplicados['tipo'] = tipo.nombre if tipo else f"ID {id_tipo}"
     
-    # 5. FILTRO POR DIFICULTAD
+    # 7. FILTRO POR DIFICULTAD
     if id_dificultad:
         query = query.filter(Evento.id_dificultad == id_dificultad)
         dificultad = db.query(NivelDificultad).filter(
@@ -271,7 +322,7 @@ def filtrar_eventos_avanzado(
         ).first()
         filtros_aplicados['dificultad'] = dificultad.nombre if dificultad else f"ID {id_dificultad}"
     
-    # 6. ✅ HU 7.6: BÚSQUEDA POR NOMBRE (campo separado, solo busca en nombre_evento)
+    # 8. BÚSQUEDA POR NOMBRE
     if busqueda:
         busqueda_normalizada = normalizar_texto(busqueda)
         eventos_temp = query.all()
@@ -288,16 +339,16 @@ def filtrar_eventos_avanzado(
         
         filtros_aplicados['busqueda'] = busqueda
     
-    # 7. CONTAR TOTAL
+    # 9. CONTAR TOTAL
     total = query.count()
     
-    # 8. ORDENAR
+    # 10. ORDENAR
     query = query.order_by(Evento.fecha_evento.asc())
     
-    # 9. PAGINAR
+    # 11. PAGINAR
     eventos = query.offset(skip).limit(limit).all()
     
-    # 10. MENSAJE
+    # 12. MENSAJE
     if total == 0:
         if filtros_aplicados:
             mensaje = "No se encontraron eventos con los filtros seleccionados."
