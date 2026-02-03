@@ -319,3 +319,306 @@ body {
   .user-menu-trigger { min-width: auto; padding: 8px 12px; }
   .user-name { display: none; }
 }
+/* ============================================================================
+   CONTENEDOR DE FILTROS AVANZADO (HU-7.1)
+   ============================================================================ */
+.filters-container-advanced {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Cada fila de filtros */
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+/* Grupo de filtro individual */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Grupo que ocupa toda la fila */
+.filter-group-full {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  grid-column: 1 / -1; /* Ocupa todas las columnas */
+}
+
+/* Etiquetas de los filtros */
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cccccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Inputs y Selects base */
+.filter-input,
+.filter-select {
+  background-color: #0d0d0d;
+  border: 1px solid #444;
+  border-radius: 5px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: #ccff00; /* Amarillo neón */
+  box-shadow: 0 0 8px rgba(204, 255, 0, 0.3);
+}
+
+.filter-input::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+/* Selectores específicos */
+.filter-select {
+  cursor: pointer;
+}
+
+.filter-select option {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+/* ============================================================================
+   BOTONES DE ACCIÓN (HU-7.7)
+   ============================================================================ */
+.filter-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+}
+
+.btn-limpiar-filtros {
+  background-color: #ff4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-limpiar-filtros:hover {
+  background-color: #cc0000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 68, 68, 0.3);
+}
+
+/* ============================================================================
+   RESUMEN DE FILTROS APLICADOS (HU-7.8)
+   ============================================================================ */
+.filtros-activos-resumen {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: rgba(204, 255, 0, 0.1);
+  border: 1px solid rgba(204, 255, 0, 0.3);
+  border-radius: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filtros-activos-resumen strong {
+  color: #ccff00;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.filtro-badge {
+  background-color: #ccff00;
+  color: #000000;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* ============================================================================
+   MENSAJE DE RESULTADO (HU-7.8)
+   ============================================================================ */
+.resultado-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #1a1a1a;
+  border-left: 4px solid #ccff00;
+  margin-bottom: 20px;
+  border-radius: 5px;
+}
+
+.mensaje-resultado {
+  margin: 0;
+  color: #e0e0e0;
+  font-size: 0.95rem;
+}
+
+.total-eventos {
+  margin: 0;
+  color: #ccff00;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ============================================================================
+   RESPONSIVE (HU-7.9)
+   ============================================================================ */
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+  .filters-container-advanced {
+    padding: 15px;
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr; /* Una columna en móviles */
+    gap: 12px;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .btn-limpiar-filtros,
+  .view-controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .resultado-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .filtros-activos-resumen {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Móviles pequeños (max-width: 480px) */
+@media (max-width: 480px) {
+  .filter-label {
+    font-size: 0.75rem;
+  }
+
+  .filter-input,
+  .filter-select {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .btn-limpiar-filtros {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+  }
+
+  .filtro-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+}
+
+/* ============================================================================
+   MEJORAS VISUALES (HU-7.9)
+   ============================================================================ */
+
+/* Animación al cargar */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filters-container-advanced {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Efecto hover en inputs */
+.filter-input:hover,
+.filter-select:hover {
+  border-color: #ccff00;
+}
+
+/* Indicador de carga */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  border: 4px solid #333;
+  border-top: 4px solid #ccff00;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   ACCESIBILIDAD (HU-7.1)
+   ============================================================================ */
+
+/* Focus visible para teclado */
+.filter-input:focus-visible,
+.filter-select:focus-visible,
+.btn-limpiar-filtros:focus-visible {
+  outline: 2px solid #ccff00;
+  outline-offset: 2px;
+}
+
+/* Asegurar contraste suficiente */
+.filter-label,
+.mensaje-resultado {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
