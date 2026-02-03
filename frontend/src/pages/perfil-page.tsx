@@ -253,6 +253,9 @@ export default function PerfilPage() {
             
             setTimeout(() => setSuccessMsg(null), 3000);
 
+            // Esto hace que la pantalla suba sola hasta arriba
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
         } catch (err: any) {
             console.error("Error al cancelar:", err);
             const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
