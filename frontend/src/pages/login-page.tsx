@@ -39,7 +39,7 @@ export default function LoginPage() {
     return (
       <div className="login-page">
         <h2>Ya estás logueado ✅</h2>
-        <p>Hola, {user.nombre}</p>
+        <p>Hola, {user.nombre_y_apellido}</p>
         <button
           onClick={() => {
             logout();
