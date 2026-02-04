@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { exportReporteCSV } from "../services/eventos";
+import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; // Usamos tus services
 import "../styles/reportes.css";
 
 interface ReporteData {
@@ -17,7 +17,6 @@ interface ReporteData {
   mis_notificaciones?: any[];
 }
 
-
 export default function ReportesPage() {
   const [reporteData, setReporteData] = useState<ReporteData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -25,65 +24,34 @@ export default function ReportesPage() {
   const [exportando, setExportando] = useState<string | null>(null);
 
   // 1. DATOS DE SESIÓN Y ROL
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || "";
   const rolGuardado = localStorage.getItem("rol");
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
   useEffect(() => {
-    if (token && token !== "undefined") {
+    if (token && token !== "undefined" && token !== "null") {
       cargarReportes();
     } else {
       setLoading(false);
     }
   }, [token]);
 
-  // --- PROTECCIÓN DE ACCESO ---
-  if (!token || token === "undefined") {
-    return (
-      <div className="reportes-page">
-        <div className="reportes-alert reportes-alert--error">
-          <span className="reportes-alert__icon">🔒</span>
-          <span className="reportes-alert__message">Debes iniciar sesión para acceder a los reportes.</span>
-          <button onClick={() => window.location.href = "/login"} className="reportes-alert__retry">Ir al Login</button>
-        </div>
-      </div>
-    );
-  }
-
   const cargarReportes = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const baseUrl = import.meta.env.VITE_API_URL;
-      
-      const response = await fetch(`${baseUrl}/reportes/`, {      
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-      });
-
-      // Evitar error de JSON si devuelve HTML (<!doctype)
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("El servidor devolvió una respuesta no válida (HTML). Verifica la ruta de la API.");
-      }
-
-      // Si el servidor dice que el token no vale (401), mandarlo al login
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-        return;
-      }
-
-      if (!response.ok) throw new Error("Error en la respuesta del servidor");
-      
-      const data = await response.json();
+      // Usamos el service en lugar de fetch directo para mayor limpieza
+      const data = await getReporteGeneral(token || "");
       setReporteData(data);
     } catch (err: any) {
       console.error("Error:", err);
-      setError(err.message || "Error al conectar con el servidor");
+      // Si el error es 401, realmente no estamos autorizados
+      if (err.response?.status === 401) {
+        setError("Tu sesión ha expirado. Por favor, reingresa.");
+      } else {
+        setError("No se pudieron cargar los datos del reporte.");
+      }
     } finally {
       setLoading(false);
     }
@@ -91,12 +59,12 @@ export default function ReportesPage() {
 
   const handleExportarCSV = async (tipo: string) => {
     try {
-      setExportando(tipo);
-      await exportReporteCSV(tipo, token || "");
+      setExportando(tipo); // Bloquea el botón específico
+      await exportReporteCSV(tipo, token);
     } catch (err) {
-      alert("Error al exportar");
+      alert("Error al exportar el reporte CSV");
     } finally {
-      setExportando(null);
+      setExportando(null); // Desbloquea
     }
   };
 
@@ -106,10 +74,9 @@ export default function ReportesPage() {
   const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
   // --- MÉTODOS DE RENDERIZADO DE GRÁFICOS ---
-  
   const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
-    if (!data || data.length === 0) return <p>Sin datos</p>;
-    const maxValue = Math.max(...data.map(item => item[valueKey]));
+    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+    const maxValue = Math.max(...data.map(item => item[valueKey]), 1);
     return (
       <div className="grafico-barras">
         {data.map((item, index) => (
@@ -127,42 +94,27 @@ export default function ReportesPage() {
   };
 
   const renderGraficoLinea = (data: any[]) => {
-  if (!data || data.length === 0) return <p>Sin datos</p>;
+    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+    const dataOrdenada = [...data].sort((a, b) => a.anio !== b.anio ? a.anio - b.anio : a.mes - b.mes);
+    const maxValue = Math.max(...dataOrdenada.map(item => item.cantidad), 1);
 
-  // 1. ORDENAR CRONOLÓGICAMENTE
-  const dataOrdenada = [...data].sort((a, b) => {
-    // Si el año es distinto, ordena por año
-    if (a.anio !== b.anio) return a.anio - b.anio;
-    // Si el año es igual, ordena por mes
-    return a.mes - b.mes;
-  });
-
-  const maxValue = Math.max(...dataOrdenada.map(item => item.cantidad), 1);
-
-  return (
-    <div className="grafico-linea">
-      <div className="grafico-linea__grid">
-        {dataOrdenada.map((item, index) => (
-          <div key={index} className="grafico-linea__columna">
-            <span style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '5px' }}>
-              {item.cantidad}
-            </span>
-            <div 
-              className="grafico-linea__barra" 
-              style={{ height: `${(item.cantidad / maxValue) * 80}%` }}
-            ></div>
-            <div className="grafico-linea__label">
-              {getNombreMes(item.mes)} <br/> {item.anio}
+    return (
+      <div className="grafico-linea">
+        <div className="grafico-linea__grid">
+          {dataOrdenada.map((item, index) => (
+            <div key={index} className="grafico-linea__columna">
+              <span className="grafico-linea__count">{item.cantidad}</span>
+              <div className="grafico-linea__barra" style={{ height: `${(item.cantidad / maxValue) * 80}%` }}></div>
+              <div className="grafico-linea__label">{getNombreMes(item.mes)}<br/>{item.anio}</div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   const renderGraficoPie = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
-    if (!data || data.length === 0) return <p>Sin datos</p>;
+    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const total = data.reduce((sum, item) => sum + item[valueKey], 0);
     const colores = ["#ff6b35", "#ffa500", "#4caf50", "#2196f3", "#9c27b0"];
     return (
@@ -172,7 +124,7 @@ export default function ReportesPage() {
             <div className="grafico-pie__color" style={{ backgroundColor: colores[index % colores.length] }}></div>
             <div className="grafico-pie__info">
               <span className="grafico-pie__label">{getLabelFn ? getLabelFn(item[labelKey]) : item[labelKey]}</span>
-              <span className="grafico-pie__valor">{item[valueKey]} ({((item[valueKey]/total)*100).toFixed(1)}%)</span>
+              <span className="grafico-pie__valor">{item[valueKey]} ({((item[valueKey] / (total || 1)) * 100).toFixed(1)}%)</span>
             </div>
           </div>
         ))}
@@ -180,81 +132,170 @@ export default function ReportesPage() {
     );
   };
 
-  if (loading) return <div className="reportes-page"><div className="spinner-large"></div><p>Cargando datos...</p></div>;
+  // --- PROTECCIÓN ---
+  // Si está cargando, mostramos el spinner PRIMERO
+  if (loading) {
+  return (
+    <div className="reportes-page"> 
+      <div className="reportes-loading">
+        <div className="spinner-large"></div>
+        <p>Verificando credenciales...</p>
+      </div>
+    </div>
+    );
+  }
+
+  // Si después de cargar, el token sigue sin existir, mostramos el bloqueo
+  if (!token || token === "undefined" || token === "null") {
+    return (
+      <div className="reportes-page">
+        <div className="reportes-alert reportes-alert--error">
+          <span className="reportes-alert__icon">🔒</span>
+          <span className="reportes-alert__message">Debes iniciar sesión para acceder.</span>
+          <button onClick={() => window.location.href = "/login"} className="reportes-alert__retry">Ir al Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Lógica extra: Contar pendientes para la alerta
+  const pendientesCount = reporteData?.eventos_por_estado?.find(e => e.estado === 1)?.cantidad || 0;
 
   return (
     <div className="reportes-page">
       <div className="reportes-page__container">
+
+          {/* NUEVO BOTÓN VOLVER AL INICIO*/}
+          <div className="reportes-back-container">
+            <button className="btn-back-home" onClick={() => window.location.href = '/'}>
+              <span className="back-icon">←</span>
+              Volver al Inicio
+            </button>
+          </div>
+
+        {/* HEADER */}
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
-            <p className="reportes-header__subtitle">Información analítica del sistema</p>
+            <p className="reportes-header__subtitle">Gestión centralizada de datos</p>
           </div>
-          <button onClick={cargarReportes} className="reportes-header__refresh">↻ Actualizar</button>
+          <button onClick={cargarReportes} className="reportes-header__refresh">↻ Actualizar Datos</button>
         </div>
 
+        {/* ALERTAS DINÁMICAS */}
         {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
+        {usuarioRol <= 2 && pendientesCount > 0 && (
+          <div className="reportes-alert reportes-alert--warning">
+            🔔 Tienes <strong>{pendientesCount}</strong> eventos pendientes de revisión.
+          </div>
+        )}
 
         {/* TARJETAS RESUMEN */}
         <div className="reportes-resumen">
           <div className="stat-card stat-card--primary">
             <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
-            <div className="stat-card__label">Total Eventos</div>
+            <div className="stat-card__label">Total Eventos Sistema</div>
           </div>
           <div className="stat-card stat-card--success">
             <div className="stat-card__valor">{reporteData?.usuarios_total || 0}</div>
-            <div className="stat-card__label">Usuarios</div>
+            <div className="stat-card__label">Usuarios Registrados</div>
           </div>
           <div className="stat-card stat-card--info">
             <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
-            <div className="stat-card__label">Mis Eventos</div>
+            <div className="stat-card__label">Mis Eventos Creados</div>
           </div>
         </div>
 
-        {/* SECCIÓN DE GRÁFICOS */}
+        {/* SECCIÓN DE GRÁFICOS GRID */}
         <div className="reportes-graficos">
           
-          {/* Eventos por Mes (Línea) - Admin/Supervisor */}
+          {/* 1. Tendencia Mensual (Ancho completo) */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_mes && (
             <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
                 <h3>📅 Tendencia Mensual de Eventos</h3>
-                <button onClick={() => handleExportarCSV("eventos_por_mes")}>📥 CSV</button>
+                <button 
+                  disabled={exportando === "eventos_por_mes"}
+                  onClick={() => handleExportarCSV("eventos_por_mes")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_mes" ? "Generando..." : "📥 CSV"}
+                </button>
               </div>
               <div className="grafico-card__body">{renderGraficoLinea(reporteData.eventos_por_mes)}</div>
             </div>
           )}
 
-          {/* Usuarios por Rol (Pie) - Solo Admin */}
+          {/* 2. Usuarios por Rol */}
           {usuarioRol === 1 && reporteData?.usuarios_por_rol && (
             <div className="grafico-card">
               <div className="grafico-card__header">
-                <h3>🎭 Usuarios por Rol</h3>
-                <button onClick={() => handleExportarCSV("usuarios_por_rol")}>📥 CSV</button>
+                <h3>🎭 Distribución por Roles</h3>
+                <button 
+                  disabled={exportando === "usuarios_por_rol"}
+                  onClick={() => handleExportarCSV("usuarios_por_rol")}
+                  className="btn-export"
+                >
+                  {exportando === "usuarios_por_rol" ? "..." : "📥 CSV"}
+                </button>
               </div>
               <div className="grafico-card__body">{renderGraficoPie(reporteData.usuarios_por_rol, "rol", "cantidad", getNombreRol)}</div>
             </div>
           )}
 
-          {/* Mis Eventos por Estado (Barras) - Todos */}
+          {/* 3. Mis Eventos por Estado */}
           {reporteData?.mis_eventos_por_estado && (
             <div className="grafico-card">
               <div className="grafico-card__header">
-                <h3>📊 Mi Actividad por Estado</h3>
-                <button onClick={() => handleExportarCSV("mis_eventos_por_estado")}>📥 CSV</button>
+                <h3>📊 Mi Actividad (Estados)</h3>
+                <button 
+                  disabled={exportando === "mis_eventos_por_estado"}
+                  onClick={() => handleExportarCSV("mis_eventos_por_estado")}
+                  className="btn-export"
+                >
+                  {exportando === "mis_eventos_por_estado" ? "..." : "📥 CSV"}
+                </button>
               </div>
               <div className="grafico-card__body">{renderGraficoBarras(reporteData.mis_eventos_por_estado, "estado", "cantidad", getNombreEstado)}</div>
             </div>
           )}
 
-          {/* Eventos por Tipo (Pie) */}
+          {/* 4. Eventos por Tipo */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
             <div className="grafico-card">
               <div className="grafico-card__header">
-                <h3>🏃‍♂️ Eventos por Tipo</h3>
-                <button onClick={() => handleExportarCSV("eventos_por_tipo")}>📥 CSV</button>
+                <h3>🏃‍♂️ Categorías de Eventos</h3>
+                <button 
+                  disabled={exportando === "eventos_por_tipo"}
+                  onClick={() => handleExportarCSV("eventos_por_tipo")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
+                </button>
               </div>
               <div className="grafico-card__body">{renderGraficoPie(reporteData.eventos_por_tipo, "tipo", "cantidad")}</div>
+            </div>
+          )}
+
+          {/* 5. Historial/Auditoría (Placeholder para futura tabla) */}
+          {(usuarioRol <= 2) && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🕵️ Auditoría de Cambios</h3>
+                <button 
+                  disabled={exportando === "auditoria"}
+                  onClick={() => handleExportarCSV("auditoria")}
+                  className="btn-export"
+                >
+                  {exportando === "auditoria" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                 <p style={{fontSize: '0.9rem', color: '#e0e0e0'}}>
+                   Registro de intervenciones realizadas por administradores en eventos de terceros.
+                 </p>
+                 <div className="audit-badge">Auditoría Activa</div>
+              </div>
             </div>
           )}
 
