@@ -4,6 +4,7 @@ from .admin_eventos import router as admin_eventos_router
 from .registro_evento import router as eventos_router 
 from .editar_evento import router as editar_evento_router 
 from .calendario import router as calendario_router
+from .reportes import router as reportes_router
 from .perfil import router as perfil_router
 
 routers = [
@@ -13,5 +14,6 @@ routers = [
     router_evento_solicitud,
     admin_eventos_router,
     editar_evento_router,
+    reportes_router,
     perfil_router
 ]

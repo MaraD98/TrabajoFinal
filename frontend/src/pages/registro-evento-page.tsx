@@ -37,7 +37,7 @@ export default function CreateEventPage() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!token) {
-    alert("Debes estar logueada para crear eventos");
+    alert("Debes estar logueado para crear eventos");
     return;
   }
   if (formData.lat === null || formData.lng === null) {
