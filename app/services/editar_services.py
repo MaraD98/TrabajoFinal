@@ -151,8 +151,19 @@ class EditarEventoService:
         
         # Pasa a Publicado (3)
         evento.id_estado = 3 
-        db.commit()
-        return {"mensaje": "Evento aprobado y publicado exitosamente."}
+        try:
+            db.commit()
+            
+            # --- NOTIFICACIÓN POR APROBACIÓN ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=evento.id_usuario,
+                mensaje=f"¡Buenas noticias! Tu evento '{evento.nombre_evento}' ha sido aprobado y ya está visible para todos."
+            )
+            return {"mensaje": "Evento aprobado y publicado exitosamente."}
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Error al aprobar el evento.")
 
     @staticmethod
     def rechazar_y_revertir(db: Session, id_evento: int):
@@ -195,6 +206,12 @@ class EditarEventoService:
             evento.id_estado = 3 
             
             db.commit()
+            # --- NOTIFICACIÓN POR RECHAZO ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=evento.id_usuario,
+                mensaje=f"Los cambios recientes en tu evento '{evento.nombre_evento}' no fueron aprobados y se restauró la versión anterior."
+            )
             return {"mensaje": "Cambios rechazados. Se ha restaurado la versión anterior."}
             
         except Exception as e:
