@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom'; // <--- Agregamos useLocation
 import { getEventosCalendario } from '../services/eventos'; 
-import '../styles/Calendario.css';
+import '../styles/calendario.css';
 // IMPORTANTE: Ajusta la ruta de tu logo aquí
 import logoWakeUp from '../assets/wakeup-logo.png'; 
 
