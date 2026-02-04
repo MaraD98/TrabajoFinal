@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 // import axios from 'axios'; 
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
@@ -20,7 +20,7 @@ interface Evento {
   id_dificultad?: number;
   nombre_dificultad?: string;
   cupo_maximo?: number;
-  cupos_disponibles?: number | null; // Puede venir null si es libre
+  cupos_disponibles?: number | null; 
   esta_lleno?: boolean; 
 }
 
@@ -35,9 +35,12 @@ const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL + i);
 
 export default function CalendarioPage() {
   const location = useLocation(); 
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  // Asumimos que logout viene del hook, si no, puedes agregar la lógica manual
+  const { user, logout } = useAuth(); 
   // const apiUrl = import.meta.env.VITE_API_URL; 
+  const [localUserName] = useState<string>("Usuario"); 
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -128,7 +131,6 @@ export default function CalendarioPage() {
     const fechaBuscada = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
     return (Array.isArray(eventos) ? eventos : []).filter(evento => {
         if (!evento.fecha_evento) return false;
-        
         const fechaEventoStr = String(evento.fecha_evento).substring(0, 10);
         return fechaEventoStr === fechaBuscada;
     });
@@ -181,6 +183,8 @@ export default function CalendarioPage() {
       }
   };
 
+
+
   const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
     
@@ -197,7 +201,6 @@ export default function CalendarioPage() {
 
     try {
         await inscribirseEvento(idEventoSeleccionado);
-        
         setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
         
         setTimeout(() => {
@@ -208,7 +211,6 @@ export default function CalendarioPage() {
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
-        
         if (error.response && error.response.data && error.response.data.detail) {
             setMsgError(error.response.data.detail);
         } else {
@@ -251,6 +253,7 @@ export default function CalendarioPage() {
             </div>
 
             <div className="header-right">
+                {/* SELECTORES DE FECHA */}
                 <div className="select-wrapper">
                     <select 
                         value={mes} 
@@ -274,12 +277,56 @@ export default function CalendarioPage() {
                         ))}
                     </select>
                 </div>
+
+                {/* --- MENÚ DE USUARIO DESPLEGABLE --- */}
+                {user ? (
+                        <div className="user-menu-container" ref={dropdownRef}>
+                            <button
+                                className="user-menu-trigger"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            >
+                                <span className="user-icon">👤</span>
+                                <span className="user-name">{localUserName}</span>
+                                <span className="dropdown-arrow">▼</span>
+                            </button>
+
+                            {isDropdownOpen && (
+                                <div className="user-dropdown">
+                                    <div className="dropdown-header">MI CUENTA</div>
+                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        👤 Mi Perfil
+                                    </Link>
+
+                                    <div className="dropdown-header">MIS EVENTOS</div>
+                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                         Inscriptos
+                                    </Link>
+                                    <Link to="/mis-eventos/creados" className="dropdown-item">
+                                        Creados
+                                    </Link>
+                                    
+                                    <div className="dropdown-divider"></div>
+                                    
+                                    <button
+                                        onClick={logout}
+                                        className="dropdown-item logout-button"
+                                    >
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
+                    )}
             </div>
         </header>
 
       <div className="calendario-wrapper">
         {cargando ? (
           <div className="calendario-cargando">
+             <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
              <p className="loader-texto no-select">Cargando eventos...</p>
           </div>
         ) : (
@@ -341,22 +388,16 @@ export default function CalendarioPage() {
                             {eventosDia.map((e) => {
                                 const estaAbierto = idEventoSeleccionado === e.id_evento;
                                 const claseDificultad = getClaseDificultad(e.nombre_dificultad);
-
-                                // --- LÓGICA DE CUPOS CORREGIDA ---
                                 const cupoMaximo = e.cupo_maximo;
                                 const cuposDisponibles = e.cupos_disponibles;
-
-                                // 1. ¿Es un evento con cupo limitado? (Si es 0 o null, es ilimitado)
                                 const esCupoLimitado = cupoMaximo !== undefined && cupoMaximo !== null && cupoMaximo > 0;
 
-                                // 2. Definimos si está agotado SOLO si es limitado
                                 let estaAgotado = false;
                                 if (esCupoLimitado) {
                                     if (cuposDisponibles !== undefined && cuposDisponibles !== null) {
                                         estaAgotado = cuposDisponibles <= 0;
                                     }
                                 }
-                                // --------------------------------
 
                                 return (
                                 <div key={e.id_evento} className={`evento-card ${estaAbierto ? 'abierto' : ''}`}>
@@ -378,7 +419,6 @@ export default function CalendarioPage() {
                                                 {e.nombre_tipo || 'Ruta'}
                                             </span>
                                             
-                                            {/* BADGE DE CUPO INTELIGENTE */}
                                             {estaAgotado ? (
                                                 <span className="badge-cupo agotado" style={{backgroundColor: '#ff4444', color: 'white', border: '1px solid #ff0000'}}>
                                                     ⛔ ¡AGOTADO!
@@ -465,7 +505,7 @@ export default function CalendarioPage() {
                                                     />
                                                 </div>
                                                 <button type="submit" className="btn-confirmar" disabled={enviando}>
-                                                    {enviando ? 'PROCESANDO...' : 'CONFIRMAR ASISTENCIA'}
+                                                    {enviando ? 'ENVIANDO...' : 'CONFIRMAR INSCRIPCIÓN'}
                                                 </button>
                                             </form>
                                         </div>
@@ -474,9 +514,9 @@ export default function CalendarioPage() {
                                 );
                             })}
                         </div>
-                    )
+                    );
                 } else {
-                    return <p className="mensaje-vacio no-select">No hay salidas programadas para hoy.</p>
+                    return <p className="mensaje-vacio">No hay eventos programados para este día.</p>;
                 }
             })()}
           </div>

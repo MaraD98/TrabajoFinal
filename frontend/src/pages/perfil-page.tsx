@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/inicio.css';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/auth-context';
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -114,6 +116,10 @@ export default function PerfilPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
+    const { user, logout } = useAuth();
+    const [localUserName] = useState<string>("Usuario"); 
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     // 1. LEER URL Y CARGAR PERFIL
     useEffect(() => {
@@ -278,7 +284,48 @@ export default function PerfilPage() {
 
     return (
         <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
-            
+            {user ? (
+                        <div className="user-menu-container" ref={dropdownRef}>
+                            <button
+                                className="user-menu-trigger"
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            >
+                                <span className="user-icon">👤</span>
+                                <span className="user-name">{localUserName}</span>
+                                <span className="dropdown-arrow">▼</span>
+                            </button>
+
+                            {isDropdownOpen && (
+                                <div className="user-dropdown">
+                                    <div className="dropdown-header">MI CUENTA</div>
+                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        👤 Mi Perfil
+                                    </Link>
+
+                                    <div className="dropdown-header">MIS EVENTOS</div>
+                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                         Inscriptos
+                                    </Link>
+                                    <Link to="/mis-eventos/creados" className="dropdown-item">
+                                        Creados
+                                    </Link>
+                                    
+                                    <div className="dropdown-divider"></div>
+                                    
+                                    <button
+                                        onClick={logout}
+                                        className="dropdown-item logout-button"
+                                    >
+                                        Cerrar Sesión
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
+                    )}
+
             <div className="section-header">
                 <h2 className="section-title">Mi Cuenta</h2>
             </div>

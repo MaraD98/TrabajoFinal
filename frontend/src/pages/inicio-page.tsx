@@ -6,6 +6,7 @@ import { getEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 
+
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
 const IMAGENES_TIPO: Record<number | string, string> = {
