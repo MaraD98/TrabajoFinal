@@ -12,17 +12,12 @@ import ProtectedRoute from "./components/protected-route";
 import RegisterPage from './pages/register-page';
 import CalendarioPage from "./pages/calendario-page";
 import SolicitudEventoPage from './pages/solicitud-evento-page';
-// 👇 NUEVA IMPORTACIÓN (La página de inicio estilo WakeUp)
 import InicioPage from "./pages/inicio-page";
 import ForgotPasswordPage from "./pages/forgot-password-page";
-
-// 👇 3. AGREGADO: Importamos la página de Mis Eventos
 import MisEventosPage from "./pages/mis-eventos-page"; 
-// 👇 AGREGADO: DASHBOARD DE ADMIN
 import AdminDashboardPage from "./pages/admin-dashboard-page";
-// 👇 NUEVO IMPORT: La página de perfil
 import PerfilPage from "./pages/perfil-page";
-
+import NotificacionesPage from './pages/notificaciones-page';
 function App() {
   return (
     <AuthProvider>
@@ -52,7 +47,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           {/* 2. Mis Eventos (AGREGADA) */}
           <Route path="/mis-eventos"
             element={
@@ -75,6 +69,7 @@ function App() {
 
           {/* 👇 NUEVA RUTA: Mi Perfil */}
           <Route path="/perfil" element={<PerfilPage />} />
+          <Route path="/notificaciones" element={<NotificacionesPage />} />
 
         </Routes>
       </Router>

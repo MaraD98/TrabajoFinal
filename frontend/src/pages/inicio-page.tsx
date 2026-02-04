@@ -5,6 +5,7 @@ import logoWakeUp from '../assets/wakeup-logo.png';
 import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
+import { NotificacionesBadge } from '../components/notificaciones-badge';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
@@ -261,6 +262,8 @@ export default function InicioPage() {
                     <Link to="/" className="hero-logo-link">
                         <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
                     </Link>
+                    <div className="navbar-actions">
+                        <NotificacionesBadge />
 
                     {user ? (
                         <div className="user-menu-container" ref={dropdownRef}>
@@ -278,9 +281,6 @@ export default function InicioPage() {
                                     <div className="dropdown-header">MI CUENTA</div>
                                     <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
-                                    </Link>
-                                    <Link to="/notificaciones" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        🔔 Mis notificaciones
                                     </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
@@ -305,6 +305,7 @@ export default function InicioPage() {
                     ) : (
                         <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
                     )}
+                    </div>
                 </nav>
                 <div className="hero-content">
                     <h1>Siente la Adrenalina</h1>

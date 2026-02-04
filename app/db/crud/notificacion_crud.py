@@ -4,7 +4,7 @@ from typing import List, Optional
 
 class NotificacionCRUD:
     @staticmethod
-    def create_notificacion(db: Session, id_usuario: int, id_estado_solicitud: int, mensaje: str) -> Notificacion:
+    def create_notificacion(db: Session, id_usuario: int, id_estado_solicitud: Optional[int], mensaje: str) -> Notificacion:
         nueva_notificacion = Notificacion(
             id_usuario=id_usuario,
             id_estado_solicitud=id_estado_solicitud,
