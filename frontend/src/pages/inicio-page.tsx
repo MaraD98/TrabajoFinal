@@ -251,6 +251,33 @@ export default function InicioPage() {
         return IMAGENES_TIPO.default;
     };
 
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR RUTA DE CREACIÓN DE EVENTO SEGÚN ROL
+    // ============================================================================
+    const obtenerRutaCrearEvento = () => {
+        if (!user) return "/login";
+        
+        // Roles 1 y 2 (Admin/Organizador) → /registro-evento
+        if (user.id_rol === 1 || user.id_rol === 2) {
+            return "/registro-evento";
+        }
+        
+        // Roles 3 y 4 (Usuario Externo/Otro) → /publicar-evento
+        if (user.id_rol === 3 || user.id_rol === 4) {
+            return "/publicar-evento";
+        }
+        
+        // Por defecto
+        return "/publicar-evento";
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
+    // ============================================================================
+    const mostrarBotonPanelAdmin = () => {
+        return user && (user.id_rol === 1 || user.id_rol === 2);
+    };
+
     if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
     if (error) return <div style={{ color: 'red', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{error}</div>;
 
@@ -283,14 +310,39 @@ export default function InicioPage() {
                                         📑 Mis Reportes
                                     </Link>
 
-                                    <div className="dropdown-header">MIS EVENTOS</div>
-                                    <Link to="/mis-eventos/inscriptos" className="dropdown-item">
+                                    <div className="dropdown-header">EVENTOS</div>
+                                    <Link to="/mis-eventos?tab=inscriptos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item">
-                                        Creados
+                                    <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Mis Eventos
                                     </Link>
                                     
+                                    <div className="dropdown-divider"></div>
+                                    <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Crear Evento
+                                    </Link>
+                                    
+
+                                    {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
+                                    {mostrarBotonPanelAdmin() && (
+                                        <>
+                                            <div className="dropdown-divider"></div>
+                                            <Link 
+                                                to="/admin" 
+                                                className="dropdown-item"
+                                                style={{ 
+                                                    backgroundColor: '#ff6600', 
+                                                    color: '#fff',
+                                                    fontWeight: 'bold'
+                                                }}
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                ⚙️ Panel de Administrador
+                                            </Link>
+                                        </>
+                                    )}
+
                                     <div className="dropdown-divider"></div>
                                     
                                     <button
