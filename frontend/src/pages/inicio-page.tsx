@@ -279,6 +279,9 @@ export default function InicioPage() {
                                     <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
                                     </Link>
+                                    <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        📑 Mis Reportes
+                                    </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
                                     <Link to="/mis-eventos/inscriptos" className="dropdown-item">
