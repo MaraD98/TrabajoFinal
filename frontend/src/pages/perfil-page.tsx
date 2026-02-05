@@ -307,6 +307,21 @@ export default function PerfilPage() {
                 padding: '0 20px' 
             }}>
                 
+                <Link
+                  to="/"
+                  className="btn-volver-inicio"
+                  style={{
+                    position: 'fixed',
+                    left: '60px',
+                    top: '40px'
+                  }}
+                >
+                  <span className="icono-flecha">←</span>
+                  <span className="texto-volver">VOLVER AL INICIO</span>
+                </Link>
+
+
+
                 {/* Título Centrado */}
                 <h2 className="section-title" style={{ margin: 0, textAlign: 'center' }}>Mi Cuenta</h2>
 
