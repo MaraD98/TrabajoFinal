@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-// import axios from 'axios'; 
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/Calendario.css';

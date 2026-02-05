@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/inicio.css'; 
 import logoWakeUp from '../assets/wakeup-logo.png';
-import { getEventos } from '../services/eventos';
+import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 
@@ -23,6 +23,11 @@ const NOMBRES_TIPO: Record<number | string, string> = {
     3: "Entrenamiento",
     4: "Cicloturismo"
 };
+
+interface CatalogoItem {
+  id: number;
+  nombre: string;
+}
 
 interface Evento {
     id_evento: number;
@@ -48,7 +53,25 @@ export default function InicioPage() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- FIX DEFINITIVO PARA EL NOMBRE ---
+    // ============================================================================
+    // ✅ ESTADOS DE FILTROS (SIN DEBOUNCE - Se aplican al presionar botón)
+    // ============================================================================
+    const [busqueda, setBusqueda] = useState("");
+    const [ubicacion, setUbicacion] = useState("");
+    const [fechaDesde, setFechaDesde] = useState("");
+    const [fechaHasta, setFechaHasta] = useState("");
+    const [tipoSeleccionado, setTipoSeleccionado] = useState<number | undefined>();
+    const [dificultadSeleccionada, setDificultadSeleccionada] = useState<number | undefined>();
+
+    // Catálogos
+    const [tiposEvento, setTiposEvento] = useState<CatalogoItem[]>([]);
+    const [nivelesDificultad, setNivelesDificultad] = useState<CatalogoItem[]>([]);
+
+    // Metadata
+    const [totalEventos, setTotalEventos] = useState(0);
+    const [mensajeResultado, setMensajeResultado] = useState("");
+    const [mostrarFiltros, setMostrarFiltros] = useState(false);
+
     useEffect(() => {
         const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
         if (storedUser) {
@@ -76,7 +99,6 @@ export default function InicioPage() {
         }
     }, [user]);
 
-    // --- LÓGICA DE DIFICULTAD ---
     const getClaseDificultad = (dificultad?: string) => {
         const dif = dificultad?.toLowerCase() || '';
         if (dif.includes('experto') || dif.includes('avanzado')) return '#ff4444'; 
@@ -97,34 +119,118 @@ export default function InicioPage() {
         };
     }, [dropdownRef]);
 
+    // ============================================================================
+    // ✅ CARGA INICIAL: Cargar catálogos y eventos al montar
+    // ============================================================================
     useEffect(() => {
-        const cargarEventos = async () => {
-            try {
-                const data = await getEventos();
-                const hoy = new Date();
-                hoy.setHours(0, 0, 0, 0);
-
-                const eventosProcesados = data
-                    .filter((evento: Evento) => {
-                        const fechaEvento = new Date(evento.fecha_evento);
-                        return fechaEvento >= hoy;
-                    })
-                    .sort((a: Evento, b: Evento) => {
-                        const fechaA = new Date(a.fecha_evento).getTime();
-                        const fechaB = new Date(b.fecha_evento).getTime();
-                        return fechaA - fechaB;
-                    });
-
-                setEventos(eventosProcesados);
-            } catch (err) {
-                console.error(err);
-                setError('No se pudieron cargar los eventos.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        cargarEventos();
+        cargarCatalogos();
+        cargarEventos(); // Carga inicial sin filtros
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const cargarCatalogos = async () => {
+        try {
+            const catalogos = await obtenerCatalogosParaFiltros();
+            setTiposEvento(catalogos.tipos_evento || []);
+            setNivelesDificultad(catalogos.niveles_dificultad || []);
+        } catch (error) {
+            console.error("Error cargando catálogos:", error);
+        }
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN DE CARGA (Se ejecuta manualmente al presionar "Aplicar Filtros")
+    // ============================================================================
+    const cargarEventos = async () => {
+        setLoading(true);
+        try {
+            const filtros: FiltrosEventos = {};
+            
+            // Solo agregar filtros si tienen valor
+            if (busqueda.trim()) filtros.busqueda = busqueda.trim();
+            if (fechaDesde) filtros.fecha_desde = fechaDesde;
+            if (fechaHasta) filtros.fecha_hasta = fechaHasta;
+            if (ubicacion.trim()) filtros.ubicacion = ubicacion.trim();
+            if (tipoSeleccionado) filtros.id_tipo = tipoSeleccionado;
+            if (dificultadSeleccionada) filtros.id_dificultad = dificultadSeleccionada;
+
+            const resultado = await buscarEventosConFiltros(filtros);
+            const eventosFiltrados = resultado.eventos || [];
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            // Filtrar solo eventos futuros (el backend ya lo hace, pero doble validación)
+            const eventosProcesados = eventosFiltrados
+                .filter((evento: Evento) => {
+                    const fechaEvento = new Date(evento.fecha_evento);
+                    return fechaEvento >= hoy;
+                })
+                .sort((a: Evento, b: Evento) => {
+                    const fechaA = new Date(a.fecha_evento).getTime();
+                    const fechaB = new Date(b.fecha_evento).getTime();
+                    return fechaA - fechaB;
+                });
+
+            setEventos(eventosProcesados);
+            setTotalEventos(resultado.total);
+            setMensajeResultado(resultado.mensaje);
+        } catch (err) {
+            console.error(err);
+            setError('No se pudieron cargar los eventos.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA APLICAR FILTROS (Botón manual)
+    // ============================================================================
+    const aplicarFiltros = () => {
+        cargarEventos();
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA LIMPIAR FILTROS
+    // ============================================================================
+    const limpiarFiltros = async () => {
+        // Limpiar todos los estados
+        setBusqueda("");
+        setUbicacion("");
+        setFechaDesde("");
+        setFechaHasta("");
+        setTipoSeleccionado(undefined);
+        setDificultadSeleccionada(undefined);
+        
+        // Recargar eventos sin filtros (llamada directa sin esperar estados)
+        setLoading(true);
+        try {
+            // Llamar al backend sin filtros (objeto vacío)
+            const resultado = await buscarEventosConFiltros({});
+            const eventosFiltrados = resultado.eventos || [];
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
+            const eventosProcesados = eventosFiltrados
+                .filter((evento: Evento) => {
+                    const fechaEvento = new Date(evento.fecha_evento);
+                    return fechaEvento >= hoy;
+                })
+                .sort((a: Evento, b: Evento) => {
+                    const fechaA = new Date(a.fecha_evento).getTime();
+                    const fechaB = new Date(b.fecha_evento).getTime();
+                    return fechaA - fechaB;
+                });
+
+            setEventos(eventosProcesados);
+            setTotalEventos(resultado.total);
+            setMensajeResultado(resultado.mensaje);
+        } catch (err) {
+            console.error(err);
+            setError('No se pudieron cargar los eventos.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const obtenerImagen = (evento: Evento) => {
         if (evento.multimedia && evento.multimedia.length > 0) {
@@ -144,6 +250,33 @@ export default function InicioPage() {
         const id = evento.id_tipo;
         if (IMAGENES_TIPO[id]) return IMAGENES_TIPO[id];
         return IMAGENES_TIPO.default;
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR RUTA DE CREACIÓN DE EVENTO SEGÚN ROL
+    // ============================================================================
+    const obtenerRutaCrearEvento = () => {
+        if (!user) return "/login";
+        
+        // Roles 1 y 2 (Admin/Organizador) → /registro-evento
+        if (user.id_rol === 1 || user.id_rol === 2) {
+            return "/registro-evento";
+        }
+        
+        // Roles 3 y 4 (Usuario Externo/Otro) → /publicar-evento
+        if (user.id_rol === 3 || user.id_rol === 4) {
+            return "/publicar-evento";
+        }
+        
+        // Por defecto
+        return "/publicar-evento";
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
+    // ============================================================================
+    const mostrarBotonPanelAdmin = () => {
+        return user && (user.id_rol === 1 || user.id_rol === 2);
     };
 
     if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
@@ -174,16 +307,44 @@ export default function InicioPage() {
                                     <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
                                     </Link>
+                                    <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        📑 Mis Reportes
+                                    </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
                                     {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
                                     <Link to="/perfil?tab=inscripciones" className="dropdown-item">
                                          Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item">
-                                        Creados
+                                    <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Mis Eventos
                                     </Link>
                                     
+                                    <div className="dropdown-divider"></div>
+                                    <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Crear Evento
+                                    </Link>
+                                    
+
+                                    {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
+                                    {mostrarBotonPanelAdmin() && (
+                                        <>
+                                            <div className="dropdown-divider"></div>
+                                            <Link 
+                                                to="/admin" 
+                                                className="dropdown-item"
+                                                style={{ 
+                                                    backgroundColor: '#ff6600', 
+                                                    color: '#fff',
+                                                    fontWeight: 'bold'
+                                                }}
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                ⚙️ Panel de Administrador
+                                            </Link>
+                                        </>
+                                    )}
+
                                     <div className="dropdown-divider"></div>
                                     
                                     <button
@@ -209,10 +370,175 @@ export default function InicioPage() {
             <section id="eventos" className="eventos-section">
                 <div className="section-header">
                     <h2 className="section-title">Próximos Eventos</h2>
-                    <Link to="/calendario" className="enlace-calendario">
-                        Calendario 2026 ➜
-                    </Link>
+                    <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                        <button 
+                            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+                            className="btn-toggle-filtros"
+                            style={{
+                                background: mostrarFiltros ? '#ccff00' : '#333',
+                                color: mostrarFiltros ? '#000' : '#fff',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                transition: 'all 0.3s'
+                            }}
+                        >
+                            {mostrarFiltros ? '✕ Ocultar Filtros' : '🔍 Mostrar Filtros'}
+                        </button>
+                        <Link to="/calendario" className="enlace-calendario">
+                            Calendario 2026 ➜
+                        </Link>
+                    </div>
                 </div>
+
+                {/* ============================================================================ */}
+                {/* ✅ FILTROS CON BOTÓN MANUAL (SIN DEBOUNCE AUTOMÁTICO) */}
+                {/* ============================================================================ */}
+                {mostrarFiltros && (
+                    <div className="filters-container-advanced" style={{ marginBottom: '30px' }}>
+                        {/* Búsqueda por nombre */}
+                        <div className="filter-row">
+                            <div className="filter-group-full">
+                                <label className="filter-label">🔍 Buscar por nombre del evento</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: Ciclovía, Mountain Bike..." 
+                                    className="filter-input"
+                                    value={busqueda}
+                                    onChange={(e) => setBusqueda(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') aplicarFiltros();
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Fechas */}
+                        <div className="filter-row">
+                            <div className="filter-group">
+                                <label className="filter-label">📅 Desde</label>
+                                <input 
+                                    type="date" 
+                                    className="filter-input"
+                                    value={fechaDesde}
+                                    onChange={(e) => setFechaDesde(e.target.value)}
+                                />
+                            </div>
+                            <div className="filter-group">
+                                <label className="filter-label">📅 Hasta</label>
+                                <input 
+                                    type="date" 
+                                    className="filter-input"
+                                    value={fechaHasta}
+                                    onChange={(e) => setFechaHasta(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Ubicación */}
+                        <div className="filter-row">
+                            <div className="filter-group-full">
+                                <label className="filter-label">📍 Ubicación</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="Ej: Córdoba, Buenos Aires, Rosario..." 
+                                    className="filter-input"
+                                    value={ubicacion}
+                                    onChange={(e) => setUbicacion(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') aplicarFiltros();
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Tipo y Dificultad */}
+                        <div className="filter-row">
+                            <div className="filter-group">
+                                <label className="filter-label">🏆 Tipo de Evento</label>
+                                <select 
+                                    className="filter-select"
+                                    value={tipoSeleccionado || ""} 
+                                    onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)} 
+                                >
+                                    <option value="">Todos los tipos</option>
+                                    {tiposEvento.map(tipo => (
+                                        <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="filter-group">
+                                <label className="filter-label">💪 Dificultad</label>
+                                <select 
+                                    className="filter-select"
+                                    value={dificultadSeleccionada || ""}
+                                    onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}
+                                >
+                                    <option value="">Todas las dificultades</option>
+                                    {nivelesDificultad.map(nivel => (
+                                        <option key={nivel.id} value={nivel.id}>{nivel.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* ✅ BOTONES DE ACCIÓN (APLICAR + LIMPIAR) */}
+                        <div className="filter-actions">
+                            <button 
+                                className="btn-aplicar-filtros"
+                                onClick={aplicarFiltros}
+                                style={{
+                                    background: '#ccff00',
+                                    color: '#000',
+                                    border: 'none',
+                                    padding: '12px 30px',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.3s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                🔍 BUSCAR
+                            </button>
+
+                            <button 
+                                className="btn-limpiar-filtros"
+                                onClick={limpiarFiltros}
+                                style={{
+                                    background: '#ff4444',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '12px 30px',
+                                    borderRadius: '5px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold',
+                                    fontSize: '1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.3s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                🗑️ LIMPIAR FILTROS
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: '15px', color: '#ccff00', fontSize: '0.9rem', textAlign: 'center' }}>
+                            {mensajeResultado} | Total: {totalEventos} eventos
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid-eventos">
                     {eventos.map((evento) => {
