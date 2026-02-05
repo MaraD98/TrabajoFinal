@@ -1,6 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; // Usamos tus services
 import "../styles/reportes.css";
+import { useAuth } from '../context/auth-context';
+import { Link } from 'react-router-dom';
+
+// para el menu desplegable
+import logoWakeUp from '../assets/wakeup-logo.png';
+import axios from 'axios';
+
 
 interface ReporteData {
   total_eventos?: number;
@@ -28,30 +35,69 @@ export default function ReportesPage() {
   const rolGuardado = localStorage.getItem("rol");
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
+  // ... Para el menu desplegable ...
+  const { user, logout, loadingAuth } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [localUserName, setLocalUserName] = useState<string>("Usuario"); 
+
+  
+
+  // Efecto para cerrar el menú al hacer clic afuera
   useEffect(() => {
-    if (token && token !== "undefined" && token !== "null") {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+   useEffect(() => {
+        const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
+        if (storedUser) {
+            try {
+                const parsed = JSON.parse(storedUser);
+                const nombreReal = parsed.nombre_y_apellido || parsed.nombre;
+                if (nombreReal && nombreReal !== "Usuario") {
+                    setLocalUserName(nombreReal);
+                }
+            } catch (e) {
+                console.error("Error leyendo datos locales", e);
+            }
+        }
+
+        const token = localStorage.getItem('token');
+        if (token) {
+            axios.get(`${import.meta.env.VITE_API_URL}/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                const nombreDelServer = res.data.nombre_y_apellido || res.data.nombre;
+                if (nombreDelServer) {
+                    setLocalUserName(nombreDelServer);
+                }
+            }).catch(err => console.log("No se pudo refrescar el nombre desde el servidor", err));
+        }
+    }, [user]);
+
+
+  // CARGAR REPORTES
+  useEffect(() => {
+    if (!loadingAuth && token) {
       cargarReportes();
-    } else {
+    } else if (!loadingAuth && !token) {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, loadingAuth]);
 
   const cargarReportes = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Usamos el service en lugar de fetch directo para mayor limpieza
       const data = await getReporteGeneral(token || "");
       setReporteData(data);
     } catch (err: any) {
-      console.error("Error:", err);
-      // Si el error es 401, realmente no estamos autorizados
-      if (err.response?.status === 401) {
-        setError("Tu sesión ha expirado. Por favor, reingresa.");
-      } else {
-        setError("No se pudieron cargar los datos del reporte.");
-      }
+      setError(err.response?.status === 401 ? "Sesión expirada" : "Error al cargar reportes");
     } finally {
       setLoading(false);
     }
@@ -134,12 +180,12 @@ export default function ReportesPage() {
 
   // --- PROTECCIÓN ---
   // Si está cargando, mostramos el spinner PRIMERO
-  if (loading) {
+  if (loadingAuth || loading) {
   return (
     <div className="reportes-page"> 
       <div className="reportes-loading">
         <div className="spinner-large"></div>
-        <p>Verificando credenciales...</p>
+        <p>Cargando panel...</p>
       </div>
     </div>
     );
@@ -164,6 +210,58 @@ export default function ReportesPage() {
   return (
     <div className="reportes-page">
       <div className="reportes-page__container">
+        <header className="hero-section" style={{ minHeight: 'auto', paddingBottom: '20px' }}>
+          <nav className="hero-navbar">
+            <Link to="/" className="hero-logo-link">
+            <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
+            </Link>
+
+         {/* MENU DESPLEGABLE */}
+        {user ? (
+            <div className="user-menu-container" ref={dropdownRef}>
+                <button
+                    className="user-menu-trigger"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                    <span className="user-icon">👤</span>
+                    <span className="user-name">{user.nombre || localUserName}</span>
+                    <span className="dropdown-arrow">▼</span>
+                </button>
+
+                {isDropdownOpen && (
+                    <div className="user-dropdown">
+                        <div className="dropdown-header">MI CUENTA</div>
+                        <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                            👤 Mi Perfil
+                        </Link>
+                        <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                            📊 Mis Reportes
+                        </Link>
+
+                        <div className="dropdown-header">MIS EVENTOS</div>
+                        <Link to="/mis-eventos/inscriptos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                            Inscriptos
+                        </Link>
+                        <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                            Creados
+                        </Link>
+                        
+                        <div className="dropdown-divider"></div>
+                        
+                        <button
+                            onClick={logout}
+                            className="dropdown-item logout-button"
+                        >
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                )}
+            </div>
+        ) : (
+            <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
+        )}
+    </nav>
+        </header>
 
           {/* NUEVO BOTÓN VOLVER AL INICIO*/}
           <div className="reportes-back-container">
