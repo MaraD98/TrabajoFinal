@@ -250,7 +250,7 @@ export default function LoginPage() {
 
         {/* Features sin cambios */}
         <div className="login-features">
-          <div className="login-feature" onClick={() => navigate("/eventos")}>
+          <div className="login-feature" onClick={() => navigate("/")}>
             <div className="login-feature__icon">🏆</div>
             <h3 className="login-feature__title">Descubre Eventos</h3>
             <p className="login-feature__description">Encuentra carreras, maratones y eventos deportivos cerca de ti</p>
