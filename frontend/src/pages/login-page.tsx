@@ -61,68 +61,53 @@ export default function LoginPage() {
   };
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.email || !formData.contrasenia) {
-      setError("Por favor completa todos los campos");
-      return;
-    }
+  e.preventDefault();
+  
+  if (!formData.email || !formData.contrasenia) {
+    setError("Por favor completa todos los campos");
+    return;
+  }
 
-    setLoading(true);
-    setError(null);
+  setLoading(true);
+  setError(null);
 
-    try {
-      const response = await login(formData.email, formData.contrasenia);
+  try {
+    const response = await login(formData.email, formData.contrasenia);
 
-      if (response.access_token) {
-        if (rememberMe) {
-            localStorage.setItem("rememberedEmail", formData.email);
-        } else {
-            localStorage.removeItem("rememberedEmail");
-        }
-        // ========================================
-        // ✅ NUEVO: Guardar información del usuario
-        // ========================================
-        // El backend ahora devuelve un objeto "user" con:
-        // { id_usuario, nombre_y_apellido, email, id_rol, telefono, direccion, enlace_redes }
-        if (response.user) {
-          // Guardamos el usuario completo en localStorage para que el AdminDashboard pueda acceder
-          localStorage.setItem('user', JSON.stringify(response.user));
-          // Guardamos el rol por separado para mantener compatibilidad con código existente
-          localStorage.setItem('rol', response.user.id_rol.toString());
-          
-          console.log('✅ Usuario guardado en localStorage:', response.user);
-        }
-        // ========================================
-        // Pasamos el token y el estado de rememberMe al contexto
-        await loginOk(response.access_token, rememberMe);
-        // ✅ NUEVO: Redirigir según el rol del usuario
-        // ========================================
-        // Si es Admin (1) o Supervisor (2) -> Dashboard de Admin
-        // Si es otro rol -> Página de inicio
-        if (response.user && [1, 2].includes(response.user.id_rol)) {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
-         // ========================================
-        
-        // ANTES ERA ASÍ (lo dejamos comentado para referencia):
-        // navigate("/")
+    if (response.access_token) {
+      if (rememberMe) {
+          localStorage.setItem("rememberedEmail", formData.email);
       } else {
-        setError("Error en la autenticación");
+          localStorage.removeItem("rememberedEmail");
       }
-    } catch (err: any) {
-      console.error("Error en login:", err);
-      // Aquí capturamos el mensaje exacto
-      setError(
-        err.response?.data?.detail || 
-        "Email o contraseña incorrectos"
-      );
-    } finally {
-      setLoading(false);
+      
+      // Guardar información del usuario
+      if (response.user) {
+        localStorage.setItem('user', JSON.stringify(response.user));
+        localStorage.setItem('rol', response.user.id_rol.toString());
+        
+        console.log('✅ Usuario guardado en localStorage:', response.user);
+      }
+      
+      // Pasar token al contexto
+      await loginOk(response.access_token, rememberMe);
+      
+      // ✅ TODOS van al inicio, sin importar el rol
+      navigate("/");
+      
+    } else {
+      setError("Error en la autenticación");
     }
-  };
+  } catch (err: any) {
+    console.error("Error en login:", err);
+    setError(
+      err.response?.data?.detail || 
+      "Email o contraseña incorrectos"
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="login-page">
