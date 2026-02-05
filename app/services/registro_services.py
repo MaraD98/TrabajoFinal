@@ -2,13 +2,23 @@ import os
 import shutil
 from uuid import uuid4
 from datetime import date, datetime
-from app.models.registro_models import EventoMultimedia, EliminacionEvento, ReservaEvento, Evento
-from app.models.auth_models import Usuario
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
+
+# --- CORRECCIÓN DE IMPORTS PARA LA SEPARACIÓN ---
+from app.models.registro_models import EventoMultimedia, EliminacionEvento, Evento
+from app.models.inscripcion_models import ReservaEvento 
+from app.models.auth_models import Usuario
+
 from app.db.crud import registro_crud
-from app.db.crud.registro_crud import ID_ROL_ADMINISTRADOR, ID_ROL_SUPERVISOR, ID_ESTADO_CANCELADO, ID_ESTADO_PUBLICADO, ID_ESTADO_PENDIENTE_ELIMINACION
+from app.db.crud.registro_crud import (
+    ID_ROL_ADMINISTRADOR, 
+    ID_ROL_SUPERVISOR, 
+    ID_ESTADO_CANCELADO, 
+    ID_ESTADO_PUBLICADO, 
+    ID_ESTADO_PENDIENTE_ELIMINACION
+)
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
 
 # Configuración de carpeta para guardar fotos
@@ -28,7 +38,6 @@ class EventoService:
             )
 
         # 2. VALIDACIÓN DE DUPLICADOS
-        # (Alineado correctamente con el resto del código)
         evento_existente = registro_crud.get_evento_por_nombre_y_fecha(
             db, 
             nombre=evento_in.nombre_evento, 
@@ -41,8 +50,6 @@ class EventoService:
             )
 
         # 3. CALCULAR EL ESTADO
-        # Admin (1) o Supervisor (2) -> Publicado (3)
-        # Otros -> Borrador (1)
         if usuario_actual.id_rol in [1, 2]:
             estado_calculado = 3 
         else:
@@ -60,11 +67,33 @@ class EventoService:
     
     @staticmethod
     def listar_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
-        return registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
+        eventos = registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
+        
+        # --- NUEVO: CALCULAR CUPOS PARA MIS EVENTOS ---
+        for evento in eventos:
+            ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+            total = evento.cupo_maximo if evento.cupo_maximo else 0
+            evento.cupos_disponibles = total - ocupados
+        # ----------------------------------------------
+        
+        return eventos
 
     @staticmethod
     def listar_todos_los_eventos(db: Session, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
-        return registro_crud.get_eventos(db=db, skip=skip, limit=limit)
+        # Traemos los eventos del CRUD tal cual estaban
+        eventos = registro_crud.get_eventos(db=db, skip=skip, limit=limit)
+        
+        # --- NUEVO: AQUÍ HACEMOS LA MAGIA DE LOS CUPOS ---
+        for evento in eventos:
+            # Contamos cuántos inscriptos hay en la tabla ReservaEvento
+            ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+            
+            # Hacemos la resta
+            total = evento.cupo_maximo if evento.cupo_maximo else 0
+            evento.cupos_disponibles = total - ocupados
+        # ------------------------------------------------
+        
+        return eventos
 
     @staticmethod
     def obtener_evento_por_id(db: Session, evento_id: int) -> EventoResponse:
@@ -74,6 +103,13 @@ class EventoService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"No se encontró el evento con ID {evento_id}"
             )
+        
+        # --- NUEVO: CALCULAR CUPOS PARA UN SOLO EVENTO ---
+        ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+        total = evento.cupo_maximo if evento.cupo_maximo else 0
+        evento.cupos_disponibles = total - ocupados
+        # -------------------------------------------------
+        
         return evento
 
     @staticmethod
@@ -148,13 +184,12 @@ class EventoService:
             id_evento=evento.id_evento,
             motivo_eliminacion=motivo,
             id_usuario=usuario_actual.id_usuario,
-            fecha_eliminacion=datetime.now(), # <--- IMPORTANTE: Guardamos fecha y hora actual
+            fecha_eliminacion=datetime.now(), 
             notificacion_enviada=False 
         )
         db.add(nueva_solicitud)
 
         # 2. Cambiar estado a Pendiente (6)
-        # ESTO ESTABA COMENTADO EN TU CÓDIGO, HAY QUE DESCOMENTARLO:
         evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION 
         
         db.commit()
@@ -254,7 +289,7 @@ class EventoService:
         db: Session,
         id_evento: int,
         lista_archivos: List[UploadFile] = None, 
-        url_externa: str = None                  # Ahora recibe un STRING opcional
+        url_externa: str = None                  
     ):
         # 1. Validar que el evento exista
         evento = registro_crud.get_evento_by_id(db, id_evento)
@@ -269,7 +304,7 @@ class EventoService:
                 db=db,
                 id_evento=id_evento,
                 url=url_externa,
-                tipo="ENLACE" # O "VIDEO", según prefieras clasificarlo
+                tipo="ENLACE" 
             )
             resultados.append(link_entry)
 
@@ -278,14 +313,13 @@ class EventoService:
             for archivo in lista_archivos:
                 # Validar formato de CADA archivo
                 if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-                    # Si uno falla, lanzamos error (o podrías usar 'continue' para saltarlo)
                     raise HTTPException(status_code=400, detail=f"El archivo {archivo.filename} no es una imagen válida (JPG/PNG).")
                 
                 # Generar nombre único
                 extension = archivo.filename.split(".")[-1]
                 nombre_archivo = f"{uuid4()}.{extension}"
-                ruta_relativa = f"static/uploads/{nombre_archivo}" # Ruta para guardar en BD
-                ruta_fisica = f"{UPLOAD_DIR}/{nombre_archivo}"     # Ruta para guardar en disco
+                ruta_relativa = f"static/uploads/{nombre_archivo}" 
+                ruta_fisica = f"{UPLOAD_DIR}/{nombre_archivo}"     
                 
                 # Guardar archivo físico en disco
                 try:
@@ -298,7 +332,7 @@ class EventoService:
                 imagen_entry = registro_crud.create_multimedia(
                     db=db,
                     id_evento=id_evento,
-                    url=ruta_relativa, # Guardamos "static/uploads/foto.jpg"
+                    url=ruta_relativa, 
                     tipo="IMAGEN" 
                 )
                 resultados.append(imagen_entry)

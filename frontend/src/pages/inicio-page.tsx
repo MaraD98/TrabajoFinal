@@ -6,6 +6,7 @@ import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEvent
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 
+
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
 const IMAGENES_TIPO: Record<number | string, string> = {
@@ -310,9 +311,10 @@ export default function InicioPage() {
                                         📑 Mis Reportes
                                     </Link>
 
-                                    <div className="dropdown-header">EVENTOS</div>
-                                    <Link to="/mis-eventos?tab=inscriptos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Inscriptos
+                                    <div className="dropdown-header">MIS EVENTOS</div>
+                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                         Inscriptos
                                     </Link>
                                     <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         Mis Eventos

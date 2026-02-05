@@ -72,6 +72,11 @@ export async function getEventosCalendario(month: number, year: number) {
   return res.data;
 }
 
+export const inscribirseEvento = async (id_evento: number) => {
+    const response = await api.post(`/inscripciones/${id_evento}`); 
+    return response.data;
+};
+
 // Login: recibe email y contrasenia, devuelve token
 export async function login(email: string, contrasenia: string) {
   // =========================================================================

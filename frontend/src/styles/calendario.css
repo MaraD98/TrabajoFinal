@@ -23,20 +23,12 @@
 .no-select { user-select: none; }
 
 /* --- HEADER --- */
-.cal-header {
-  width: 100%; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 20px; border-bottom: 1px solid var(--cal-border); padding-bottom: 20px;
-}
-.cal-branding { display: flex; align-items: center; gap: 15px; }
-.cal-logo { height: 60px; width: auto; object-fit: contain; filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.4)); transition: transform 0.3s ease; }
-.cal-logo:hover { transform: scale(1.05); }
-.cal-title-wrapper { display: flex; flex-direction: column; }
-.cal-title { font-size: 1.8rem; font-weight: 800; margin: 0; line-height: 1; letter-spacing: 2px; color: #fff; }
-.cal-subtitle { font-size: 0.9rem; color: var(--cal-gold); letter-spacing: 4px; font-weight: 600; }
+/* Nota: Los estilos específicos del header están definidos más abajo en la versión definitiva */
 
 /* --- CONTROLES SELECT --- */
 .cal-controls { display: flex; gap: 15px; }
 .select-wrapper { position: relative; }
-.cal-select { appearance: none; background-color: var(--cal-card-bg); border: 1px solid var(--cal-gold); color: var(--cal-gold); padding: 10px 35px 10px 15px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; outline: none; transition: all 0.3s ease; text-transform: uppercase; min-width: 120px; }
+.cal-select { appearance: none; background-color: var(--cal-card-bg); border: 1px solid var(--cal-gold); color: var(--cal-gold); padding: 10px 35px 10px 15px; font-size: 0.9rem; font-weight: bold; border-radius: 4px; cursor: pointer; outline: none; transition: all 0.3s ease; text-transform: uppercase; min-width: 110px; }
 .cal-select:hover { background-color: var(--cal-gold); color: #000; box-shadow: 0 0 15px var(--cal-gold-dim); }
 .select-wrapper::after { content: '▼'; font-size: 0.7rem; color: var(--cal-gold); position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .select-wrapper:hover::after { color: #000; }
@@ -60,14 +52,14 @@
 .dia-numero { font-size: 1.1rem; font-weight: 500; }
 
 .icono-evento-bici { position: absolute; bottom: 5px; right: 5px; color: var(--cal-gold); }
-.icono-evento-bici svg { display: block; /* Asegura que no haya espacio extra debajo del SVG */ }
+.icono-evento-bici svg { display: block; }
 
 /* --- CARGANDO --- */
 .calendario-cargando { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--cal-gold); }
 .wheel-spinning { animation: spin 1s infinite linear; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-/* --- PANEL DE RESERVA Y DETALLES (ESTRUCTURA VERTICAL) --- */
+/* --- PANEL DE RESERVA --- */
 .reserva-panel { background: var(--cal-card-bg); border-radius: 8px; padding: 20px; border: 1px solid var(--cal-border); animation: slideUp 0.3s ease-out; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .panel-titulo { color: #fff; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
@@ -85,14 +77,8 @@
 }
 .evento-card:hover { background: #2a2a2a; }
 
-/* ESTO ES CLAVE PARA EL ORDEN VERTICAL: */
-/* Aplica margen inferior a cada bloque directo dentro del contenido */
-.evento-card-content > div {
-    margin-bottom: 15px;
-}
-.evento-card-content > div:last-child {
-    margin-bottom: 0; /* El último no necesita margen extra */
-}
+.evento-card-content > div { margin-bottom: 15px; }
+.evento-card-content > div:last-child { margin-bottom: 0; }
 
 .evento-cabecera { display: flex; justify-content: space-between; align-items: flex-start; }
 .evento-titulo { font-size: 1.4rem; font-weight: 700; color: #fff; margin: 0; }
@@ -107,12 +93,10 @@
 .evento-descripcion { font-style: italic; color: var(--cal-text-muted); line-height: 1.5; display: block; }
 
 .evento-ubicacion { font-size: 0.95rem; color: var(--cal-text-muted); display: flex; align-items: flex-start; gap: 8px; }
-.ubicacion-icono { margin-top: 2px; }
-.ubicacion-texto { line-height: 1.4; }
 .ver-mapa-link { display: inline-block; margin-left: 8px; color: var(--cal-gold); text-decoration: none; border-bottom: 1px dotted var(--cal-gold); font-size: 0.85rem; }
 
 /* BOTONES Y FORMULARIO */
-.evento-acciones { margin-top: 20px; } /* Espacio extra antes del botón */
+.evento-acciones { margin-top: 20px; }
 .btn-accion { width: 100%; padding: 12px; border: none; font-weight: 800; cursor: pointer; border-radius: 4px; transition: all 0.3s; text-transform: uppercase; letter-spacing: 1px; }
 .btn-accion.inscribir { background-color: transparent; border: 1px solid var(--cal-gold); color: var(--cal-gold); }
 .btn-accion.inscribir:hover { background-color: var(--cal-gold); color: #000; }
@@ -127,18 +111,166 @@
 .form-grupo input:focus { border-color: var(--cal-gold); outline: none; }
 .btn-confirmar { width: 100%; background: var(--cal-gold); color: #000; font-weight: 900; padding: 14px; border: none; border-radius: 4px; cursor: pointer; text-transform: uppercase; }
 .btn-confirmar:hover { background: #ffed4a; }
-.mensaje-vacio { text-align: center; color: #666; font-style: italic; padding: 20px; }
 
 /* MOBILE */
 @media (max-width: 768px) {
-  .cal-header { flex-direction: column; align-items: flex-start; }
-  .cal-branding { width: 100%; justify-content: center; margin-bottom: 15px; }
-  .cal-controls { width: 100%; gap: 10px; }
-  .select-wrapper { flex: 1; }
-  .cal-select { width: 100%; }
+  .cal-header { flex-direction: column; align-items: center; padding: 15px 20px; }
+  .header-left, .header-center, .header-right { width: 100%; justify-content: center; flex: auto; }
+  .header-right { margin-top: 15px; flex-wrap: wrap; }
+  
+  .cal-branding-vertical { margin-bottom: 10px; }
   .dia-numero { font-size: 0.9rem; }
   .calendario-grid-wrapper { padding: 5px; }
   .dia-celda { min-height: 60px; padding: 5px;}
-  /* Ajuste del ícono para móvil */
   .icono-evento-bici svg { width: 18px; height: 18px; }
+  .btn-volver-inicio { width: 100%; justify-content: center; }
+}
+
+/* --- NUEVOS ESTILOS DEL HEADER (Versión Definitiva) --- */
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 40px;
+  background-color: #0d0d0d;
+  border-bottom: 1px solid #222;
+  flex-wrap: wrap; 
+  gap: 20px;
+}
+
+.header-left { flex: 1; display: flex; align-items: center; }
+.header-center { flex: 0 0 auto; display: flex; justify-content: center; }
+
+/* Ajuste del Header Right para que contenga Selectores + Usuario */
+.header-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px; /* Espacio entre los elementos */
+}
+
+.cal-branding-vertical { display: flex; align-items: center; gap: 15px; }
+.cal-logo-centered { height: 40px; width: auto; }
+.cal-title-wrapper-centered { display: flex; flex-direction: column; line-height: 1; }
+.cal-title { font-size: 1.5rem; font-weight: 800; color: white; margin: 0; letter-spacing: 1px; }
+.cal-subtitle { font-size: 0.7rem; color: #ccff00; font-weight: 700; letter-spacing: 2px; }
+
+.btn-volver-inicio {
+  text-decoration: none;
+  color: #ffffff; 
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid #ffffff; 
+  border-radius: 30px; 
+  transition: all 0.3s ease;
+}
+
+.btn-volver-inicio:hover { color: #000; background-color: #ccff00; border-color: #ccff00; }
+.icono-flecha { font-size: 1.1rem; margin-top: -2px; }
+
+/* --- USER MENU DROPDOWN (NUEVO) --- */
+.user-menu-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.user-btn-compact {
+  background-color: transparent;
+  border: 1px solid var(--cal-gold);
+  color: var(--cal-gold);
+  padding: 9px 15px; /* Altura similar a los selects */
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition: 0.3s;
+  text-transform: uppercase;
+}
+
+.user-btn-compact:hover {
+  background-color: var(--cal-gold);
+  color: #000;
+  box-shadow: 0 0 15px var(--cal-gold-dim);
+}
+
+.user-icon { font-size: 1.1rem; }
+.dropdown-arrow { font-size: 0.7rem; }
+
+.user-dropdown-cal {
+  position: absolute;
+  top: 120%;
+  right: 0;
+  width: 220px;
+  background-color: var(--cal-card-bg);
+  border: 1px solid #333;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header {
+  padding: 12px;
+  background-color: #111;
+  color: #888;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+  text-align: center;
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.2s;
+  width: 100%;
+  display: block;
+}
+
+.dropdown-item:hover {
+  background-color: var(--cal-gold);
+  color: #000;
+}
+
+.dropdown-divider { height: 1px; background-color: #333; width: 100%; }
+
+.logout-button { color: #ff4444; }
+.logout-button:hover { background-color: #ff4444; color: white; }
+
+.btn-login-cal {
+    background: transparent;
+    color: var(--cal-gold);
+    border: 1px solid var(--cal-gold);
+    padding: 8px 20px;
+    text-decoration: none;
+    font-weight: bold;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: 0.3s;
+}
+.btn-login-cal:hover { background: var(--cal-gold); color: #000; }
+
+/* En móvil ocultamos el nombre y dejamos solo el ícono si no hay espacio */
+@media (max-width: 600px) {
+    .user-name-responsive { display: none; }
 }

@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { AdminService } from '../services/admin-service';
+import TablaGestionPagos from '../pages/gestion-pagos-pages';
+// 👇 AGREGADO: Importamos el panel de inscriptos para usarlo abajo
+import PanelInscriptos from '../pages/inscriptos-page';
 import type { 
   SolicitudAlta, 
   SolicitudBaja, 
@@ -35,6 +38,7 @@ const AdminDashboard: React.FC = () => {
       } else if (activeView === 'historial') {
         await cargarHistorial();
       }
+      // Nota: 'pagos' e 'inscriptos' cargan sus propios datos internamente
     } catch (error: any) {
       console.error('Error cargando datos:', error);
       setError(error.message || 'Error al cargar datos');
@@ -426,6 +430,25 @@ const AdminDashboard: React.FC = () => {
             <span className="btn-icon">🔴</span>
             <span className="btn-text">Historial</span>
           </button>
+
+          <button 
+            className={`sidebar-btn ${activeView === 'pagos' ? 'active' : ''}`}
+            onClick={() => setActiveView('pagos')}
+          >
+            <span className="btn-icon">💰</span>
+            <span className="btn-text">Gestión Pagos</span>
+          </button>
+          
+          {/* 👇 AGREGADO: Botón para cambiar a la vista de Inscriptos */}
+          <button 
+            className={`sidebar-btn ${activeView === 'inscriptos' ? 'active' : ''}`}
+            onClick={() => setActiveView('inscriptos')}
+          >
+            <span className="btn-icon">👥</span>
+            <span className="btn-text">Inscriptos</span>
+          </button>
+          {/* ----------------------------- */}
+          
         </aside>
 
         <main className="main-content">
@@ -443,6 +466,12 @@ const AdminDashboard: React.FC = () => {
               {activeView === 'pendientes' && <PendientesView />}
               {activeView === 'activos' && <ActivosView />}
               {activeView === 'historial' && <HistorialView />}
+
+              {activeView === 'pagos' && <TablaGestionPagos />}
+              
+              {/* 👇 AGREGADO: Renderizado condicional del Panel de Inscriptos */}
+              {activeView === 'inscriptos' && <PanelInscriptos />}
+              {/* ----------------------------- */}
             </>
           )}
         </main>
