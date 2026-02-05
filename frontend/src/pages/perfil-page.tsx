@@ -33,7 +33,7 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
     const [tiempoRestante, setTiempoRestante] = useState("");
     const [color, setColor] = useState("#ffbb00"); // Naranja inicial
     const [expiro, setExpiro] = useState(false);
-
+    
     useEffect(() => {
         const calcularTiempo = () => {
             const fechaInicio = new Date(fechaReserva).getTime();
@@ -117,9 +117,19 @@ export default function PerfilPage() {
     const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
     const { user, logout } = useAuth();
-    const [localUserName] = useState<string>("Usuario"); 
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const displayUserName = (perfil?.nombre_y_apellido?.split(' ')[0] || user?.nombre_y_apellido?.split(' ')[0] || "Usuario").toUpperCase();    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // --- EFECTO PARA CERRAR EL DROPDOWN AL HACER CLICK AFUERA ---
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     // 1. LEER URL Y CARGAR PERFIL
     useEffect(() => {
@@ -282,32 +292,50 @@ export default function PerfilPage() {
 
     if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
 
-    return (
-        <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
-            {user ? (
-                        <div className="user-menu-container" ref={dropdownRef}>
+   return (
+        <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
+            
+            {/* --- ENCABEZADO REORGANIZADO --- */}
+            <div style={{ 
+                width: '100%', 
+                maxWidth: '800px', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                position: 'relative', 
+                marginBottom: '30px',
+                padding: '0 20px' 
+            }}>
+                
+                {/* Título Centrado */}
+                <h2 className="section-title" style={{ margin: 0, textAlign: 'center' }}>Mi Cuenta</h2>
+
+                {/* Botón de Usuario a la Derecha */}
+                <div style={{ position: 'fixed', right: '60px' }}>
+                    {user ? (
+                        <div className="user-menu-container" ref={dropdownRef} style={{ margin: 0 }}>
                             <button
                                 className="user-menu-trigger"
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                style={{ whiteSpace: 'nowrap' }}
                             >
                                 <span className="user-icon">👤</span>
-                                <span className="user-name">{localUserName}</span>
+                                <span className="user-name">{displayUserName}</span>
                                 <span className="dropdown-arrow">▼</span>
                             </button>
 
                             {isDropdownOpen && (
-                                <div className="user-dropdown">
-                                    <div className="dropdown-header">MI CUENTA</div>
+                                <div className="user-dropdown" style={{ right: 0, left: 'auto' }}>
+                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>MI CUENTA</div>
                                     <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
                                     </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
-                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
-                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                          Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item">
+                                    <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         Creados
                                     </Link>
                                     
@@ -325,9 +353,7 @@ export default function PerfilPage() {
                     ) : (
                         <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
                     )}
-
-            <div className="section-header">
-                <h2 className="section-title">Mi Cuenta</h2>
+                </div>
             </div>
 
             {/* --- NAVEGACIÓN DE PESTAÑAS --- */}
