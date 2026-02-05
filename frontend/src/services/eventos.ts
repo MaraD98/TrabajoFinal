@@ -28,12 +28,11 @@ export async function getMisEventos() {
     return res.data;
 }
 
-// HU 4.1: Cancelar mi propio evento
+// HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/cancelar
-    // BODY: { "motivo": "..." }
-    const response = await api.patch(`/eventos/${idEvento}/cancelar`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/cancelar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -43,8 +42,8 @@ export const cancelarEventoPropio = async (idEvento: number, motivo: string) => 
 // HU 4.2: Solicitar baja (Usuario Externo)
 export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/solicitar-eliminacion
-    const response = await api.patch(`/eventos/${idEvento}/solicitar-eliminacion`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/solicitar-baja/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -54,8 +53,8 @@ export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
 // HU 4.3: Eliminar como Administrador
 export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/admin-eliminar
-    const response = await api.patch(`/eventos/${idEvento}/admin-eliminar`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/admin/eliminar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );

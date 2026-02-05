@@ -43,27 +43,11 @@ export class AdminService {
   // ===========================
   // SOLICITUDES DE BAJA
   // ===========================
-  static async obtenerBajasPendientes() {
+  
+  // ✅ CORREGIDO: Sin parámetro idEliminacion
+  static async aprobarBaja(idEvento: number) {
     try {
-      const response = await api.get('/admin/bajas/pendientes');
-      return response.data;
-    } catch (error) {
-      console.error('Error obteniendo bajas pendientes:', error);
-      return [];
-    }
-  }
-
-  static async aprobarBaja(idEliminacion: number, idEvento?: number) {
-    try {
-      // ✅ SOLUCIÓN: Si id_eliminacion es 0, usa el endpoint alternativo
-      if (idEliminacion === 0 && idEvento) {
-        console.log(`🔄 Usando endpoint alternativo para evento ${idEvento}`);
-        const response = await api.patch(`/admin/eventos/${idEvento}/aprobar-baja`);
-        return response.data;
-      }
-      
-      // Flujo normal
-      const response = await api.patch(`/admin/bajas/${idEliminacion}/aprobar`);
+      const response = await api.patch(`/eliminacion/admin/aprobar-baja/${idEvento}`);
       return response.data;
     } catch (error) {
       console.error('Error aprobando baja:', error);
@@ -71,21 +55,24 @@ export class AdminService {
     }
   }
 
-  static async rechazarBaja(idEliminacion: number, idEvento?: number) {
+  // ✅ CORREGIDO: Sin parámetro idEliminacion
+  static async rechazarBaja(idEvento: number) {
     try {
-      // ✅ SOLUCIÓN: Si id_eliminacion es 0, usa el endpoint alternativo
-      if (idEliminacion === 0 && idEvento) {
-        console.log(`🔄 Usando endpoint alternativo para rechazar evento ${idEvento}`);
-        const response = await api.patch(`/admin/eventos/${idEvento}/rechazar-baja`);
-        return response.data;
-      }
-      
-      // Flujo normal
-      const response = await api.patch(`/admin/bajas/${idEliminacion}/rechazar`);
+      const response = await api.patch(`/eliminacion/admin/rechazar-baja/${idEvento}`);
       return response.data;
     } catch (error) {
       console.error('Error rechazando baja:', error);
       throw error;
+    }
+  }
+
+  static async obtenerBajasPendientes() {
+    try {
+      const response = await api.get('/eliminacion/admin/bajas-pendientes');
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo bajas pendientes:', error);
+      return [];
     }
   }
 
@@ -95,10 +82,22 @@ export class AdminService {
   static async obtenerEventosActivos() {
     try {
       const response = await api.get('/eventos');
-      // Filtra solo eventos publicados (id_estado === 3)
       return response.data.filter((e: any) => e.id_estado === 3);
     } catch (error) {
       console.error('Error obteniendo eventos activos:', error);
+      return [];
+    }
+  }
+
+  // ===========================
+  // EVENTOS FINALIZADOS
+  // ===========================
+  static async obtenerEventosFinalizados() {
+    try {
+      const response = await api.get('/eliminacion/admin/eventos-finalizados');
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo eventos finalizados:', error);
       return [];
     }
   }
@@ -108,11 +107,39 @@ export class AdminService {
   // ===========================
   static async obtenerHistorialEliminaciones() {
     try {
-      const response = await api.get('/admin/historial-eliminaciones');
+      const response = await api.get('/eliminacion/admin/historial');
       return response.data;
     } catch (error) {
       console.error('Error obteniendo historial de eliminaciones:', error);
       return [];
+    }
+  }
+
+  // ===========================
+  // RESTAURAR EVENTO CANCELADO
+  // ===========================
+  static async restaurarEvento(idEvento: number) {
+    try {
+      const response = await api.patch(`/eliminacion/admin/restaurar/${idEvento}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error restaurando evento:', error);
+      throw error;
+    }
+  }
+
+  // ===========================
+  // DEPURAR EVENTO
+  // ===========================
+  static async depurarEvento(idEvento: number, motivo: string) {
+    try {
+      const response = await api.delete(`/eliminacion/admin/depurar/${idEvento}`, {
+        data: { motivo }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error depurando evento:', error);
+      throw error;
     }
   }
 }

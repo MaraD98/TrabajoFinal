@@ -8,7 +8,8 @@ from datetime import date
 from typing import Optional
 
 # Importaciones para Bajas
-from app.models.registro_models import EliminacionEvento, Evento
+from app.models.registro_models import Evento
+from app.models.eliminacion_models import EliminacionEvento
 
 class Solicitud_PublicacionCRUD:
     
