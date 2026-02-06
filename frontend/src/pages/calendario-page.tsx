@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
-import '../styles/Calendario.css';
+import '../styles/calendario.css';
 import logoWakeUp from '../assets/wakeup-logo.png'; 
 
 interface Evento {
