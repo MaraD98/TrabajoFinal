@@ -2,16 +2,13 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react'; 
 import { getCurrentUser } from '../services/eventos'; 
 
-// --- CORRECCIÓN AQUÍ ---
-// Definimos la estructura IGUAL a tu Base de Datos
 export interface User {
   id_usuario: number;
-  nombre_y_apellido: string; // Cambiado para coincidir con tu SQL
+  nombre_y_apellido: string; 
   email: string;
   id_rol: number;
-  telefono?: string; // Lo agrego como OPCIONAL (?) porque el Calendario lo usa, aunque no lo vi en tu tabla SQL.
+  telefono?: string; 
 }
-// -----------------------
 
 interface AuthContextType {
   user: User | null;
@@ -27,16 +24,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // 1. Al cargar la app, verificamos si hay sesión guardada
+  // 1. Al cargar la app, verificamos si hay sesión guardada en Local o Session
   useEffect(() => {
     const checkSession = async () => {
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      // También intentamos recuperar el usuario guardado para no esperar a la API
+      const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
 
       if (token) {
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+        }
+        
         try {
+          // Validamos el token con el servidor por seguridad
           const userData = await getCurrentUser(token);
-          // OJO: Si el backend devuelve "nombre_y_apellido", se asignará correctamente aquí.
           setUser(userData);
+          // Actualizamos la copia guardada
+          const storage = localStorage.getItem('token') ? localStorage : sessionStorage;
+          storage.setItem('user', JSON.stringify(userData));
         } catch (error) {
           console.error("Sesión inválida", error);
           logout();
@@ -50,29 +56,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 2. Función para procesar el login exitoso
   const loginOk = async (token: string, rememberMe: boolean) => {
-    if (rememberMe) {
-      localStorage.setItem('token', token);
-    } else {
-      sessionStorage.setItem('token', token);
-    }
+    const storage = rememberMe ? localStorage : sessionStorage;
+    
+    storage.setItem('token', token);
 
     try {
       const userData = await getCurrentUser(token);
       setUser(userData);
-      localStorage.setItem("rol", userData.id_rol.toString());
+      
+      // GUARDAMOS TODO en el mismo tipo de storage (Local o Session)
+      storage.setItem('user', JSON.stringify(userData));
+      storage.setItem("rol", userData.id_rol.toString());
+      
+      console.log('✅ Sesión iniciada y guardada en:', rememberMe ? 'LocalStorage' : 'SessionStorage');
     } catch (error) {
       console.error("Error obteniendo usuario", error);
+      throw error;
     }
   };
 
-  // 3. Función de cerrar sesión
+  // 3. Función de cerrar sesión (Limpia AMBOS)
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem("rol");
-    localStorage.removeItem("token_type"); // Asegurate de limpiar esto si lo usas
+    localStorage.removeItem("user");
     sessionStorage.removeItem('token');
+    sessionStorage.removeItem("rol");
+    sessionStorage.removeItem("user");
     setUser(null);
-    window.location.href = "/";
+    window.location.href = "/login";
   };
 
   return (
@@ -88,7 +100,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Hook personalizado
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {

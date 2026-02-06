@@ -35,23 +35,12 @@ export default function LoginPage() {
     }
   }, []);
 
+ // ✅ NUEVO: Redirección automática si ya hay usuario
+useEffect(() => {
   if (user) {
-    return (
-      <div className="login-page">
-        <h2>Ya estás logueado ✅</h2>
-        <p>Hola, {user.nombre_y_apellido}</p>
-        <button
-          onClick={() => {
-            logout();
-            navigate("/login"); 
-          }}
-          style={{ padding: '10px 20px', cursor: 'pointer', marginTop: '10px' }}
-        >
-          Cerrar sesión
-        </button>
-      </div>
-    );
+    navigate("/"); 
   }
+}, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -75,25 +64,22 @@ export default function LoginPage() {
     const response = await login(formData.email, formData.contrasenia);
 
     if (response.access_token) {
-      if (rememberMe) {
-          localStorage.setItem("rememberedEmail", formData.email);
-      } else {
-          localStorage.removeItem("rememberedEmail");
-      }
-      
-      // Guardar información del usuario
-      if (response.user) {
-        localStorage.setItem('user', JSON.stringify(response.user));
-        localStorage.setItem('rol', response.user.id_rol.toString());
-        
-        console.log('✅ Usuario guardado en localStorage:', response.user);
-      }
-      
-      // Pasar token al contexto
-      await loginOk(response.access_token, rememberMe);
-      
-      // ✅ TODOS van al inicio, sin importar el rol
-      navigate("/");
+    // 1. Manejo del "Recordar Email" (esto sí va en localStorage siempre)
+    if (rememberMe) {
+        localStorage.setItem("rememberedEmail", formData.email);
+    } else {
+        localStorage.removeItem("rememberedEmail");
+    }
+    
+    // 2. ✅ LA ÚNICA LLAMADA QUE NECESITAS
+    // Esta función ya guarda el user, el rol y el token en el lugar correcto
+    // (localStorage si rememberMe es true, sessionStorage si es false)
+    await loginOk(response.access_token, rememberMe);
+    
+    console.log('✅ Login exitoso. Datos sincronizados por el contexto.');
+    
+    // 3. Navegar al inicio
+    navigate("/");
       
     } else {
       setError("Error en la autenticación");
