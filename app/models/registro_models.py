@@ -1,22 +1,28 @@
 from sqlalchemy import Column, Integer, String, Date, DECIMAL, DateTime, ForeignKey, func, Text, Boolean
+from app.models.inscripcion_models import ReservaEvento
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
+
 # --- MODELOS AUXILIARES ---
+
 class TipoEvento(Base):
     __tablename__ = "tipoevento"
     id_tipo = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
+
 
 class NivelDificultad(Base):
     __tablename__ = "niveldificultad"
     id_dificultad = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
 
+
 class EstadoEvento(Base):
     __tablename__ = "estadoevento"
     id_estado = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), unique=True, nullable=False)
+
 
 # --- MODELO PRINCIPAL ---
 class Evento(Base):
@@ -31,7 +37,7 @@ class Evento(Base):
     fecha_evento = Column(Date, nullable=False)
     ubicacion = Column(String(255), nullable=False)
     
-    # 2. Relaciones con las tablas de arriba (Solo ForeignKey)
+    # 2. Relaciones con las tablas auxiliares
     id_tipo = Column(Integer, ForeignKey("tipoevento.id_tipo"), nullable=False)
     id_dificultad = Column(Integer, ForeignKey("niveldificultad.id_dificultad"), nullable=False)
 
@@ -54,31 +60,16 @@ class Evento(Base):
    
     # 4. Relaciones
     multimedia = relationship("EventoMultimedia", back_populates="evento")
-    
-    # IMPORTANTE: SQLAlchemy buscará la clase "ReservaEvento" por string, 
-    # así que funcionará aunque esté en el otro archivo.
     reservas = relationship("ReservaEvento", back_populates="evento") 
+
 
 class EventoMultimedia(Base):
     __tablename__ = "evento_multimedia"
 
     id_multimedia = Column(Integer, primary_key=True, index=True)
     id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
-    url_archivo = Column(String, nullable=False) # Aquí va la ruta de la foto 
-    tipo_archivo = Column(String(50), nullable=False) # 'IMAGEN' 
+    url_archivo = Column(String, nullable=False)
+    tipo_archivo = Column(String(50), nullable=False)
     fecha_subida = Column(DateTime(timezone=True), server_default=func.now())
-    evento = relationship("Evento", back_populates="multimedia")
-
-# --- (NUEVO) HU 4.1: Tabla de Eliminación ---
-class EliminacionEvento(Base):
-    __tablename__ = "eliminacion_evento"
-
-    id_eliminacion = Column(Integer, primary_key=True, index=True)
-    id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
-    motivo_eliminacion = Column(Text, nullable=False)
-    fecha_eliminacion = Column(DateTime(timezone=True), server_default=func.now())
-    id_usuario = Column(Integer, ForeignKey("usuario.id_usuario"), nullable=False) # Quién eliminó
-    notificacion_enviada = Column(Boolean, default=False, nullable=False)
     
-    # Relación para acceder a datos del evento eliminado
-    evento = relationship("Evento", foreign_keys=[id_evento])
+    evento = relationship("Evento", back_populates="multimedia")

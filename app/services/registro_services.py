@@ -5,12 +5,8 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
-
-# --- CORRECCIÓN DE IMPORTS PARA LA SEPARACIÓN ---
-from app.models.registro_models import EventoMultimedia, EliminacionEvento, Evento
-from app.models.inscripcion_models import ReservaEvento 
 from app.models.auth_models import Usuario
-
+from app.models.eliminacion_models import EliminacionEvento
 from app.db.crud import registro_crud
 from app.db.crud.registro_crud import (
     ID_ROL_ADMINISTRADOR, 
@@ -20,16 +16,27 @@ from app.db.crud.registro_crud import (
     ID_ESTADO_PENDIENTE_ELIMINACION
 )
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
+from app.models.inscripcion_models import ReservaEvento      
 
-# Configuración de carpeta para guardar fotos
+
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-class EventoService:
 
+class EventoService:
+    """
+    Servicio para gestionar operaciones de eventos (CRUD).
+    
+    MODIFICADO: Agrega información de solicitudes de baja pendientes
+    """
+    
+    # ========================================================================
+    # CREAR EVENTO
+    # ========================================================================
+    
     @staticmethod
     def crear_nuevo_evento(db: Session, evento_in: EventoCreate, usuario_actual) -> EventoResponse:
-        
+        """Crea un nuevo evento validando permisos y duplicados."""
         # 1. VALIDACIÓN DE PERMISOS
         if usuario_actual.id_rol in [3, 4]:
             raise HTTPException(
@@ -51,9 +58,9 @@ class EventoService:
 
         # 3. CALCULAR EL ESTADO
         if usuario_actual.id_rol in [1, 2]:
-            estado_calculado = 3 
+            estado_calculado = 3  # Publicado
         else:
-            estado_calculado = 1 
+            estado_calculado = 1  # Borrador
         
         # 4. GUARDAR
         nuevo_evento = registro_crud.create_evento(
@@ -65,18 +72,67 @@ class EventoService:
         
         return nuevo_evento
     
+    # ========================================================================
+    # LISTAR EVENTOS (CON FLAG DE SOLICITUD PENDIENTE)
+    # ========================================================================
+    
     @staticmethod
-    def listar_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
-        eventos = registro_crud.get_eventos_por_usuario(db=db, id_usuario=id_usuario, skip=skip, limit=limit)
+    def listar_eventos_por_usuario(
+        db: Session, 
+        id_usuario: int, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[dict]:
+        """
+        Lista todos los eventos de un usuario específico.
         
-        # --- NUEVO: CALCULAR CUPOS PARA MIS EVENTOS ---
+        Incluye lógica unificada:
+        1. Cálculo de cupos disponibles.
+        2. Verificación de solicitudes de eliminación pendientes.
+        """
+        # 1. Obtener eventos base
+        eventos = registro_crud.get_eventos_por_usuario(
+            db=db, 
+            id_usuario=id_usuario, 
+            skip=skip, 
+            limit=limit
+        )
+        
+        eventos_procesados = []
+
         for evento in eventos:
-            ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == evento.id_evento).count()
+            # --- LÓGICA 1: CALCULAR CUPOS ---
+            ocupados = db.query(ReservaEvento).filter(
+                ReservaEvento.id_evento == evento.id_evento
+            ).count()
+            
             total = evento.cupo_maximo if evento.cupo_maximo else 0
-            evento.cupos_disponibles = total - ocupados
-        # ----------------------------------------------
+            cupos_disponibles = total - ocupados
+
+            # --- LÓGICA 2: SOLICITUDES PENDIENTES ---
+            solicitud = db.query(EliminacionEvento).filter(
+                EliminacionEvento.id_evento == evento.id_evento,
+                EliminacionEvento.notificacion_enviada == False
+            ).first()
+            
+            # --- UNIFICACIÓN EN EL OBJETO DE RESPUESTA ---
+            # Convertimos a dict para agregar los campos calculados dinámicamente
+            evento_dict = evento.__dict__.copy()
+            
+            # Limpieza de metadata de SQLAlchemy si es necesario (opcional, pero recomendado)
+            if "_sa_instance_state" in evento_dict:
+                del evento_dict["_sa_instance_state"]
+
+            # Agregamos los nuevos campos al diccionario
+            evento_dict.update({
+                'cupos_disponibles': cupos_disponibles,
+                'tiene_solicitud_pendiente': solicitud is not None,
+                'motivo_solicitud': solicitud.motivo_eliminacion if solicitud else None
+            })
+            
+            eventos_procesados.append(evento_dict)
         
-        return eventos
+        return eventos_procesados
 
     @staticmethod
     def listar_todos_los_eventos(db: Session, skip: int = 0, limit: int = 100) -> List[EventoResponse]:
@@ -97,6 +153,7 @@ class EventoService:
 
     @staticmethod
     def obtener_evento_por_id(db: Session, evento_id: int) -> EventoResponse:
+        """Obtiene un evento por su ID"""
         evento = registro_crud.get_evento_by_id(db=db, evento_id=evento_id)
         if not evento:
             raise HTTPException(
@@ -112,11 +169,19 @@ class EventoService:
         
         return evento
 
+    # ========================================================================
+    # ACTUALIZAR EVENTO
+    # ========================================================================
+    
     @staticmethod
     def actualizar_evento(db: Session, evento_id: int, evento_in: EventoCreate) -> EventoResponse:
-        EventoService.obtener_evento_por_id(db, evento_id) # Valida existencia
+        """Actualiza un evento existente"""
+        EventoService.obtener_evento_por_id(db, evento_id)  # Valida existencia
         return registro_crud.update_evento(db=db, evento_id=evento_id, evento_data=evento_in)
 
+    # ========================================================================
+    # MULTIMEDIA
+    # ========================================================================
     
     # ==========================================
     # HU 4.5: LÓGICA DE NOTIFICACIÓN (MANUAL)
@@ -291,6 +356,7 @@ class EventoService:
         lista_archivos: List[UploadFile] = None, 
         url_externa: str = None                  
     ):
+        """Agrega multimedia (imágenes o URLs) a un evento."""
         # 1. Validar que el evento exista
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
@@ -313,7 +379,10 @@ class EventoService:
             for archivo in lista_archivos:
                 # Validar formato de CADA archivo
                 if archivo.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-                    raise HTTPException(status_code=400, detail=f"El archivo {archivo.filename} no es una imagen válida (JPG/PNG).")
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"El archivo {archivo.filename} no es una imagen válida (JPG/PNG)."
+                    )
                 
                 # Generar nombre único
                 extension = archivo.filename.split(".")[-1]
@@ -326,7 +395,10 @@ class EventoService:
                     with open(ruta_fisica, "wb") as buffer:
                         shutil.copyfileobj(archivo.file, buffer)
                 except Exception as e:
-                    raise HTTPException(status_code=500, detail=f"Error guardando imagen: {str(e)}")
+                    raise HTTPException(
+                        status_code=500, 
+                        detail=f"Error guardando imagen: {str(e)}"
+                    )
 
                 # Guardar referencia en Base de Datos
                 imagen_entry = registro_crud.create_multimedia(
