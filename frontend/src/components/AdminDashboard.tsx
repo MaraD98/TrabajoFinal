@@ -10,7 +10,7 @@ import type {
 import { adminEliminarEvento } from '../services/eventos';
 import '../styles/admin-dashboard.css';
 
-// Toast Component
+// ========== COMPONENTE DE TOAST ==========
 interface ToastProps {
   message: string;
   type: 'success' | 'error' | 'info';
@@ -26,20 +26,20 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   }, [onClose]);
 
   const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-  const colors = { success: '#10b981', error: '#ef4444', info: '#3b82f6' };
+  const colors = { success: '#00cc66', error: '#ff4444', info: '#4da6ff' };
 
   return (
     <div style={{
       position: 'fixed',
       bottom: '20px',
       right: '20px',
-      background: '#1a1a1a',
+      background: '#0a0a0a',
       border: `2px solid ${colors[type]}`,
       borderRadius: '8px',
       padding: '16px 20px',
       minWidth: '300px',
       maxWidth: '500px',
-      boxShadow: '0 10px 25px rgba(0,0,0,0.8)',
+      boxShadow: `0 10px 30px rgba(0, 0, 0, 0.8)`,
       zIndex: 10000,
       animation: 'slideInRight 0.3s ease',
       display: 'flex',
@@ -60,6 +60,69 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
   );
 };
 
+// ========== MODAL DE CONFIRMACIÓN PERSONALIZADO ==========
+interface ConfirmModalProps {
+  show: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  type?: 'warning' | 'danger' | 'info';
+}
+
+const ConfirmModal: React.FC<ConfirmModalProps> = ({ 
+  show, 
+  title, 
+  message, 
+  confirmText = 'Confirmar',
+  cancelText = 'Cancelar',
+  onConfirm, 
+  onCancel,
+  type = 'warning'
+}) => {
+  if (!show) return null;
+
+  const typeColors = {
+    warning: '#ff8533',
+    danger: '#ff4444',
+    info: '#4da6ff'
+  };
+
+  return (
+    <div className="confirm-modal-overlay" onClick={onCancel}>
+      <div className="confirm-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-modal-header" style={{ borderColor: typeColors[type] }}>
+          <div className="confirm-modal-icon" style={{ color: typeColors[type] }}>
+            {type === 'warning' && '⚠️'}
+            {type === 'danger' && '🗑️'}
+            {type === 'info' && 'ℹ️'}
+          </div>
+          <h3 style={{ color: typeColors[type] }}>{title}</h3>
+        </div>
+        <div className="confirm-modal-body">
+          <p>{message}</p>
+        </div>
+        <div className="confirm-modal-footer">
+          <button className="btn-confirm-cancel" onClick={onCancel}>
+            {cancelText}
+          </button>
+          <button 
+            className="btn-confirm-action" 
+            onClick={onConfirm}
+            style={{ 
+              background: typeColors[type]
+            }}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AdminDashboard: React.FC = () => {
   const [activeView, setActiveView] = useState('pendientes');
   const [solicitudesAlta, setSolicitudesAlta] = useState<SolicitudAlta[]>([]);
@@ -71,16 +134,26 @@ const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  
+  // Modal de motivo
   const [motivoModal, setMotivoModal] = useState<{
     show: boolean;
-    tipo: 'rechazar-alta' | 'eliminar-evento' | 'depurar-finalizado' | null;
+    tipo: 'rechazar-alta' | 'eliminar-evento' | 'depurar-finalizado' | 'eliminar-definitivo' | null;
     id: number;
   }>({ show: false, tipo: null, id: 0 });
   const [motivoTexto, setMotivoTexto] = useState('');
 
+  // ✅ NUEVO: Modal de confirmación
+  const [confirmModal, setConfirmModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: 'warning' | 'danger' | 'info';
+  }>({ show: false, title: '', message: '', onConfirm: () => {}, type: 'warning' });
+
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // ✅ FUNCIÓN LOGOUT
   const handleLogout = () => {
     localStorage.clear();
     window.location.href = '/login';
@@ -92,6 +165,14 @@ const AdminDashboard: React.FC = () => {
 
   const showToast = (message: string, type: 'success' | 'error' | 'info') => {
     setToast({ message, type });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, type: 'warning' | 'danger' | 'info' = 'warning') => {
+    setConfirmModal({ show: true, title, message, onConfirm, type });
+  };
+
+  const hideConfirm = () => {
+    setConfirmModal({ show: false, title: '', message: '', onConfirm: () => {}, type: 'warning' });
   };
 
   const cargarDatos = async () => {
@@ -171,14 +252,21 @@ const AdminDashboard: React.FC = () => {
   // ========== HANDLERS - ALTAS ==========
   
   const handleAprobarAlta = async (idSolicitud: number) => {
-    if (!confirm('¿Aprobar esta solicitud y publicar el evento?')) return;
-    try {
-      await AdminService.aprobarSolicitud(idSolicitud);
-      showToast('Solicitud aprobada y evento publicado', 'success');
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error al aprobar', 'error');
-    }
+    showConfirm(
+      'Aprobar Solicitud',
+      '¿Estás seguro de aprobar esta solicitud y publicar el evento?',
+      async () => {
+        try {
+          await AdminService.aprobarSolicitud(idSolicitud);
+          showToast('Solicitud aprobada y evento publicado', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error al aprobar', 'error');
+        }
+        hideConfirm();
+      },
+      'info'
+    );
   };
 
   const abrirModalRechazoAlta = (idSolicitud: number) => {
@@ -201,28 +289,42 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // ========== HANDLERS - BAJAS (CORREGIDO) ==========
+  // ========== HANDLERS - BAJAS ==========
   
   const handleAprobarBaja = async (idEvento: number) => {
-    if (!confirm('¿Confirmar la eliminación de este evento (Soft Delete)?')) return;
-    try {
-      await AdminService.aprobarBaja(idEvento); // ✅ SOLO 1 PARÁMETRO
-      showToast('Evento eliminado correctamente', 'success');
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
+    showConfirm(
+      'Confirmar Eliminación',
+      '¿Estás seguro de eliminar este evento? ',
+      async () => {
+        try {
+          await AdminService.aprobarBaja(idEvento);
+          showToast('Evento eliminado correctamente', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'danger'
+    );
   };
 
   const handleRechazarBaja = async (idEvento: number) => {
-    if (!confirm('¿Rechazar la solicitud y mantener el evento activo?')) return;
-    try {
-      await AdminService.rechazarBaja(idEvento); // ✅ SOLO 1 PARÁMETRO
-      showToast('Solicitud rechazada. Evento continúa publicado', 'success');
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
+    showConfirm(
+      'Rechazar Solicitud de Baja',
+      '¿Rechazar esta solicitud y mantener el evento activo?',
+      async () => {
+        try {
+          await AdminService.rechazarBaja(idEvento);
+          showToast('Solicitud rechazada. Evento continúa publicado', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'info'
+    );
   };
 
   // ========== HANDLERS - EVENTOS ACTIVOS ==========
@@ -237,15 +339,28 @@ const AdminDashboard: React.FC = () => {
       showToast('Debes ingresar un motivo', 'error');
       return;
     }
-    if (!confirm('⚠️ ¿Confirmar eliminación directa del evento (Soft Delete)?')) return;
-    try {
-      await adminEliminarEvento(motivoModal.id, motivoTexto);
-      showToast('Evento eliminado correctamente', 'success');
-      cerrarModal();
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
+    
+    // Cerrar el modal de motivo primero y guardar los valores
+    const motivoGuardado = motivoTexto;
+    const idEventoGuardado = motivoModal.id;
+    cerrarModal();
+    
+    // Luego mostrar el modal de confirmación personalizado
+    showConfirm(
+      '⚠️ Confirmar Eliminación',
+      '¿Estás seguro de eliminar este evento? Esta acción cancelará el evento.',
+      async () => {
+        try {
+          await adminEliminarEvento(idEventoGuardado, motivoGuardado);
+          showToast('Evento eliminado correctamente', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'danger'
+    );
   };
 
   // ========== HANDLERS - FINALIZADOS ==========
@@ -260,41 +375,82 @@ const AdminDashboard: React.FC = () => {
       showToast('Debes ingresar un motivo', 'error');
       return;
     }
-    if (!confirm('⚠️ ATENCIÓN\n¿Estás seguro de depurar este evento?\nEsta acción eliminará el evento de forma permanente de la base de datos.')) return;
-    try {
-      await AdminService.depurarEvento(motivoModal.id, motivoTexto);
-      showToast('Evento depurado correctamente', 'success');
-      cerrarModal();
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
+    
+    // Cerrar el modal de motivo primero y guardar los valores
+    const motivoGuardado = motivoTexto;
+    const idEventoGuardado = motivoModal.id;
+    cerrarModal();
+    
+    // Luego mostrar el modal de confirmación personalizado
+    showConfirm(
+      '⚠️ ATENCIÓN - Depuración Permanente',
+      '¿Estás seguro de depurar este evento? Esta acción eliminará el evento de forma PERMANENTE de la base de datos.',
+      async () => {
+        try {
+          await AdminService.depurarEvento(idEventoGuardado, motivoGuardado);
+          showToast('Evento depurado correctamente', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'danger'
+    );
   };
 
   // ========== HANDLERS - HISTORIAL ==========
   
   const handleRestaurarCancelado = async (idEvento: number) => {
-    if (!confirm('¿Restaurar este evento y volver a publicarlo?')) return;
-    try {
-      await AdminService.restaurarEvento(idEvento);
-      showToast('Evento restaurado y publicado', 'success');
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
+    showConfirm(
+      'Restaurar Evento',
+      '¿Restaurar este evento y volver a publicarlo?',
+      async () => {
+        try {
+          await AdminService.restaurarEvento(idEvento);
+          showToast('Evento restaurado y publicado', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'info'
+    );
   };
 
-  const handleEliminarDefinitivamente = async (idEvento: number) => {
-    const motivo = prompt('Motivo de la depuración permanente:');
-    if (!motivo) return;
-    if (!confirm('⚠️ ADVERTENCIA\n¿Estás seguro de eliminar definitivamente este evento?\nSe eliminará permanentemente de la base de datos y NO se podrá recuperar.')) return;
-    try {
-      await AdminService.depurarEvento(idEvento, motivo);
-      showToast('Evento eliminado definitivamente', 'success');
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
+  const abrirModalEliminarDefinitivo = (idEvento: number) => {
+    setMotivoModal({ show: true, tipo: 'eliminar-definitivo', id: idEvento });
+    setMotivoTexto('');
+  };
+
+  const handleEliminarDefinitivamente = async () => {
+    if (!motivoTexto.trim()) {
+      showToast('Debes ingresar un motivo', 'error');
+      return;
     }
+
+    // Cerrar el modal de motivo primero y guardar los valores
+    const motivoGuardado = motivoTexto;
+    const idEventoGuardado = motivoModal.id;
+    cerrarModal();
+
+    // Luego mostrar el modal de confirmación personalizado
+    showConfirm(
+      '⚠️ ADVERTENCIA - Eliminación Definitiva',
+      'Esta acción eliminará el evento PERMANENTEMENTE de la base de datos y NO se podrá recuperar. ¿Estás seguro?',
+      async () => {
+        try {
+          await AdminService.depurarEvento(idEventoGuardado, motivoGuardado);
+          showToast('Evento eliminado definitivamente', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error', 'error');
+        }
+        hideConfirm();
+      },
+      'danger'
+    );
   };
 
   // ========== MODAL ==========
@@ -311,6 +467,8 @@ const AdminDashboard: React.FC = () => {
       handleEliminarEventoActivo();
     } else if (motivoModal.tipo === 'depurar-finalizado') {
       handleDepurarFinalizado();
+    } else if (motivoModal.tipo === 'eliminar-definitivo') {
+      handleEliminarDefinitivamente();
     }
   };
 
@@ -463,7 +621,7 @@ const AdminDashboard: React.FC = () => {
                   <td className="text-sm-admin">{evento.ubicacion}</td>
                   <td><span className="badge-admin">{evento.tipo_evento?.nombre || 'N/A'}</span></td>
                   <td className="actions-admin">
-                    <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalDepurarFinalizado(evento.id_evento)} title="Depurar (Hard Delete)">
+                    <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalDepurarFinalizado(evento.id_evento)} title="Depurar">
                       🗑️ Depurar
                     </button>
                   </td>
@@ -481,7 +639,7 @@ const AdminDashboard: React.FC = () => {
       <div className="admin-card">
         <div className="card-header-admin">
           <h2 className="card-title-admin">
-            🔄 Eventos Cancelados (Soft Delete - Estado 5)
+            🔄 Eventos Cancelados 
             {eventosCancelados.length > 0 && <span className="badge-count-admin">{eventosCancelados.length}</span>}
           </h2>
         </div>
@@ -508,7 +666,7 @@ const AdminDashboard: React.FC = () => {
                       <button className="btn-sm-admin btn-success-admin" onClick={() => handleRestaurarCancelado(evento.id_evento)} title="Restaurar evento">
                         ♻️ Restaurar
                       </button>
-                      <button className="btn-sm-admin btn-danger-admin" onClick={() => handleEliminarDefinitivamente(evento.id_evento)} title="Eliminar definitivamente">
+                      <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalEliminarDefinitivo(evento.id_evento)} title="Eliminar definitivamente">
                         🗑️ Eliminar
                       </button>
                     </td>
@@ -523,7 +681,7 @@ const AdminDashboard: React.FC = () => {
       <div className="admin-card">
         <div className="card-header-admin">
           <h2 className="card-title-admin">
-            💀 Eventos Depurados (Hard Delete - Estado 7)
+            💀 Eventos Depurados 
             {eventosDepurados.length > 0 && <span className="badge-count-admin">{eventosDepurados.length}</span>}
           </h2>
         </div>
@@ -560,6 +718,16 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="admin-dashboard-container">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
+      {/* ✅ MODAL DE CONFIRMACIÓN PERSONALIZADO */}
+      <ConfirmModal 
+        show={confirmModal.show}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={hideConfirm}
+        type={confirmModal.type}
+      />
 
       <header className="admin-header-main">
         <div className="header-left-admin">
@@ -570,7 +738,7 @@ const AdminDashboard: React.FC = () => {
           <button className="btn-refresh-admin" onClick={cargarDatos}>↻ Refrescar</button>
           <div className="user-menu-container">
             <button className="user-menu-trigger" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-              <span className="user-name">{currentUser.nombre || 'ADMIN'}</span>
+              <span className="user-name">{currentUser.nombre_y_apellido || currentUser.nombre || 'ADMIN'}</span>
               <span className="arrow-icon">{userMenuOpen ? '▲' : '▼'}</span>
             </button>
             {userMenuOpen && (
@@ -623,24 +791,38 @@ const AdminDashboard: React.FC = () => {
         </main>
       </div>
 
+      {/* MODAL DE MOTIVO */}
       {motivoModal.show && (
         <div className="modal-overlay-admin" onClick={cerrarModal}>
           <div className="modal-content-admin" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header-admin">
               <h3>
-                {motivoModal.tipo === 'rechazar-alta' && 'Rechazar Solicitud'}
-                {motivoModal.tipo === 'eliminar-evento' && 'Eliminar Evento'}
-                {motivoModal.tipo === 'depurar-finalizado' && 'Depurar Evento'}
+                {motivoModal.tipo === 'rechazar-alta' && '❌ Rechazar Solicitud'}
+                {motivoModal.tipo === 'eliminar-evento' && '🗑️ Eliminar Evento'}
+                {motivoModal.tipo === 'depurar-finalizado' && '⚠️ Depurar Evento'}
+                {motivoModal.tipo === 'eliminar-definitivo' && '💀 Eliminación Definitiva'}
               </h3>
               <button className="modal-close-admin" onClick={cerrarModal}>✕</button>
             </div>
             <div className="modal-body-admin">
               <label className="modal-label-admin">Motivo (obligatorio):</label>
-              <textarea className="modal-textarea-admin" placeholder="Describe la razón..." value={motivoTexto} onChange={(e) => setMotivoTexto(e.target.value)} rows={4} />
+              <textarea 
+                className="modal-textarea-admin" 
+                placeholder="Describe la razón de esta acción..." 
+                value={motivoTexto} 
+                onChange={(e) => setMotivoTexto(e.target.value)} 
+                rows={4} 
+              />
             </div>
             <div className="modal-footer-admin">
               <button className="btn-modal-admin btn-cancel-admin" onClick={cerrarModal}>Cancelar</button>
-              <button className="btn-modal-admin btn-confirm-admin" onClick={confirmarAccionModal} disabled={!motivoTexto.trim()}>Confirmar</button>
+              <button 
+                className="btn-modal-admin btn-confirm-admin" 
+                onClick={confirmarAccionModal} 
+                disabled={!motivoTexto.trim()}
+              >
+                Confirmar
+              </button>
             </div>
           </div>
         </div>

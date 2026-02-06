@@ -278,8 +278,41 @@ export default function InicioPage() {
         return user && (user.id_rol === 1 || user.id_rol === 2);
     };
 
-    if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
-    if (error) return <div style={{ color: 'red', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{error}</div>;
+    if (loading) return (
+  <div style={{ 
+    position: 'fixed', // Saca el elemento del flujo normal
+    top: 0,
+    left: 0,
+    width: '100%',     // Asegura ancho completo
+    height: '100vh',   // Asegura alto completo
+    zIndex: 9999,      // Asegura que quede por encima de todo
+    color: '#ccff00', 
+    background: '#0d0d0d', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  }}>
+    CARGANDO...
+  </div>
+);
+
+if (error) return (
+  <div style={{ 
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100vh',
+    zIndex: 9999,
+    color: 'red', 
+    background: '#0d0d0d', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  }}>
+    {error}
+  </div>
+);
 
     return (
         <div className="inicio-container">

@@ -1,25 +1,56 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
 
 /* ================================
-   VARIABLES GLOBALES (igual que inicio.css)
+   🎨 PALETA DE COLORES - PROFESIONAL
    ================================ */
 :root {
-  --bg-color: #0d0d0d;
-  --card-bg: #1a1a1a;
+  /* Backgrounds */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #141414;
+  --bg-card: #1f1f1f;
+  
+  /* Text */
   --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --accent-color: #ccff00; /* Amarillo Neón */
-  --border-color: #333;
-  --success: #10b981;
-  --danger: #ff4444;
+  --text-secondary: #a8a8a8;
+  --text-muted: #6b6b6b;
+  
+  /* Accent Colors - Más sutiles */
+  --color-primary: #4a9eff;      /* Azul profesional */
+  --color-secondary: #ff6b35;    /* Naranja suave */
+  --color-accent: #7c3aed;       /* Púrpura elegante */
+  
+  /* Status Colors */
+  --color-success: #10b981;      
+  --color-warning: #f59e0b;     
+  --color-danger: #ef4444;       
+  --color-info: #3b82f6;        
+  
+  /* Borders */
+  --border-primary: #2a2a2a;
+  --border-secondary: #333333;
+  --border-accent: #404040;
+  
+  /* Shadows - Sutiles */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.6);
 }
 
+/* ================================
+   RESET Y BASE
+   ================================ */
 body {
   margin: 0;
   padding: 0;
-  background-color: var(--bg-color);
+  background-color: var(--bg-primary);
   font-family: 'Montserrat', sans-serif;
   color: var(--text-primary);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 /* ================================
@@ -29,23 +60,23 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-color);
+  background-color: var(--bg-primary);
 }
 
 /* ================================
-   HEADER (Estilo Hero Navbar)
+   HEADER - Más Profesional
    ================================ */
 .admin-header-main {
-  background-color: var(--card-bg);
-  border-bottom: 2px solid var(--accent-color);
-  padding: 20px 40px;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 18px 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-md);
 }
 
 .header-left-admin {
@@ -55,31 +86,38 @@ body {
 }
 
 .btn-volver-inicio {
-  border: 2px solid var(--text-primary);
-  color: var(--text-primary);
+  border: 1px solid var(--border-accent);
+  color: var(--text-secondary);
+  background: transparent;
   padding: 10px 20px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
   text-decoration: none;
-  border-radius: 5px;
-  font-size: 0.9rem;
-  transition: 0.3s;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
   font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .btn-volver-inicio:hover {
-  background-color: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #000;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
 .admin-page-title {
-  font-size: 1.8rem;
-  font-weight: 800;
+  font-size: 1.6rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0;
   color: var(--text-primary);
+  background: linear-gradient(135deg, #ffffff 0%, #a8a8a8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .header-right-admin {
@@ -89,53 +127,58 @@ body {
 }
 
 .btn-refresh-admin {
-  background-color: #333;
-  border: 2px solid var(--border-color);
-  color: var(--text-primary);
+  background-color: transparent;
+  border: 1px solid var(--border-accent);
+  color: var(--text-secondary);
   padding: 10px 20px;
-  border-radius: 5px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
   text-transform: uppercase;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.2s ease;
   font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .btn-refresh-admin:hover {
-  background-color: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #000;
+  background-color: var(--bg-secondary);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  transform: translateY(-1px);
 }
 
-/* User Menu (igual que inicio.css) */
+/* User Menu - Estilo profesional */
 .user-menu-container {
   position: relative;
   display: inline-block;
 }
 
 .user-menu-trigger {
-  background-color: var(--bg-color) !important;
-  border: 1px solid var(--accent-color) !important;
-  color: var(--accent-color) !important;
-  padding: 10px 20px;
+  background-color: var(--bg-secondary) !important;
+  border: 1px solid var(--border-accent) !important;
+  color: var(--text-primary) !important;
+  padding: 10px 18px;
   border-radius: 6px;
   min-width: 200px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 15px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  gap: 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
   text-transform: uppercase;
   cursor: pointer;
-  transition: 0.3s;
+  transition: all 0.2s ease;
   font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .user-menu-trigger:hover {
-  background-color: rgba(204, 255, 0, 0.1) !important;
-  box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+  background-color: var(--bg-tertiary) !important;
+  border-color: var(--color-primary) !important;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .user-dropdown {
@@ -144,55 +187,57 @@ body {
   right: 0;
   width: 100%;
   min-width: 200px;
-  background-color: var(--card-bg) !important;
-  border: 1px solid var(--border-color);
-  box-shadow: 0px 10px 25px rgba(0,0,0,0.8);
-  border-radius: 6px;
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-secondary);
+  box-shadow: var(--shadow-lg);
+  border-radius: 8px;
   z-index: 9999;
   overflow: hidden;
 }
 
 .dropdown-header {
-  padding: 15px;
-  background-color: #000 !important;
-  color: #888;
-  font-size: 0.75rem;
-  font-weight: 800;
+  padding: 12px 15px;
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
   text-align: center;
+  letter-spacing: 1px;
 }
 
 .dropdown-item {
   padding: 12px 15px;
-  color: #fff !important;
+  color: var(--text-secondary) !important;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
   text-transform: uppercase;
   background: transparent;
   border: none;
   text-align: center;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s;
   width: 100%;
   display: block;
   font-family: 'Montserrat', sans-serif;
+  letter-spacing: 0.5px;
 }
 
 .dropdown-item:hover {
-  background-color: var(--accent-color) !important;
-  color: #000 !important;
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-primary) !important;
 }
 
 .logout-button {
-  color: var(--danger) !important;
-  border-top: 1px solid var(--border-color);
+  color: var(--color-danger) !important;
+  border-top: 1px solid var(--border-primary);
 }
 
 .logout-button:hover {
-  background-color: var(--danger) !important;
-  color: white !important;
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: var(--color-danger) !important;
 }
 
 /* ================================
@@ -205,16 +250,16 @@ body {
 }
 
 /* ================================
-   SIDEBAR
+   SIDEBAR - Minimalista
    ================================ */
 .admin-sidebar {
-  width: 280px;
-  background-color: var(--card-bg);
-  padding: 2rem 1rem;
+  width: 260px;
+  background: var(--bg-secondary);
+  padding: 1.5rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  border-right: 1px solid var(--border-color);
+  gap: 0.5rem;
+  border-right: 1px solid var(--border-primary);
   overflow-y: auto;
 }
 
@@ -222,37 +267,37 @@ body {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
-  padding: 14px 16px;
-  border-radius: 5px;
+  padding: 12px 14px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   position: relative;
   font-family: 'Montserrat', sans-serif;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .sidebar-btn-admin:hover {
-  background: #333;
+  background: var(--bg-tertiary);
   color: var(--text-primary);
-  border-color: var(--border-color);
+  border-color: var(--border-accent);
 }
 
 .sidebar-btn-admin.active {
-  background: var(--accent-color);
-  color: #000;
-  border-color: var(--accent-color);
-  font-weight: 800;
-  box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+  background: linear-gradient(135deg, rgba(74, 158, 255, 0.15) 0%, rgba(74, 158, 255, 0.05) 100%);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 700;
 }
 
 .sidebar-btn-admin .icon-admin {
-  font-size: 1.3rem;
-  width: 28px;
+  font-size: 1.2rem;
+  width: 24px;
 }
 
 .sidebar-btn-admin .text-admin {
@@ -260,13 +305,13 @@ body {
 }
 
 .badge-sidebar-admin {
-  background: var(--danger);
+  background: var(--color-danger);
   color: white;
-  padding: 3px 8px;
-  border-radius: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
   font-size: 0.7rem;
   font-weight: 700;
-  min-width: 22px;
+  min-width: 20px;
   text-align: center;
 }
 
@@ -275,85 +320,88 @@ body {
    ================================ */
 .admin-main-content {
   flex: 1;
-  background: var(--bg-color);
+  background: var(--bg-primary);
   padding: 2rem;
   overflow-y: auto;
 }
 
 /* ================================
-   CARDS (Estilo evento-card)
+   CARDS - Elegantes y Profesionales
    ================================ */
 .admin-card {
-  background-color: var(--card-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  transition: 0.3s;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--accent-color);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-secondary);
 }
 
 .card-danger-admin {
-  border-left: 4px solid var(--danger);
+  border-left: 3px solid var(--color-danger);
 }
 
 .card-header-admin {
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .card-title-admin {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: 1.3rem;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0;
+  letter-spacing: 0.5px;
 }
 
 .badge-count-admin {
-  background: var(--accent-color);
-  color: #000;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-info) 100%);
+  color: white;
   padding: 4px 12px;
   border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-weight: 700;
   margin-left: auto;
 }
 
 /* ================================
-   TABLES
+   TABLES - Limpias y Modernas
    ================================ */
 .table-wrapper-admin {
   overflow-x: auto;
-  border-radius: 5px;
-  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
 }
 
 .data-table-admin {
   width: 100%;
   border-collapse: collapse;
-  background: var(--bg-color);
+  background: var(--bg-secondary);
 }
 
 .data-table-admin thead {
-  background: #000;
-  border-bottom: 2px solid var(--accent-color);
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .data-table-admin th {
   padding: 14px 16px;
   text-align: left;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 0.75rem;
-  color: var(--accent-color);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -364,29 +412,28 @@ body {
 }
 
 .data-table-admin tbody tr {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-primary);
   transition: all 0.2s;
 }
 
 .data-table-admin tbody tr:hover {
-  background: var(--card-bg);
+  background: rgba(74, 158, 255, 0.05);
 }
 
 .data-table-admin td {
-  padding: 16px;
+  padding: 14px 16px;
   color: var(--text-primary);
   font-size: 0.9rem;
 }
 
 .text-muted-admin {
-  color: var(--text-secondary) !important;
-  font-weight: 700;
+  color: var(--text-muted) !important;
+  font-weight: 600;
 }
 
 .text-highlight-admin {
-  color: var(--accent-color) !important;
-  font-weight: 700;
-  text-transform: uppercase;
+  color: var(--color-primary) !important;
+  font-weight: 600;
 }
 
 .text-sm-admin {
@@ -401,124 +448,109 @@ body {
   justify-content: flex-end;
 }
 
-/* Badges */
+/* Badges - Más sutiles */
 .badge-admin {
-  background: #333;
-  color: var(--accent-color);
+  background: rgba(74, 158, 255, 0.15);
+  color: var(--color-primary);
+  border: 1px solid rgba(74, 158, 255, 0.3);
   padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 700;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
   text-transform: uppercase;
   display: inline-block;
+  letter-spacing: 0.3px;
 }
 
-.badge-estado-admin {
+.badge-depurado-admin {
+  background: rgba(107, 107, 107, 0.15);
+  color: var(--text-muted);
+  border: 1px solid var(--border-primary);
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: 6px;
   font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.badge-estado-admin.soft_delete {
-  background: rgba(255, 68, 68, 0.2);
-  color: var(--danger);
-  border: 1px solid var(--danger);
-}
-
-.badge-estado-admin.hard_delete {
-  background: rgba(100, 100, 100, 0.2);
-  color: #888;
-  border: 1px solid #666;
-}
-
-.badge-tipo-admin {
-  padding: 2px 8px;
-  font-size: 0.7rem;
-  border-radius: 4px;
-  background: var(--bg-color);
-  color: var(--text-secondary);
-  text-transform: uppercase;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
 /* ================================
-   BUTTONS
+   BUTTONS - Profesionales
    ================================ */
 .btn-icon-admin {
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 5px;
-  font-size: 1.1rem;
-  font-weight: 900;
+  width: 34px;
+  height: 34px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
 }
 
 .btn-success-admin {
-  background: rgba(16, 185, 129, 0.15);
-  color: var(--success);
-  border: 1px solid var(--success);
+  color: var(--color-success);
+  border-color: var(--color-success);
 }
 
 .btn-success-admin:hover {
-  background: var(--success);
+  background: var(--color-success);
   color: white;
-  transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
 .btn-danger-admin {
-  background: rgba(255, 68, 68, 0.15);
-  color: var(--danger);
-  border: 1px solid var(--danger);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .btn-danger-admin:hover {
-  background: var(--danger);
+  background: var(--color-danger);
   color: white;
-  transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
 .btn-sm-admin {
   padding: 8px 16px;
-  border: none;
-  border-radius: 5px;
-  font-weight: 700;
-  font-size: 0.85rem;
+  border: 1px solid;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.8rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-family: 'Montserrat', sans-serif;
+  background: transparent;
 }
 
 .btn-sm-admin.btn-danger-admin {
-  background: var(--danger);
-  color: white;
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 
 .btn-sm-admin.btn-danger-admin:hover {
-  background: #cc0000;
-  box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
-  transform: translateY(-2px);
+  background: var(--color-danger);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
 }
 
 .btn-sm-admin.btn-success-admin {
-  background: var(--success);
-  color: white;
+  border-color: var(--color-success);
+  color: var(--color-success);
 }
 
 .btn-sm-admin.btn-success-admin:hover {
-  background: #059669;
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-  transform: translateY(-2px);
+  background: var(--color-success);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
 /* ================================
@@ -531,8 +563,18 @@ body {
   font-size: 0.95rem;
   font-weight: 500;
   background: rgba(255, 255, 255, 0.02);
-  border: 2px dashed var(--border-color);
+  border: 1px dashed var(--border-secondary);
   border-radius: 8px;
+}
+
+.info-text-admin {
+  color: var(--color-info);
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--color-info);
+  border-radius: 6px;
 }
 
 .loading-admin {
@@ -541,19 +583,18 @@ body {
   align-items: center;
   justify-content: center;
   padding: 80px 24px;
-  color: var(--accent-color);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
 .spinner-admin {
-  border: 4px solid var(--border-color);
-  border-top: 4px solid var(--accent-color);
+  border: 3px solid var(--border-primary);
+  border-top: 3px solid var(--color-primary);
   border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
   margin-bottom: 16px;
-  box-shadow: 0 0 20px rgba(204, 255, 0, 0.3);
 }
 
 @keyframes spin {
@@ -561,7 +602,7 @@ body {
 }
 
 /* ================================
-   MODAL
+   MODAL DE MOTIVO - Elegante
    ================================ */
 .modal-overlay-admin {
   position: fixed;
@@ -570,7 +611,7 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -584,12 +625,12 @@ body {
 }
 
 .modal-content-admin {
-  background: var(--card-bg);
-  border: 2px solid var(--accent-color);
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
   width: 90%;
   max-width: 550px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.8), 0 0 40px rgba(204, 255, 0, 0.3);
+  box-shadow: var(--shadow-xl);
   animation: slideUp 0.3s ease;
 }
 
@@ -606,92 +647,95 @@ body {
 
 .modal-header-admin {
   padding: 20px 24px;
-  background: #000;
-  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-radius: 6px 6px 0 0;
+  border-radius: 11px 11px 0 0;
 }
 
 .modal-header-admin h3 {
-  font-size: 1.2rem;
-  font-weight: 800;
-  color: var(--accent-color);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
   margin: 0;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .modal-close-admin {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
-  font-size: 1.5rem;
+  color: var(--text-muted);
+  font-size: 1.4rem;
   cursor: pointer;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 5px;
+  border-radius: 6px;
   transition: all 0.2s;
 }
 
 .modal-close-admin:hover {
-  background: var(--border-color);
+  background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
 .modal-body-admin {
   padding: 24px;
+  background: var(--bg-card);
 }
 
 .modal-label-admin {
   display: block;
   color: var(--text-primary);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   margin-bottom: 10px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .modal-textarea-admin {
   width: 100%;
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
   color: var(--text-primary);
   padding: 12px;
-  border-radius: 5px;
+  border-radius: 8px;
   font-family: 'Montserrat', sans-serif;
   font-size: 0.9rem;
   resize: vertical;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .modal-textarea-admin:focus {
   outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
 }
 
 .modal-footer-admin {
   padding: 16px 24px;
-  background: #000;
-  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 11px 11px;
 }
 
 .btn-modal-admin {
   padding: 10px 24px;
-  border: 2px solid;
-  border-radius: 5px;
-  font-weight: 700;
-  font-size: 0.9rem;
+  border: 1px solid;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-family: 'Montserrat', sans-serif;
@@ -699,29 +743,164 @@ body {
 
 .btn-cancel-admin {
   background: transparent;
-  border-color: var(--border-color);
-  color: var(--text-primary);
+  border-color: var(--border-accent);
+  color: var(--text-secondary);
 }
 
 .btn-cancel-admin:hover {
-  background: var(--border-color);
+  background: var(--bg-tertiary);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .btn-confirm-admin {
-  background: var(--accent-color);
-  border-color: var(--accent-color);
-  color: #000;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
 }
 
 .btn-confirm-admin:hover {
-  box-shadow: 0 0 20px rgba(204, 255, 0, 0.5);
-  transform: translateY(-2px);
+  background: var(--color-info);
+  border-color: var(--color-info);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.4);
 }
 
 .btn-confirm-admin:disabled {
   opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+/* ================================
+   MODAL DE CONFIRMACIÓN - Profesional
+   ================================ */
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: fadeIn 0.25s ease;
+}
+
+.confirm-modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: var(--shadow-xl);
+  animation: modalPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.confirm-modal-header {
+  padding: 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  border-radius: 11px 11px 0 0;
+}
+
+.confirm-modal-icon {
+  font-size: 2.5rem;
+  animation: iconFloat 2.5s ease-in-out infinite;
+}
+
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.confirm-modal-header h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+}
+
+.confirm-modal-body {
+  padding: 28px 24px;
+  background: var(--bg-card);
+}
+
+.confirm-modal-body p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.confirm-modal-footer {
+  padding: 20px 24px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  border-radius: 0 0 11px 11px;
+}
+
+.btn-confirm-cancel,
+.btn-confirm-action {
+  padding: 11px 26px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: 'Montserrat', sans-serif;
+  min-width: 120px;
+}
+
+.btn-confirm-cancel {
+  background: transparent;
+  border-color: var(--border-accent);
+  color: var(--text-secondary);
+}
+
+.btn-confirm-cancel:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.btn-confirm-action {
+  color: white;
+}
+
+.btn-confirm-action:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 /* ================================
@@ -729,15 +908,23 @@ body {
    ================================ */
 @media (max-width: 768px) {
   .admin-header-main {
-    padding: 20px;
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 1rem;
   }
   
   .header-left-admin {
     gap: 1rem;
+    width: 100%;
   }
   
   .admin-page-title {
     font-size: 1.2rem;
+  }
+  
+  .header-right-admin {
+    width: 100%;
+    justify-content: space-between;
   }
   
   .admin-layout-main {
@@ -750,7 +937,7 @@ body {
     overflow-x: auto;
     padding: 12px;
     border-right: none;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-primary);
   }
   
   .sidebar-btn-admin {
@@ -761,7 +948,8 @@ body {
     padding: 1rem;
   }
   
-  .modal-content-admin {
+  .modal-content-admin,
+  .confirm-modal-content {
     width: 95%;
   }
   
@@ -781,5 +969,13 @@ body {
   
   .user-name {
     display: none;
+  }
+  
+  .confirm-modal-icon {
+    font-size: 2rem;
+  }
+  
+  .confirm-modal-header h3 {
+    font-size: 1.05rem;
   }
 }
