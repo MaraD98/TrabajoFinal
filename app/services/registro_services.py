@@ -5,8 +5,6 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
-from app.models.registro_models import EventoMultimedia, EliminacionEvento, Evento
-from app.models.inscripcion_models import ReservaEvento 
 from app.models.auth_models import Usuario
 from app.models.eliminacion_models import EliminacionEvento
 from app.db.crud import registro_crud
@@ -18,6 +16,8 @@ from app.db.crud.registro_crud import (
     ID_ESTADO_PENDIENTE_ELIMINACION
 )
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
+from app.models.inscripcion_models import ReservaEvento      
+
 
 UPLOAD_DIR = "static/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)

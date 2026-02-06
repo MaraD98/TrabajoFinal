@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cancelarEventoPropio, solicitarBajaEvento, adminEliminarEvento } from "../services/eventos";
+import { solicitarBajaEvento, adminEliminarEvento } from "../services/eventos";
 
 interface Props {
   isOpen: boolean;

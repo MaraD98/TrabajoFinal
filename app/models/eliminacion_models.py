@@ -4,17 +4,9 @@ from app.models.base import Base
 
 
 class EliminacionEvento(Base):
-    """
-    Tabla de auditoría para eliminaciones de eventos.
     
-    Almacena el historial de:
-    - HU 4.1: Cancelaciones por el organizador
-    - HU 4.2: Solicitudes de baja (organizador externo)
-    - HU 4.3: Eliminaciones por administrador
-    - HU 4.5: Control de notificaciones enviadas
-    """
     __tablename__ = "eliminacion_evento"
-
+    
     id_eliminacion = Column(Integer, primary_key=True, index=True)
     id_evento = Column(Integer, ForeignKey("evento.id_evento"), nullable=False)
     motivo_eliminacion = Column(Text, nullable=False)
