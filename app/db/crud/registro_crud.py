@@ -36,6 +36,28 @@ def normalizar_texto(texto: str) -> str:
     sin_acentos = ''.join(char for char in texto_nfd if unicodedata.category(char) != 'Mn')
     return sin_acentos.lower()
 
+# -----------------------------------------------------------------------------
+# 1. CREATE (Crear)
+# -----------------------------------------------------------------------------
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):    
+    db_evento = Evento(
+        nombre_evento       = evento.nombre_evento,
+        ubicacion           = evento.ubicacion,
+        fecha_evento        = evento.fecha_evento,
+        descripcion         = evento.descripcion,
+        costo_participacion = evento.costo_participacion,
+        id_tipo             = evento.id_tipo,
+        id_dificultad       = evento.id_dificultad,
+        cupo_maximo         = evento.cupo_maximo,
+        id_estado  = id_estado_final, 
+        id_usuario = user_id,
+        lat = evento.lat,  
+        lng = evento.lng   
+    )
+    db.add(db_evento)
+    db.commit()
+    db.refresh(db_evento)
+    return db_evento
 
 # ============================================================================
 # FUNCIÓN AUXILIAR: Actualizar eventos pasados automáticamente
@@ -159,9 +181,9 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
+        db_evento.cupo_maximo         = evento_data.cupo_maximo
         db_evento.lat                 = evento_data.lat
         db_evento.lng                 = evento_data.lng
-        db_evento.cupo_maximo         = evento_data.cupo_maximo or 0
         db.commit()
         db.refresh(db_evento)
     return db_evento

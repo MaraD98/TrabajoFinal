@@ -1,15 +1,17 @@
 import { createContext, useState, useEffect, useContext } from 'react';
-import type { ReactNode } from 'react'; // 👈 CAMBIO AQUÍ: Lo importamos como "type" separado
+import type { ReactNode } from 'react'; 
 import { getCurrentUser } from '../services/eventos'; 
 
-// Definimos la estructura de datos del usuario
-interface User {
+// --- CORRECCIÓN AQUÍ ---
+// Definimos la estructura IGUAL a tu Base de Datos
+export interface User {
   id_usuario: number;
-  nombre: string;
-  apellido: string;
+  nombre_y_apellido: string; // Cambiado para coincidir con tu SQL
   email: string;
   id_rol: number;
+  telefono?: string; // Lo agrego como OPCIONAL (?) porque el Calendario lo usa, aunque no lo vi en tu tabla SQL.
 }
+// -----------------------
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +35,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (token) {
         try {
           const userData = await getCurrentUser(token);
+          // OJO: Si el backend devuelve "nombre_y_apellido", se asignará correctamente aquí.
           setUser(userData);
         } catch (error) {
           console.error("Sesión inválida", error);
@@ -66,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem("rol");
-    localStorage.removeItem("token_type");
+    localStorage.removeItem("token_type"); // Asegurate de limpiar esto si lo usas
     sessionStorage.removeItem('token');
     setUser(null);
     window.location.href = "/";

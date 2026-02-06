@@ -16,8 +16,10 @@ class PerfilService:
         return self._formatear_respuesta(usuario, contacto)
 
     def actualizar_datos(self, db: Session, id_usuario: int, datos: PerfilUpdate) -> PerfilResponse:
-        # 1. Validación de Email Único (Si el usuario quiere cambiar su email)
+        # Validación de Email Único
         if datos.email:
+            # Nota: Podrías mover esta consulta al CRUD si quisieras ser estricto, 
+            # pero una consulta simple de lectura aquí es aceptable.
             usuario_existente = db.query(Usuario).filter(Usuario.email == datos.email).first()
             if usuario_existente and usuario_existente.id_usuario != id_usuario:
                 raise HTTPException(
@@ -25,9 +27,7 @@ class PerfilService:
                     detail="El email ya está registrado por otro usuario."
                 )
 
-        # 2. Llamamos al CRUD para actualizar
         usuario_actualizado, contacto_actualizado = perfil_crud.update_profile(db, id_usuario, datos)
-        
         return self._formatear_respuesta(usuario_actualizado, contacto_actualizado)
 
     def cambiar_password(self, db: Session, id_usuario: int, datos: CambioPassword):
@@ -36,16 +36,13 @@ class PerfilService:
         if not usuario:
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-        # 1. Verificar que la contraseña actual sea la correcta
         if not verify_password(datos.password_actual, usuario.contrasenia):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail="La contraseña actual es incorrecta."
             )
         
-        # 2. Hashear la nueva y guardar
         usuario.contrasenia = get_password_hash(datos.password_nueva)
-        
         db.add(usuario)
         db.commit()
         
@@ -56,6 +53,42 @@ class PerfilService:
         if not exito:
             raise HTTPException(status_code=400, detail="No se pudo eliminar la cuenta")
         return {"message": "Cuenta eliminada exitosamente"}
+
+    # ------------------------------------------------------------------
+    # MÉTODO LIMPIO: Llama al CRUD y formatea datos
+    # ------------------------------------------------------------------
+    def obtener_mis_inscripciones(self, db: Session, id_usuario: int):
+        # 1. Llamamos al CRUD (Base de Datos)
+        resultados_crud = perfil_crud.get_mis_inscripciones_db(db, id_usuario)
+        
+        lista_inscripciones = []
+        
+        # 2. Procesamos la lógica de presentación (Mapeo)
+        for reserva, evento in resultados_crud:
+            
+            # Lógica de negocio: Traducción de estados
+            estado_texto = "Desconocido"
+            if reserva.id_estado_reserva == 1: estado_texto = "Pendiente de Pago"
+            elif reserva.id_estado_reserva == 2: estado_texto = "Confirmado"
+            elif reserva.id_estado_reserva == 3: estado_texto = "Rechazado"
+            elif reserva.id_estado_reserva == 5: estado_texto = "Cancelado"
+
+            item = {
+                "id_reserva": reserva.id_reserva,
+                "fecha_reserva": reserva.fecha_reserva,
+                "estado_reserva": estado_texto,
+                
+                "id_evento": evento.id_evento,
+                "nombre_evento": evento.nombre_evento,
+                "ubicacion": evento.ubicacion,
+                "fecha_evento": evento.fecha_evento,
+                # Verifica si el objeto evento tiene hora, si no, null
+                "hora_evento": str(evento.hora_evento) if hasattr(evento, 'hora_evento') and evento.hora_evento else None,
+                "costo": evento.costo_participacion
+            }
+            lista_inscripciones.append(item)
+            
+        return lista_inscripciones
 
     def _formatear_respuesta(self, usuario, contacto) -> dict:
         return {

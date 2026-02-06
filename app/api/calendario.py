@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List
-# Asegúrate de que estos imports coincidan con tu estructura
 from app.db.database import get_db 
 from app.db.crud import calendario_crud as crud
 from app.schemas import calendario_schema as schemas
 from app.services import calendario_services as service     
+from app.models.inscripcion_models import ReservaEvento 
 
 router = APIRouter(tags=["Calendario"])
 calendario_srv = service.CalendarioService()
@@ -18,7 +18,7 @@ def obtener_calendario_mensual(
 ):
     """
     Endpoint para el calendario mensual.
-    Devuelve eventos con detalles completos (IDs, Nombres, Coordenadas, etc.)
+    Devuelve eventos con detalles completos y lógica de cupos corregida.
     """
     
     # 1. Llamamos al servicio (Lógica de fechas)
@@ -28,13 +28,31 @@ def obtener_calendario_mensual(
         return [] 
 
     # 2. Llamamos al CRUD (Base de datos)
-    # IMPORTANTE: El CRUD debe devolver las columnas en el orden que mapeamos abajo
     resultados_db = crud.get_eventos_calendario(db, fecha_inicio, fecha_fin)
     
-    # 3. Mapeo manual (ACTUALIZADO CON TODOS LOS CAMPOS)
+    # 3. Mapeo manual
     lista_eventos = []
     
     for row in resultados_db:
+        
+        id_evento_actual = row[0]
+        cupo_db = row[10] # Valor crudo de la base de datos (puede ser None, 0 o un número)
+        
+        # Contamos cuántos inscriptos hay
+        ocupados = db.query(ReservaEvento).filter(ReservaEvento.id_evento == id_evento_actual).count()
+        
+        # --- LÓGICA CORREGIDA AQUÍ ---
+        if cupo_db and cupo_db > 0:
+            # CASO A: Tiene límite (ej: 50). Calculamos la resta.
+            cupo_maximo_actual = cupo_db
+            disponibles = cupo_db - ocupados
+        else:
+            # CASO B: Es 0 o None (Ilimitado).
+            # No restamos. Enviamos None para que el front sepa que es libre.
+            cupo_maximo_actual = 0
+            disponibles = None 
+        # -----------------------------
+
         evento_dict = {
             # --- Datos Básicos ---
             "id_evento": row[0],       
@@ -42,20 +60,20 @@ def obtener_calendario_mensual(
             "fecha_evento": row[2],
             "ubicacion": row[3],
 
-            # --- Tipo (ID y Nombre) ---
-            # Asumimos que row[4] es ID y row[5] es Nombre
+            # --- Tipo ---
             "id_tipo": row[4] if row[4] is not None else 0,
             "nombre_tipo": row[5] if row[5] is not None else "General",
 
-            # --- Dificultad (ID y Nombre) ---
-            # Asumimos que row[6] es ID y row[7] es Nombre
+            # --- Dificultad ---
             "id_dificultad": row[6] if row[6] is not None else 0,
             "nombre_dificultad": row[7] if row[7] is not None else "General",
 
             # --- Detalles Extra ---
             "descripcion": row[8] if row[8] is not None else "",
             "costo_participacion": row[9] if row[9] is not None else 0.0,
-            "cupo_maximo": row[10] if row[10] is not None else 0,
+            
+            "cupo_maximo": cupo_maximo_actual,
+            "cupos_disponibles": disponibles, # Ahora mandamos None si es ilimitado
 
             # --- Coordenadas ---
             "lat": row[11] if row[11] is not None else None,

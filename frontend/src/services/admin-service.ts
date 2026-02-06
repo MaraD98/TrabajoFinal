@@ -142,4 +142,19 @@ export class AdminService {
       throw error;
     }
   }
+
+  // ===========================
+  // INSCRIPCIONES Y RESERVAS 
+  // ===========================
+  
+  static async obtenerTodasLasReservas() {
+    try {
+      // NOTA: Si tu backend requiere ruta admin, cámbialo a '/admin/reservas'
+      const response = await api.get('/reservas'); 
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo todas las reservas:', error);
+      return [];
+    }
+  }
 }

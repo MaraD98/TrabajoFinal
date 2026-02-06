@@ -1,8 +1,9 @@
+from typing import List  
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.auth_models import Usuario
-from app.schemas.perfil_schema import PerfilResponse, PerfilUpdate, CambioPassword
+from app.schemas.perfil_schema import PerfilResponse, PerfilUpdate, CambioPassword, MiInscripcionResponse
 from app.services.perfil_service import PerfilService
 from app.core.deps import get_current_user
 
@@ -51,3 +52,17 @@ def eliminar_mi_cuenta(
     Elimina la cuenta del usuario y sus datos de contacto permanentemente.
     """
     return service.eliminar_cuenta(db, current_user.id_usuario)
+
+# -----------------------------------------------------------
+# NUEVO ENDPOINT: Pestaña "Inscriptos"
+# -----------------------------------------------------------
+@router.get("/me/inscripciones", response_model=List[MiInscripcionResponse])
+def ver_mis_inscripciones(
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Devuelve la lista de eventos donde el usuario se anotó.
+    Se usa para la pestaña 'Mis Eventos' -> 'Inscriptos'.
+    """
+    return service.obtener_mis_inscripciones(db, current_user.id_usuario)

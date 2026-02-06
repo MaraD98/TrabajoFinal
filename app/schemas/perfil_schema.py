@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
+from datetime import date, datetime
+from decimal import Decimal
 
 # ---------------------------------------------------------
 # 1. ACTUALIZACIÓN DE DATOS (Info Personal y Contacto)
@@ -45,6 +47,26 @@ class PerfilResponse(BaseModel):
     
     # Opcional: Si el front necesita saber el rol para mostrar/ocultar menús
     # id_rol: int 
+
+    class Config:
+        from_attributes = True
+        
+# ---------------------------------------------------------
+# 4. LISTADO DE MIS INSCRIPCIONES (Para la pestaña "Inscriptos")
+# ---------------------------------------------------------
+class MiInscripcionResponse(BaseModel):
+    # Datos de la reserva
+    id_reserva: int
+    fecha_reserva: datetime
+    estado_reserva: str      # Ej: "Pendiente", "Confirmado"
+
+    # Datos del Evento
+    id_evento: int
+    nombre_evento: str
+    ubicacion: str
+    fecha_evento: date
+    hora_evento: Optional[str] = None # Opcional si lo tienes
+    costo: Decimal
 
     class Config:
         from_attributes = True

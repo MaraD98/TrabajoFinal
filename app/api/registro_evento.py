@@ -5,10 +5,10 @@ from typing import List, Optional
 from datetime import date
 
 from app.db.database import get_db
-from app.db.crud import registro_crud
+from app.db.crud import registro_crud  # <--- MANTENEMOS ESTO PARA QUE TU LOGICA DE CANCELACION NO SE ROMPA
 from app.core.security import security
 from app.services.auth_services import AuthService
-from app.schemas.registro_schema import EventoCreate, EventoResponse
+from app.schemas.registro_schema import EventoCancelacionRequest, EventoCreate, EventoResponse
 from app.services.registro_services import EventoService
 
 
@@ -196,9 +196,59 @@ def agregar_multimedia_evento(
             detail="Debes enviar al menos una imagen o una URL."
         )
 
+    # UNICO CAMBIO: Mapeamos 'archivos_imagenes' a 'lista_archivos' 
+    # para que el Servicio lo entienda. Nada más.
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
-        archivo=archivos_imagenes,
+        lista_archivos=archivos_imagenes, 
         url_externa=url_multimedia
     )
+    
+# ============ CANCELAR / ELIMINAR EVENTO (ORIGINAL) ============
+# Mantenemos TU lógica original llamando al CRUD directamente.
+# Esto no toca nada de notificaciones ni nada nuevo.
+@router.patch("/{evento_id}/cancelar", summary="Cancelar o Solicitar Baja de evento")
+def cancelar_evento(
+    evento_id: int, 
+    request_body: EventoCancelacionRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    evento = registro_crud.get_evento_by_id(db, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    
+    es_admin = current_user.id_rol in [1, 2] 
+    es_duenio = evento.id_usuario == current_user.id_usuario
+
+    if not es_duenio and not es_admin:
+        raise HTTPException(status_code=403, detail="No tienes permisos para gestionar este evento")
+
+    motivo = request_body.motivo
+
+    if es_admin:
+        # Llama a TU crud original
+        return registro_crud.cancelar_evento(db, evento_id, motivo)
+    
+    if es_duenio:
+        # Llama a TU crud original
+        return registro_crud.solicitar_baja_evento(db, evento_id, motivo)
+
+
+@router.patch("/{evento_id}/solicitar-eliminacion", summary="Solicitar baja explícita")
+def solicitar_eliminacion(
+    evento_id: int, 
+    request_body: EventoCancelacionRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    evento = registro_crud.get_evento_by_id(db, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    if evento.id_usuario != current_user.id_usuario:
+        raise HTTPException(status_code=403, detail="No puedes solicitar baja de un evento ajeno")
+
+    # Llama a TU crud original
+    return registro_crud.solicitar_baja_evento(db, evento_id, request_body.motivo)

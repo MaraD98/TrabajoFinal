@@ -91,3 +91,20 @@ button {
 button:hover {
   opacity: 0.9;
 }
+
+.titulo-centrado {
+  width: 100%;
+  text-align: center;
+  display: block; /* Asegura que se comporte como bloque para poder centrarse */
+  margin-bottom: 20px; /* Un poco de separación con lo de abajo */
+  color: white; /* OJO: En tus fotos el fondo es negro, si no pones blanco no se verá */
+}
+
+.dropdown-header {
+  text-align: center;   /* Esto centra el texto "MI CUENTA" y "MIS EVENTOS" */
+  width: 100%;          /* Asegura que ocupe todo el ancho */
+  display: block;
+  font-weight: bold;    /* Opcional: para que resalte un poco más */
+  padding: 5px 0;
+}
+

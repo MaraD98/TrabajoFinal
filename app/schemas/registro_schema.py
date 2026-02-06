@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from datetime import date
+from datetime import date, datetime 
 from typing import Optional
 from decimal import Decimal
 
@@ -38,6 +38,7 @@ class EventoResponse(EventoBase):
     id_evento: int
     id_usuario: int
     id_estado: int
+    cupos_disponibles: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,3 +55,32 @@ class MultimediaResponse(BaseModel):
     tipo_archivo: str
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# =====================================================================
+# NUEVOS SCHEMAS PARA INSCRIPCIONES (SPRINT 3 - HU 8.1 a 8.7)
+# =====================================================================
+
+class EventoConCuposResponse(EventoResponse):
+    cupos_ocupados: int
+    cupos_disponibles: int
+    
+    # Un campo extra para facilitar el front (true si cupos_disponibles == 0)
+    esta_lleno: bool = False # Le puse default False por seguridad
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReservaResponseSchema(BaseModel):
+    id_reserva: int
+    id_evento: int
+    id_usuario: int
+    fecha_reserva: datetime
+    fecha_expiracion: Optional[datetime] #Para mostrar cuándo vence
+    id_estado_reserva: int
+
+    model_config = ConfigDict(from_attributes=True)
+    
+    # --- (NUEVO) HU 4.1: Input para cancelar evento ---
+class EventoCancelacionRequest(BaseModel):
+    motivo: str = Field(..., min_length=5, description="Motivo por el cual se cancela el evento")
