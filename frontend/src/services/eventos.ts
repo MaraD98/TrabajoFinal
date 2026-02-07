@@ -28,6 +28,17 @@ export async function getMisEventos() {
     return res.data;
 }
 
+// --- OBTENER MIS SOLICITUDES DE PUBLICACIÓN ---
+export async function getMisSolicitudes() {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get("/solicitudes-eventos/mis-solicitudes", {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+}
+
 // HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
