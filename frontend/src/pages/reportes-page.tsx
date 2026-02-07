@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; // Usamos tus services
+import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
 import "../styles/reportes.css";
 import { useAuth } from '../context/auth-context';
-import { Link } from 'react-router-dom';
 
 // para el menu desplegable
-import logoWakeUp from '../assets/wakeup-logo.png';
 import axios from 'axios';
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
 
 
 interface ReporteData {
@@ -36,12 +36,11 @@ export default function ReportesPage() {
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
   // ... Para el menu desplegable ...
-  const { user, logout, loadingAuth } = useAuth();
+  const { user, loadingAuth } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [localUserName, setLocalUserName] = useState<string>("Usuario"); 
 
-  
 
   // Efecto para cerrar el menú al hacer clic afuera
   useEffect(() => {
@@ -209,68 +208,9 @@ export default function ReportesPage() {
 
   return (
     <div className="reportes-page">
+      <Navbar />
+
       <div className="reportes-page__container">
-        <header className="hero-section" style={{ minHeight: 'auto', paddingBottom: '20px' }}>
-          <nav className="hero-navbar">
-            <Link to="/" className="hero-logo-link">
-            <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
-            </Link>
-
-         {/* MENU DESPLEGABLE */}
-        {user ? (
-            <div className="user-menu-container" ref={dropdownRef}>
-                <button
-                    className="user-menu-trigger"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                >
-                    <span className="user-icon">👤</span>
-                    <span className="user-name">{user.nombre || localUserName}</span>
-                    <span className="dropdown-arrow">▼</span>
-                </button>
-
-                {isDropdownOpen && (
-                    <div className="user-dropdown">
-                        <div className="dropdown-header">MI CUENTA</div>
-                        <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                            👤 Mi Perfil
-                        </Link>
-                        <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                            📊 Mis Reportes
-                        </Link>
-
-                        <div className="dropdown-header">MIS EVENTOS</div>
-                        <Link to="/mis-eventos/inscriptos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                            Inscriptos
-                        </Link>
-                        <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                            Creados
-                        </Link>
-                        
-                        <div className="dropdown-divider"></div>
-                        
-                        <button
-                            onClick={logout}
-                            className="dropdown-item logout-button"
-                        >
-                            Cerrar Sesión
-                        </button>
-                    </div>
-                )}
-            </div>
-        ) : (
-            <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-        )}
-    </nav>
-        </header>
-
-          {/* NUEVO BOTÓN VOLVER AL INICIO*/}
-          <div className="reportes-back-container">
-            <button className="btn-back-home" onClick={() => window.location.href = '/'}>
-              <span className="back-icon">←</span>
-              Volver al Inicio
-            </button>
-          </div>
-
         {/* HEADER */}
         <div className="reportes-header">
           <div>
@@ -399,6 +339,7 @@ export default function ReportesPage() {
 
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

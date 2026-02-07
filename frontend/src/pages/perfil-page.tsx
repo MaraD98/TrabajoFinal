@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import '../styles/inicio.css';
+import { Navbar } from '../components/navbar';
 
 interface UserProfile {
     id_usuario?: number;
@@ -143,7 +144,7 @@ export default function PerfilPage() {
 
     return (
         <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '100px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            
+            <Navbar />
             <div className="section-header">
                 <h2 className="section-title">Mi Perfil</h2>
             </div>
