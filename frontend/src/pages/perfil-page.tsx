@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/inicio.css';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
+import { Footer } from "../components/footer";
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -31,7 +32,7 @@ interface Inscripcion {
 // --- COMPONENTE CUENTA REGRESIVA ---
 const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
     const [tiempoRestante, setTiempoRestante] = useState("");
-    const [color, setColor] = useState("#ffbb00"); // Naranja inicial
+    const [color, setColor] = useState("#ffbb00");
     const [expiro, setExpiro] = useState(false);
     
     useEffect(() => {
@@ -47,19 +48,16 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
                 return;
             }
 
-            // Convertir ms a horas, minutos, segundos
             const horas = Math.floor(diferencia / (1000 * 60 * 60));
             const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
 
-            // Formato
             const hStr = horas < 10 ? `0${horas}` : horas;
             const mStr = minutos < 10 ? `0${minutos}` : minutos;
             const sStr = segundos < 10 ? `0${segundos}` : segundos;
 
             setTiempoRestante(`${hStr}:${mStr}:${sStr}`);
 
-            // Si queda menos de 1 hora, poner en rojo
             if (horas < 1) {
                 setColor("#ff4444");
             } else {
@@ -83,23 +81,20 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
 };
 
 export default function PerfilPage() {
-    // --- ESTADOS DE DATOS ---
+    // 🔥 DESESTRUCTURACIÓN COMPLETA DEL CONTEXTO
+    const { user, logout, getToken } = useAuth();
+    
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [inscripciones, setInscripciones] = useState<Inscripcion[]>([]);
     
-    // --- ESTADOS DE UI ---
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     
-    // Pestaña activa
     const [activeTab, setActiveTab] = useState<'datos' | 'inscripciones'>('datos');
-
-    // Modos de edición
     const [isEditing, setIsEditing] = useState(false); 
     const [isChangingPass, setIsChangingPass] = useState(false); 
 
-    // Formularios
     const [editForm, setEditForm] = useState({
         nombre_y_apellido: '',
         email: '',
@@ -116,11 +111,22 @@ export default function PerfilPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
-    const { user, logout } = useAuth();
-    const displayUserName = (perfil?.nombre_y_apellido?.split(' ')[0] || user?.nombre_y_apellido?.split(' ')[0] || "Usuario").toUpperCase();    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    
+    // 🔥 NOMBRE DE USUARIO DINÁMICO (con optional chaining para evitar errores)
+    const displayUserName = (perfil?.nombre_y_apellido?.split(' ')[0] || user?.nombre_y_apellido?.split(' ')[0] || "Usuario").toUpperCase();
+    
+    // 🔥 DETECCIÓN DE ROLES (usa user?.id_rol con optional chaining)
+    const esAdmin = user?.id_rol === 1; // Admin total
+    const esSupervisor = user?.id_rol === 2; // Supervisor
+    const esOperario = user?.id_rol === 3; // Operario
+    const esCliente = user?.id_rol === 4; // Cliente
+    
+    // 🔥 ROLES CON ACCESO TOTAL (Admin + Supervisor)
+    const tieneAccesoTotal = esAdmin || esSupervisor;
+    
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // --- EFECTO PARA CERRAR EL DROPDOWN AL HACER CLICK AFUERA ---
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -148,9 +154,14 @@ export default function PerfilPage() {
         }
     }, [activeTab]);
 
+    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const fetchPerfil = async () => {
-        const token = localStorage.getItem('token');
-        if (!token) { navigate('/login'); return; }
+        const token = getToken();
+        
+        if (!token) { 
+            navigate('/login'); 
+            return; 
+        }
 
         try {
             const response = await axios.get(`${apiUrl}/me`, {
@@ -173,7 +184,8 @@ export default function PerfilPage() {
     };
 
     const fetchInscripciones = async () => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
+        
         try {
             const response = await axios.get(`${apiUrl}/me/inscripciones`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -184,9 +196,9 @@ export default function PerfilPage() {
         }
     };
 
-    // 3. GUARDAR DATOS PERSONALES
     const handleSaveDatos = async () => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
+        
         try {
             const response = await axios.put(`${apiUrl}/me`, editForm, {
                 headers: { 
@@ -216,7 +228,6 @@ export default function PerfilPage() {
         }
     };
 
-    // 4. GUARDAR CONTRASEÑA
     const handleSavePassword = async () => {
         setSuccessMsg(null);
         setError(null);
@@ -226,7 +237,8 @@ export default function PerfilPage() {
             return;
         }
 
-        const token = localStorage.getItem('token');
+        const token = getToken();
+        
         try {
             await axios.post(`${apiUrl}/me/password`, passForm, {
                 headers: { 
@@ -249,27 +261,21 @@ export default function PerfilPage() {
         }
     };
 
-    // 5. CANCELAR RESERVA (NUEVO - LÓGICA AGREGADA)
     const handleCancelarReserva = async (id_reserva: number) => {
         if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
             return;
         }
 
-        const token = localStorage.getItem('token');
+        const token = getToken();
+        
         try {
-            // Asumiendo que el endpoint es /inscripciones/{id} para borrar
             await axios.delete(`${apiUrl}/inscripciones/${id_reserva}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             setSuccessMsg("Reserva cancelada correctamente.");
-            
-            // Recargamos la lista para que desaparezca la tarjeta
             fetchInscripciones(); 
-            
             setTimeout(() => setSuccessMsg(null), 3000);
-
-            // Esto hace que la pantalla suba sola hasta arriba
             window.scrollTo({ top: 0, behavior: 'smooth' });
 
         } catch (err: any) {
@@ -280,22 +286,29 @@ export default function PerfilPage() {
         }
     };
 
-    // --- HELPER PARA COLORES DE ESTADO ---
     const getEstadoColor = (estado: string) => {
         switch(estado) {
-            case 'Pendiente de Pago': return '#ffbb00'; // Naranja
-            case 'Confirmado': return '#ccff00'; // Verde neon
-            case 'Cancelado': return '#ff4444'; // Rojo
+            case 'Pendiente de Pago': return '#ffbb00';
+            case 'Confirmado': return '#ccff00';
+            case 'Cancelado': return '#ff4444';
             default: return '#fff';
         }
     };
 
-    if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
+    if (loading) {
+        return (
+            <div className="perfil-page-loading-container"> 
+                <div className="perfil-loading">
+                    <div className="spinner-large"></div>
+                    <p style={{ color: '#ccff00', marginTop: '10px', fontWeight: 'bold' }}>CARGANDO PERFIL...</p>
+                </div>
+            </div>
+        );
+    }
 
-   return (
+    return (
         <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
             
-            {/* --- ENCABEZADO REORGANIZADO --- */}
             <div style={{ 
                 width: '100%', 
                 maxWidth: '800px', 
@@ -320,12 +333,8 @@ export default function PerfilPage() {
                   <span className="texto-volver">VOLVER AL INICIO</span>
                 </Link>
 
-
-
-                {/* Título Centrado */}
                 <h2 className="section-title" style={{ margin: 0, textAlign: 'center' }}>Mi Cuenta</h2>
 
-                {/* Botón de Usuario a la Derecha */}
                 <div style={{ position: 'fixed', right: '60px' }}>
                     {user ? (
                         <div className="user-menu-container" ref={dropdownRef} style={{ margin: 0 }}>
@@ -339,20 +348,83 @@ export default function PerfilPage() {
                                 <span className="dropdown-arrow">▼</span>
                             </button>
 
+                            {/* 🔥 MENÚ DESPLEGABLE CONDICIONAL POR ROL */}
                             {isDropdownOpen && (
                                 <div className="user-dropdown" style={{ right: 0, left: 'auto' }}>
-                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>MI CUENTA</div>
-                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                    {/* ========== SECCIÓN: MI CUENTA (TODOS) ========== */}
+                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>
+                                        MI CUENTA
+                                    </div>
+                                    
+                                    <Link 
+                                        to="/perfil" 
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
                                         👤 Mi Perfil
                                     </Link>
 
+                                    {/* Mis Reportes: Solo para usuarios estándar (Operario y Cliente) */}
+                                    {(esOperario || esCliente) && (
+                                        <Link 
+                                            to="/reportes" 
+                                            className="dropdown-item" 
+                                            onClick={() => setIsDropdownOpen(false)}
+                                        >
+                                            📊 Mis Reportes
+                                        </Link>
+                                    )}
+
+                                    {/* ========== SECCIÓN: MIS EVENTOS (TODOS) ========== */}
                                     <div className="dropdown-header">MIS EVENTOS</div>
-                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                         Inscriptos
+
+                                    {/* Inscriptos: diferente ruta según rol */}
+                                    <Link 
+                                        to={tieneAccesoTotal ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
+                                        📅 Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Creados
+
+                                    <Link 
+                                        to="/mis-eventos" 
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
+                                        📋 Mis Eventos
                                     </Link>
+
+                                    {/* ========== SECCIÓN: GESTIÓN (SOLO ADMIN Y SUPERVISOR) ========== */}
+                                    {tieneAccesoTotal && (
+                                        <>
+                                            <div className="dropdown-header">GESTIÓN</div>
+                                            
+                                            <Link 
+                                                to="/admin" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                🏠 Panel General
+                                            </Link>
+
+                                            <Link 
+                                                to="/registro-evento" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                ➕ Gestionar Eventos
+                                            </Link>
+
+                                            <Link 
+                                                to="/admin/usuarios" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                👥 Usuarios
+                                            </Link>
+                                        </>
+                                    )}
                                     
                                     <div className="dropdown-divider"></div>
                                     
@@ -360,7 +432,7 @@ export default function PerfilPage() {
                                         onClick={logout}
                                         className="dropdown-item logout-button"
                                     >
-                                        Cerrar Sesión
+                                        🚪 Cerrar Sesión
                                     </button>
                                 </div>
                             )}
@@ -371,7 +443,7 @@ export default function PerfilPage() {
                 </div>
             </div>
 
-            {/* --- NAVEGACIÓN DE PESTAÑAS --- */}
+            {/* ========== PESTAÑAS ========== */}
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
                 <button 
                     onClick={() => setActiveTab('datos')}
@@ -407,6 +479,7 @@ export default function PerfilPage() {
                 </button>
             </div>
 
+            {/* ========== CONTENIDO DE LAS PESTAÑAS ========== */}
             <div style={{ 
                 width: '100%',
                 maxWidth: '600px',
@@ -416,7 +489,6 @@ export default function PerfilPage() {
                 border: '1px solid #333',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
             }}>
-                {/* --- MENSAJES GLOBALES --- */}
                 {error && (
                     <div style={{ padding: '10px', background: 'rgba(255, 68, 68, 0.1)', border: '1px solid #ff4444', color: '#ff4444', borderRadius: '4px', textAlign: 'center', marginBottom: '20px' }}>
                         {error}
@@ -429,9 +501,7 @@ export default function PerfilPage() {
                     </div>
                 )}
 
-                {/* ======================================================= */}
-                {/* PESTAÑA 1: MIS DATOS */}
-                {/* ======================================================= */}
+                {/* PESTAÑA: MIS DATOS */}
                 {activeTab === 'datos' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         {isChangingPass ? (
@@ -463,7 +533,6 @@ export default function PerfilPage() {
                             </>
                         ) : (
                             <>
-                                {/* EMAIL */}
                                 <div className="form-group">
                                     <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>EMAIL</label>
                                     {isEditing ? (
@@ -480,7 +549,6 @@ export default function PerfilPage() {
                                     )}
                                 </div>
 
-                                {/* NOMBRE Y APELLIDO */}
                                 <div className="form-group">
                                     <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>NOMBRE Y APELLIDO</label>
                                     {isEditing ? (
@@ -497,7 +565,6 @@ export default function PerfilPage() {
                                     )}
                                 </div>
 
-                                {/* TELEFONO */}
                                 <div className="form-group">
                                     <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>TELÉFONO</label>
                                     {isEditing ? (
@@ -514,7 +581,6 @@ export default function PerfilPage() {
                                     )}
                                 </div>
 
-                                {/* DIRECCIÓN */}
                                 <div className="form-group">
                                     <label style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '5px', display: 'block' }}>DIRECCIÓN</label>
                                     {isEditing ? (
@@ -562,9 +628,7 @@ export default function PerfilPage() {
                     </div>
                 )}
 
-                {/* ======================================================= */}
-                {/* PESTAÑA 2: MIS INSCRIPCIONES */}
-                {/* ======================================================= */}
+                {/* PESTAÑA: INSCRIPCIONES */}
                 {activeTab === 'inscripciones' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         {inscripciones.length === 0 ? (
@@ -637,6 +701,7 @@ export default function PerfilPage() {
                     </div>
                 )}
             </div>
+            <Footer />
         </div>
     );
 }

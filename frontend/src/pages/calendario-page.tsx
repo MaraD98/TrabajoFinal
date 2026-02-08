@@ -1,9 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
 import logoWakeUp from '../assets/wakeup-logo.png'; 
+import { Footer } from "../components/footer";
+
+// 🔥 IMPORTACIÓN DE ICONOS LUCIDE
+import { 
+  User, 
+  Calendar, 
+  ClipboardList, 
+  PlusCircle, 
+  LogOut,
+  FileText,
+  ArrowLeft
+} from 'lucide-react';
 
 interface Evento {
   id_evento: number;
@@ -34,10 +46,11 @@ const ANIOS_DISPONIBLES = Array.from({ length: 6 }, (_, i) => ANIO_ACTUAL + i);
 
 export default function CalendarioPage() {
   const location = useLocation(); 
-  // Asumimos que logout viene del hook, si no, puedes agregar la lógica manual
-  const { user, logout } = useAuth(); 
-  // const apiUrl = import.meta.env.VITE_API_URL; 
-  const [localUserName] = useState<string>("Usuario"); 
+  const navigate = useNavigate();
+  
+  // 🔥 AJUSTE 1: DESESTRUCTURACIÓN COMPLETA INCLUYENDO getToken
+  const { user, logout, getToken } = useAuth(); 
+  
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +76,25 @@ export default function CalendarioPage() {
 
   const hoyReal = new Date();
   hoyReal.setHours(0, 0, 0, 0);
+
+  // 🔥 AJUSTE 3: VERIFICACIÓN DE HEADER - Usa user?.nombre_y_apellido del contexto
+  const displayUserName = user?.nombre_y_apellido 
+    ? user.nombre_y_apellido.split(' ')[0].toUpperCase() 
+    : "USUARIO";
+
+  // 🔥 DETECTAR SI ES ADMIN (ROL 1 O 2)
+  const esAdmin = user?.id_rol === 1 || user?.id_rol === 2;
+
+  // 🔥 CERRAR DROPDOWN AL HACER CLICK AFUERA
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     cargarEventos();
@@ -182,13 +214,21 @@ export default function CalendarioPage() {
       }
   };
 
-
-
+  // 🔥 AJUSTE 2: FUNCIÓN CORREGIDA CON TOKEN DESDE getToken()
   const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
     
+    // Verificar que el usuario esté logueado
     if (!user) {
         setMsgError("Debes iniciar sesión para inscribirte.");
+        return;
+    }
+
+    // 🔥 CRÍTICO: Obtener el token usando getToken() (busca en ambos storages)
+    const token = getToken();
+    if (!token) {
+        setMsgError("No se encontró tu sesión. Por favor, vuelve a iniciar sesión.");
+        navigate('/login');
         return;
     }
 
@@ -196,10 +236,15 @@ export default function CalendarioPage() {
     setMsgError(null);
     setMsgExito(null);
 
-    if (!idEventoSeleccionado) return;
+    if (!idEventoSeleccionado) {
+        setEnviando(false);
+        return;
+    }
 
     try {
-        await inscribirseEvento(idEventoSeleccionado);
+        // 🔥 CRÍTICO: Pasar el token como segundo parámetro
+        await inscribirseEvento(idEventoSeleccionado, token);
+        
         setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
         
         setTimeout(() => {
@@ -210,10 +255,27 @@ export default function CalendarioPage() {
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
-        if (error.response && error.response.data && error.response.data.detail) {
-            setMsgError(error.response.data.detail);
+        
+        // Manejo de errores detallado
+        if (error.response) {
+            const detalle = error.response.data?.detail || error.response.data?.message;
+            
+            if (error.response.status === 401) {
+                setMsgError("Tu sesión expiró. Por favor, vuelve a iniciar sesión.");
+                setTimeout(() => navigate('/login'), 2000);
+            } else if (error.response.status === 403) {
+                setMsgError("No tienes permisos para realizar esta acción.");
+            } else if (error.response.status === 409) {
+                setMsgError("Ya estás inscrito en este evento.");
+            } else if (detalle) {
+                setMsgError(detalle);
+            } else {
+                setMsgError("Error al procesar la inscripción.");
+            }
+        } else if (error.request) {
+            setMsgError("No se pudo conectar con el servidor. Verifica tu conexión.");
         } else {
-            setMsgError("Ocurrió un error al procesar tu solicitud.");
+            setMsgError("Ocurrió un error inesperado.");
         }
     } finally {
         setEnviando(false);
@@ -232,11 +294,13 @@ export default function CalendarioPage() {
 
   return (
     <div className="calendario-container">
-        {/* --- HEADER --- */}
+        {/* ========================================== */}
+        {/* 🔥 HEADER ACTUALIZADO CON MENÚ PROFESIONAL */}
+        {/* ========================================== */}
         <header className="cal-header">
             <div className="header-left">
                 <Link to="/" className="btn-volver-inicio">
-                    <span className="icono-flecha">←</span> 
+                    <ArrowLeft size={20} style={{ marginRight: '8px' }} />
                     <span className="texto-volver">VOLVER AL INICIO</span>
                 </Link>
             </div>
@@ -277,51 +341,99 @@ export default function CalendarioPage() {
                     </select>
                 </div>
 
-                {/* --- MENÚ DE USUARIO DESPLEGABLE --- */}
+                {/* 🔥 MENÚ DE USUARIO PROFESIONAL CON ICONOS LUCIDE */}
                 {user ? (
-                        <div className="user-menu-container" ref={dropdownRef}>
-                            <button
-                                className="user-menu-trigger"
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            >
-                                <span className="user-icon">👤</span>
-                                <span className="user-name">{localUserName}</span>
-                                <span className="dropdown-arrow">▼</span>
-                            </button>
+                    <div className="user-menu-container" ref={dropdownRef}>
+                        <button
+                            className="user-menu-trigger"
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                            <User size={18} className="user-icon" />
+                            <span className="user-name">{displayUserName}</span>
+                            <span className="dropdown-arrow">▼</span>
+                        </button>
 
-                            {isDropdownOpen && (
-                                <div className="user-dropdown">
-                                    <div className="dropdown-header">MI CUENTA</div>
-                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        👤 Mi Perfil
-                                    </Link>
+                        {isDropdownOpen && (
+                            <div className="user-dropdown">
+                                {/* SECCIÓN: MI CUENTA */}
+                                <div className="dropdown-header">MI CUENTA</div>
+                                
+                                <Link 
+                                    to="/perfil" 
+                                    className="dropdown-item" 
+                                    onClick={() => setIsDropdownOpen(false)}
+                                >
+                                    <User size={16} style={{ marginRight: '8px' }} />
+                                    Mi Perfil
+                                </Link>
 
-                                    <div className="dropdown-header">MIS EVENTOS</div>
-                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
-                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
-                                         Inscriptos
-                                    </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item">
-                                        Creados
-                                    </Link>
-                                    
-                                    <div className="dropdown-divider"></div>
-                                    
-                                    <button
-                                        onClick={logout}
-                                        className="dropdown-item logout-button"
+                                {esAdmin && (
+                                    <Link 
+                                        to="/reportes" 
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
                                     >
-                                        Cerrar Sesión
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-                    )}
+                                        <FileText size={16} style={{ marginRight: '8px' }} />
+                                        Mis Reportes
+                                    </Link>
+                                )}
+
+                                {/* SECCIÓN: MIS EVENTOS */}
+                                <div className="dropdown-header">MIS EVENTOS</div>
+
+                                <Link 
+                                    to={esAdmin ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
+                                    className="dropdown-item"
+                                    onClick={() => setIsDropdownOpen(false)}
+                                >
+                                    <Calendar size={16} style={{ marginRight: '8px' }} />
+                                    Inscriptos
+                                </Link>
+
+                                <Link 
+                                    to="/mis-eventos" 
+                                    className="dropdown-item"
+                                    onClick={() => setIsDropdownOpen(false)}
+                                >
+                                    <ClipboardList size={16} style={{ marginRight: '8px' }} />
+                                    Mis Eventos
+                                </Link>
+
+                                {esAdmin && (
+                                    <Link 
+                                        to="/registro-evento" 
+                                        className="dropdown-item"
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
+                                        <PlusCircle size={16} style={{ marginRight: '8px' }} />
+                                        Crear Evento
+                                    </Link>
+                                )}
+                                
+                                <div className="dropdown-divider"></div>
+                                
+                                <button
+                                    onClick={() => {
+                                        logout();
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    className="dropdown-item logout-button"
+                                >
+                                    <LogOut size={16} style={{ marginRight: '8px' }} />
+                                    Cerrar Sesión
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
+                )}
             </div>
         </header>
 
+      {/* ========================================== */}
+      {/* GRID DEL CALENDARIO (SIN CAMBIOS) */}
+      {/* ========================================== */}
       <div className="calendario-wrapper">
         {cargando ? (
           <div className="calendario-cargando">
@@ -371,6 +483,9 @@ export default function CalendarioPage() {
           </div>
         )}
 
+        {/* ========================================== */}
+        {/* PANEL DE RESERVAS (SIN CAMBIOS) */}
+        {/* ========================================== */}
         {fechaSeleccionada && (
           <div className="reserva-panel">
             <h3 className="panel-titulo no-select">
@@ -444,7 +559,7 @@ export default function CalendarioPage() {
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`http://googleusercontent.com/maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
+                                                    <a href={`https://maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
                                                         Ver mapa
                                                     </a>
                                                 )}
@@ -521,6 +636,7 @@ export default function CalendarioPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

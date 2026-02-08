@@ -6,6 +6,7 @@ import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEvent
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 import { NotificacionesBadge } from '../components/notificaciones-badge';
+import { Footer } from "../components/footer";
 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
@@ -633,6 +634,10 @@ if (error) return (
                     })}
                 </div>
             </section>
+            
+            <Footer />
         </div>
+       
+        
     );
 }
