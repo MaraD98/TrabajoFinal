@@ -1,12 +1,15 @@
 from sqlalchemy.orm import Session
-from app.models.registro_models import Evento, EventoMultimedia, EliminacionEvento, TipoEvento, NivelDificultad 
+from app.models.registro_models import Evento, EventoMultimedia, TipoEvento, NivelDificultad 
 from app.schemas.registro_schema import EventoCreate
-from datetime import date, datetime
-from sqlalchemy import or_, and_, func
+from datetime import date
+from sqlalchemy import or_, func
 from typing import Optional
-from fastapi import HTTPException
 
+
+# ============================================================================
 # CONSTANTES DE ESTADO
+# ============================================================================
+
 ID_ESTADO_BORRADOR = 1
 ID_ESTADO_PUBLICADO = 3
 ID_ESTADO_FINALIZADO = 4
@@ -14,13 +17,14 @@ ID_ESTADO_CANCELADO = 5
 ID_ESTADO_PENDIENTE_ELIMINACION = 6
 ID_ESTADO_DEPURADO = 7
 
-# CONSTANTES DE ROLES
 ID_ROL_ADMINISTRADOR = 1
 ID_ROL_SUPERVISOR = 2
 
+
 # ============================================================================
-# 🔧 FUNCIÓN AUXILIAR: Normalizar texto para búsqueda sin acentos
+# FUNCIÓN AUXILIAR: Normalizar texto para búsqueda sin acentos
 # ============================================================================
+
 def normalizar_texto(texto: str) -> str:
     """
     Remueve acentos y convierte a minúsculas para búsqueda flexible.
@@ -44,6 +48,7 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         costo_participacion = evento.costo_participacion,
         id_tipo             = evento.id_tipo,
         id_dificultad       = evento.id_dificultad,
+        cupo_maximo         = evento.cupo_maximo,
         id_estado  = id_estado_final, 
         id_usuario = user_id,
         lat = evento.lat,  
@@ -55,8 +60,9 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
     return db_evento
 
 # ============================================================================
-# ✅ CORRECCIÓN: Actualizar eventos pasados automáticamente
+# FUNCIÓN AUXILIAR: Actualizar eventos pasados automáticamente
 # ============================================================================
+
 def actualizar_eventos_finalizados(db: Session):
     """
     Cambia el estado de eventos publicados cuya fecha ya pasó a FINALIZADO (4).
@@ -64,7 +70,6 @@ def actualizar_eventos_finalizados(db: Session):
     """
     hoy = date.today()
     
-    # Buscar eventos publicados con fecha pasada
     eventos_pasados = db.query(Evento).filter(
         Evento.id_estado == ID_ESTADO_PUBLICADO,
         Evento.fecha_evento < hoy
@@ -78,10 +83,38 @@ def actualizar_eventos_finalizados(db: Session):
         
         db.commit()
         print(f"✅ [AUTO-UPDATE] {len(eventos_pasados)} eventos actualizados")
-    
-# -----------------------------------------------------------------------------
-# 2. READ (Leer todos) - ✅ CORREGIDO: Filtra eventos pasados
-# -----------------------------------------------------------------------------
+
+
+# ============================================================================
+# CREATE (Crear)
+# ============================================================================
+
+def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):
+    """Crea un nuevo evento en la base de datos"""
+    db_evento = Evento(
+        nombre_evento       = evento.nombre_evento,
+        ubicacion           = evento.ubicacion,
+        fecha_evento        = evento.fecha_evento,
+        descripcion         = evento.descripcion,
+        costo_participacion = evento.costo_participacion,
+        id_tipo             = evento.id_tipo,
+        id_dificultad       = evento.id_dificultad,
+        id_estado           = id_estado_final, 
+        id_usuario          = user_id,
+        lat                 = evento.lat,  
+        lng                 = evento.lng,
+        cupo_maximo         = evento.cupo_maximo or 0
+    )
+    db.add(db_evento)
+    db.commit()
+    db.refresh(db_evento)
+    return db_evento
+
+
+# ============================================================================
+# READ (Leer)
+# ============================================================================
+
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     """
     Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
@@ -96,13 +129,14 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     # 3. Consultar solo eventos publicados y futuros
     return (
         db.query(Evento)
-        .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)  # Solo publicados
-        .filter(Evento.fecha_evento >= hoy)               # ✅ Solo futuros
-        .order_by(Evento.fecha_evento.asc())              # Ordenar por fecha
+        .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)
+        .filter(Evento.fecha_evento >= hoy)
+        .order_by(Evento.fecha_evento.asc())
         .offset(skip)
         .limit(limit)
         .all()
     )
+
 
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
     """
@@ -112,22 +146,32 @@ def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: 
     return (
         db.query(Evento)
         .filter(Evento.id_usuario == id_usuario)
-        .order_by(Evento.fecha_evento.desc())  # Más recientes primero
+        .order_by(Evento.fecha_evento.desc())
         .offset(skip)
         .limit(limit)
         .all()
     )
 
-# -----------------------------------------------------------------------------
-# 3. READ ONE
-# -----------------------------------------------------------------------------
+
 def get_evento_by_id(db: Session, evento_id: int):
+    """Obtiene un evento por su ID"""
     return db.query(Evento).filter(Evento.id_evento == evento_id).first()
 
-# -----------------------------------------------------------------------------
-# 4. UPDATE
-# -----------------------------------------------------------------------------
+
+def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
+    """Valida duplicados: mismo nombre y fecha"""
+    return db.query(Evento).filter(
+        Evento.nombre_evento == nombre,
+        Evento.fecha_evento == fecha
+    ).first()
+
+
+# ============================================================================
+# UPDATE (Actualizar)
+# ============================================================================
+
 def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
+    """Actualiza un evento existente"""
     db_evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
     if db_evento:
         db_evento.nombre_evento       = evento_data.nombre_evento
@@ -137,19 +181,20 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.costo_participacion = evento_data.costo_participacion
         db_evento.id_tipo             = evento_data.id_tipo
         db_evento.id_dificultad       = evento_data.id_dificultad
-        db_evento.lat = evento_data.lat
-        db_evento.lng = evento_data.lng
+        db_evento.cupo_maximo         = evento_data.cupo_maximo
+        db_evento.lat                 = evento_data.lat
+        db_evento.lng                 = evento_data.lng
         db.commit()
         db.refresh(db_evento)
     return db_evento
 
-def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
-    return db.query(Evento).filter(
-        Evento.nombre_evento == nombre,
-        Evento.fecha_evento == fecha
-    ).first()
-    
+
+# ============================================================================
+# MULTIMEDIA
+# ============================================================================
+
 def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
+    """Crea un registro de multimedia para un evento"""
     nuevo_registro = EventoMultimedia(
         id_evento=id_evento,
         url_archivo=url,
@@ -160,93 +205,11 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     db.refresh(nuevo_registro)
     return nuevo_registro
 
-# -----------------------------------------------------------------------------
-# GESTIÓN DE BAJAS Y ESTADOS
-# -----------------------------------------------------------------------------
-def cancelar_evento(db: Session, id_evento: int, motivo: str):
-    from app.models.registro_models import Evento, EliminacionEvento
-    try:
-        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
-        if evento.id_estado == ID_ESTADO_CANCELADO:
-            raise HTTPException(status_code=400, detail="El evento ya está cancelado")
-        
-        eliminacion_existente = db.query(EliminacionEvento).filter(
-            EliminacionEvento.id_evento == id_evento
-        ).first()
-        
-        if eliminacion_existente:
-            eliminacion_existente.motivo_eliminacion = motivo
-            eliminacion_existente.fecha_eliminacion = datetime.now()
-        else:
-            nueva_eliminacion = EliminacionEvento(
-                id_evento=id_evento,
-                motivo_eliminacion=motivo,
-                fecha_eliminacion=datetime.now(),
-                id_usuario=evento.id_usuario,
-                notificacion_enviada=False
-            )
-            db.add(nueva_eliminacion)
-        
-        estado_anterior = evento.id_estado
-        evento.id_estado = ID_ESTADO_CANCELADO
-        db.commit()
-        db.refresh(evento)
-        
-        return {
-            "mensaje": "Evento cancelado exitosamente (Soft Delete)",
-            "id_evento": evento.id_evento,
-            "nombre_evento": evento.nombre_evento,
-            "estado_anterior": estado_anterior,
-            "estado_actual": "Cancelado",
-            "id_estado": ID_ESTADO_CANCELADO
-        }
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al cancelar evento: {str(e)}")
-
-def solicitar_baja_evento(db: Session, evento_id: int, motivo: str):
-    evento = get_evento_by_id(db, evento_id)
-    if evento:
-        evento.id_estado = ID_ESTADO_PENDIENTE_ELIMINACION
-        if hasattr(evento, 'motivo_baja'): evento.motivo_baja = motivo
-        db.commit()
-        db.refresh(evento)
-    return evento
-
-def depurar_evento(db: Session, id_evento: int, motivo: str):
-    from app.models.registro_models import Evento, EliminacionEvento
-    try:
-        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
-        
-        nueva_eliminacion = EliminacionEvento(
-            id_evento=id_evento,
-            motivo_eliminacion=f"[DEPURACIÓN ADMIN] {motivo}",
-            fecha_eliminacion=datetime.now(),
-            id_usuario=evento.id_usuario,
-            notificacion_enviada=False
-        )
-        db.add(nueva_eliminacion)
-        evento.id_estado = ID_ESTADO_DEPURADO
-        db.commit()
-        
-        return {
-            "mensaje": "Evento depurado exitosamente",
-            "id_evento": evento.id_evento,
-            "estado_nuevo": "Depurado por Admin"
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error al depurar evento: {str(e)}")
 
 # ============================================================================
-# ✅ FILTRADO CORREGIDO: Búsqueda separada según HU 7.3 y 7.6 + Filtro de fecha
+# FILTRADO AVANZADO (HU 7.1 a 7.10)
 # ============================================================================
+
 def filtrar_eventos_avanzado(
     db: Session,
     busqueda: Optional[str] = None,
@@ -274,12 +237,12 @@ def filtrar_eventos_avanzado(
     # 3. BASE QUERY: Solo eventos PUBLICADOS y FUTUROS
     query = db.query(Evento).filter(
         Evento.id_estado == ID_ESTADO_PUBLICADO,
-        Evento.fecha_evento >= hoy  # ✅ Solo eventos futuros
+        Evento.fecha_evento >= hoy
     )
     
     filtros_aplicados = {}
     
-    # 4. FILTRO POR FECHA (adicional)
+    # 4. FILTRO POR FECHA
     if fecha_exacta:
         query = query.filter(Evento.fecha_evento == fecha_exacta)
         filtros_aplicados['fecha_exacta'] = str(fecha_exacta)
@@ -367,6 +330,7 @@ def filtrar_eventos_avanzado(
         "skip": skip,
         "limit": limit
     }
+
 
 def obtener_catalogos_filtros(db: Session):
     """Devuelve los catálogos para poblar los filtros."""
