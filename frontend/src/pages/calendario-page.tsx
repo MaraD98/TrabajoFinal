@@ -292,6 +292,7 @@ export default function CalendarioPage() {
     return 'dificultad-general';
   };
 
+
   return (
     <div className="calendario-container">
         {/* ========================================== */}
@@ -436,11 +437,11 @@ export default function CalendarioPage() {
       {/* ========================================== */}
       <div className="calendario-wrapper">
         {cargando ? (
-          <div className="calendario-cargando">
-             <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
-             <p className="loader-texto no-select">Cargando eventos...</p>
-          </div>
-        ) : (
+         <div className="calendario-loading">
+           <div className="spinner-large"></div>
+           <p>Cargando eventos...</p>
+      </div>
+) : (
           <div className="calendario-grid-wrapper">
             <div className="calendario-grid">
               {DIAS_SEMANA.map(dia => <div key={dia} className="dia-semana-header no-select">{dia}</div>)}

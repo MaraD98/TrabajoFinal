@@ -9,6 +9,15 @@
   --cal-border: #333333;
 }
 
+.calendario-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+
 .calendario-container {
   background-color: var(--cal-bg);
   min-height: 100vh;
@@ -54,10 +63,70 @@
 .icono-evento-bici { position: absolute; bottom: 5px; right: 5px; color: var(--cal-gold); }
 .icono-evento-bici svg { display: block; }
 
-/* --- CARGANDO --- */
-.calendario-cargando { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: var(--cal-gold); }
-.wheel-spinning { animation: spin 1s infinite linear; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+/* ==========================================================================
+   ESTADO DE CARGA
+   ========================================================================== */
+
+.reportes-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: fixed;  
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #0a0e1a;   z-index: 9999;
+  gap: var(--spacing-lg);
+}
+
+.spinner-large {
+  width: 65px;
+  height: 65px;
+  border: 6px solid rgba(255, 107, 53, 0.1); 
+  border-top-color: #ff6b35; 
+  filter: drop-shadow(0 0 10px var(--color-primary-glow));
+}
+
+.reportes-loading p {
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  animation: pulseText 1.5s ease-in-out infinite;
+  animation: none !important;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 768px) {
+  .spinner-large,
+  .spinner-complex {
+    width: 64px;
+    height: 64px;
+    border-width: 5px;
+  }
+
+  .spinner-large::before {
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+  }
+}
+
+/* ACCESIBILIDAD*/
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner-large,
+  .spinner-large::before,
+  .spinner-large::after,
+  .spinner-complex::before,
+  .spinner-complex::after {
+    animation-duration: 3s !important;
+  }
+
+}
 
 /* --- PANEL DE RESERVA --- */
 .reserva-panel { background: var(--cal-card-bg); border-radius: 8px; padding: 20px; border: 1px solid var(--cal-border); animation: slideUp 0.3s ease-out; }
