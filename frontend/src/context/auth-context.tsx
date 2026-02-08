@@ -2,16 +2,15 @@ import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react'; 
 import { getCurrentUser } from '../services/eventos'; 
 
-// --- CORRECCIÓN AQUÍ ---
-// Definimos la estructura IGUAL a tu Base de Datos
 export interface User {
   id_usuario: number;
-  nombre_y_apellido: string; // Cambiado para coincidir con tu SQL
+  nombre_y_apellido: string;
   email: string;
   id_rol: number;
-  telefono?: string; // Lo agrego como OPCIONAL (?) porque el Calendario lo usa, aunque no lo vi en tu tabla SQL.
+  telefono?: string;
+  direccion?: string;
+  enlace_redes?: string;
 }
-// -----------------------
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +18,7 @@ interface AuthContextType {
   loadingAuth: boolean;
   loginOk: (token: string, rememberMe: boolean) => Promise<void>;
   logout: () => void;
+  getToken: () => string | null; // 👈 NUEVO: función helper
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,16 +27,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
+  // 🔥 HELPER: Busca el token en ambos storages
+  const getToken = (): string | null => {
+    return localStorage.getItem('token') || sessionStorage.getItem('token');
+  };
+
   // 1. Al cargar la app, verificamos si hay sesión guardada
   useEffect(() => {
     const checkSession = async () => {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      const token = getToken();
+      
+      // También verificamos si hay usuario guardado en localStorage
+      const savedUser = localStorage.getItem('user');
 
       if (token) {
         try {
+          // Si hay usuario guardado, lo usamos primero
+          if (savedUser) {
+            const parsedUser = JSON.parse(savedUser);
+            setUser(parsedUser);
+          }
+          
+          // Luego verificamos con el backend
           const userData = await getCurrentUser(token);
-          // OJO: Si el backend devuelve "nombre_y_apellido", se asignará correctamente aquí.
           setUser(userData);
+          
+          // Guardamos en localStorage para persistencia
+          localStorage.setItem('user', JSON.stringify(userData));
+          localStorage.setItem('rol', userData.id_rol.toString());
         } catch (error) {
           console.error("Sesión inválida", error);
           logout();
@@ -50,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // 2. Función para procesar el login exitoso
   const loginOk = async (token: string, rememberMe: boolean) => {
+    // Guardamos el token según la preferencia del usuario
     if (rememberMe) {
       localStorage.setItem('token', token);
     } else {
@@ -59,17 +78,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const userData = await getCurrentUser(token);
       setUser(userData);
-      localStorage.setItem("rol", userData.id_rol.toString());
+      
+      // Siempre guardamos user y rol en localStorage (para acceso rápido)
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('rol', userData.id_rol.toString());
     } catch (error) {
       console.error("Error obteniendo usuario", error);
+      throw error; // Propagamos el error para que login-page lo maneje
     }
   };
 
   // 3. Función de cerrar sesión
   const logout = () => {
+    // Limpiamos AMBOS storages
     localStorage.removeItem('token');
-    localStorage.removeItem("rol");
-    localStorage.removeItem("token_type"); // Asegurate de limpiar esto si lo usas
+    localStorage.removeItem('user');
+    localStorage.removeItem('rol');
+    localStorage.removeItem('token_type');
     sessionStorage.removeItem('token');
     setUser(null);
     window.location.href = "/";
@@ -81,7 +106,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated: !!user, 
       loadingAuth, 
       loginOk, 
-      logout 
+      logout,
+      getToken // 👈 Exponemos la función
     }}>
       {children}
     </AuthContext.Provider>
