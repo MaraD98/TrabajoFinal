@@ -1,7 +1,5 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-
-// 1. Contexto de Autenticación
 import { AuthProvider } from "./context/auth-context";
 
 // 2. Componentes y Páginas
@@ -14,10 +12,18 @@ import CalendarioPage from "./pages/calendario-page";
 import SolicitudEventoPage from './pages/solicitud-evento-page';
 import InicioPage from "./pages/inicio-page";
 import ForgotPasswordPage from "./pages/forgot-password-page";
+import ReportesPage from './pages/reportes-page';
+
+// 👇 3. AGREGADO: Importamos la página de Mis Eventos
 import MisEventosPage from "./pages/mis-eventos-page"; 
 import AdminDashboardPage from "./pages/admin-dashboard-page";
 import PerfilPage from "./pages/perfil-page";
 import NotificacionesPage from './pages/notificaciones-page';
+
+// ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
+import TablaGestionPagos from "./pages/gestion-pagos-pages";
+import PanelInscriptos from "./pages/inscriptos-page";
+
 function App() {
   return (
     <AuthProvider>
@@ -40,6 +46,12 @@ function App() {
           {/* 1. Crear Evento */}
           {/* este es solicitud */}
           <Route path="/publicar-evento" element={<SolicitudEventoPage />} />
+          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+          <Route path="/perfil" element={<PerfilPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/reportes" element={<ReportesPage />} />
+
           <Route path="/registro-evento"
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
@@ -50,16 +62,31 @@ function App() {
           {/* 2. Mis Eventos (AGREGADA) */}
           <Route path="/mis-eventos"
             element={
-              
                 <MisEventosPage />
-              
             }
           />
-          {/* 3. Admin Dashboard - Protegido para admins */}
+
+          {/* 3. ZONA ADMIN - Dashboard y sus páginas hijas */}
           <Route path="/admin" 
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
                 <AdminDashboardPage/>
+              </ProtectedRoute>
+            }
+          />
+          
+          {/* ✅ AQUÍ ESTABAN FALTANDO TUS RUTAS: Agregadas */}
+          <Route path="/admin/pagos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <TablaGestionPagos/>
+              </ProtectedRoute>
+            }
+          />
+           <Route path="/admin/inscriptos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <PanelInscriptos/>
               </ProtectedRoute>
             }
           />

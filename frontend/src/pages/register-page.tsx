@@ -16,8 +16,45 @@ export default function RegisterPage() {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showRequirements, setShowRequirements] = useState(false); // Nuevo estado
 
   const navigate = useNavigate();
+
+  // --- LÓGICA DE VALIDACIÓN VISUAL ---
+  const requirements = [
+    { label: "Mínimo 6 caracteres", valid: formData.contrasenia.length >= 6 },
+    { label: "Al menos un número", valid: /\d/.test(formData.contrasenia) },
+    { label: "Al menos una mayúscula", valid: /[A-Z]/.test(formData.contrasenia) },
+  ];
+
+  const allValid = requirements.every((r) => r.valid);
+  // -----------------------------------
+
+  const generarPasswordSegura = () => {
+    const caracteres = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let passwordGenerada = "";
+    
+    // Garantizamos al menos una mayúscula y un número
+    passwordGenerada += "A"; 
+    passwordGenerada += "1";
+    
+    for (let i = 0; i < 10; i++) {
+      passwordGenerada += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    }
+
+    // Mezclamos un poco
+    passwordGenerada = passwordGenerada.split('').sort(() => 0.5 - Math.random()).join('');
+
+    setFormData((prev) => ({ 
+        ...prev, 
+        contrasenia: passwordGenerada, 
+        confirmarContrasenia: passwordGenerada 
+    }));
+    
+    setShowPassword(true);
+    setShowConfirmPassword(true);
+    setShowRequirements(true); // Mostramos que cumple todo
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -34,10 +71,21 @@ export default function RegisterPage() {
       setError("Por favor ingresa tu email");
       return false;
     }
+    
+    // Validamos usando las mismas reglas visuales
     if (formData.contrasenia.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres");
+      setError("La contraseña es muy corta");
       return false;
     }
+    if (!/\d/.test(formData.contrasenia)) {
+      setError("La contraseña debe tener al menos un número");
+      return false;
+    }
+    if (!/[A-Z]/.test(formData.contrasenia)) {
+      setError("La contraseña debe tener al menos una mayúscula");
+      return false;
+    }
+
     if (formData.contrasenia !== formData.confirmarContrasenia) {
       setError("Las contraseñas no coinciden");
       return false;
@@ -62,7 +110,6 @@ export default function RegisterPage() {
 
       setSuccess(true);
 
-      // Esperar 2 segundos y redirigir al login
       setTimeout(() => {
         navigate("/login");
       }, 2000);
@@ -105,13 +152,17 @@ export default function RegisterPage() {
               <div className="register-success__spinner"></div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="register-form">
+            <form onSubmit={handleSubmit} className="register-form" autoComplete="off">
               {error && (
                 <div className="register-alert register-alert--error">
                   <span className="register-alert__icon">⚠️</span>
                   <span className="register-alert__message">{error}</span>
                 </div>
               )}
+
+              {/* INPUTS FANTASMA */}
+              <input type="text" name="fakeusernameremembered" style={{display: 'none'}} tabIndex={-1} />
+              <input type="password" name="fakepasswordremembered" style={{display: 'none'}} tabIndex={-1} />
 
               <div className="register-form__group">
                 <label htmlFor="nombre_y_apellido" className="register-form__label">
@@ -127,7 +178,7 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     className="register-form__input"
                     required
-                    autoComplete="name"
+                    autoComplete="off"
                     disabled={loading}
                   />
                   <span className="register-form__icon">👤</span>
@@ -148,7 +199,7 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     className="register-form__input"
                     required
-                    autoComplete="email"
+                    autoComplete="off"
                     disabled={loading}
                   />
                   <span className="register-form__icon">📧</span>
@@ -164,14 +215,16 @@ export default function RegisterPage() {
                     id="contrasenia"
                     type={showPassword ? "text" : "password"}
                     name="contrasenia"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Tu contraseña secreta"
                     value={formData.contrasenia}
                     onChange={handleChange}
                     className="register-form__input"
                     required
-                    autoComplete="new-password"
                     disabled={loading}
-                    minLength={6}
+                    autoComplete="one-time-code"
+                    onFocus={() => setShowRequirements(true)}
+                    // Ocultar requisitos si se va el foco y es válida, o mantener si hay error
+                    onBlur={() => allValid && setShowRequirements(false)}
                   />
                   <button
                     type="button"
@@ -181,6 +234,55 @@ export default function RegisterPage() {
                   >
                     {showPassword ? "👁️" : "👁️‍🗨️"}
                   </button>
+                </div>
+
+                {/* --- NUESTRO ASISTENTE DE CONTRASEÑA --- */}
+                {showRequirements && (
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '10px',
+                    backgroundColor: 'rgb(59, 59, 59)',
+                    borderRadius: '8px',
+                    border: '1px solid #333',
+                    fontSize: '0.85rem'
+                  }}>
+                    <p style={{ margin: '0 0 5px 0', color: '#fff8f5', fontWeight: 'bold' }}>Tu contraseña debe tener:</p>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                      {requirements.map((req, index) => (
+                        <li key={index} style={{
+                          color: req.valid ? '#4ade80' : '#fff8f5', // Verde si cumple, Gris si no
+                          marginBottom: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'color 0.3s ease'
+                        }}>
+                          <span>{req.valid ? '✅' : '○'}</span>
+                          {req.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                <div style={{ marginTop: '5px', textAlign: 'right' }}>
+                    <button
+                        type="button"
+                        onClick={generarPasswordSegura}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ff6b00',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                            textDecoration: 'underline',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        ✨ Generar contraseña segura
+                    </button>
                 </div>
               </div>
 
@@ -198,9 +300,8 @@ export default function RegisterPage() {
                     onChange={handleChange}
                     className="register-form__input"
                     required
-                    autoComplete="new-password"
                     disabled={loading}
-                    minLength={6}
+                    autoComplete="one-time-code"
                   />
                   <button
                     type="button"

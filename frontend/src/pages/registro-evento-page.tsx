@@ -3,6 +3,7 @@ import { createEvento } from "../services/eventos";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
+import { useNavigate } from 'react-router-dom';
 
 export default function CreateEventPage() {
   // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
@@ -26,6 +27,7 @@ export default function CreateEventPage() {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -37,7 +39,7 @@ export default function CreateEventPage() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!token) {
-    alert("Debes estar logueada para crear eventos");
+    alert("Debes estar logueado para crear eventos");
     return;
   }
   if (formData.lat === null || formData.lng === null) {
@@ -53,6 +55,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     const evento = await createEvento(formData, token);
     console.log("Evento creado:", evento);
     alert("¡Evento creado exitosamente!");
+    navigate("/mis-eventos");
   } catch (err) {
     console.error("Error al crear evento:", err);
     alert("Error al crear el evento. Por favor intenta nuevamente.");
@@ -246,10 +249,10 @@ const initMap = () => {
                     required
                   >
                     {/* VALORES NUMÉRICOS CORRECTOS */}
-                    <option value={1}>Running</option>
-                    <option value={2}>Ciclismo</option>
-                    <option value={3}>Triatlón</option>
-                    <option value={4}>Natación</option>
+                    <option value={1}>Carrera</option>
+                    <option value={2}>Paseo</option>
+                    <option value={3}>Entrenamiento</option>
+                    <option value={4}>Cicloturismo</option>
                   </select>
                 </div>
 
@@ -266,10 +269,9 @@ const initMap = () => {
                     required
                   >
                     {/* VALORES NUMÉRICOS CORRECTOS */}
-                    <option value={1}>Principiante</option>
+                    <option value={1}>Básico</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
-                    <option value={4}>Profesional</option>
                   </select>
                 </div>
               </div>

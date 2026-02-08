@@ -1,4 +1,8 @@
-// Tipos para Solicitudes de Alta
+// ============================================================================
+// TIPOS PARA EL PANEL DE ADMINISTRACIÓN
+// ============================================================================
+
+// Solicitudes de Alta (Publicación)
 export interface SolicitudAlta {
   id_solicitud: number;
   nombre_evento: string;
@@ -7,9 +11,15 @@ export interface SolicitudAlta {
   id_tipo: number;
   id_dificultad: number;
   descripcion?: string;
+  costo_participacion: string;
+  id_estado_solicitud: number;
+  fecha_solicitud: string;
+  observaciones_admin?: string | null;
+  id_usuario: number;
   usuario?: {
-    email: string;
+    id_usuario: number;
     nombre_y_apellido?: string;
+    email: string;
   };
   tipo_evento?: {
     id_tipo: number;
@@ -25,7 +35,7 @@ export interface SolicitudAlta {
   };
 }
 
-// Tipos para Solicitudes de Baja
+// Solicitudes de Baja (Eliminación)
 export interface SolicitudBaja {
   id_eliminacion: number;
   id_evento: number;
@@ -35,7 +45,7 @@ export interface SolicitudBaja {
   fecha_solicitud: string;
 }
 
-// Tipos para Eventos Activos
+// Eventos Activos (Publicados - Estado 3)
 export interface EventoActivo {
   id_evento: number;
   nombre_evento: string;
@@ -51,13 +61,29 @@ export interface EventoActivo {
   };
 }
 
-// Tipos para Historial
+// ✅ NUEVO: Eventos Finalizados (Estado 4)
+export interface EventoFinalizado {
+  id_evento: number;
+  nombre_evento: string;
+  fecha_evento: string;
+  ubicacion: string;
+  id_usuario: number;
+  costo_participacion: number;
+  cupo_maximo?: number;
+  id_estado: number; // Siempre 4
+  tipo_evento?: {
+    id_tipo: number;
+    nombre: string;
+  };
+}
+
+// Historial de Eliminaciones
 export interface EventoEliminado {
   id_evento: number;
   nombre_evento: string;
   fecha_eliminacion: string;
   motivo: string;
   eliminado_por: string;
-  estado: string;
-  tipo_eliminacion: 'soft_delete' | 'hard_delete' | 'physical_delete';
+  estado: string; // "Cancelado (Soft Delete)" o "Depurado (Hard Delete Lógico)"
+  tipo_eliminacion: 'soft_delete' | 'hard_delete'; // Estado 5 o 7
 }

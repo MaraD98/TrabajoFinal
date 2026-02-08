@@ -7,6 +7,7 @@ import { useAuth } from '../context/auth-context';
 import axios from 'axios';
 import { NotificacionesBadge } from '../components/notificaciones-badge';
 
+
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
 const IMAGENES_TIPO: Record<number | string, string> = {
@@ -252,8 +253,68 @@ export default function InicioPage() {
         return IMAGENES_TIPO.default;
     };
 
-    if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
-    if (error) return <div style={{ color: 'red', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>{error}</div>;
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR RUTA DE CREACIÓN DE EVENTO SEGÚN ROL
+    // ============================================================================
+    const obtenerRutaCrearEvento = () => {
+        if (!user) return "/login";
+        
+        // Roles 1 y 2 (Admin/Organizador) → /registro-evento
+        if (user.id_rol === 1 || user.id_rol === 2) {
+            return "/registro-evento";
+        }
+        
+        // Roles 3 y 4 (Usuario Externo/Otro) → /publicar-evento
+        if (user.id_rol === 3 || user.id_rol === 4) {
+            return "/publicar-evento";
+        }
+        
+        // Por defecto
+        return "/publicar-evento";
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
+    // ============================================================================
+    const mostrarBotonPanelAdmin = () => {
+        return user && (user.id_rol === 1 || user.id_rol === 2);
+    };
+
+    if (loading) return (
+  <div style={{ 
+    position: 'fixed', // Saca el elemento del flujo normal
+    top: 0,
+    left: 0,
+    width: '100%',     // Asegura ancho completo
+    height: '100vh',   // Asegura alto completo
+    zIndex: 9999,      // Asegura que quede por encima de todo
+    color: '#ccff00', 
+    background: '#0d0d0d', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  }}>
+    CARGANDO...
+  </div>
+);
+
+if (error) return (
+  <div style={{ 
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100vh',
+    zIndex: 9999,
+    color: 'red', 
+    background: '#0d0d0d', 
+    display: 'flex', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  }}>
+    {error}
+  </div>
+);
 
     return (
         <div className="inicio-container">
@@ -282,15 +343,44 @@ export default function InicioPage() {
                                     <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                         👤 Mi Perfil
                                     </Link>
+                                    <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        📑 Mis Reportes
+                                    </Link>
 
                                     <div className="dropdown-header">MIS EVENTOS</div>
-                                    <Link to="/mis-eventos/inscriptos" className="dropdown-item">
-                                        Inscriptos
+                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                         Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item">
-                                        Creados
+                                    <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Mis Eventos
                                     </Link>
                                     
+                                    <div className="dropdown-divider"></div>
+                                    <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                        Crear Evento
+                                    </Link>
+                                    
+
+                                    {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
+                                    {mostrarBotonPanelAdmin() && (
+                                        <>
+                                            <div className="dropdown-divider"></div>
+                                            <Link 
+                                                to="/admin" 
+                                                className="dropdown-item"
+                                                style={{ 
+                                                    backgroundColor: '#ff6600', 
+                                                    color: '#fff',
+                                                    fontWeight: 'bold'
+                                                }}
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                ⚙️ Panel de Administrador
+                                            </Link>
+                                        </>
+                                    )}
+
                                     <div className="dropdown-divider"></div>
                                     
                                     <button

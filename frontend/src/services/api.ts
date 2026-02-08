@@ -18,7 +18,8 @@ api.interceptors.request.use(
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("🔑 Token enviado:", token.substring(0, 20) + "...");
+    } else {
+      console.warn("⚠️ No hay token en localStorage");
     }
     
     console.log("📤 Request:", config.method?.toUpperCase(), config.url);

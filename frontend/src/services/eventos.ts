@@ -28,12 +28,11 @@ export async function getMisEventos() {
     return res.data;
 }
 
-// HU 4.1: Cancelar mi propio evento
+// HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/cancelar
-    // BODY: { "motivo": "..." }
-    const response = await api.patch(`/eventos/${idEvento}/cancelar`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/cancelar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -43,8 +42,8 @@ export const cancelarEventoPropio = async (idEvento: number, motivo: string) => 
 // HU 4.2: Solicitar baja (Usuario Externo)
 export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/solicitar-eliminacion
-    const response = await api.patch(`/eventos/${idEvento}/solicitar-eliminacion`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/solicitar-baja/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -54,8 +53,8 @@ export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
 // HU 4.3: Eliminar como Administrador
 export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // URL CORRECTA: /eventos/{id}/admin-eliminar
-    const response = await api.patch(`/eventos/${idEvento}/admin-eliminar`, 
+    // ✅ NUEVA URL
+    const response = await api.post(`/eliminacion/admin/eliminar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -71,6 +70,11 @@ export async function getEventosCalendario(month: number, year: number) {
   });
   return res.data;
 }
+
+export const inscribirseEvento = async (id_evento: number) => {
+    const response = await api.post(`/inscripciones/${id_evento}`); 
+    return response.data;
+};
 
 // Login: recibe email y contrasenia, devuelve token
 export async function login(email: string, contrasenia: string) {
@@ -112,6 +116,50 @@ export async function register(usuarioData: any) {
   const res = await api.post("/auth/register", usuarioData);
   return res.data; 
 }
+
+// REPORTESS 
+
+// Obtener un reporte en JSON (para mostrar en pantalla)
+export async function getReporte(tipo: string, token: string) {
+  const res = await api.get(`/reportes/${tipo}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return res.data; // Devuelve el objeto JSON con el reporte
+}
+
+// Exportar un reporte en CSV (descargar archivo)
+export async function exportReporteCSV(tipo: string, token: string) {
+  const res = await api.get(`/reportes/export`, {
+    params: { tipo },
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    responseType: "blob", // 👈 importante para manejar archivos
+  });
+
+  // Crear un link temporal para descargar el archivo
+  const url = window.URL.createObjectURL(new Blob([res.data]));
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", `${tipo}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export async function getReporteGeneral(token: string) {
+  // Si tu 'api' ya tiene el baseURL, usa la ruta sin la primera barra si es necesario, 
+  // o simplemente '/reportes/'
+  const res = await api.get('/reportes/', { 
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data;
+}
+// ============================================================================
+// NUEVAS INTERFACES Y FUNCIONES PARA BÚSQUEDA AVANZADA CON FILTROS
+// ============================================================================
 /**
  * Interfaz para los parámetros de filtrado (HU-7.1 a 7.7)
  */

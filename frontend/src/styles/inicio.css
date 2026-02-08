@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
 
-/* RESET GENERAL */
+/* --- VARIABLES --- */
 :root {
   --bg-color: #0d0d0d;
   --card-bg: #1a1a1a;
@@ -9,19 +9,36 @@
   --accent-color: #ccff00; /* Amarillo Neón */
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-color);
-  font-family: 'Montserrat', sans-serif;
+/* --- SOLUCIÓN DEFINITIVA DE PANTALLA --- */
+/* Esto obliga a React (#root) y al navegador a ocupar todo el ancho y ser negros */
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important; /* Rompe el límite de ancho de Vite */
+  min-height: 100vh !important;
+  background-color: #0d0d0d !important;
   color: var(--text-primary);
+  display: block !important; /* Quita el centrado forzado flex */
+  box-sizing: border-box;
+  overflow-x: hidden; /* Evita scroll lateral */
 }
 
-/* --- HERO SECTION --- */
+/* Contenedor principal de tu página */
+.inicio-container {
+  background-color: var(--bg-color);
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- HERO SECTION (Banner principal) --- */
 .hero-section {
   position: relative;
   height: 92vh;
   width: 100%;
+  /* Asegúrate de que esta URL funcione o cámbiala por una local */
   background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)),
               url('https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
   background-size: cover;
@@ -32,8 +49,10 @@ body {
   align-items: center;
   text-align: center;
   padding: 0 20px;
+  box-sizing: border-box;
 }
 
+/* Navbar dentro del Hero */
 .hero-navbar {
   position: absolute;
   top: 20px;
@@ -53,6 +72,7 @@ body {
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
 }
 
+/* Textos del Hero */
 .hero-content h1 {
   font-size: 4rem;
   font-weight: 800;
@@ -68,6 +88,7 @@ body {
   margin-bottom: 2.5rem;
 }
 
+/* Botones generales */
 .cta-button {
   border: 2px solid var(--text-primary);
   color: var(--text-primary);
@@ -76,6 +97,7 @@ body {
   text-transform: uppercase;
   text-decoration: none;
   transition: 0.3s;
+  display: inline-block;
 }
 
 .cta-button:hover {
@@ -94,8 +116,7 @@ body {
   border-radius: 5px;
 }
 
-/* --- ESTILOS DEL MENÚ DE USUARIO --- */
-
+/* --- MENÚ DE USUARIO --- */
 .user-menu-container {
   position: relative;
   display: inline-block;
@@ -144,40 +165,33 @@ body {
 .dropdown-header {
   padding: 15px;
   background-color: #000 !important;
-  color: #888;
-  font-size: 0.75rem;
+  color: #fff;
+  font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
   border-bottom: 1px solid #333;
-  text-align: center; /* CENTRADO */
+  text-align: center;
 }
 
 .dropdown-item {
   padding: 12px 15px;
   color: #fff !important;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: .80rem;
   font-weight: 500;
   text-transform: uppercase;
   background: transparent;
   border: none;
-  text-align: center; /* CENTRADO (Antes estaba left) */
+  text-align: center;
   cursor: pointer;
   transition: 0.2s;
   width: 100%;
   display: block;
-  box-sizing: border-box; 
 }
 
 .dropdown-item:hover {
   background-color: var(--accent-color) !important;
   color: #000 !important;
-}
-
-.dropdown-divider {
-  height: 1px;
-  background-color: #333;
-  margin: 5px 0;
 }
 
 .logout-button {
@@ -189,11 +203,13 @@ body {
   color: white !important;
 }
 
-/* --- EVENTOS Y TARJETAS --- */
+/* --- SECCIÓN DE EVENTOS --- */
 .eventos-section {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 1400px; /* Ancho máximo para el contenido, no el fondo */
+  margin: 0 auto;    /* Centra el contenido */
   padding: 80px 20px;
+  box-sizing: border-box;
 }
 
 .section-header {
@@ -203,6 +219,7 @@ body {
   border-bottom: 1px solid #333;
   padding-bottom: 20px;
   margin-bottom: 40px;
+  width: 100%;
 }
 
 .section-title {
@@ -219,10 +236,12 @@ body {
   text-decoration: none;
 }
 
+/* Grid de Tarjetas */
 .grid-eventos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 30px;
+  width: 100%;
 }
 
 .evento-card {
@@ -231,6 +250,7 @@ body {
   display: flex;
   flex-direction: column;
   transition: 0.3s;
+  overflow: hidden;
 }
 
 .evento-card:hover {
@@ -239,7 +259,7 @@ body {
 }
 
 .card-img-wrapper {
-  height: 250px;
+  height: 200px;
   position: relative;
   overflow: hidden;
 }
@@ -264,38 +284,60 @@ body {
   background-color: rgba(0,0,0,0.8);
   color: #fff;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: 4px;
   font-size: 0.8rem;
   font-weight: bold;
   text-transform: uppercase;
 }
 
 .card-content {
-  padding: 25px;
+  padding: 20px;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  cursor: default; 
 }
 
 .card-content h3 {
   margin: 0 0 10px 0;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   text-transform: uppercase;
   color: #fff;
+}
+
+.precio-tag {
+  background-color: var(--accent-color);
+  color: #000;
+  padding: 2px 8px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  border-radius: 2px;
+  margin-left: 10px;
+  float: right;
 }
 
 .card-desc {
   color: var(--text-secondary);
   font-size: 0.9rem;
-  line-height: 1.6;
+  line-height: 1.5;
+  margin-bottom: 20px;
   flex-grow: 1;
-  cursor: default;
+}
+
+.card-meta {
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
 }
 
 .btn-ver-detalle {
-  margin-top: 20px;
-  background-color: #333;
+  background-color: #2a2a2a;
   color: #fff;
   text-align: center;
   padding: 12px;
@@ -306,6 +348,9 @@ body {
   letter-spacing: 1px;
   transition: 0.3s;
   cursor: pointer;
+  border: none;
+  width: 100%;
+  display: block;
 }
 
 .btn-ver-detalle:hover {
@@ -313,10 +358,12 @@ body {
   color: #000;
 }
 
-/* Móvil */
+/* Responsivo */
 @media (max-width: 768px) {
   .hero-navbar { padding: 0 20px; }
   .user-menu-trigger { min-width: auto; padding: 8px 12px; }
+  .hero-content h1 { font-size: 2.5rem; }
+  .section-header { flex-direction: column; align-items: flex-start; gap: 10px; }
   .user-name { display: none; }
 }
 /* ============================================================================
