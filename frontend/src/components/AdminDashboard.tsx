@@ -720,7 +720,7 @@ const AdminDashboard: React.FC = () => {
   );
 
   return (
-    <div className="admin-dashboard-container">
+    <div className="admin-dashboard-container admin-theme">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       
       {/* ✅ MODAL DE CONFIRMACIÓN PERSONALIZADO */}

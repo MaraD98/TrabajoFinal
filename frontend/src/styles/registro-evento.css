@@ -208,6 +208,18 @@
   letter-spacing: 0.5px;
 }
 
+/* Esto apunta al ícono del calendario dentro de tu input */
+.event-form__input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(56%) sepia(97%) saturate(2469%) hue-rotate(359deg) brightness(98%) contrast(106%);
+    
+    /* Opcional: Aumentar un poco el tamaño para que sea más fácil hacer click */
+    width: 20px;
+    height: 20px;
+}
+
+
+
 .event-form__input,
 .event-form__textarea,
 .event-form__select {
@@ -658,11 +670,7 @@
    ESTADOS DE VALIDACIÓN COLORIDOS
    ========================================================================== */
 
-.event-form__input:invalid:not(:placeholder-shown),
-.event-form__textarea:invalid:not(:placeholder-shown) {
-  border-color: var(--color-error);
-  background-color: #fff5f5;
-}
+
 
 .event-form__input:valid:not(:placeholder-shown):not([type="number"]):not([type="date"]),
 .event-form__textarea:valid:not(:placeholder-shown) {

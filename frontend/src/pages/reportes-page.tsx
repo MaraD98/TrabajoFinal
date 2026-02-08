@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; // Usamos tus services
+import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
 import "../styles/reportes.css";
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
+import { useAuth } from "../context/auth-context";
 
 interface ReporteData {
   total_eventos?: number;
@@ -23,35 +26,43 @@ export default function ReportesPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
 
-  // 1. DATOS DE SESIÓN Y ROL
-  const token = localStorage.getItem("token") || "";
-  const rolGuardado = localStorage.getItem("rol");
-  const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
+  // ✅ CAMBIO CLAVE: Usamos getToken y user del contexto en lugar de localStorage directo
+  const { user, getToken, loadingAuth } = useAuth();
+  
+  // Obtenemos el rol dinámicamente del usuario logueado
+  const usuarioRol = user?.id_rol || 0;
 
+  // CARGAR REPORTES
   useEffect(() => {
-    if (token && token !== "undefined" && token !== "null") {
-      cargarReportes();
-    } else {
-      setLoading(false);
+    // Solo intentamos cargar si el AuthContext terminó de inicializarse
+    if (!loadingAuth) {
+      const currentToken = getToken();
+      if (currentToken) {
+        cargarReportes(currentToken);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [token]);
+  }, [loadingAuth, getToken]);
 
-  const cargarReportes = async () => {
+  const cargarReportes = async (tokenParaCargar?: string) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Usamos el token que viene por parámetro o lo buscamos en el momento
+      const token = tokenParaCargar || getToken();
+      
+      if (!token) {
+        setError("No se encontró una sesión activa.");
+        return;
+      }
 
-      // Usamos el service en lugar de fetch directo para mayor limpieza
-      const data = await getReporteGeneral(token || "");
+      const data = await getReporteGeneral(token);
       setReporteData(data);
     } catch (err: any) {
-      console.error("Error:", err);
-      // Si el error es 401, realmente no estamos autorizados
-      if (err.response?.status === 401) {
-        setError("Tu sesión ha expirado. Por favor, reingresa.");
-      } else {
-        setError("No se pudieron cargar los datos del reporte.");
-      }
+      console.error("Error en reportes:", err);
+      setError(err.response?.status === 401 ? "Sesión expirada" : "Error al cargar reportes");
     } finally {
       setLoading(false);
     }
@@ -59,12 +70,15 @@ export default function ReportesPage() {
 
   const handleExportarCSV = async (tipo: string) => {
     try {
-      setExportando(tipo); // Bloquea el botón específico
+      const token = getToken();
+      if (!token) return alert("Sesión no válida");
+      
+      setExportando(tipo); 
       await exportReporteCSV(tipo, token);
     } catch (err) {
       alert("Error al exportar el reporte CSV");
     } finally {
-      setExportando(null); // Desbloquea
+      setExportando(null);
     }
   };
 
@@ -73,7 +87,7 @@ export default function ReportesPage() {
   const getNombreRol = (id: number) => ({ 1: "Admin", 2: "Supervisor", 3: "Operario", 4: "Cliente" }[id] || `Rol ${id}`);
   const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
-  // --- MÉTODOS DE RENDERIZADO DE GRÁFICOS ---
+  // --- MÉTODOS DE RENDERIZADO (Se mantienen igual) ---
   const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const maxValue = Math.max(...data.map(item => item[valueKey]), 1);
@@ -97,7 +111,6 @@ export default function ReportesPage() {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const dataOrdenada = [...data].sort((a, b) => a.anio !== b.anio ? a.anio - b.anio : a.mes - b.mes);
     const maxValue = Math.max(...dataOrdenada.map(item => item.cantidad), 1);
-
     return (
       <div className="grafico-linea">
         <div className="grafico-linea__grid">
@@ -132,21 +145,21 @@ export default function ReportesPage() {
     );
   };
 
-  // --- PROTECCIÓN ---
-  // Si está cargando, mostramos el spinner PRIMERO
-  if (loading) {
-  return (
-    <div className="reportes-page"> 
-      <div className="reportes-loading">
-        <div className="spinner-large"></div>
-        <p>Verificando credenciales...</p>
+  // --- PROTECCIÓN DE RUTA ---
+  if (loadingAuth || loading) {
+    return (
+      <div className="reportes-page"> 
+        <div className="reportes-loading">
+          <div className="spinner-large"></div>
+          <p>Cargando panel...</p>
+        </div>
       </div>
-    </div>
     );
   }
 
-  // Si después de cargar, el token sigue sin existir, mostramos el bloqueo
-  if (!token || token === "undefined" || token === "null") {
+  // ✅ Verificación robusta del token
+  const activeToken = getToken();
+  if (!activeToken) {
     return (
       <div className="reportes-page">
         <div className="reportes-alert reportes-alert--error">
@@ -158,39 +171,28 @@ export default function ReportesPage() {
     );
   }
 
-  // Lógica extra: Contar pendientes para la alerta
   const pendientesCount = reporteData?.eventos_por_estado?.find(e => e.estado === 1)?.cantidad || 0;
 
   return (
     <div className="reportes-page">
+      <Navbar />
       <div className="reportes-page__container">
-
-          {/* NUEVO BOTÓN VOLVER AL INICIO*/}
-          <div className="reportes-back-container">
-            <button className="btn-back-home" onClick={() => window.location.href = '/'}>
-              <span className="back-icon">←</span>
-              Volver al Inicio
-            </button>
-          </div>
-
-        {/* HEADER */}
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
-            <p className="reportes-header__subtitle">Gestión centralizada de datos</p>
+            <p className="reportes-header__subtitle">Gestión centralizada de datos para {user?.nombre_y_apellido}</p>
           </div>
-          <button onClick={cargarReportes} className="reportes-header__refresh">↻ Actualizar Datos</button>
+          <button onClick={() => cargarReportes()} className="reportes-header__refresh">↻ Actualizar Datos</button>
         </div>
 
-        {/* ALERTAS DINÁMICAS */}
         {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
+        
         {usuarioRol <= 2 && pendientesCount > 0 && (
           <div className="reportes-alert reportes-alert--warning">
             🔔 Tienes <strong>{pendientesCount}</strong> eventos pendientes de revisión.
           </div>
         )}
 
-        {/* TARJETAS RESUMEN */}
         <div className="reportes-resumen">
           <div className="stat-card stat-card--primary">
             <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
@@ -206,10 +208,7 @@ export default function ReportesPage() {
           </div>
         </div>
 
-        {/* SECCIÓN DE GRÁFICOS GRID */}
         <div className="reportes-graficos">
-          
-          {/* 1. Tendencia Mensual (Ancho completo) */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_mes && (
             <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
@@ -226,7 +225,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 2. Usuarios por Rol */}
           {usuarioRol === 1 && reporteData?.usuarios_por_rol && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -243,7 +241,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 3. Mis Eventos por Estado */}
           {reporteData?.mis_eventos_por_estado && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -260,7 +257,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 4. Eventos por Tipo */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -277,7 +273,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 5. Historial/Auditoría (Placeholder para futura tabla) */}
           {(usuarioRol <= 2) && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -298,9 +293,9 @@ export default function ReportesPage() {
               </div>
             </div>
           )}
-
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

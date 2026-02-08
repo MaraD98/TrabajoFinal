@@ -1,8 +1,5 @@
 import axios from "axios";
 
-console.log("🌍 Entorno:", import.meta.env.MODE);
-console.log("🔗 VITE_API_URL:", import.meta.env.VITE_API_URL);
-
 const baseURL = import.meta.env.VITE_API_URL;
 
 if (!baseURL) {
@@ -21,7 +18,6 @@ api.interceptors.request.use(
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log("🔑 Token enviado:", token.substring(0, 20) + "...");
     } else {
       console.warn("⚠️ No hay token en localStorage");
     }

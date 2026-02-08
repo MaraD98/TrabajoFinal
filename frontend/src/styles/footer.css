@@ -1,0 +1,143 @@
+.main-footer {
+    background-color: #0D0D0D;
+    border-top: 1px solid #1a1a1a;
+    padding: 3rem 1rem 1.5rem 1rem;
+    margin-top: 4rem;
+    color: #fff;
+    width: 100%;
+}
+
+.footer-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    /* Tres columnas iguales y centradas */
+    grid-template-columns: repeat(3, 1fr); 
+    gap: 3rem;
+    align-items: flex-start;
+}
+
+.footer-section {
+    display: flex;
+    flex-direction: column;
+    /* Alinea el contenido de cada columna al inicio (izquierda del bloque) */
+    align-items: flex-start; 
+}
+
+/* Para que la marca no se vea gigante */
+.footer-logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 1rem;
+}
+
+.brand p {
+    font-size: 0.8rem;
+    color: #888;
+    line-height: 1.5;
+    text-align: left;
+    margin: 0;
+}
+
+.footer-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 1.2rem;
+    letter-spacing: 1px;
+    color: #fff; /* O el color verde/lima de tu logo si prefieres */
+}
+
+/* Listas de contacto */
+.footer-contact-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-contact-list li {
+    font-size: 0.8rem;
+    color: #ccc;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 0.8rem;
+}
+
+.footer-contact-list a {
+    color: inherit;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: 0.2s;
+}
+
+.footer-contact-list a:hover {
+    color: #fff;
+}
+
+.contact-icon {
+    color: #a3ff00; /* Color de acento de Wake Up */
+    flex-shrink: 0;
+}
+
+/* Redes Sociales */
+.social-container {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-start;
+}
+
+.social-circle {
+    width: 34px;
+    height: 34px;
+    background-color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.social-circle:hover {
+    transform: translateY(-3px);
+    background-color: #a3ff00; /* Naranja o verde de tu marca */
+}
+
+/* Copyright */
+.footer-bottom {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #1a1a1a;
+    text-align: center;
+}
+
+.footer-bottom p {
+    font-size: 0.7rem;
+    color: #444;
+    margin: 0;
+}
+
+/* Responsive: Una columna en celulares */
+@media (max-width: 768px) {
+    .footer-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 2rem;
+    }
+    
+    .footer-section {
+        align-items: center;
+    }
+    
+    .brand p {
+        text-align: center;
+    }
+    
+    .social-container {
+        justify-content: center;
+    }
+}

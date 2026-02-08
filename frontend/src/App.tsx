@@ -2,7 +2,7 @@ import './App.css';
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/auth-context";
 
-// 2. Componentes y Páginas
+// Componentes y Páginas
 import EventsMapPage from "./pages/mapa-page";
 import CreateEventPage from "./pages/registro-evento-page";
 import LoginPage from "./pages/login-page";
@@ -13,15 +13,9 @@ import SolicitudEventoPage from './pages/solicitud-evento-page';
 import InicioPage from "./pages/inicio-page";
 import ForgotPasswordPage from "./pages/forgot-password-page";
 import ReportesPage from './pages/reportes-page';
-
-// 👇 3. AGREGADO: Importamos la página de Mis Eventos
 import MisEventosPage from "./pages/mis-eventos-page"; 
-// 👇 AGREGADO: DASHBOARD DE ADMIN
 import AdminDashboardPage from "./pages/admin-dashboard-page";
-// 👇 NUEVO IMPORT: La página de perfil
 import PerfilPage from "./pages/perfil-page";
-
-// ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
 import TablaGestionPagos from "./pages/gestion-pagos-pages";
 import PanelInscriptos from "./pages/inscriptos-page";
 
@@ -30,30 +24,61 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Ruta Pública: Inicio */}
+          {/* ========== RUTAS PÚBLICAS ========== */}
           <Route path="/" element={<InicioPage />} />
-          
-          {/* Rutas Públicas de Funcionalidad */}
           <Route path="/mapa" element={<EventsMapPage />} />
           <Route path="/calendario" element={<CalendarioPage />} />
-          
-          {/* Rutas de Autenticación */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
 
-          {/* 👇 RUTAS PROTEGIDAS (Requieren Login) 👇 */}
+          {/* ========== RUTAS PROTEGIDAS - USUARIOS COMUNES (Rol 4) ========== */}
           
-          {/* 1. Crear Evento */}
-          {/* este es solicitud */}
-          <Route path="/publicar-evento" element={<SolicitudEventoPage />} />
-          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
-          <Route path="/perfil" element={<PerfilPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/reportes" element={<ReportesPage />} />
+          {/* Perfil - Accesible para TODOS los usuarios autenticados */}
+          <Route 
+            path="/perfil" 
+            element={
+              <ProtectedRoute>
+                <PerfilPage />
+              </ProtectedRoute>
+            } 
+          />
 
-          <Route path="/registro-evento"
+          {/* Reportes - Accesible para usuarios Rol 4 */}
+          <Route 
+            path="/reportes" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 4]}>
+                <ReportesPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Solicitar Evento - Accesible para usuarios Rol 4 */}
+          <Route 
+            path="/publicar-evento" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 4]}>
+                <SolicitudEventoPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Mis Eventos - Accesible para usuarios Rol 4 */}
+          <Route 
+            path="/mis-eventos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 4]}>
+                <MisEventosPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ========== RUTAS PROTEGIDAS - ADMIN/ORGANIZADORES (Rol 1, 2) ========== */}
+          
+          {/* Crear Evento Directamente */}
+          <Route 
+            path="/registro-evento"
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
                 <CreateEventPage />
@@ -61,43 +86,35 @@ function App() {
             }
           />
 
-          {/* 2. Mis Eventos (AGREGADA) */}
-          <Route path="/mis-eventos"
-            element={
-                <MisEventosPage />
-            }
-          />
-
-          {/* 3. ZONA ADMIN - Dashboard y sus páginas hijas */}
-          <Route path="/admin" 
+          {/* Dashboard Admin */}
+          <Route 
+            path="/admin" 
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
-                <AdminDashboardPage/>
+                <AdminDashboardPage />
               </ProtectedRoute>
             }
           />
           
-          {/* ✅ AQUÍ ESTABAN FALTANDO TUS RUTAS: Agregadas */}
-          <Route path="/admin/pagos" 
+          {/* Gestión de Pagos */}
+          <Route 
+            path="/admin/pagos" 
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
-                <TablaGestionPagos/>
-              </ProtectedRoute>
-            }
-          />
-           <Route path="/admin/inscriptos" 
-            element={
-              <ProtectedRoute allowedRoles={[1, 2]}>
-                <PanelInscriptos/>
+                <TablaGestionPagos />
               </ProtectedRoute>
             }
           />
 
-          {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
-          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
-
-          {/* 👇 NUEVA RUTA: Mi Perfil */}
-          <Route path="/perfil" element={<PerfilPage />} />
+          {/* Panel de Inscriptos */}
+          <Route 
+            path="/admin/inscriptos" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2]}>
+                <PanelInscriptos />
+              </ProtectedRoute>
+            }
+          />
 
         </Routes>
       </Router>

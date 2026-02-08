@@ -165,8 +165,8 @@ html, body, #root {
 .dropdown-header {
   padding: 15px;
   background-color: #000 !important;
-  color: #888;
-  font-size: 0.75rem;
+  color: #fff;
+  font-size: 0.8rem;
   font-weight: 800;
   text-transform: uppercase;
   border-bottom: 1px solid #333;
@@ -177,7 +177,7 @@ html, body, #root {
   padding: 12px 15px;
   color: #fff !important;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: .80rem;
   font-weight: 500;
   text-transform: uppercase;
   background: transparent;

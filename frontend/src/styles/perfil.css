@@ -1,110 +1,65 @@
-/* perfil.css */
-.perfil-page {
-  min-height: 100vh;
+/* perfil.css - Versión Dark Sport */
+
+/* Contenedor de Carga (Spinner) */
+.perfil-loading-overlay {
+  background: #0d0d0d;
+  height: 100vh;
+  width: 100%;
   display: flex;
+  justify-content: center; /* Centra horizontal */
+  align-items: center;     /* Centra vertical */
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+}
+
+.perfil-loading-content {
+  display: flex;
+  flex-direction: column; /* Spinner arriba, texto abajo */
+  align-items: center;    /* Centra ambos */
   justify-content: center;
-  align-items: center;
-  background-color: #f0f0f0; /* Fondo neutro gris claro */
-  padding: 20px;
+}
+
+.perfil-loading-content p {
+  color: #ccff00;
+  margin-top: 15px;
+  font-weight: bold;
+  letter-spacing: 1px;
   font-family: sans-serif;
 }
 
-.perfil-card {
-  background: white;
-  padding: 40px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  width: 100%;
-  max-width: 500px;
-  text-align: center;
-}
-
-.perfil-header {
-  margin-bottom: 30px;
-}
-
-.perfil-avatar {
-  width: 80px;
-  height: 80px;
-  background-color: #333;
-  color: white;
-  font-size: 40px;
-  font-weight: bold;
+.spinner-large {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(204, 255, 0, 0.1);
+  border-top: 5px solid #ccff00;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 15px auto;
+  animation: spin 1s linear infinite;
 }
 
-.perfil-info {
-  text-align: left;
-  margin-bottom: 30px;
-  border-top: 1px solid #eee;
-  padding-top: 20px;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.info-item {
-  margin-bottom: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.info-item label {
-  font-weight: bold;
-  color: #666;
-}
-
-.rol-badge {
-  background-color: #e0e0e0;
-  padding: 4px 10px;
-  border-radius: 15px;
-  font-size: 0.9rem;
-}
-
-.perfil-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-button {
-  padding: 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: opacity 0.2s;
-}
-
-.btn-logout {
-  background-color: #ff4d4d;
-  color: white;
-}
-
-.btn-home {
-  background-color: #333;
-  color: white;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
+/* Clases Útiles para la página */
 .titulo-centrado {
   width: 100%;
   text-align: center;
-  display: block; /* Asegura que se comporte como bloque para poder centrarse */
-  margin-bottom: 20px; /* Un poco de separación con lo de abajo */
-  color: white; /* OJO: En tus fotos el fondo es negro, si no pones blanco no se verá */
+  margin-bottom: 20px;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
 }
 
 .dropdown-header {
-  text-align: center;   /* Esto centra el texto "MI CUENTA" y "MIS EVENTOS" */
-  width: 100%;          /* Asegura que ocupe todo el ancho */
+  text-align: center;
+  width: 100%;
   display: block;
-  font-weight: bold;    /* Opcional: para que resalte un poco más */
-  padding: 5px 0;
+  font-weight: bold;
+  padding: 8px 0;
+  color: #888;
+  font-size: 0.75rem;
+  letter-spacing: 1px;
 }
-
