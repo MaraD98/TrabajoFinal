@@ -130,9 +130,13 @@ def obtener_bajas_pendientes(db: Session) -> List[dict]:
 
 def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     """
-    Obtiene todos los eventos eliminados (estados 5 y 7).
+    Obtiene todos los eventos del historial:
+    - Estado 4: Finalizados (fecha pasada)
+    - Estado 5: Cancelados (Soft Delete)
+    - Estado 7: Depurados (Hard Delete Lógico)
     """
-    query = (
+    # Primero obtenemos eventos con registro de eliminación (estados 5 y 7)
+    query_con_eliminacion = (
         db.query(EliminacionEvento, Evento, Usuario)
         .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
         .outerjoin(Usuario, EliminacionEvento.id_usuario == Usuario.id_usuario)
@@ -141,8 +145,23 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
         .all()
     )
     
+    # Luego obtenemos eventos finalizados (estado 4) SIN registro de eliminación
+    from datetime import date
+    eventos_finalizados = (
+        db.query(Evento)
+        .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
+        .filter(
+            Evento.id_estado == ID_ESTADO_FINALIZADO,
+            EliminacionEvento.id_eliminacion == None  # Solo finalizados SIN registro de eliminación
+        )
+        .order_by(desc(Evento.fecha_evento))
+        .all()
+    )
+    
     resultados = []
-    for elim, evento, usuario in query:
+    
+    # Procesar eventos con registro de eliminación
+    for elim, evento, usuario in query_con_eliminacion:
         if evento.id_estado == ID_ESTADO_CANCELADO:
             tipo_elim = "soft_delete"
             estado_texto = "Cancelado (Soft Delete)"
@@ -161,6 +180,20 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
             'estado': estado_texto,
             'eliminado_por': usuario.email if usuario else "Sistema",
             'tipo_eliminacion': tipo_elim
+        })
+    
+    # Procesar eventos finalizados (estado 4)
+    for evento in eventos_finalizados:
+        usuario_evento = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+        
+        resultados.append({
+            'id_evento': evento.id_evento,
+            'nombre_evento': evento.nombre_evento,
+            'fecha_eliminacion': evento.fecha_evento.strftime("%d/%m/%Y"),
+            'motivo': 'Evento finalizado automáticamente (fecha pasada)',
+            'estado': 'Finalizado',
+            'eliminado_por': usuario_evento.email if usuario_evento else "Sistema",
+            'tipo_eliminacion': 'finalizado'
         })
     
     return resultados
