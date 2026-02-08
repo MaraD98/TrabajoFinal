@@ -42,7 +42,7 @@
 
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fff8f5 0%, #ffffff 50%, #f8f9fa 100%);
+  background: linear-gradient(1deg, #939191b8 0%, #e0e0e0 50%, #f8f9fa 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -421,6 +421,22 @@
   align-items: center;
   justify-content: center;
   gap: var(--spacing-xs);
+  color: var(--color-text); /* Asegura que el texto sea oscuro (#212121) */
+  width: 100%;              /* Asegura que ocupe todo el espacio de su columna */
+}
+
+/* Hover específico para Google */
+.login-social__btn--google:hover {
+  border-color: #ea4335;
+  color: #ea4335;
+  background-color: #fff5f5; /* Un fondo rojizo muy suave */
+}
+
+/* Hover específico para Facebook */
+.login-social__btn--facebook:hover {
+  border-color: #1877f2;
+  color: #1877f2;
+  background-color: #f0f7ff; /* Un fondo azul muy suave */
 }
 
 .login-social__btn:hover {
