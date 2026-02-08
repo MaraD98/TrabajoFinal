@@ -39,6 +39,17 @@ export async function getMisSolicitudes() {
     return res.data;
 }
 
+// --- OBTENER HISTORIAL DE EDICIONES DE UN EVENTO ---
+export async function getHistorialEdiciones(idEvento: number) {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get(`/eventos/${idEvento}/historial-ediciones`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+}
+
 // HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
