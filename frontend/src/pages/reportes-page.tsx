@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // 1. Agregamos useRef
 import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
 import "../styles/reportes.css";
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
 import { useAuth } from "../context/auth-context";
+
+// 2. Importamos las librerías para PDF
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface ReporteData {
   total_eventos?: number;
@@ -26,15 +30,15 @@ export default function ReportesPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
 
-  // 1. DATOS DE SESIÓN Y ROL
+  // 3. Referencia al contenedor que queremos imprimir
+  const reporteRef = useRef<HTMLDivElement>(null);
+
+  // DATOS DE SESIÓN Y ROL
   const token = localStorage.getItem("token") || "";
   const rolGuardado = localStorage.getItem("rol");
-  const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
+  const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; 
+  const { loadingAuth } = useAuth();
 
-  // ... Para el menu desplegable ...
-    const { loadingAuth } = useAuth();
-
-  // CARGAR REPORTES
   useEffect(() => {
     if (!loadingAuth && token) {
       cargarReportes();
@@ -57,21 +61,58 @@ export default function ReportesPage() {
 
   const handleExportarCSV = async (tipo: string) => {
     try {
-      setExportando(tipo); // Bloquea el botón específico
+      setExportando(tipo); 
       await exportReporteCSV(tipo, token);
     } catch (err) {
       alert("Error al exportar el reporte CSV");
     } finally {
-      setExportando(null); // Desbloquea
+      setExportando(null); 
+    }
+  };
+
+  // 4. NUEVA FUNCIÓN: Descargar PDF
+  const handleDescargarPDF = async () => {
+    const input = reporteRef.current;
+    if (!input) return;
+
+    try {
+      setExportando("pdf"); // Usamos este estado para mostrar feedback visual en el botón
+      
+      // Capturamos el contenido como imagen
+      const canvas = await html2canvas(input, { 
+        scale: 2, // Mejora la resolución
+        backgroundColor: "#ffffff" // Asegura fondo blanco
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      
+      // Creamos el PDF (A4 vertical, medidas en mm)
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      
+      // Calculamos dimensiones para ajustar la imagen al PDF
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Agregamos la imagen al PDF (con un pequeño margen superior)
+      pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfImgHeight);
+      
+      pdf.save("reporte-panel-control.pdf");
+      
+    } catch (err) {
+      console.error("Error al generar PDF", err);
+      alert("No se pudo generar el PDF");
+    } finally {
+      setExportando(null);
     }
   };
 
   // --- FORMATEADORES ---
-  const getNombreEstado = (id: number) => ({ 1: "Pendiente", 2: "Aprobado", 3: "Rechazado", 4: "Cancelado" }[id] || `Estado ${id}`);
+  const getNombreEstado = (id: number) => ({ 1: "Borrador", 2: "Pendiente", 3: "Publicado", 4: "Finalizado", 5: "Cancelado", 6: "Depurado por Admin" }[id] || `Estado ${id}`);
   const getNombreRol = (id: number) => ({ 1: "Admin", 2: "Supervisor", 3: "Operario", 4: "Cliente" }[id] || `Rol ${id}`);
   const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
-  // --- MÉTODOS DE RENDERIZADO DE GRÁFICOS ---
+  // --- RENDERS ---
   const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const maxValue = Math.max(...data.map(item => item[valueKey]), 1);
@@ -130,20 +171,17 @@ export default function ReportesPage() {
     );
   };
 
-  // --- PROTECCIÓN ---
-  // Si está cargando, mostramos el spinner PRIMERO
   if (loadingAuth || loading) {
-  return (
-    <div className="reportes-page"> 
-      <div className="reportes-loading">
-        <div className="spinner-large"></div>
-        <p>Cargando panel...</p>
+    return (
+      <div className="reportes-page"> 
+        <div className="reportes-loading">
+          <div className="spinner-large"></div>
+          <p>Cargando panel...</p>
+        </div>
       </div>
-    </div>
     );
   }
 
-  // Si después de cargar, el token sigue sin existir, mostramos el bloqueo
   if (!token || token === "undefined" || token === "null") {
     return (
       <div className="reportes-page">
@@ -156,24 +194,40 @@ export default function ReportesPage() {
     );
   }
 
-  // Lógica extra: Contar pendientes para la alerta
   const pendientesCount = reporteData?.eventos_por_estado?.find(e => e.estado === 1)?.cantidad || 0;
 
   return (
     <div className="reportes-page">
       <Navbar />
 
-      <div className="reportes-page__container">
+      {/* 5. Agregamos la ref AQUÍ para que capture todo este contenedor */}
+      <div className="reportes-page__container" ref={reporteRef}>
+        
         {/* HEADER */}
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
             <p className="reportes-header__subtitle">Gestión centralizada de datos</p>
           </div>
-          <button onClick={cargarReportes} className="reportes-header__refresh">↻ Actualizar Datos</button>
+          
+          <div className="reportes-header__actions" style={{ display: 'flex', gap: '10px' }}>
+             {/* 6. Botón para Descargar PDF */}
+             <button 
+                onClick={handleDescargarPDF} 
+                disabled={exportando === "pdf"}
+                className="reportes-header__refresh" // Reutilicé la clase, puedes crear una btn-pdf
+                style={{ backgroundColor: '#e74c3c' }} // Rojo PDF
+             >
+                {exportando === "pdf" ? "Generando..." : "📄 Guardar PDF"}
+             </button>
+
+             <button onClick={cargarReportes} className="reportes-header__refresh">
+               ↻ Actualizar Datos
+             </button>
+          </div>
         </div>
 
-        {/* ALERTAS DINÁMICAS */}
+        {/* ALERTAS */}
         {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
         {usuarioRol <= 2 && pendientesCount > 0 && (
           <div className="reportes-alert reportes-alert--warning">
@@ -197,20 +251,22 @@ export default function ReportesPage() {
           </div>
         </div>
 
-        {/* SECCIÓN DE GRÁFICOS GRID */}
+        {/* SECCIÓN DE GRÁFICOS (El resto queda igual) */}
         <div className="reportes-graficos">
           
-          {/* 1. Tendencia Mensual (Ancho completo) */}
+          {/* 1. Tendencia Mensual */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_mes && (
             <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
                 <h3>📅 Tendencia Mensual de Eventos</h3>
+                {/* Ocultamos el botón CSV al imprimir para que no salga en el PDF si se ve feo (opcional) */}
                 <button 
+                  data-html2canvas-ignore="true" // Esto hace que el botón no salga en el PDF
                   disabled={exportando === "eventos_por_mes"}
                   onClick={() => handleExportarCSV("eventos_por_mes")}
                   className="btn-export"
                 >
-                  {exportando === "eventos_por_mes" ? "Generando..." : "📥 CSV"}
+                  {exportando === "eventos_por_mes" ? "..." : "📥 CSV"}
                 </button>
               </div>
               <div className="grafico-card__body">{renderGraficoLinea(reporteData.eventos_por_mes)}</div>
@@ -223,6 +279,7 @@ export default function ReportesPage() {
               <div className="grafico-card__header">
                 <h3>🎭 Distribución por Roles</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "usuarios_por_rol"}
                   onClick={() => handleExportarCSV("usuarios_por_rol")}
                   className="btn-export"
@@ -240,6 +297,7 @@ export default function ReportesPage() {
               <div className="grafico-card__header">
                 <h3>📊 Mi Actividad (Estados)</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "mis_eventos_por_estado"}
                   onClick={() => handleExportarCSV("mis_eventos_por_estado")}
                   className="btn-export"
@@ -257,6 +315,7 @@ export default function ReportesPage() {
               <div className="grafico-card__header">
                 <h3>🏃‍♂️ Categorías de Eventos</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "eventos_por_tipo"}
                   onClick={() => handleExportarCSV("eventos_por_tipo")}
                   className="btn-export"
@@ -268,12 +327,13 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 5. Historial/Auditoría (Placeholder para futura tabla) */}
+          {/* 5. Auditoría */}
           {(usuarioRol <= 2) && (
             <div className="grafico-card">
               <div className="grafico-card__header">
                 <h3>🕵️ Auditoría de Cambios</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "auditoria"}
                   onClick={() => handleExportarCSV("auditoria")}
                   className="btn-export"
@@ -283,7 +343,7 @@ export default function ReportesPage() {
               </div>
               <div className="grafico-card__body">
                  <p style={{fontSize: '0.9rem', color: '#e0e0e0'}}>
-                   Registro de intervenciones realizadas por administradores en eventos de terceros.
+                   Registro de intervenciones.
                  </p>
                  <div className="audit-badge">Auditoría Activa</div>
               </div>
