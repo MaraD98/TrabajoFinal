@@ -71,8 +71,13 @@ export async function getEventosCalendario(month: number, year: number) {
   return res.data;
 }
 
-export const inscribirseEvento = async (id_evento: number) => {
-    const response = await api.post(`/inscripciones/${id_evento}`); 
+export const inscribirseEvento = async (id_evento: number, token: string) => {
+    // Agregamos el token en los headers para que el backend sepa quién es el usuario
+    const response = await api.post(`/inscripciones/${id_evento}`, {}, {
+        headers: {
+            Authorization: `Bearer ${token}`
+        }
+    }); 
     return response.data;
 };
 

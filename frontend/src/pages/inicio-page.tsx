@@ -5,6 +5,7 @@ import logoWakeUp from '../assets/wakeup-logo.png';
 import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { useAuth } from '../context/auth-context';
 import axios from 'axios';
+import { Footer } from "../components/footer";
 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
@@ -629,6 +630,10 @@ if (error) return (
                     })}
                 </div>
             </section>
+            
+            <Footer />
         </div>
+       
+        
     );
 }
