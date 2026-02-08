@@ -3,6 +3,7 @@ import { createEvento } from "../services/eventos";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
+import { useNavigate } from 'react-router-dom';
 
 export default function CreateEventPage() {
   // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
@@ -26,6 +27,7 @@ export default function CreateEventPage() {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -53,6 +55,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     const evento = await createEvento(formData, token);
     console.log("Evento creado:", evento);
     alert("¡Evento creado exitosamente!");
+    navigate("/mis-eventos");
   } catch (err) {
     console.error("Error al crear evento:", err);
     alert("Error al crear el evento. Por favor intenta nuevamente.");
