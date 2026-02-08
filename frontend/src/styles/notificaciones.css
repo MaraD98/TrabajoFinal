@@ -1,5 +1,5 @@
 /* 🎨 Variables de diseño - Tema elegante y moderno */
-:root {
+.notificaciones-container {
   --notif-primary: #6366f1;
   --notif-primary-dark: #4f46e5;
   --notif-bg: #ffffff;
@@ -18,7 +18,7 @@
 
 /* 🌙 Tema oscuro (opcional) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  .notificaciones-container {
     --notif-bg: #111827;
     --notif-card-bg: #1f2937;
     --notif-card-hover: #2d3748;
