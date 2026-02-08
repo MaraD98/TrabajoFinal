@@ -1,13 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
 import "../styles/reportes.css";
-import { useAuth } from '../context/auth-context';
-
-// para el menu desplegable
-import axios from 'axios';
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
-
+import { useAuth } from "../context/auth-context";
 
 interface ReporteData {
   total_eventos?: number;
@@ -36,50 +32,7 @@ export default function ReportesPage() {
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
   // ... Para el menu desplegable ...
-  const { user, loadingAuth } = useAuth();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const [localUserName, setLocalUserName] = useState<string>("Usuario"); 
-
-
-  // Efecto para cerrar el menú al hacer clic afuera
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-   useEffect(() => {
-        const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
-        if (storedUser) {
-            try {
-                const parsed = JSON.parse(storedUser);
-                const nombreReal = parsed.nombre_y_apellido || parsed.nombre;
-                if (nombreReal && nombreReal !== "Usuario") {
-                    setLocalUserName(nombreReal);
-                }
-            } catch (e) {
-                console.error("Error leyendo datos locales", e);
-            }
-        }
-
-        const token = localStorage.getItem('token');
-        if (token) {
-            axios.get(`${import.meta.env.VITE_API_URL}/me`, {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
-                const nombreDelServer = res.data.nombre_y_apellido || res.data.nombre;
-                if (nombreDelServer) {
-                    setLocalUserName(nombreDelServer);
-                }
-            }).catch(err => console.log("No se pudo refrescar el nombre desde el servidor", err));
-        }
-    }, [user]);
-
+    const { loadingAuth } = useAuth();
 
   // CARGAR REPORTES
   useEffect(() => {
