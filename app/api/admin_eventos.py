@@ -114,7 +114,7 @@ def revisar_alta(
 def ver_pendientes_baja(db: Session = Depends(get_db), admin: Usuario = Depends(require_admin)):
     """
     Muestra organizadores que piden borrar un evento YA publicado.
-    Solo muestra eventos en estado 6 (Pendiente de Eliminación).
+    Los eventos permanecen en estado 3 (Publicado) hasta que el admin apruebe.
     """
     # ✅ Usar el nuevo servicio
     bajas = EliminacionService.obtener_bajas_pendientes(db)
@@ -184,7 +184,7 @@ def depurar_evento(
     admin: Usuario = Depends(require_admin)
 ):
     """
-    ¡PELIGRO! Esto marca el evento como depurado (Estado 7).
+    ¡PELIGRO! Esto marca el evento como depurado (Estado 6).
     Usar para contenido inapropiado o limpieza de base de datos.
     """
     return EliminacionService.depurar_evento(
@@ -212,6 +212,6 @@ def obtener_historial_eliminaciones(
     
     Muestra eventos que están en:
     - Estado 5 (Cancelado - Soft Delete)
-    - Estado 7 (Depurado - Hard Delete Lógico)
+    - Estado 6 (Depurado - Hard Delete Lógico)
     """
     return EliminacionService.obtener_historial(db)

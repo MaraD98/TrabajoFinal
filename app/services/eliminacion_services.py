@@ -1,31 +1,24 @@
 """
-Servicio de Eliminación de Eventos - COMPLETO
+Servicio de Eliminación de Eventos - ACTUALIZADO
 Archivo: app/services/eliminacion_services.py
-
-Mantiene estados actuales: 5 (Cancelado), 6 (Pendiente), 7 (Depurado)
+Mantiene estados actuales: 5 (Cancelado), 6 (Depurado)
 """
-
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import date
-
 from app.db.crud import eliminacion_crud
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 
-
 # ============================================================================
 # CONSTANTES
 # ============================================================================
-
 ID_ROL_ADMINISTRADOR = 1
 ID_ROL_SUPERVISOR = 2
 ID_ESTADO_PUBLICADO = 3
 ID_ESTADO_FINALIZADO = 4
 ID_ESTADO_CANCELADO = 5
-ID_ESTADO_PENDIENTE_ELIMINACION = 6
-ID_ESTADO_DEPURADO = 7
-
+ID_ESTADO_DEPURADO = 6  # ✅ ANTES ERA 7, AHORA ES 6
 
 class EliminacionService:
     """
@@ -290,7 +283,7 @@ class EliminacionService:
         }
     
     # ========================================================================
-    # ✅ NUEVO: OBTENER EVENTOS FINALIZADOS
+    # ✅ OBTENER EVENTOS FINALIZADOS
     # ========================================================================
     
     @staticmethod
@@ -308,7 +301,7 @@ class EliminacionService:
         return eventos
     
     # ========================================================================
-    # ✅ NUEVO: RESTAURAR EVENTO CANCELADO
+    # ✅ RESTAURAR EVENTO CANCELADO
     # ========================================================================
     
     @staticmethod
@@ -342,7 +335,7 @@ class EliminacionService:
         }
     
     # ========================================================================
-    # DEPURACIÓN (HARD DELETE LÓGICO - Estado 7)
+    # DEPURACIÓN (HARD DELETE LÓGICO - Estado 6)
     # ========================================================================
     
     @staticmethod
@@ -353,7 +346,7 @@ class EliminacionService:
         id_admin: int
     ) -> dict:
         """
-        Depura un evento (Hard Delete Lógico - Estado 7).
+        Depura un evento (Hard Delete Lógico - Estado 6).
         Puede depurar eventos finalizados (estado 4) o cancelados (estado 5).
         """
         evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
@@ -382,7 +375,7 @@ class EliminacionService:
                 prefijo="[DEPURACIÓN ADMIN]"
             )
         
-        # Cambiar a estado 7 (Depurado)
+        # Cambiar a estado 6 (Depurado)
         eliminacion_crud.depurar_evento(db, evento_id)
         
         db.commit()
@@ -461,6 +454,6 @@ class EliminacionService:
     @staticmethod
     def obtener_historial(db: Session) -> list:
         """
-        Obtiene el historial completo de eliminaciones (estados 5 y 7).
+        Obtiene el historial completo de eliminaciones (estados 5 y 6).
         """
         return eliminacion_crud.obtener_historial_eliminaciones(db)

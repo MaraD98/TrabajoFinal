@@ -73,7 +73,6 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Publicado'),
 ('Finalizado'),
 ('Cancelado'), # Estado para eventos eliminados por el organizador(softdelete)
-('Pendiente de Eliminación'), # Estado para eventos de solicitantes externos
 ('Depurado por Admin');  #Nuevo estado para eventos eliminados por admin para limpieza de datos
 
 -----------------------------------------------------------------------------------------------------------------------------------
