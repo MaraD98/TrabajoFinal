@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; // Usamos tus services
+import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
 import "../styles/reportes.css";
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
+import { useAuth } from "../context/auth-context";
 
 interface ReporteData {
   total_eventos?: number;
@@ -28,30 +31,25 @@ export default function ReportesPage() {
   const rolGuardado = localStorage.getItem("rol");
   const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; // 0 significa sin rol/no logueado
 
+  // ... Para el menu desplegable ...
+    const { loadingAuth } = useAuth();
+
+  // CARGAR REPORTES
   useEffect(() => {
-    if (token && token !== "undefined" && token !== "null") {
+    if (!loadingAuth && token) {
       cargarReportes();
-    } else {
+    } else if (!loadingAuth && !token) {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, loadingAuth]);
 
   const cargarReportes = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      // Usamos el service en lugar de fetch directo para mayor limpieza
       const data = await getReporteGeneral(token || "");
       setReporteData(data);
     } catch (err: any) {
-      console.error("Error:", err);
-      // Si el error es 401, realmente no estamos autorizados
-      if (err.response?.status === 401) {
-        setError("Tu sesión ha expirado. Por favor, reingresa.");
-      } else {
-        setError("No se pudieron cargar los datos del reporte.");
-      }
+      setError(err.response?.status === 401 ? "Sesión expirada" : "Error al cargar reportes");
     } finally {
       setLoading(false);
     }
@@ -134,12 +132,12 @@ export default function ReportesPage() {
 
   // --- PROTECCIÓN ---
   // Si está cargando, mostramos el spinner PRIMERO
-  if (loading) {
+  if (loadingAuth || loading) {
   return (
     <div className="reportes-page"> 
       <div className="reportes-loading">
         <div className="spinner-large"></div>
-        <p>Verificando credenciales...</p>
+        <p>Cargando panel...</p>
       </div>
     </div>
     );
@@ -163,16 +161,9 @@ export default function ReportesPage() {
 
   return (
     <div className="reportes-page">
+      <Navbar />
+
       <div className="reportes-page__container">
-
-          {/* NUEVO BOTÓN VOLVER AL INICIO*/}
-          <div className="reportes-back-container">
-            <button className="btn-back-home" onClick={() => window.location.href = '/'}>
-              <span className="back-icon">←</span>
-              Volver al Inicio
-            </button>
-          </div>
-
         {/* HEADER */}
         <div className="reportes-header">
           <div>
@@ -301,6 +292,7 @@ export default function ReportesPage() {
 
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
