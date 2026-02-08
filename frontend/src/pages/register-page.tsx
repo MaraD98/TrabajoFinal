@@ -241,16 +241,16 @@ export default function RegisterPage() {
                   <div style={{
                     marginTop: '10px',
                     padding: '10px',
-                    backgroundColor: '#1a1a1a',
+                    backgroundColor: 'rgb(59, 59, 59)',
                     borderRadius: '8px',
                     border: '1px solid #333',
                     fontSize: '0.85rem'
                   }}>
-                    <p style={{ margin: '0 0 5px 0', color: '#888', fontWeight: 'bold' }}>Tu contraseña debe tener:</p>
+                    <p style={{ margin: '0 0 5px 0', color: '#fff8f5', fontWeight: 'bold' }}>Tu contraseña debe tener:</p>
                     <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                       {requirements.map((req, index) => (
                         <li key={index} style={{
-                          color: req.valid ? '#4ade80' : '#666', // Verde si cumple, Gris si no
+                          color: req.valid ? '#4ade80' : '#fff8f5', // Verde si cumple, Gris si no
                           marginBottom: '4px',
                           display: 'flex',
                           alignItems: 'center',

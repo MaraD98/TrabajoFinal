@@ -36,12 +36,7 @@ export default function EventsMapPage() {
       setError(null);
       const data = await getEventos();
       
-      // Filtrar eventos que tengan coordenadas válidas
-      const eventosConCoordenadas = data.filter(
-        (evento: Evento) => evento.lat && evento.lng
-      );
-      
-      setEventos(eventosConCoordenadas);
+      setEventos(data);
     } catch (err) {
       console.error("Error cargando eventos:", err);
       setError("No se pudieron cargar los eventos");
@@ -96,7 +91,10 @@ export default function EventsMapPage() {
     const bounds: L.LatLngBoundsExpression = [];
 
     eventos.forEach((evento) => {
-      if (!evento.lat || !evento.lng) return;
+      // 1. Convertimos a número para asegurar
+      const lat = Number(evento.lat);
+      const lng = Number(evento.lng);
+      if (!lat || !lng || lat === 0 || lng === 0) return;
 
       const getMarkerColor = (id_tipo?: number) => {
       switch (id_tipo) {
