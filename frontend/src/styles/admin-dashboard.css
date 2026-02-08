@@ -1,495 +1,534 @@
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
-
 :root {
-  /* Backgrounds */
+  /* Colores principales */
   --bg-primary: #0a0a0a;
   --bg-secondary: #1a1a1a;
-  --bg-tertiary: #141414;
-  --bg-card: #1f1f1f;
+  --bg-tertiary: #2d2d2d;
   
-  /* Text */
+  /* Colores de acento */
+  --accent-yellow: #ccff00;
+  --accent-green: #48bb78;
+  --accent-red: #fc8181;
+  --accent-blue: #4299e1;
+  
+  /* Colores de texto */
   --text-primary: #ffffff;
-  --text-secondary: #a8a8a8;
-  --text-muted: #6b6b6b;
+  --text-secondary: #a0aec0;
+  --text-muted: #718096;
   
-  /* Accent Colors */
-  --color-primary: #ccff00;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
-  --color-info: #3b82f6;
-  
-  /* Borders */
-  --border-primary: #2a2a2a;
-  --border-secondary: #333333;
-  --border-accent: #404040;
-  
-  /* Neon */
-  --neon-primary: rgba(204, 255, 0, 0.5);
-  --neon-secondary: rgba(204, 255, 0, 0.3);
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.5);
-  --shadow-neon: 0 0 10px var(--neon-secondary), 0 0 20px var(--neon-secondary);
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-primary);
-  font-family: 'Montserrat', sans-serif;
-  color: var(--text-primary);
+  /* Bordes y sombras */
+  --border-color: #4a5568;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 /* =============================================================================
-   ADMIN CONTAINER
+   LAYOUT PRINCIPAL
 ============================================================================= */
-.admin-container {
+.admin-dashboard-container {
+  display: flex;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
   background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
-/* =============================================================================
-   NAVBAR
-============================================================================= */
-.admin-navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 40px;
-  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-  border-bottom: 1px solid var(--border-primary);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: var(--shadow-md);
-}
-
-.navbar-logo img {
-  height: 45px;
-  width: auto;
-  object-fit: contain;
-  display: block;
-  transition: all 0.3s ease;
-}
-
-.navbar-logo img:hover {
-  filter: drop-shadow(0 0 8px var(--neon-primary));
-}
-
-.btn-volver {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 600;
-  border: 1px solid var(--border-accent);
-  padding: 10px 20px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: transparent;
-}
-
-.btn-volver:hover {
-  background-color: var(--bg-secondary);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-neon);
-}
-
-/* =============================================================================
-   LAYOUT
-============================================================================= */
-.admin-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* =============================================================================
-   SIDEBAR
-============================================================================= */
+/* SIDEBAR */
 .admin-sidebar {
-  width: 260px;
-  background: var(--bg-secondary);
-  padding: 1.5rem 0.75rem;
+  width: 250px;
+  background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+  border-right: 1px solid var(--border-color);
+  padding: 24px 16px;
+  position: fixed;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.admin-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-yellow);
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+
+.admin-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  border-right: 1px solid var(--border-primary);
-  overflow-y: auto;
-}
-
-.sidebar-title {
-  color: var(--color-primary);
-  font-size: 1.5rem;
-  font-weight: 800;
-  margin: 0 0 1.5rem 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  text-shadow: 0 0 10px var(--neon-primary);
-}
-
-.sidebar-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
-  padding: 12px 14px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Montserrat', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.sidebar-btn:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border-color: var(--border-accent);
-}
-
-.sidebar-btn.active {
-  background: linear-gradient(135deg, rgba(204, 255, 0, 0.15) 0%, rgba(204, 255, 0, 0.05) 100%);
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-  font-weight: 700;
-  box-shadow: var(--shadow-neon);
-}
-
-.sidebar-btn .icon {
-  font-size: 1.2rem;
-  width: 24px;
-}
-
-/* =============================================================================
-   MAIN CONTENT
-============================================================================= */
-.admin-main {
-  flex: 1;
-  background: var(--bg-primary);
-  padding: 2rem;
-  overflow-y: auto;
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.section-header h2 {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.search-input {
-  padding: 10px 16px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  font-family: 'Montserrat', sans-serif;
-  min-width: 250px;
-  transition: all 0.2s ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 8px var(--neon-secondary);
-}
-
-.search-input::placeholder {
-  color: var(--text-muted);
-}
-
-.btn-export {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  padding: 10px 20px;
-  border: 1px solid var(--border-accent);
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Montserrat', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.btn-export:hover {
-  background-color: #4a5568;
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-}
-
-/* =============================================================================
-   FILTROS
-============================================================================= */
-.filter-buttons {
-  display: flex;
   gap: 8px;
 }
 
-.filter-btn {
-  background-color: var(--bg-tertiary);
+.admin-nav button {
+  background: transparent;
   color: var(--text-secondary);
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  font-family: 'Montserrat', sans-serif;
+  transition: all 0.3s ease;
 }
 
-.filter-btn:hover {
-  background-color: #4a5568;
-  color: var(--color-primary);
+.admin-nav button:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
-.filter-btn.active {
-  background: linear-gradient(135deg, rgba(204, 255, 0, 0.2) 0%, rgba(204, 255, 0, 0.1) 100%);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-  font-weight: 700;
-  box-shadow: var(--shadow-neon);
+.admin-nav button.active {
+  background: linear-gradient(135deg, var(--accent-yellow) 0%, #b3e600 100%);
+  color: #0a0a0a;
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.3);
+}
+
+/* CONTENIDO PRINCIPAL */
+.admin-main-content {
+  flex: 1;
+  margin-left: 250px;
+  padding: 32px;
+  overflow-y: auto;
 }
 
 /* =============================================================================
-   SECCIONES
+   VISTAS DE CONTENIDO
 ============================================================================= */
-.seccion-solicitudes {
-  margin-bottom: 2rem;
-  background-color: rgba(26, 26, 26, 0.5);
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid var(--border-primary);
+.admin-content-view {
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
 }
 
-.titulo-seccion {
-  color: var(--color-primary);
-  font-size: 1.1rem;
+.view-header {
+  margin-bottom: 24px;
+}
+
+.view-header h2 {
+  font-size: 28px;
   font-weight: 700;
-  margin: 0 0 1rem 0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* =============================================================================
+   TOOLBAR
+============================================================================= */
+.toolbar-admin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.search-input-admin {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 16px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.search-input-admin:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(204, 255, 0, 0.1);
+}
+
+.search-input-admin::placeholder {
+  color: var(--text-muted);
+}
+
+/* Botones de la toolbar */
+.btn-export-admin,
+.btn-print-admin {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-export-admin:hover,
+.btn-print-admin:hover {
+  background-color: #4a5568;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Botones de filtro */
+.filter-buttons-admin {
+  display: flex;
+  gap: 8px;
+  margin: 0 12px;
+}
+
+.filter-btn-admin {
+  background-color: #2d3748;
+  color: #a0aec0;
+  padding: 8px 16px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 13px;
+}
+
+.filter-btn-admin:hover {
+  background-color: #4a5568;
+  color: #e2e8f0;
+}
+
+.filter-btn-admin.active {
+  background-color: var(--accent-yellow);
+  color: #0a0a0a;
+  border-color: var(--accent-yellow);
 }
 
 /* =============================================================================
    TABLAS
 ============================================================================= */
-.tabla-wrapper {
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border-primary);
-}
-
-.data-table {
+.data-table-admin {
   width: 100%;
   border-collapse: collapse;
   background-color: var(--bg-secondary);
-  font-size: 0.9rem;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.data-table thead {
+.data-table-admin thead {
   background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
 }
 
-.data-table th {
-  padding: 14px 16px;
+.data-table-admin th {
+  padding: 16px;
   text-align: left;
   font-weight: 700;
-  font-size: 0.75rem;
-  color: var(--color-primary);
+  font-size: 13px;
+  color: var(--accent-yellow);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border-accent);
 }
 
-.data-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-primary);
+.data-table-admin td {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+  font-size: 14px;
   color: var(--text-secondary);
 }
 
-.data-table tbody tr {
+.data-table-admin tbody tr {
   transition: background-color 0.2s ease;
 }
 
-.data-table tbody tr:hover {
+.data-table-admin tbody tr:hover {
   background-color: var(--bg-tertiary);
-}
-
-.empty-row {
-  text-align: center;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: 2rem !important;
 }
 
 /* =============================================================================
    BADGES
 ============================================================================= */
-.badge {
+.badge-admin {
   display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.7rem;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+
+.badge-count-admin {
+  background-color: var(--accent-yellow);
+  color: #0a0a0a;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.badge-count-small {
+  background-color: var(--accent-yellow);
+  color: #0a0a0a;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .badge-success {
-  background-color: rgba(16, 185, 129, 0.15);
-  color: var(--color-success);
-  border: 1px solid var(--color-success);
+  background-color: var(--accent-green);
+  color: white;
 }
 
 .badge-warning {
-  background-color: rgba(245, 158, 11, 0.15);
-  color: var(--color-warning);
-  border: 1px solid var(--color-warning);
+  background-color: #f6ad55;
+  color: #0a0a0a;
 }
 
-.badge-finalizado {
-  background-color: rgba(107, 107, 107, 0.15);
-  color: var(--text-muted);
-  border: 1px solid var(--border-primary);
-}
-
-.badge-cancelado {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: var(--color-danger);
-  border: 1px solid var(--color-danger);
-}
-
-.badge-depurado {
-  background-color: rgba(45, 45, 45, 0.15);
-  color: var(--text-muted);
-  border: 1px solid var(--border-accent);
-}
-
-/* =============================================================================
-   BOTONES DE ACCIÓN
-============================================================================= */
-.actions-inline {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.btn-aprobar,
-.btn-rechazar,
-.btn-depurar,
-.btn-restaurar,
-.btn-confirmar-pago {
-  padding: 6px 12px;
-  border: 1px solid;
+/* BADGES DE ESTADO PEQUEÑOS (Para Historial y Gestión de Pagos) */
+.badge-estado-small {
+  display: inline-block;
+  padding: 4px 10px;
   border-radius: 6px;
-  cursor: pointer;
+  font-size: 11px;
   font-weight: 600;
-  font-size: 0.75rem;
-  transition: all 0.2s ease;
-  font-family: 'Montserrat', sans-serif;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
 
-.btn-aprobar {
-  background: transparent;
-  color: var(--color-success);
-  border-color: var(--color-success);
+.badge-estado-finalizado {
+  background-color: #4a5568;
+  color: #fff;
 }
 
-.btn-aprobar:hover {
-  background: var(--color-success);
-  color: white;
-  transform: translateY(-1px);
+.badge-estado-cancelado {
+  background-color: #f56565;
+  color: #fff;
 }
 
-.btn-rechazar,
-.btn-depurar {
-  background: transparent;
-  color: var(--color-danger);
-  border-color: var(--color-danger);
+.badge-estado-depurado {
+  background-color: #2d3748;
+  color: #a0aec0;
+  border: 1px solid #4a5568;
 }
 
-.btn-rechazar:hover,
-.btn-depurar:hover {
-  background: var(--color-danger);
-  color: white;
-  transform: translateY(-1px);
+.badge-estado-publicado {
+  background-color: #48bb78;
+  color: #fff;
 }
 
-.btn-restaurar {
-  background: transparent;
-  color: var(--color-success);
-  border-color: var(--color-success);
-}
-
-.btn-restaurar:hover {
-  background: var(--color-success);
-  color: white;
-  transform: translateY(-1px);
-}
-
-.btn-confirmar-pago {
-  background: transparent;
-  color: var(--color-primary);
-  border-color: var(--color-primary);
-}
-
-.btn-confirmar-pago:hover {
-  background: var(--color-primary);
-  color: var(--bg-primary);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-neon);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-style: italic;
+.badge-estado-pendiente {
+  background-color: #f6ad55;
+  color: #0a0a0a;
 }
 
 /* =============================================================================
-   MODALES
+   BOTONES DE ACCIONES
 ============================================================================= */
-.modal-overlay {
+.btn-aprobar-admin,
+.btn-rechazar-admin,
+.btn-depurar-admin,
+.btn-restaurar-admin,
+.btn-confirmar-pago-admin {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Contenedor para botones en línea */
+.action-buttons-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-aprobar-admin {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.btn-aprobar-admin:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+}
+
+.btn-rechazar-admin,
+.btn-depurar-admin {
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+  color: white;
+}
+
+.btn-rechazar-admin:hover,
+.btn-depurar-admin:hover {
+  background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 101, 101, 0.3);
+}
+
+.btn-restaurar-admin {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.btn-restaurar-admin:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(72, 187, 120, 0.3);
+}
+
+.btn-confirmar-pago-admin {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+}
+
+.btn-confirmar-pago-admin:hover {
+  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
+}
+
+/* =============================================================================
+   SECCIONES DE SOLICITUDES
+============================================================================= */
+.seccion-solicitudes {
+  margin-bottom: 32px;
+  background-color: rgba(45, 45, 45, 0.3);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.titulo-seccion-solicitud {
+  color: var(--accent-yellow);
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* =============================================================================
+   FORMULARIO DE BÚSQUEDA
+============================================================================= */
+.search-form-admin {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.btn-search-admin {
+  background-color: var(--accent-yellow);
+  color: #0a0a0a;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-search-admin:hover {
+  background-color: #b3e600;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.3);
+}
+
+/* =============================================================================
+   UTILIDADES
+============================================================================= */
+.text-center {
+  text-align: center;
+}
+
+/* =============================================================================
+   MODAL DE CONFIRMACIÓN GENERAL
+============================================================================= */
+.confirm-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+.confirm-modal-content {
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+  padding: 32px;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid #4a5568;
+  animation: slideUp 0.3s ease;
+}
+
+.confirm-modal-content h3 {
+  color: var(--accent-yellow);
+  margin: 0 0 16px 0;
+  font-size: 24px;
+}
+
+.confirm-modal-content p {
+  color: #e2e8f0;
+  margin: 0 0 24px 0;
+  line-height: 1.6;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-cancelar {
+  background-color: #4a5568;
+  color: #e2e8f0;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-cancelar:hover {
+  background-color: #718096;
+}
+
+.btn-confirmar {
+  background: linear-gradient(135deg, var(--accent-yellow) 0%, #b3e600 100%);
+  color: #0a0a0a;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-confirmar:hover {
+  background: linear-gradient(135deg, #b3e600 0%, #99cc00 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.3);
+}
+
+/* =============================================================================
+   MODAL DE CONFIRMACIÓN DE PAGO (ESPECÍFICO)
+============================================================================= */
+.modal-pago-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -504,92 +543,22 @@ body {
   animation: fadeIn 0.3s ease;
 }
 
-.modal-content {
-  background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
-  padding: 32px;
-  border-radius: 12px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--border-accent);
-  animation: slideUp 0.3s ease;
-}
-
-.modal-content h3 {
-  color: var(--color-primary);
-  margin: 0 0 16px 0;
-  font-size: 1.5rem;
-  text-shadow: 0 0 10px var(--neon-primary);
-}
-
-.modal-content p {
-  color: var(--text-secondary);
-  margin: 0 0 24px 0;
-  line-height: 1.6;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: flex-end;
-}
-
-.btn-cancelar {
-  background-color: #4a5568;
-  color: #e2e8f0;
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Montserrat', sans-serif;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-}
-
-.btn-cancelar:hover {
-  background-color: #718096;
-}
-
-.btn-confirmar {
-  background: var(--color-primary);
-  color: var(--bg-primary);
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: 'Montserrat', sans-serif;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  box-shadow: var(--shadow-neon);
-}
-
-.btn-confirmar:hover {
-  background: #b3e600;
-  transform: translateY(-1px);
-}
-
-/* Modal de Pago */
-.modal-pago {
+.modal-pago-content {
   background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%);
   border-radius: 16px;
   max-width: 500px;
   width: 90%;
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--accent-yellow);
   animation: slideUp 0.3s ease;
   overflow: hidden;
-  box-shadow: 0 0 30px var(--neon-primary);
 }
 
 .modal-pago-header {
   background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
   padding: 24px;
   text-align: center;
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 2px solid var(--accent-yellow);
 }
 
 .modal-pago-icon {
@@ -598,54 +567,58 @@ body {
 }
 
 .modal-pago-header h2 {
-  color: var(--color-primary);
-  font-size: 1.3rem;
+  color: var(--accent-yellow);
+  font-size: 22px;
   font-weight: 700;
   margin: 0;
   letter-spacing: 1px;
-  text-shadow: 0 0 10px var(--neon-primary);
 }
 
-.modal-pago-body {
+.modal-pago-detalles {
   padding: 24px;
+  background-color: rgba(26, 26, 26, 0.5);
 }
 
 .detalle-row {
   display: flex;
   justify-content: space-between;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-accent);
-  font-size: 0.9rem;
+  border-bottom: 1px solid #4a5568;
 }
 
-.detalle-row span:first-child {
-  color: var(--text-secondary);
+.detalle-row:last-child {
+  border-bottom: none;
+}
+
+.detalle-label {
+  color: #a0aec0;
   font-weight: 600;
+  font-size: 13px;
   text-transform: uppercase;
-  font-size: 0.75rem;
   letter-spacing: 0.5px;
 }
 
-.detalle-row span:last-child {
-  color: var(--text-primary);
+.detalle-valor {
+  color: #e2e8f0;
   font-weight: 600;
+  font-size: 14px;
 }
 
 .detalle-monto {
   margin-top: 8px;
   padding-top: 16px;
-  border-top: 2px solid var(--color-primary);
+  border-top: 2px solid var(--accent-yellow);
 }
 
-.detalle-monto span:last-child {
-  color: var(--color-primary);
-  font-size: 1.5rem;
+.detalle-monto .detalle-valor {
+  color: var(--accent-yellow);
+  font-size: 24px;
   font-weight: 700;
 }
 
-.modal-pago-warning {
-  background-color: rgba(245, 158, 11, 0.1);
-  border: 1px solid var(--color-warning);
+.modal-pago-advertencia {
+  background-color: rgba(246, 173, 85, 0.1);
+  border: 1px solid #f6ad55;
   border-radius: 8px;
   padding: 16px;
   margin: 16px 24px;
@@ -654,14 +627,15 @@ body {
   gap: 12px;
 }
 
-.modal-pago-warning span {
+.advertencia-icono {
   font-size: 24px;
 }
 
-.modal-pago-warning p {
-  color: var(--color-warning);
-  font-size: 0.8rem;
+.modal-pago-advertencia p {
+  color: #f6ad55;
+  font-size: 13px;
   margin: 0;
+  line-height: 1.5;
 }
 
 .modal-pago-actions {
@@ -671,34 +645,58 @@ body {
   background-color: rgba(45, 45, 45, 0.3);
 }
 
-.modal-pago-actions .btn-cancelar {
+.btn-cancelar-pago {
   flex: 1;
-}
-
-.modal-pago-actions .btn-confirmar-pago {
-  flex: 1;
-  background: var(--color-primary);
-  color: var(--bg-primary);
+  background-color: #4a5568;
+  color: #e2e8f0;
   padding: 14px 24px;
   border: none;
   border-radius: 8px;
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-family: 'Montserrat', sans-serif;
-  box-shadow: var(--shadow-neon);
 }
 
-.modal-pago-actions .btn-confirmar-pago:hover {
-  background: #b3e600;
+.btn-cancelar-pago:hover {
+  background-color: #718096;
   transform: translateY(-2px);
 }
 
+.btn-confirmar-pago {
+  flex: 1;
+  background: linear-gradient(135deg, var(--accent-yellow) 0%, #b3e600 100%);
+  color: #0a0a0a;
+  padding: 14px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.3);
+}
+
+.btn-confirmar-pago:hover {
+  background: linear-gradient(135deg, #b3e600 0%, #99cc00 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(204, 255, 0, 0.5);
+}
+
 /* =============================================================================
-   TOAST
+   GRUPO DE BÚSQUEDA
+============================================================================= */
+.search-group-admin {
+  flex: 1;
+  min-width: 300px;
+}
+
+/* =============================================================================
+   TOAST NOTIFICATIONS
 ============================================================================= */
 .toast-notification {
   position: fixed;
@@ -711,19 +709,18 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  z-index: 3000;
+  z-index: 2000;
   animation: slideIn 0.3s ease;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   max-width: 400px;
-  font-family: 'Montserrat', sans-serif;
 }
 
 .toast-success {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
 }
 
 .toast-error {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
 }
 
 .toast-notification button {
@@ -737,11 +734,23 @@ body {
 }
 
 /* =============================================================================
+   TEXTO AUXILIAR
+============================================================================= */
+.text-muted {
+  color: #718096;
+  font-style: italic;
+}
+
+/* =============================================================================
    ANIMACIONES
 ============================================================================= */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideIn {
@@ -769,62 +778,92 @@ body {
 /* =============================================================================
    RESPONSIVE
 ============================================================================= */
+@media (max-width: 1200px) {
+  .admin-sidebar {
+    width: 200px;
+  }
+  
+  .admin-main-content {
+    margin-left: 200px;
+  }
+}
+
 @media (max-width: 968px) {
-  .admin-navbar {
-    padding: 16px 20px;
-  }
-
-  .admin-layout {
-    flex-direction: column;
-  }
-
   .admin-sidebar {
     width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 12px;
+    height: auto;
+    position: relative;
     border-right: none;
-    border-bottom: 1px solid var(--border-primary);
+    border-bottom: 1px solid var(--border-color);
   }
-
-  .sidebar-title {
-    display: none;
+  
+  .admin-main-content {
+    margin-left: 0;
   }
-
-  .sidebar-btn {
-    min-width: 140px;
-    flex-shrink: 0;
-  }
-
-  .admin-main {
-    padding: 1.5rem 1rem;
-  }
-
-  .section-header {
+  
+  .toolbar-admin {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
-
-  .toolbar {
-    width: 100%;
-  }
-
-  .search-input {
-    width: 100%;
+  
+  .filter-buttons-admin {
+    margin: 0;
   }
 }
 
 @media (max-width: 640px) {
-  .data-table {
-    font-size: 0.8rem;
+  .admin-main-content {
+    padding: 16px;
   }
-
-  .data-table th,
-  .data-table td {
-    padding: 10px 8px;
+  
+  .data-table-admin {
+    font-size: 12px;
   }
+  
+  .data-table-admin th,
+  .data-table-admin td {
+    padding: 8px;
+  }
+  
+  .btn-aprobar-admin,
+  .btn-rechazar-admin,
+  .btn-depurar-admin,
+  .btn-restaurar-admin,
+  .btn-confirmar-pago-admin {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
 
-  .filter-buttons {
-    flex-wrap: wrap;
+/* =============================================================================
+   PRINT STYLES
+============================================================================= */
+@media print {
+  .admin-sidebar,
+  .toolbar-admin,
+  .btn-aprobar-admin,
+  .btn-rechazar-admin,
+  .btn-depurar-admin,
+  .btn-restaurar-admin,
+  .btn-confirmar-pago-admin {
+    display: none !important;
+  }
+  
+  .admin-main-content {
+    margin-left: 0;
+  }
+  
+  .data-table-admin {
+    border: 1px solid #000;
+  }
+  
+  .data-table-admin th {
+    background-color: #f0f0f0;
+    color: #000;
+  }
+  
+  .data-table-admin td {
+    color: #000;
+    border: 1px solid #ddd;
   }
 }
