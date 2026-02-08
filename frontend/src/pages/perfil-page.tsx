@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/inicio.css';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
+import { Footer } from "../components/footer";
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -80,7 +81,7 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
 };
 
 export default function PerfilPage() {
-    // 🔥 CAMBIO CRÍTICO: Usamos el contexto
+    // 🔥 DESESTRUCTURACIÓN COMPLETA DEL CONTEXTO
     const { user, logout, getToken } = useAuth();
     
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
@@ -111,8 +112,17 @@ export default function PerfilPage() {
     const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
     
-    // 🔥 CAMBIO: Usamos el user del contexto
+    // 🔥 NOMBRE DE USUARIO DINÁMICO (con optional chaining para evitar errores)
     const displayUserName = (perfil?.nombre_y_apellido?.split(' ')[0] || user?.nombre_y_apellido?.split(' ')[0] || "Usuario").toUpperCase();
+    
+    // 🔥 DETECCIÓN DE ROLES (usa user?.id_rol con optional chaining)
+    const esAdmin = user?.id_rol === 1; // Admin total
+    const esSupervisor = user?.id_rol === 2; // Supervisor
+    const esOperario = user?.id_rol === 3; // Operario
+    const esCliente = user?.id_rol === 4; // Cliente
+    
+    // 🔥 ROLES CON ACCESO TOTAL (Admin + Supervisor)
+    const tieneAccesoTotal = esAdmin || esSupervisor;
     
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -146,7 +156,7 @@ export default function PerfilPage() {
 
     // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const fetchPerfil = async () => {
-        const token = getToken(); // 👈 Busca en ambos storages
+        const token = getToken();
         
         if (!token) { 
             navigate('/login'); 
@@ -173,9 +183,8 @@ export default function PerfilPage() {
         }
     };
 
-    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const fetchInscripciones = async () => {
-        const token = getToken(); // 👈 Busca en ambos storages
+        const token = getToken();
         
         try {
             const response = await axios.get(`${apiUrl}/me/inscripciones`, {
@@ -187,9 +196,8 @@ export default function PerfilPage() {
         }
     };
 
-    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const handleSaveDatos = async () => {
-        const token = getToken(); // 👈 Busca en ambos storages
+        const token = getToken();
         
         try {
             const response = await axios.put(`${apiUrl}/me`, editForm, {
@@ -220,7 +228,6 @@ export default function PerfilPage() {
         }
     };
 
-    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const handleSavePassword = async () => {
         setSuccessMsg(null);
         setError(null);
@@ -230,7 +237,7 @@ export default function PerfilPage() {
             return;
         }
 
-        const token = getToken(); // 👈 Busca en ambos storages
+        const token = getToken();
         
         try {
             await axios.post(`${apiUrl}/me/password`, passForm, {
@@ -254,13 +261,12 @@ export default function PerfilPage() {
         }
     };
 
-    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
     const handleCancelarReserva = async (id_reserva: number) => {
         if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
             return;
         }
 
-        const token = getToken(); // 👈 Busca en ambos storages
+        const token = getToken();
         
         try {
             await axios.delete(`${apiUrl}/inscripciones/${id_reserva}`, {
@@ -289,7 +295,16 @@ export default function PerfilPage() {
         }
     };
 
-    if (loading) return <div style={{ color: '#ccff00', background: '#0d0d0d', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>CARGANDO...</div>;
+    if (loading) {
+        return (
+            <div className="perfil-page-loading-container"> 
+                <div className="perfil-loading">
+                    <div className="spinner-large"></div>
+                    <p style={{ color: '#ccff00', marginTop: '10px', fontWeight: 'bold' }}>CARGANDO PERFIL...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
@@ -333,20 +348,83 @@ export default function PerfilPage() {
                                 <span className="dropdown-arrow">▼</span>
                             </button>
 
+                            {/* 🔥 MENÚ DESPLEGABLE CONDICIONAL POR ROL */}
                             {isDropdownOpen && (
                                 <div className="user-dropdown" style={{ right: 0, left: 'auto' }}>
-                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>MI CUENTA</div>
-                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                    {/* ========== SECCIÓN: MI CUENTA (TODOS) ========== */}
+                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>
+                                        MI CUENTA
+                                    </div>
+                                    
+                                    <Link 
+                                        to="/perfil" 
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
                                         👤 Mi Perfil
                                     </Link>
 
+                                    {/* Mis Reportes: Solo para usuarios estándar (Operario y Cliente) */}
+                                    {(esOperario || esCliente) && (
+                                        <Link 
+                                            to="/reportes" 
+                                            className="dropdown-item" 
+                                            onClick={() => setIsDropdownOpen(false)}
+                                        >
+                                            📊 Mis Reportes
+                                        </Link>
+                                    )}
+
+                                    {/* ========== SECCIÓN: MIS EVENTOS (TODOS) ========== */}
                                     <div className="dropdown-header">MIS EVENTOS</div>
-                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Inscriptos
+
+                                    {/* Inscriptos: diferente ruta según rol */}
+                                    <Link 
+                                        to={tieneAccesoTotal ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
+                                        📅 Inscriptos
                                     </Link>
-                                    <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Creados
+
+                                    <Link 
+                                        to="/mis-eventos" 
+                                        className="dropdown-item" 
+                                        onClick={() => setIsDropdownOpen(false)}
+                                    >
+                                        📋 Mis Eventos
                                     </Link>
+
+                                    {/* ========== SECCIÓN: GESTIÓN (SOLO ADMIN Y SUPERVISOR) ========== */}
+                                    {tieneAccesoTotal && (
+                                        <>
+                                            <div className="dropdown-header">GESTIÓN</div>
+                                            
+                                            <Link 
+                                                to="/admin" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                🏠 Panel General
+                                            </Link>
+
+                                            <Link 
+                                                to="/registro-evento" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                ➕ Gestionar Eventos
+                                            </Link>
+
+                                            <Link 
+                                                to="/admin/usuarios" 
+                                                className="dropdown-item" 
+                                                onClick={() => setIsDropdownOpen(false)}
+                                            >
+                                                👥 Usuarios
+                                            </Link>
+                                        </>
+                                    )}
                                     
                                     <div className="dropdown-divider"></div>
                                     
@@ -354,7 +432,7 @@ export default function PerfilPage() {
                                         onClick={logout}
                                         className="dropdown-item logout-button"
                                     >
-                                        Cerrar Sesión
+                                        🚪 Cerrar Sesión
                                     </button>
                                 </div>
                             )}
@@ -365,6 +443,7 @@ export default function PerfilPage() {
                 </div>
             </div>
 
+            {/* ========== PESTAÑAS ========== */}
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
                 <button 
                     onClick={() => setActiveTab('datos')}
@@ -400,6 +479,7 @@ export default function PerfilPage() {
                 </button>
             </div>
 
+            {/* ========== CONTENIDO DE LAS PESTAÑAS ========== */}
             <div style={{ 
                 width: '100%',
                 maxWidth: '600px',
@@ -421,6 +501,7 @@ export default function PerfilPage() {
                     </div>
                 )}
 
+                {/* PESTAÑA: MIS DATOS */}
                 {activeTab === 'datos' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         {isChangingPass ? (
@@ -547,6 +628,7 @@ export default function PerfilPage() {
                     </div>
                 )}
 
+                {/* PESTAÑA: INSCRIPCIONES */}
                 {activeTab === 'inscripciones' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                         {inscripciones.length === 0 ? (
@@ -619,6 +701,7 @@ export default function PerfilPage() {
                     </div>
                 )}
             </div>
+            <Footer />
         </div>
     );
 }

@@ -4,6 +4,7 @@ import { getEventosCalendario, inscribirseEvento } from '../services/eventos';
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
 import logoWakeUp from '../assets/wakeup-logo.png'; 
+import { Footer } from "../components/footer";
 
 // 🔥 IMPORTACIÓN DE ICONOS LUCIDE
 import { 
@@ -635,6 +636,7 @@ export default function CalendarioPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
