@@ -13,6 +13,7 @@ html, body, #root {
   flex: 1;
   min-height: 0;
   align-items: center;
+  background: linear-gradient(1deg, #939191b8 0%, #e0e0e0 50%, #f8f9fa 100%);
 }
 
 :root {
