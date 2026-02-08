@@ -1,0 +1,671 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
+
+/* --- VARIABLES --- */
+:root {
+  --bg-color: #0d0d0d;
+  --card-bg: #1a1a1a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0b0;
+  --accent-color: #ccff00; /* Amarillo Neón */
+}
+
+/* --- SOLUCIÓN DEFINITIVA DE PANTALLA --- */
+/* Esto obliga a React (#root) y al navegador a ocupar todo el ancho y ser negros */
+html, body, #root {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important; /* Rompe el límite de ancho de Vite */
+  min-height: 100vh !important;
+  background-color: #0d0d0d !important;
+  color: var(--text-primary);
+  display: block !important; /* Quita el centrado forzado flex */
+  box-sizing: border-box;
+  overflow-x: hidden; /* Evita scroll lateral */
+}
+
+/* Contenedor principal de tu página */
+.inicio-container {
+  background-color: var(--bg-color);
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- HERO SECTION (Banner principal) --- */
+.hero-section {
+  position: relative;
+  height: 92vh;
+  width: 100%;
+  /* Asegúrate de que esta URL funcione o cámbiala por una local */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)),
+              url('https://images.unsplash.com/photo-1517649763962-0c623066013b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* Navbar dentro del Hero */
+.hero-navbar {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+  box-sizing: border-box;
+  z-index: 50;
+}
+
+.hero-logo {
+  width: 180px;
+  height: auto;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+/* Textos del Hero */
+.hero-content h1 {
+  font-size: 4rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.hero-content p {
+  font-size: 1.2rem;
+  color: #e0e0e0;
+  margin-bottom: 2.5rem;
+}
+
+/* Botones generales */
+.cta-button {
+  border: 2px solid var(--text-primary);
+  color: var(--text-primary);
+  padding: 15px 40px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: 0.3s;
+  display: inline-block;
+}
+
+.cta-button:hover {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: #000;
+}
+
+.hero-login-btn {
+  border: 2px solid var(--text-primary);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 5px;
+}
+
+/* --- MENÚ DE USUARIO --- */
+.user-menu-container {
+  position: relative;
+  display: inline-block;
+  margin-left: 20px;
+}
+
+.user-menu-trigger {
+  background-color: #0d0d0d !important;
+  border: 1px solid var(--accent-color) !important;
+  color: var(--accent-color) !important;
+  padding: 10px 20px;
+  border-radius: 6px;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.user-menu-trigger:hover {
+  background-color: rgba(204, 255, 0, 0.1) !important;
+  box-shadow: 0 0 15px rgba(204, 255, 0, 0.3);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  width: 100%;
+  min-width: 200px;
+  background-color: #1a1a1a !important;
+  border: 1px solid #333;
+  box-shadow: 0px 10px 25px rgba(0,0,0,0.8);
+  border-radius: 6px;
+  z-index: 9999;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown-header {
+  padding: 15px;
+  background-color: #000 !important;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-bottom: 1px solid #333;
+  text-align: center;
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  color: #fff !important;
+  text-decoration: none;
+  font-size: .80rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  background: transparent;
+  border: none;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.2s;
+  width: 100%;
+  display: block;
+}
+
+.dropdown-item:hover {
+  background-color: var(--accent-color) !important;
+  color: #000 !important;
+}
+
+.logout-button {
+  color: #ff4444 !important;
+}
+
+.logout-button:hover {
+  background-color: #ff4444 !important;
+  color: white !important;
+}
+
+/* --- SECCIÓN DE EVENTOS --- */
+.eventos-section {
+  width: 100%;
+  max-width: 1400px; /* Ancho máximo para el contenido, no el fondo */
+  margin: 0 auto;    /* Centra el contenido */
+  padding: 80px 20px;
+  box-sizing: border-box;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid #333;
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.enlace-calendario {
+  color: var(--accent-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+/* Grid de Tarjetas */
+.grid-eventos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 30px;
+  width: 100%;
+}
+
+.evento-card {
+  background-color: var(--card-bg);
+  border: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  transition: 0.3s;
+  overflow: hidden;
+}
+
+.evento-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--accent-color);
+}
+
+.card-img-wrapper {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(20%);
+  transition: 0.5s;
+}
+
+.evento-card:hover .card-img {
+  transform: scale(1.1);
+  filter: grayscale(0%);
+}
+
+.tipo-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.card-content {
+  padding: 20px;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-content h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.3rem;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.precio-tag {
+  background-color: var(--accent-color);
+  color: #000;
+  padding: 2px 8px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  border-radius: 2px;
+  margin-left: 10px;
+  float: right;
+}
+
+.card-desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.card-meta {
+  margin-bottom: 20px;
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.btn-ver-detalle {
+  background-color: #2a2a2a;
+  color: #fff;
+  text-align: center;
+  padding: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  text-decoration: none;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  transition: 0.3s;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  display: block;
+}
+
+.btn-ver-detalle:hover {
+  background-color: var(--accent-color);
+  color: #000;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .hero-navbar { padding: 0 20px; }
+  .user-menu-trigger { min-width: auto; padding: 8px 12px; }
+  .hero-content h1 { font-size: 2.5rem; }
+  .section-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .user-name { display: none; }
+}
+/* ============================================================================
+   CONTENEDOR DE FILTROS AVANZADO (HU-7.1)
+   ============================================================================ */
+.filters-container-advanced {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 25px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Cada fila de filtros */
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+/* Grupo de filtro individual */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Grupo que ocupa toda la fila */
+.filter-group-full {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  grid-column: 1 / -1; /* Ocupa todas las columnas */
+}
+
+/* Etiquetas de los filtros */
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cccccc;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Inputs y Selects base */
+.filter-input,
+.filter-select {
+  background-color: #0d0d0d;
+  border: 1px solid #444;
+  border-radius: 5px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: #ccff00; /* Amarillo neón */
+  box-shadow: 0 0 8px rgba(204, 255, 0, 0.3);
+}
+
+.filter-input::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+/* Selectores específicos */
+.filter-select {
+  cursor: pointer;
+}
+
+.filter-select option {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+/* ============================================================================
+   BOTONES DE ACCIÓN (HU-7.7)
+   ============================================================================ */
+.filter-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #333;
+}
+
+.btn-limpiar-filtros {
+  background-color: #ff4444;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-limpiar-filtros:hover {
+  background-color: #cc0000;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(255, 68, 68, 0.3);
+}
+
+/* ============================================================================
+   RESUMEN DE FILTROS APLICADOS (HU-7.8)
+   ============================================================================ */
+.filtros-activos-resumen {
+  margin-top: 15px;
+  padding: 15px;
+  background-color: rgba(204, 255, 0, 0.1);
+  border: 1px solid rgba(204, 255, 0, 0.3);
+  border-radius: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filtros-activos-resumen strong {
+  color: #ccff00;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.filtro-badge {
+  background-color: #ccff00;
+  color: #000000;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+/* ============================================================================
+   MENSAJE DE RESULTADO (HU-7.8)
+   ============================================================================ */
+.resultado-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background-color: #1a1a1a;
+  border-left: 4px solid #ccff00;
+  margin-bottom: 20px;
+  border-radius: 5px;
+}
+
+.mensaje-resultado {
+  margin: 0;
+  color: #e0e0e0;
+  font-size: 0.95rem;
+}
+
+.total-eventos {
+  margin: 0;
+  color: #ccff00;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+/* ============================================================================
+   RESPONSIVE (HU-7.9)
+   ============================================================================ */
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+  .filters-container-advanced {
+    padding: 15px;
+  }
+
+  .filter-row {
+    grid-template-columns: 1fr; /* Una columna en móviles */
+    gap: 12px;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .btn-limpiar-filtros,
+  .view-controls {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .resultado-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .filtros-activos-resumen {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Móviles pequeños (max-width: 480px) */
+@media (max-width: 480px) {
+  .filter-label {
+    font-size: 0.75rem;
+  }
+
+  .filter-input,
+  .filter-select {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .btn-limpiar-filtros {
+    padding: 8px 15px;
+    font-size: 0.85rem;
+  }
+
+  .filtro-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+}
+
+/* ============================================================================
+   MEJORAS VISUALES (HU-7.9)
+   ============================================================================ */
+
+/* Animación al cargar */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.filters-container-advanced {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* Efecto hover en inputs */
+.filter-input:hover,
+.filter-select:hover {
+  border-color: #ccff00;
+}
+
+/* Indicador de carga */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  border: 4px solid #333;
+  border-top: 4px solid #ccff00;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ============================================================================
+   ACCESIBILIDAD (HU-7.1)
+   ============================================================================ */
+
+/* Focus visible para teclado */
+.filter-input:focus-visible,
+.filter-select:focus-visible,
+.btn-limpiar-filtros:focus-visible {
+  outline: 2px solid #ccff00;
+  outline-offset: 2px;
+}
+
+/* Asegurar contraste suficiente */
+.filter-label,
+.mensaje-resultado {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
