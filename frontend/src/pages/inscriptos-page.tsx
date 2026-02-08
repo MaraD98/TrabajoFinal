@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import '../styles/inscripciones.css';
+import { useAuth } from "../context/auth-context"; // 1. Importamos el hook de auth
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ENDPOINT_INSCRIPCIONES = `${API_URL}/inscripciones`;
@@ -24,6 +25,7 @@ interface Reserva {
 }
 
 const PanelInscriptos: React.FC = () => {
+  const { getToken, user } = useAuth(); // 2. Usamos el token y el usuario del contexto
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +44,14 @@ const PanelInscriptos: React.FC = () => {
 
   const cargarReservas = async () => {
     setLoading(true);
-    const token = localStorage.getItem('token');
+    const token = getToken(); // 3. Obtenemos el token correctamente (de session o local)
+    
+    if (!token) {
+        console.error("No hay token disponible");
+        setLoading(false);
+        return;
+    }
+
     try {
       const response = await fetch(ENDPOINT_INSCRIPCIONES, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -68,6 +77,9 @@ const PanelInscriptos: React.FC = () => {
             };
         });
         setReservas(reservasMapeadas);
+      } else if (response.status === 403) {
+          // 4. Si el servidor dice que no tenés permiso
+          alert("No tienes permisos para ver este reporte.");
       }
     } catch (error) {
       console.error("Error cargando inscriptos:", error);
@@ -76,16 +88,16 @@ const PanelInscriptos: React.FC = () => {
     }
   };
 
+  // ... (el resto de las funciones handleBuscar, handleLimpiar, handleExportarCSV quedan igual)
   const handleBuscar = () => {
-      setFiltrosAplicados({ busqueda: inputBusqueda, fechaInicio: inputFechaInicio, fechaFin: inputFechaFin });
+    setFiltrosAplicados({ busqueda: inputBusqueda, fechaInicio: inputFechaInicio, fechaFin: inputFechaFin });
   };
 
   const handleLimpiar = () => {
-      setInputBusqueda(""); setInputFechaInicio(""); setInputFechaFin("");
-      setFiltrosAplicados({ busqueda: "", fechaInicio: "", fechaFin: "" });
+    setInputBusqueda(""); setInputFechaInicio(""); setInputFechaFin("");
+    setFiltrosAplicados({ busqueda: "", fechaInicio: "", fechaFin: "" });
   };
 
-  // --- LÓGICA DE FILTRADO ---
   const inscriptosFiltrados = reservas.filter((reserva) => {
     const { busqueda, fechaInicio, fechaFin } = filtrosAplicados;
     const termino = busqueda.toLowerCase();
@@ -129,16 +141,13 @@ const PanelInscriptos: React.FC = () => {
 
   return (
     <div className="inscripciones-container">
-      
-      {/* HEADER */}
       <div className="header-top">
         <div className="title-block">
              <h1>👥 Reporte de Inscriptos</h1>
-             <p>Visualizá todos los corredores confirmados.</p>
+             <p>Bienvenido, {user?.nombre_y_apellido || 'Usuario'}. Visualizá los corredores.</p>
         </div>
         
         <div className="actions-block">
-             {/* BOTONES SOLO ICONOS */}
              <button className="btn-action btn-csv" onClick={handleExportarCSV} title="Exportar a Excel/CSV">📂</button>
              <button className="btn-action btn-print" onClick={handleImprimir} title="Imprimir Listado">🖨️</button>
              
@@ -148,7 +157,6 @@ const PanelInscriptos: React.FC = () => {
         </div>
       </div>
 
-      {/* BARRA DE FILTROS */}
       <div className="filtros-bar no-print">
         <div className="filtro-item item-grow">
           <label>🔍 Buscar Corredor / Evento</label>
@@ -171,7 +179,6 @@ const PanelInscriptos: React.FC = () => {
         </div>
       </div>
 
-      {/* TABLA DE RESULTADOS */}
       <div className="tabla-wrapper">
         {loading ? (
             <div className="loading-msg">Cargando datos...</div>
