@@ -246,10 +246,10 @@ const initMap = () => {
                     required
                   >
                     {/* VALORES NUMÉRICOS CORRECTOS */}
-                    <option value={1}>Running</option>
-                    <option value={2}>Ciclismo</option>
-                    <option value={3}>Triatlón</option>
-                    <option value={4}>Natación</option>
+                    <option value={1}>Carrera</option>
+                    <option value={2}>Paseo</option>
+                    <option value={3}>Entrenamiento</option>
+                    <option value={4}>Cicloturismo</option>
                   </select>
                 </div>
 
@@ -266,10 +266,9 @@ const initMap = () => {
                     required
                   >
                     {/* VALORES NUMÉRICOS CORRECTOS */}
-                    <option value={1}>Principiante</option>
+                    <option value={1}>Básico</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
-                    <option value={4}>Profesional</option>
                   </select>
                 </div>
               </div>

@@ -241,7 +241,7 @@ export default function SolicitudEventoPage() {
                     className="event-form__select"
                     required
                   >
-                    {/* Estos valores coinciden con tu imagen image_311c52.png */}
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Carrera</option>
                     <option value={2}>Paseo</option>
                     <option value={3}>Entrenamiento</option>
@@ -249,7 +249,6 @@ export default function SolicitudEventoPage() {
                   </select>
                 </div>
 
-                {/* --- SECCIÓN CORREGIDA: DIFICULTADES DE TU BASE DE DATOS --- */}
                 <div className="event-form__field">
                   <label htmlFor="id_dificultad" className="event-form__label">
                     Nivel de Dificultad *
@@ -262,7 +261,7 @@ export default function SolicitudEventoPage() {
                     className="event-form__select"
                     required
                   >
-                     {/* Estos valores coinciden con tu imagen image_311c52.png */}
+                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Básico</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
