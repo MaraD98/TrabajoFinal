@@ -3,35 +3,116 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem 2rem;
-    background: #0D0D0D;
+    background: #0D0D0D; /* Fondo oscuro asegurado */
     position: sticky;
     top: 0;
     z-index: 1000;
+    border-bottom: 1px solid #222; /* Opcional: para separar del contenido */
 }
 
-.nav-logo{
+.main-navbar .nav-logo {
     width: 180px;
     height: auto;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
-.user-menu-trigger{
-    background-color: #0d0d0d !important;
-    border: 1px solid var(--accent-color) !important;
-    color: var(--accent-color) !important;
+.main-navbar .user-menu-container {
+    position: relative; /* Necesario para que el dropdown se posicione bien */
+}
+
+.main-navbar .user-menu-trigger {
+    background-color: #0D0D0D !important;
+    border: 1px solid #394663 !important; /* Puse el color lima directo o usa var(--accent-color) */
+    color: #ffffff !important;
     padding: 8px 16px;
-    border-radius: 8px;
+    border-radius: var(--radius);
     min-width: 180px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-weight: 500;
-    font-size: 0.875rem;
+    text-transform: uppercase;
+    font-size: 14px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    text-decoration: none;
 }
 
+.main-navbar .user-menu-trigger:hover {
+    background-color: rgba(204, 255, 0, 0.1) !important; 
+    border-color: #ccff00 !important; 
+    color: #ccff00 !important;
+    box-shadow: 0 0 15px var(--color-primary-glow);
+    transform: translateX(-5px);
+    transform: scale(1.1);
+}
+
+.main-navbar .user-dropdown {
+    position: absolute;
+    background: #0D0D0D !important; /* Fondo oscuro forzado */
+    border: 1px solid #394663;
+    text-transform: uppercase;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    min-width: 180px;
+}
+
+.main-navbar .user-dropdown:hover {
+  border-color: #ccff00;
+  box-shadow: 0 0 15px var(--color-primary-glow);
+  color: #ccff00 !important;
+  background: rgba(204, 255, 0, 0.1);
+}
+
+/* Estilos internos del dropdown (para asegurar que se vea bien) */
+.main-navbar .dropdown-header {
+    padding: 10px 15px;
+    font-size: 0.80rem;
+    font-weight: bold;
+    color: #ffffff;
+    background: #0D0D0D;
+    letter-spacing: 1px;
+    border-radius: var(--radius);
+    border: 1px solid #394663;
+    justify-content: center;
+}
+
+.main-navbar .dropdown-item {
+    padding: 10px 15px;
+    color: #bdb6b6 !important;
+    text-decoration: none;
+    font-size: 0.80rem;
+    transition: background 0.2s;
+    display: block;
+}
+
+.main-navbar .dropdown-item:hover {
+    background-color: #2a2a2a;
+    color: #dbf72c !important;
+    transform: scale(1.1);
+}
+
+.main-navbar .dropdown-divider {
+    height: 1px;
+    background-color: #333;
+    margin: 5px 0;
+}
+
+.main-navbar .logout-button {
+    width: 100%;
+    text-align: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ff4d4d; /* Rojo para salir */
+}
+
+.main-navbar .logout-button:hover {
+    background-color: rgba(255, 77, 77, 0.1);
+    color: #ff4d4d;
+}
 
 /* ==========================================================================
    BOTÓN VOLVER A INICIO
@@ -48,23 +129,24 @@
     gap: var(--spacing-sm);
     padding: 8px 35px;
     background: #0D0D0D;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
+    border: 1px solid #394663;
+    color: #ffffff !important;
     border-radius: var(--radius);
     font-weight: 800;
     text-transform: uppercase;
     font-size: 14px;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.3s ease;
     text-decoration: none;
 }
 
 .btn-back-nav:hover {
-  background: #ccff00;
   border-color: #ccff00;
-  color: #0D0D0D;
   box-shadow: 0 0 15px var(--color-primary-glow);
   transform: translateX(-5px);
+  color: #ccff00 !important;
+  background: rgba(204, 255, 0, 0.1);
+  transform: scale(1.1);
 }
 
 .btn-back-nav .back-icon {

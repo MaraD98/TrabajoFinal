@@ -155,7 +155,7 @@ body {
 }
 
 .user-menu-trigger {
-  background-color: var(--bg-secondary) !important;
+  background-color: var(--bg-secondary) ;
   border: 1px solid var(--border-accent) !important;
   color: var(--text-primary) !important;
   padding: 10px 18px;

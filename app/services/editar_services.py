@@ -7,6 +7,7 @@ from fastapi import HTTPException, status
 # Tus modelos
 from app.models.registro_models import Evento
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 class EditarEventoService:
     
@@ -250,7 +251,30 @@ class EditarEventoService:
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
         
-        # Buscar último historial
+        # Pasa a Publicado (3)
+        evento.id_estado = 3 
+        try:
+            db.commit()
+            
+            # --- NOTIFICACIÓN POR APROBACIÓN ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=evento.id_usuario,
+                mensaje=f"¡Buenas noticias! Tu evento '{evento.nombre_evento}' ha sido aprobado y ya está visible para todos."
+            )
+            return {"mensaje": "Evento aprobado y publicado exitosamente."}
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Error al aprobar el evento.")
+
+    @staticmethod
+    def rechazar_y_revertir(db: Session, id_evento: int):
+        # 1. Buscar evento
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+        if not evento:
+            raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+        # 2. Buscar último historial
         ultimo_historial = db.query(HistorialEdicionEvento)\
             .filter(HistorialEdicionEvento.id_evento == id_evento)\
             .order_by(desc(HistorialEdicionEvento.fecha_edicion))\
@@ -286,7 +310,13 @@ class EditarEventoService:
             evento.id_estado = 3
             
             db.commit()
-            return {"mensaje": "Cambios aprobados y publicados exitosamente."}
+            # --- NOTIFICACIÓN POR RECHAZO ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=evento.id_usuario,
+                mensaje=f"Los cambios recientes en tu evento '{evento.nombre_evento}' no fueron aprobados y se restauró la versión anterior."
+            )
+            return {"mensaje": "Cambios rechazados. Se ha restaurado la versión anterior."}
             
         except Exception as e:
             db.rollback()
