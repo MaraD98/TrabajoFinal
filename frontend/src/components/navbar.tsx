@@ -90,7 +90,7 @@ export const Navbar = () => {
 
     return (
         <nav className="main-navbar">
-            <div className="nav-left">
+            <div className="nav-left"style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
                 {showBackButton && (
                     <button className="btn-back-nav" onClick={() => navigate('/')}>
                         ← <span className="hide-mobile">Inicio</span>
@@ -98,13 +98,13 @@ export const Navbar = () => {
                 )}
             </div>
 
-            <div className="nav-center">
+            <div className="nav-center" style={{ display: 'flex', justifyContent: 'center' }}>
                 <Link to="/">
                     <img src={logoWakeUp} alt="Wake Up Bikes" className="nav-logo" />
                 </Link>
             </div>
 
-            <div className="nav-right">
+            <div className="nav-right" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <NotificacionesBadge />
