@@ -8,6 +8,7 @@ from app.models.auth_models import Usuario, Contacto
 from app.db.crud.auth_crud import UsuarioCRUD
 from app.core.security import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, decode_access_token
 from app.schemas.auth_schema import UsuarioCreate, LoginRequest
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 class AuthService:
     @staticmethod
@@ -25,6 +26,15 @@ class AuthService:
             email=usuario_data.email,
             contrasenia=usuario_data.contrasenia
         )
+        
+        # regla de negocio: al crear usuario, crear notificación de bienvenida
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=new_usuario.id_usuario,
+            id_estado_solicitud=None,
+            mensaje="Bienvenido a WakeUp Bikes! 🎉 Tu cuenta fue creada con éxito."
+        )
+
         return new_usuario
     
     @staticmethod

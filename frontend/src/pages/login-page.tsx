@@ -38,8 +38,8 @@ export default function LoginPage() {
   if (user) {
     return (
       <div className="login-page">
-        <h2>Ya estás logueado ✅</h2>
-        <p>Hola, {user.nombre_y_apellido}</p>
+        <h2 style = {{color: 'black'}}>Ya estás logueado ✅</h2>
+        <p style ={{color: 'black', fontWeight: 'bold', padding: 'inherit'}}>Hola, {user.nombre_y_apellido}</p>
         <button
           onClick={() => {
             logout();

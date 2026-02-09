@@ -16,6 +16,8 @@ import ReportesPage from './pages/reportes-page';
 import MisEventosPage from "./pages/mis-eventos-page"; 
 import AdminDashboardPage from "./pages/admin-dashboard-page";
 import PerfilPage from "./pages/perfil-page";
+import NotificationBell from './components/notificaciones';
+// ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
 import TablaGestionPagos from "./pages/gestion-pagos-pages";
 import PanelInscriptos from "./pages/inscriptos-page";
 
@@ -85,10 +87,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* 2. Mis Eventos (AGREGADA) */}
+          <Route path="/mis-eventos"
+            element={
+                <MisEventosPage />
+            }
+          />
 
-          {/* Dashboard Admin */}
-          <Route 
-            path="/admin" 
+          {/* 3. ZONA ADMIN - Dashboard y sus páginas hijas */}
+          <Route path="/admin" 
             element={
               <ProtectedRoute allowedRoles={[1, 2]}>
                 <AdminDashboardPage />
@@ -106,6 +113,12 @@ function App() {
             }
           />
 
+          {/* 🔥 NUEVA RUTA: Aquí conectamos la página de contraseña */}
+          <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+
+          {/* 👇 NUEVA RUTA: Mi Perfil */}
+          <Route path="/perfil" element={<PerfilPage />} />
+          <Route path="/notificaciones" element={<NotificationBell />} />
           {/* Panel de Inscriptos */}
           <Route 
             path="/admin/inscriptos" 
