@@ -428,7 +428,7 @@ const AdminDashboard: React.FC = () => {
   // RENDER
   // ============================================================================
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#0a0a0a' }}>
+    <div className='contenttotal'>
       <Navbar />
       <div style={{ display: 'flex', flex: 1 }}>
         
