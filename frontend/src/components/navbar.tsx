@@ -61,6 +61,33 @@ export const Navbar = () => {
         }
     }, [user]); // Se ejecuta cuando cambia el usuario del contexto
 
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR RUTA DE CREACIÓN DE EVENTO SEGÚN ROL
+    // ============================================================================
+    const obtenerRutaCrearEvento = () => {
+        if (!user) return "/login";
+        
+        // Roles 1 y 2 (Admin/Organizador) → /registro-evento
+        if (user.id_rol === 1 || user.id_rol === 2) {
+            return "/registro-evento";
+        }
+        
+        // Roles 3 y 4 (Usuario Externo/Otro) → /publicar-evento
+        if (user.id_rol === 3 || user.id_rol === 4) {
+            return "/publicar-evento";
+        }
+        
+        // Por defecto
+        return "/publicar-evento";
+    };
+
+    // ============================================================================
+    // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
+    // ============================================================================
+    const mostrarBotonPanelAdmin = () => {
+        return user && (user.id_rol === 1 || user.id_rol === 2);
+    };
+
     return (
         <nav className="main-navbar">
             <div className="nav-left">
@@ -88,7 +115,6 @@ export const Navbar = () => {
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                         >
                             <span className="user-icon">👤</span>
-                            {/* AQUÍ ESTABA EL ERROR: Ahora usamos localUserName */}
                             <span className="user-name">{localUserName}</span>
                             <span className="dropdown-arrow">▼</span>
                         </button>
@@ -98,13 +124,43 @@ export const Navbar = () => {
                                 <div className="dropdown-header">MI CUENTA</div>
                                 <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>👤 Mi Perfil</Link>
                                 <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>📊 Mis Reportes</Link>
-                                
-                                <div className="dropdown-header">EVENTOS</div>
-                                <Link to="/mis-eventos/inscriptos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>Inscriptos</Link>
-                                <Link to="/mis-eventos/creados" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>Creados</Link>
+                                <div className="dropdown-header">MIS EVENTOS</div>
+                                {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
+                                <Link to="/perfil?tab=inscripciones" className="dropdown-item">
+                                     Inscriptos
+                                </Link>
+                                <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                    Mis Eventos
+                                </Link>
+                                <div className="dropdown-divider"></div>
+                                <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                    Crear Evento
+                                </Link>
+
+                                {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
+                                {mostrarBotonPanelAdmin() && (
+                                    <>
+                                        <div className="dropdown-divider"></div>
+                                        <Link 
+                                            to="/admin" 
+                                            className="dropdown-item"
+                                            style={{ 
+                                                backgroundColor: '#ff6600', 
+                                                color: '#fff',
+                                                fontWeight: 'bold'
+                                            }}
+                                            onClick={() => setIsDropdownOpen(false)}
+                                        >
+                                            ⚙️ Panel de Administrador
+                                        </Link>
+                                    </>
+                                )}
                                 
                                 <div className="dropdown-divider"></div>
-                                <button onClick={logout} className="dropdown-item logout-button">Cerrar Sesión</button>
+
+                                <button 
+                                    onClick={logout} className="dropdown-item logout-button">Cerrar Sesión
+                                </button>
                             </div>
                             )}
                         </div>

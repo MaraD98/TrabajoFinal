@@ -69,20 +69,15 @@
   background-clip: text;
 }
 
-.notif-badge-header {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 0.5rem;
-  background: var(--notif-primary);
-  color: white;
-  border-radius: 16px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-  animation: pulse-badge 2s infinite;
+.notif-badge-btn:hover {
+    color: #ccff00 !important;
+    background: rgba(204, 255, 0, 0.1);
+    transform: scale(1.1);
+}
+
+.notif-badge-btn {
+    color: #ffffff !important;
+    transition: all 0.3s ease;
 }
 
 @keyframes pulse-badge {
