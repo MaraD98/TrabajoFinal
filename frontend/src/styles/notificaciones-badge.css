@@ -1,0 +1,233 @@
+.notif-badge-container {
+  position: relative;
+  display: inline-block;
+}
+
+.notif-badge-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 5px;
+  color: inherit; /* Hereda el color del ícono del padre */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+.notif-badge-btn:hover {
+  color: #1f2937; /* Negro suave */
+}
+
+.bell-icon {
+  width: 24px;
+  height: 24px;
+  /* Aseguramos que el ícono tenga color visible */
+  stroke: currentColor; 
+}
+
+.notif-badge-count {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: #ff3b30; /* Rojo alerta */
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  padding: 2px 5px;
+  border-radius: 10px;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+}
+
+/* --- Dropdown --- */
+.notif-badge-dropdown {
+  position: absolute;
+  top: 100%;
+  right: -10px; /* Ajuste para que no se salga de pantalla */
+  width: 300px;
+  background-color: #1a1a1a; 
+  color: #ffffff;
+  
+  border: 1px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  z-index: 10000;
+  margin-top: 15px;
+  overflow: hidden;
+  text-align: left;
+}
+
+/* Flechita decorativa arriba del dropdown (opcional) */
+.notif-badge-dropdown::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  width: 12px;
+  height: 12px;
+  background-color: #ccff00;
+  transform: rotate(45deg);
+  border-left: 1px solid #e5e7eb;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dropdown-header {
+  padding: 15px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffff; /* Un poquito más claro para el header */
+}
+
+.dropdown-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  color: #b9b7b7;
+  letter-spacing: 1px;
+}
+
+.view-all-text-btn {
+  background: none;
+  border: none;
+  color: #dbf72c; /* Color lima/amarillo de tu marca */
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.view-all-text-btn:hover {
+  text-decoration: underline;
+  color: #ccff00; /* Amarillo neón al hover */
+}
+
+.dropdown-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.dropdown-empty {
+  padding: 30px;
+  text-align: center;
+  color: #b9b7b7;
+}
+
+.dropdown-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background-color: #f9fafb;
+}
+
+.dropdown-item.unread {
+  background-color: rgba(219, 247, 44, 0.05); /* Fondo muy sutil para no leídas */
+  border-left: 3px solid #dbf72c;
+}
+
+.item-content-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 5px;
+}
+
+.item-mensaje {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #eee; /* Texto claro */
+  line-height: 1.4;
+}
+
+.dropdown-item.unread .item-mensaje {
+  font-weight: 600;
+  color: #111827; /* Texto más oscuro para no leídas */
+}
+
+.item-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #dbf72c;
+  border-radius: 50%;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.item-fecha {
+  font-size: 0.75rem;
+  color: #888;
+}
+.dropdown-empty {
+  padding: 20px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.dropdown-footer {
+  padding: 12px;
+  text-align: center;
+  background-color: #222;
+  border-top: 1px solid #333;
+  cursor: pointer;
+  color: #dbf72c;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dropdown-loading {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+.dropdown-footer:hover {
+  background-color: #48494b;
+}
+/* ============================================================
+   AJUSTES ESPECÍFICOS PARA EL NAVBAR HERO (FONDO OSCURO)
+   ============================================================ */
+
+/* 1. Contenedor: Alineación perfecta con el menú de usuario */
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;       /* Separación clara entre campana y usuario */
+  position: relative; /* Necesario para el z-index */
+}
+
+/* 2. Icono: Forzamos color BLANCO para que contraste con la foto */
+.hero-navbar .notif-badge-btn {
+  color: #ffffff !important; 
+  transition: all 0.3s ease;
+}
+
+/* 3. Hover: Efecto NEÓN al pasar el mouse */
+.hero-navbar .notif-badge-btn:hover {
+  color: #ccff00 !important; /* Tu amarillo neón */
+  background: rgba(204, 255, 0, 0.1); /* Fondo sutil amarillo */
+  transform: scale(1.1);
+}
+
+.mini-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #333;
+  border-top: 2px solid #dbf72c;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

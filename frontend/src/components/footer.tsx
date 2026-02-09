@@ -46,7 +46,7 @@ export const Footer = () => {
       </div>
 
       <div className="footer-bottom">
-        <p>&copy; {new Date().getFullYear()} WAKE UP BIKES. Hecho por estudiantes de la Escuela Superior de Comercio Manuel Belgrano¡.</p>
+        <p>&copy; {new Date().getFullYear()} WAKE UP BIKES. Hecho por estudiantes de la Escuela Superior de Comercio Manuel Belgrano.</p>
       </div>
     </footer>
   );
