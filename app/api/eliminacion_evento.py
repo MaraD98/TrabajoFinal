@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.services.eliminacion_services import EliminacionService
-from app.api.admin_eventos import get_current_user  # ✅ CORREGIDO
+from app.api.admin_eventos import get_current_user  
 from app.models.auth_models import Usuario
 
 
@@ -221,3 +221,17 @@ def obtener_historial(
         raise HTTPException(status_code=403, detail="Requiere permisos de administrador")
     
     return EliminacionService.obtener_historial(db)
+
+@router.get("/mis-solicitudes")
+def obtener_mis_solicitudes_eliminacion(
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(get_current_user)
+):
+    """
+    Obtiene las solicitudes de eliminación pendientes del usuario actual.
+    Retorna eventos que están en estado 3 (Publicado) pero tienen una solicitud de baja pendiente.
+    """
+    return EliminacionService.obtener_mis_solicitudes_eliminacion(
+        db=db,
+        id_usuario=usuario_actual.id_usuario
+    )

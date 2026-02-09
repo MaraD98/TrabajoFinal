@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import '../styles/mis-eventos.css';
-import logoWakeUp from '../assets/wakeup-logo.png';
-import { getMisEventos, getMisSolicitudes } from '../services/eventos';
-import CancelEventModal from '../components/CancelEventModal';
+import { getMisEventos, getMisSolicitudes, getMisSolicitudesEliminacion, solicitarBajaEvento } from '../services/eventos';
+import Toast from '../components/modals/Toast';
+import InputModal from '../components/modals/InputModal';
 import EditEventModal from '../components/EditEventModal';
+import { Navbar } from '../components/navbar';
+import { Footer } from '../components/footer';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?
     import.meta.env.VITE_API_URL.split('/api')[0] : 'http://localhost:8000';
@@ -60,31 +62,44 @@ interface Solicitud {
     imagen_url?: string;
 }
 
+interface SolicitudEliminacion {
+    id_eliminacion: number;
+    id_evento: number;
+    nombre_evento: string;
+    fecha_evento: string;
+    ubicacion: string;
+    id_tipo: number;
+    cupo_maximo?: number;
+    motivo: string;
+    fecha_solicitud: string;
+}
+
 export default function MisEventosPage() {
-    const navigate = useNavigate();
     const [vistaActiva, setVistaActiva] = useState<Vista>('borradores');
     const [filtroHistorial, setFiltroHistorial] = useState<FiltroHistorial>('activos');
     const [filtroPendientes, setFiltroPendientes] = useState<FiltroPendientes>('aprobacion');
     
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+    const [solicitudesEliminacion, setSolicitudesEliminacion] = useState<SolicitudEliminacion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Modal states
-    const [modalCancelar, setModalCancelar] = useState(false);
-    const [eventoACancelar, setEventoACancelar] = useState<number | null>(null);
-    
+    // Estados de modales
+    const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
     const [modalEditar, setModalEditar] = useState(false);
     const [itemAEditar, setItemAEditar] = useState<Evento | Solicitud | null>(null);
     const [tipoEdicion, setTipoEdicion] = useState<'evento' | 'solicitud'>('evento');
+    
+    const [inputModal, setInputModal] = useState<{
+        show: boolean;
+        title: string;
+        message: string;
+        value: string;
+        onConfirm: (value: string) => void;
+        type: 'warning' | 'danger' | 'info';
+    }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
 
-    // Toast
-    const [toastMessage, setToastMessage] = useState<string>('');
-    const [toastType, setToastType] = useState<'success' | 'error'>('success');
-    const [showToastFlag, setShowToastFlag] = useState(false);
-
-    // Obtener rol del usuario
     const userString = localStorage.getItem('user') || sessionStorage.getItem('user');
     const user = userString ? JSON.parse(userString) : null;
     const userRole = user?.id_rol;
@@ -93,18 +108,35 @@ export default function MisEventosPage() {
         cargarDatos();
     }, []);
 
+    const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') => {
+        setToast({ mensaje, tipo });
+    };
+
+    const showInputModal = (
+        title: string,
+        message: string,
+        onConfirm: (value: string) => void,
+        type: 'warning' | 'danger' | 'info' = 'warning'
+    ) => {
+        setInputModal({ show: true, title, message, value: '', onConfirm, type });
+    };
+
+    const hideInputModal = () => {
+        setInputModal({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
+    };
+
     const cargarDatos = async () => {
         try {
             setLoading(true);
             setError(null);
-
-            const [eventosData, solicitudesData] = await Promise.all([
+            const [eventosData, solicitudesData, eliminacionesData] = await Promise.all([
                 getMisEventos(),
-                getMisSolicitudes()
+                getMisSolicitudes(),
+                getMisSolicitudesEliminacion() // ✅ NUEVO
             ]);
-
             setEventos(eventosData);
             setSolicitudes(solicitudesData);
+            setSolicitudesEliminacion(eliminacionesData); // ✅ NUEVO
         } catch (err: any) {
             console.error('Error cargando datos:', err);
             setError(err.response?.data?.detail || 'Error al cargar eventos');
@@ -113,14 +145,7 @@ export default function MisEventosPage() {
         }
     };
 
-    const showToast = (message: string, type: 'success' | 'error') => {
-        setToastMessage(message);
-        setToastType(type);
-        setShowToastFlag(true);
-        setTimeout(() => setShowToastFlag(false), 3000);
-    };
-
-    // Filtros
+    // ✅ FILTROS
     const solicitudesBorradores = solicitudes.filter(s => s.id_estado_solicitud === 1);
     const solicitudesPendientes = solicitudes.filter(s => s.id_estado_solicitud === 2);
 
@@ -135,18 +160,14 @@ export default function MisEventosPage() {
         (e.id_estado === 3 && new Date(e.fecha_evento) < hoy) || e.id_estado === 4
     );
     
-    const eventosEliminados = eventos.filter(e => e.id_estado === 5 || e.id_estado === 6);
+    const eventosEliminados = eventos.filter(e => e.id_estado === 5);
 
-    // Pendientes de aprobación
+    // ✅ PENDIENTES
     const pendientesAprobacion = solicitudesPendientes;
-    
-    // Pendientes de edición (estado 2)
     const pendientesEdicion = eventos.filter(e => e.id_estado === 2);
-    
-    // Pendientes de eliminación (estado 7)
-    const pendientesEliminacion = eventos.filter(e => e.id_estado === 7);
+    const pendientesEliminacion = solicitudesEliminacion; // ✅ NUEVO
 
-    const obtenerImagen = (item: Evento | Solicitud) => {
+    const obtenerImagen = (item: Evento | Solicitud | SolicitudEliminacion) => {
         if ('multimedia' in item && item.multimedia && item.multimedia.length > 0) {
             let mediaUrl = item.multimedia[0].url_archivo;
             mediaUrl = mediaUrl.replace(/\\/g, "/");
@@ -170,9 +191,22 @@ export default function MisEventosPage() {
         setModalEditar(true);
     };
 
-    const handleCancelar = (idEvento: number) => {
-        setEventoACancelar(idEvento);
-        setModalCancelar(true);
+    const handleCancelar = (idEvento: number, nombreEvento: string) => {
+        showInputModal(
+            '🗑️ Solicitar Cancelación',
+            `Estás solicitando la cancelación del evento "${nombreEvento}". El evento permanecerá activo hasta que un administrador apruebe tu solicitud. Ingresa el motivo:`,
+            async (motivo) => {
+                try {
+                    await solicitarBajaEvento(idEvento, motivo);
+                    showToast('Solicitud de cancelación enviada correctamente', 'success');
+                    cargarDatos();
+                } catch (error: any) {
+                    showToast(error.response?.data?.detail || 'Error al solicitar cancelación', 'error');
+                }
+                hideInputModal();
+            },
+            'warning'
+        );
     };
 
     const handleEnviarSolicitud = async (idSolicitud: number) => {
@@ -198,15 +232,9 @@ export default function MisEventosPage() {
         }
     };
 
-    // Función para determinar ruta de creación según rol
     const obtenerRutaCrearEvento = () => {
         if (!user) return "/login";
-        if (userRole === 1 || userRole === 2) {
-            return "/registro-evento";
-        }
-        if (userRole === 3 || userRole === 4) {
-            return "/publicar-evento";
-        }
+        if (userRole === 1 || userRole === 2) return "/registro-evento";
         return "/publicar-evento";
     };
 
@@ -315,7 +343,7 @@ export default function MisEventosPage() {
                                     ✏️ Editar
                                 </button>
                                 <button 
-                                    onClick={() => handleCancelar(evento.id_evento)} 
+                                    onClick={() => handleCancelar(evento.id_evento, evento.nombre_evento)} 
                                     className="btn-eliminar"
                                 >
                                     ✕ Cancelar
@@ -328,6 +356,52 @@ export default function MisEventosPage() {
                         {evento.id_estado === 2 && (
                             <span className="estado-pendiente">⏳ PENDIENTE DE EDICIÓN</span>
                         )}
+                        {evento.id_estado === 5 && (
+                            <span className="estado-cancelado">🚫 CANCELADO</span>
+                        )}
+                    </div>
+                </div>
+            </article>
+        );
+    };
+
+    // ✅ NUEVO: Renderizar card de solicitud de eliminación
+    const renderSolicitudEliminacionCard = (solicitud: SolicitudEliminacion) => {
+        const fechaLimpia = solicitud.fecha_evento.toString().split('T')[0];
+        const nombreTipo = NOMBRES_TIPO[solicitud.id_tipo] || "Evento";
+
+        return (
+            <article key={solicitud.id_eliminacion} className="evento-card">
+                <div className="card-img-wrapper">
+                    <span className="tipo-badge">{nombreTipo}</span>
+                    <img
+                        src={obtenerImagen(solicitud)}
+                        alt={solicitud.nombre_evento}
+                        className="card-img"
+                        onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = IMAGENES_TIPO.default;
+                        }}
+                    />
+                </div>
+                
+                <div className="card-content">
+                    <div className="card-header">
+                        <h3>{solicitud.nombre_evento}</h3>
+                    </div>
+                    <div className="card-info">
+                        <div className="info-item">
+                            <span className="icon">📅</span> {fechaLimpia}
+                        </div>
+                        <div className="info-item">
+                            <span className="icon">📍</span> {solicitud.ubicacion}
+                        </div>
+                        <div className="info-item">
+                            <span className="icon">📝</span> <small>{solicitud.motivo}</small>
+                        </div>
+                    </div>
+                    <div className="card-actions">
+                        <span className="estado-pendiente">⏳ PENDIENTE DE ELIMINACIÓN</span>
                     </div>
                 </div>
             </article>
@@ -337,65 +411,51 @@ export default function MisEventosPage() {
     if (loading) return <div className="loading-screen">CARGANDO...</div>;
 
     return (
-        <div className="mis-eventos-container">
-            {/* Toast */}
-            {showToastFlag && (
-                <div className={`toast toast-${toastType}`}>
-                    {toastMessage}
-                </div>
-            )}
+        <>
+            <Navbar />
+            <div className="mis-eventos-container">
+                {toast && <Toast message={toast.mensaje} type={toast.tipo} onClose={() => setToast(null)} />}
 
-            {/* Navbar */}
-            <nav className="mis-eventos-navbar">
-                <Link to="/" className="hero-logo-link">
-                    <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
-                </Link>
-                <Link to="/" className="btn-volver">Volver al Inicio</Link>
-            </nav>
+                <div className="mis-eventos-layout">
+                    <aside className="mis-eventos-sidebar">
+                        <button
+                            className={`sidebar-btn ${vistaActiva === 'borradores' ? 'active' : ''}`}
+                            onClick={() => setVistaActiva('borradores')}
+                        >
+                            <span className="icon">📝</span>
+                            <span className="text">Borradores</span>
+                            {solicitudesBorradores.length > 0 && (
+                                <span className="badge">{solicitudesBorradores.length}</span>
+                            )}
+                        </button>
 
-            <div className="mis-eventos-layout">
-                {/* Sidebar */}
-                <aside className="mis-eventos-sidebar">
-                    <button
-                        className={`sidebar-btn ${vistaActiva === 'borradores' ? 'active' : ''}`}
-                        onClick={() => setVistaActiva('borradores')}
-                    >
-                        <span className="icon">📝</span>
-                        <span className="text">Borradores</span>
-                        {solicitudesBorradores.length > 0 && (
-                            <span className="badge">{solicitudesBorradores.length}</span>
-                        )}
-                    </button>
+                        <button
+                            className={`sidebar-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`}
+                            onClick={() => setVistaActiva('pendientes')}
+                        >
+                            <span className="icon">⏳</span>
+                            <span className="text">Pendientes</span>
+                            {(pendientesAprobacion.length + pendientesEdicion.length + pendientesEliminacion.length) > 0 && (
+                                <span className="badge">
+                                    {pendientesAprobacion.length + pendientesEdicion.length + pendientesEliminacion.length}
+                                </span>
+                            )}
+                        </button>
 
-                    <button
-                        className={`sidebar-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`}
-                        onClick={() => setVistaActiva('pendientes')}
-                    >
-                        <span className="icon">⏳</span>
-                        <span className="text">Pendientes</span>
-                        {(pendientesAprobacion.length + pendientesEdicion.length + pendientesEliminacion.length) > 0 && (
-                            <span className="badge">
-                                {pendientesAprobacion.length + pendientesEdicion.length + pendientesEliminacion.length}
-                            </span>
-                        )}
-                    </button>
+                        <button
+                            className={`sidebar-btn ${vistaActiva === 'historial' ? 'active' : ''}`}
+                            onClick={() => setVistaActiva('historial')}
+                        >
+                            <span className="icon">📜</span>
+                            <span className="text">Historial de Eventos</span>
+                        </button>
 
-                    <button
-                        className={`sidebar-btn ${vistaActiva === 'historial' ? 'active' : ''}`}
-                        onClick={() => setVistaActiva('historial')}
-                    >
-                        <span className="icon">📜</span>
-                        <span className="text">Historial de Eventos</span>
-                    </button>
+                        <Link to={obtenerRutaCrearEvento()} className="btn-crear-sidebar">
+                            + CREAR NUEVO EVENTO
+                        </Link>
+                    </aside>
 
-                    <Link to={obtenerRutaCrearEvento()} className="btn-crear-sidebar">
-                        + CREAR NUEVO EVENTO
-                    </Link>
-                </aside>
-
-                {/* Main Content */}
-                <main className="mis-eventos-main">
-                    {/* BORRADORES */}
+                    <main className="mis-eventos-main">
                     {vistaActiva === 'borradores' && (
                         <>
                             <div className="section-header">
@@ -415,14 +475,13 @@ export default function MisEventosPage() {
                         </>
                     )}
 
-                    {/* PENDIENTES */}
+                    {/* ✅ VISTA PENDIENTES COMPLETA */}
                     {vistaActiva === 'pendientes' && (
                         <>
                             <div className="section-header">
                                 <h2>⏳ Pendientes</h2>
                             </div>
 
-                            {/* Filtros de pendientes */}
                             <div className="filtros-pendientes">
                                 <button
                                     className={`filtro-btn ${filtroPendientes === 'aprobacion' ? 'active' : ''}`}
@@ -475,21 +534,19 @@ export default function MisEventosPage() {
                                     </div>
                                 ) : (
                                     <div className="grid-eventos">
-                                        {pendientesEliminacion.map(renderEventoCard)}
+                                        {pendientesEliminacion.map(renderSolicitudEliminacionCard)}
                                     </div>
                                 )
                             )}
                         </>
                     )}
 
-                    {/* HISTORIAL */}
                     {vistaActiva === 'historial' && (
                         <>
                             <div className="section-header">
                                 <h2>📜 Historial de Eventos</h2>
                             </div>
 
-                            {/* Filtros de historial */}
                             <div className="filtros-historial">
                                 <button
                                     className={`filtro-btn ${filtroHistorial === 'activos' ? 'active' : ''}`}
@@ -507,7 +564,7 @@ export default function MisEventosPage() {
                                     className={`filtro-btn ${filtroHistorial === 'eliminados' ? 'active' : ''}`}
                                     onClick={() => setFiltroHistorial('eliminados')}
                                 >
-                                    ELIMINADOS ({eventosEliminados.length})
+                                    CANCELADOS ({eventosEliminados.length})
                                 </button>
                             </div>
 
@@ -543,7 +600,7 @@ export default function MisEventosPage() {
                             {filtroHistorial === 'eliminados' && (
                                 eventosEliminados.length === 0 ? (
                                     <div className="empty-state">
-                                        <h3>No tienes eventos eliminados</h3>
+                                        <h3>No tienes eventos cancelados</h3>
                                     </div>
                                 ) : (
                                     <div className="grid-eventos">
@@ -556,23 +613,18 @@ export default function MisEventosPage() {
                 </main>
             </div>
 
-            {/* Modales */}
-            {modalCancelar && eventoACancelar && (
-                <CancelEventModal 
-                    isOpen={modalCancelar}
-                    onClose={() => {
-                        setModalCancelar(false);
-                        setEventoACancelar(null);
-                    }}
-                    idEvento={eventoACancelar}
-                    tipoAccion="PROPIO"
-                    onSuccess={() => {
-                        showToast('Solicitud de cancelación enviada', 'success');
-                        cargarDatos();
-                    }}
-                    onShowToast={showToast}
-                />
-            )}
+            <InputModal
+                show={inputModal.show}
+                title={inputModal.title}
+                message={inputModal.message}
+                value={inputModal.value}
+                onChange={(value) => setInputModal({ ...inputModal, value })}
+                onConfirm={() => {
+                    inputModal.onConfirm(inputModal.value);
+                }}
+                onCancel={hideInputModal}
+                type={inputModal.type}
+            />
 
             {modalEditar && itemAEditar && (
                 <EditEventModal
@@ -591,5 +643,7 @@ export default function MisEventosPage() {
                 />
             )}
         </div>
+        <Footer />
+        </>
     );
 }

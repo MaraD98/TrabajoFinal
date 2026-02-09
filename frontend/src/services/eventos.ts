@@ -50,6 +50,28 @@ export async function getHistorialEdiciones(idEvento: number) {
     return res.data;
 }
 
+export const getMisSolicitudesEliminacion = async () => {
+    try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/eliminacion/mis-solicitudes`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener solicitudes de eliminación');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error en getMisSolicitudesEliminacion:', error);
+        throw error;
+    }
+};
+
 // HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");

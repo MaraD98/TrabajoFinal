@@ -15,7 +15,12 @@ class Solicitud_PublicacionCRUD:
     
     # --- CREACIÓN ---
     @staticmethod
-    def crear_solicitud_publicacion(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int) -> SolicitudPublicacion:
+    def crear_solicitud_publicacion(
+        db: Session, 
+        solicitud: SolicitudPublicacionCreate, 
+        id_usuario: int,
+        id_estado_inicial: int = 2  # ✅ CAMBIO: DEFAULT 2 (Pendiente), antes era 1
+    ) -> SolicitudPublicacion:
         db_solicitud = SolicitudPublicacion(
             nombre_evento=solicitud.nombre_evento,
             fecha_evento=solicitud.fecha_evento,
@@ -24,10 +29,13 @@ class Solicitud_PublicacionCRUD:
             id_dificultad=solicitud.id_dificultad,
             descripcion=solicitud.descripcion,
             costo_participacion=solicitud.costo_participacion,
+            cupo_maximo=solicitud.cupo_maximo,  # ✅ AGREGAR
+            lat=solicitud.lat,  # ✅ AGREGAR
+            lng=solicitud.lng,  # ✅ AGREGAR
             id_usuario=id_usuario,
             fecha_solicitud=date.today(),
             id_estado=1,
-            id_estado_solicitud=1
+            id_estado_solicitud=id_estado_inicial  # ✅ CAMBIO: Usar parámetro en vez de hardcoded 1
         )
         db.add(db_solicitud)
         db.commit()
@@ -204,4 +212,3 @@ class Solicitud_PublicacionCRUD:
     @staticmethod
     def verificar_usuario_existe(db: Session, id_usuario: int) -> bool:
         return db.query(Usuario).filter(Usuario.id_usuario == id_usuario).first() is not None
-    

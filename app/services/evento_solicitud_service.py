@@ -52,11 +52,28 @@ class EventoSolicitudService:
     # ========================================================================
     
     @staticmethod
-    def crear_solicitud(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int):
-        """Crea una nueva solicitud de publicación"""
+    def crear_solicitud(
+        db: Session, 
+        solicitud: SolicitudPublicacionCreate, 
+        id_usuario: int,
+        id_estado_inicial: int = 2  # ✅ CAMBIO: Agregar parámetro (default 2)
+    ):
+        """
+        Crea una nueva solicitud de publicación.
+        
+        Args:
+            id_estado_inicial: 1=Borrador (autoguardado), 2=Pendiente (envío normal)
+        """
         EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
         EventoSolicitudService.validar_usuario(db, id_usuario)
-        return Solicitud_PublicacionCRUD.crear_solicitud_publicacion(db, solicitud, id_usuario)
+        
+        # ✅ CAMBIO: Pasar el estado inicial al CRUD
+        return Solicitud_PublicacionCRUD.crear_solicitud_publicacion(
+            db, 
+            solicitud, 
+            id_usuario,
+            id_estado_inicial=id_estado_inicial  # ✅ NUEVO PARÁMETRO
+        )
 
     @staticmethod
     def obtener_mis_solicitudes(db: Session, id_usuario: int):
@@ -73,7 +90,7 @@ class EventoSolicitudService:
 
     @staticmethod
     def enviar_solicitud_para_revision(db: Session, id_solicitud: int, usuario_actual: Usuario):
-        """Envía una solicitud para revisión del admin"""
+        """Envía una solicitud para revisión del admin (1 → 2)"""
         solicitud = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
         if not solicitud:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")

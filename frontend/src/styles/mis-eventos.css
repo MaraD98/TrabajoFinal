@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
 
-:root {
+.mis-eventos-container {
   /* Backgrounds */
   --bg-primary: #0a0a0a;
   --bg-secondary: #1a1a1a;
