@@ -74,7 +74,46 @@ class EventoSolicitudService:
             id_usuario,
             id_estado_inicial=id_estado_inicial  # ✅ NUEVO PARÁMETRO
         )
-
+    # ========================================================================
+    # ✅ NUEVO MÉTODO: Actualizar solicitud existente
+    # ========================================================================
+    @staticmethod
+    def actualizar_solicitud(
+        db: Session,
+        id_solicitud: int,
+        solicitud: SolicitudPublicacionCreate,
+        id_usuario: int,
+        enviar: bool = False
+    ):
+        """
+        Actualiza una solicitud existente.
+        
+        Args:
+            id_solicitud: ID de la solicitud a actualizar
+            solicitud: Nuevos datos
+            id_usuario: ID del usuario que actualiza
+            enviar: Si True, cambia estado a 2 (Pendiente)
+        """
+        # Buscar solicitud
+        solicitud_db = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
+        if not solicitud_db:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+        
+        # Verificar que sea el dueño
+        if solicitud_db.id_usuario != id_usuario:
+            raise HTTPException(status_code=403, detail="No tienes permiso para editar esta solicitud")
+        
+        # Validar fecha
+        EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
+        
+        # Actualizar en BD
+        return Solicitud_PublicacionCRUD.actualizar_solicitud(
+            db,
+            id_solicitud,
+            solicitud,
+            enviar=enviar
+        )
+    
     @staticmethod
     def obtener_mis_solicitudes(db: Session, id_usuario: int):
         """Obtiene todas las solicitudes de un usuario específico"""

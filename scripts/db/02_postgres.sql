@@ -238,6 +238,7 @@ CREATE TABLE Historial_Edicion_Evento(
 	id_evento INT NOT NULL,
 	fecha_edicion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, 
 	id_usuario INT NOT NULL,
+    estado_solicitud TEXT NOT NULL, -- nuevo campo para guardar el estado de la solicitud en el momento de la edición
 	CONSTRAINT FK_Edicion_Evento FOREIGN KEY (id_evento) REFERENCES Evento(id_evento),
 	CONSTRAINT FK_Edicion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 	

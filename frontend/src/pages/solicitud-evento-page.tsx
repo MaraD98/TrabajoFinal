@@ -30,7 +30,6 @@ export default function SolicitudEventoPage() {
   const autoGuardadoRef = useRef<number | null>(null);
 
   const AUTOGUARDADO_INTERVALO = 30000; // 30 segundos
-  const CAMPOS_MINIMOS_BORRADOR = ['nombre_evento', 'ubicacion', 'fecha_evento'];
 
   // ========== Estados del Mapa ==========
   const [isSearching, setIsSearching] = useState(false);
@@ -75,7 +74,20 @@ export default function SolicitudEventoPage() {
     try {
       setLoading(true);
 
-      // ✅ CLAVE: enviar=true para crear en estado 2 (Pendiente)
+      // Preparar datos completos
+      const datosAEnviar = {
+        nombre_evento: formData.nombre_evento,
+        ubicacion: formData.ubicacion,
+        fecha_evento: formData.fecha_evento,
+        descripcion: formData.descripcion || "",
+        costo_participacion: formData.costo_participacion || 0,
+        cupo_maximo: formData.cupo_maximo,
+        id_tipo: formData.id_tipo,
+        id_dificultad: formData.id_dificultad,
+        lat: formData.lat,
+        lng: formData.lng
+      };
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=true`,
         {
@@ -84,7 +96,7 @@ export default function SolicitudEventoPage() {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(formData)
+          body: JSON.stringify(datosAEnviar)
         }
       );
 
@@ -110,14 +122,18 @@ export default function SolicitudEventoPage() {
     }
   };
 
-  // ========== AUTOGUARDADO ==========
+  // ========== AUTOGUARDADO CORREGIDO ==========
   const autoGuardarBorrador = async () => {
-    // Validar que hay datos mínimos
-    const tieneDatosMinimos = CAMPOS_MINIMOS_BORRADOR.some(
-      campo => formData[campo as keyof typeof formData]
-    );
+    // ✅ VALIDACIÓN ESTRICTA: Debe tener nombre, ubicación, fecha Y coordenadas
+    const tieneDatosCompletos = 
+      formData.nombre_evento.trim() !== "" &&
+      formData.ubicacion.trim() !== "" &&
+      formData.fecha_evento !== "" &&
+      formData.lat !== null &&
+      formData.lng !== null;
 
-    if (!tieneDatosMinimos || guardandoBorrador) {
+    if (!tieneDatosCompletos || guardandoBorrador) {
+      console.log('⏸️ Autoguardado pausado: faltan datos mínimos');
       return;
     }
 
@@ -125,12 +141,32 @@ export default function SolicitudEventoPage() {
       setGuardandoBorrador(true);
       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 
-      // ✅ CLAVE: enviar=false para guardar como BORRADOR (estado 1)
+      if (!token) {
+        console.error('No hay token de autenticación');
+        return;
+      }
+
+      // ✅ Preparar datos asegurándose de que todo esté presente
+      const datosAEnviar = {
+        nombre_evento: formData.nombre_evento,
+        ubicacion: formData.ubicacion,
+        fecha_evento: formData.fecha_evento,
+        descripcion: formData.descripcion || "",
+        costo_participacion: formData.costo_participacion || 0,
+        cupo_maximo: formData.cupo_maximo || 10, // ✅ Default 10 si es 0
+        id_tipo: formData.id_tipo,
+        id_dificultad: formData.id_dificultad,
+        lat: formData.lat,
+        lng: formData.lng
+      };
+
       const url = idBorrador
         ? `${import.meta.env.VITE_API_URL}/solicitudes-eventos/${idBorrador}?enviar=false`
         : `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=false`;
 
       const method = idBorrador ? "PUT" : "POST";
+
+      console.log('📤 Autoguardando...', { url, method, datos: datosAEnviar });
 
       const response = await fetch(url, {
         method,
@@ -138,7 +174,7 @@ export default function SolicitudEventoPage() {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(datosAEnviar)
       });
 
       if (response.ok) {
@@ -150,16 +186,19 @@ export default function SolicitudEventoPage() {
 
         setUltimoAutoguardado(new Date());
         
-        // Guardar en localStorage (por si se cierra el navegador)
+        // Guardar en localStorage
         localStorage.setItem('borrador_solicitud', JSON.stringify({
-          formData,
+          formData: datosAEnviar,
           idBorrador: data.id_solicitud || idBorrador
         }));
 
-        console.log('✅ Borrador guardado automáticamente');
+        console.log('✅ Borrador guardado automáticamente', data);
+      } else {
+        const error = await response.json();
+        console.error('❌ Error en autoguardado:', error);
       }
     } catch (error) {
-      console.error('Error en autoguardado:', error);
+      console.error('❌ Error en autoguardado:', error);
     } finally {
       setGuardandoBorrador(false);
     }
@@ -256,24 +295,29 @@ export default function SolicitudEventoPage() {
     };
   }, []);
 
-  // Efecto 2: Autoguardado automático
+  // Efecto 2: Autoguardado automático CORREGIDO
   useEffect(() => {
     // Limpiar timeout anterior
     if (autoGuardadoRef.current) {
       clearTimeout(autoGuardadoRef.current);
     }
 
-    // Solo autoguardar si hay datos mínimos
-    const tieneDatosMinimos = CAMPOS_MINIMOS_BORRADOR.some(
-      campo => formData[campo as keyof typeof formData]
-    );
+    // ✅ VALIDACIÓN MEJORADA: Verificar que todos los campos mínimos tengan valor
+    const tieneDatosMinimos = 
+      formData.nombre_evento.trim() !== "" &&
+      formData.ubicacion.trim() !== "" &&
+      formData.fecha_evento !== "" &&
+      formData.lat !== null &&
+      formData.lng !== null;
 
     if (!tieneDatosMinimos) {
-      return;
+      console.log('⏸️ Esperando datos mínimos para autoguardar...');
+      return; // No hay nada que guardar aún
     }
 
     // Programar autoguardado en 30 segundos
     autoGuardadoRef.current = setTimeout(() => {
+      console.log('⏰ Ejecutando autoguardado programado...');
       autoGuardarBorrador();
     }, AUTOGUARDADO_INTERVALO) as unknown as number;
 

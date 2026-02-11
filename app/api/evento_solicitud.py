@@ -54,7 +54,39 @@ def crear_solicitud_evento(
         id_estado_inicial=estado_inicial  # ✅ PASAR ESTADO AL SERVICIO
     )
     return nueva_solicitud
-
+# ============================================================================
+# ✅ NUEVO ENDPOINT: Actualizar solicitud (para autoguardado)
+# ============================================================================
+@router.put(
+    "/{id_solicitud}",
+    response_model=SolicitudPublicacionResponse,
+    summary="Actualizar solicitud existente",
+    description="Actualiza una solicitud de evento. Usado para autoguardado de borradores."
+)
+def actualizar_solicitud_evento(
+    id_solicitud: int,
+    solicitud: SolicitudPublicacionCreate,
+    enviar: bool = Query(False, description="True: Cambiar a Pendiente | False: Mantener como Borrador"),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Actualiza una solicitud existente.
+    
+    **Uso principal:** Autoguardado de borradores cada 30 segundos.
+    
+    **Parámetros:**
+    - `enviar=False` (default): Actualiza sin cambiar estado (borrador)
+    - `enviar=True`: Actualiza y envía para revisión (estado 2)
+    """
+    solicitud_actualizada = EventoSolicitudService.actualizar_solicitud(
+        db,
+        id_solicitud,
+        solicitud,
+        current_user.id_usuario,
+        enviar=enviar
+    )
+    return solicitud_actualizada
 
 # ============ Obtener mis solicitudes ============
 @router.get(

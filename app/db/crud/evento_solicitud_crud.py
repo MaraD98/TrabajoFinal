@@ -43,6 +43,49 @@ class Solicitud_PublicacionCRUD:
         return db_solicitud
 
     @staticmethod
+    def actualizar_solicitud(
+        db: Session,
+        id_solicitud: int,
+        solicitud: SolicitudPublicacionCreate,
+        enviar: bool = False
+    ) -> SolicitudPublicacion:
+        """
+        Actualiza una solicitud existente.
+        
+        Args:
+            id_solicitud: ID de la solicitud
+            solicitud: Nuevos datos
+            enviar: Si True, cambia estado a 2 (Pendiente)
+        """
+        solicitud_db = db.query(SolicitudPublicacion).filter(
+            SolicitudPublicacion.id_solicitud == id_solicitud
+        ).first()
+        
+        if not solicitud_db:
+            return None
+        
+        # Actualizar campos
+        solicitud_db.nombre_evento = solicitud.nombre_evento
+        solicitud_db.fecha_evento = solicitud.fecha_evento
+        solicitud_db.ubicacion = solicitud.ubicacion
+        solicitud_db.id_tipo = solicitud.id_tipo
+        solicitud_db.id_dificultad = solicitud.id_dificultad
+        solicitud_db.descripcion = solicitud.descripcion
+        solicitud_db.costo_participacion = solicitud.costo_participacion
+        solicitud_db.cupo_maximo = solicitud.cupo_maximo
+        solicitud_db.lat = solicitud.lat
+        solicitud_db.lng = solicitud.lng
+        
+        # Si se está enviando, cambiar estado
+        if enviar:
+            solicitud_db.id_estado_solicitud = 2
+            solicitud_db.fecha_solicitud = date.today()
+        
+        db.commit()
+        db.refresh(solicitud_db)
+        return solicitud_db
+    
+    @staticmethod
     def obtener_solicitud_por_id(db: Session, id_solicitud: int) -> Optional[SolicitudPublicacion]:
         return db.query(SolicitudPublicacion).filter(SolicitudPublicacion.id_solicitud == id_solicitud).first()
 
