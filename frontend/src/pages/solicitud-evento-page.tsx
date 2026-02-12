@@ -3,6 +3,8 @@ import { createSolicitudEvento } from "../services/solicitudes-externas";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
 
 export default function SolicitudEventoPage() {
   const [formData, setFormData] = useState({
@@ -185,6 +187,7 @@ export default function SolicitudEventoPage() {
 
   return (
     <div className="event-registration">
+      <Navbar /> 
       <div className="event-registration__container">
         <div className="event-registration__header">
           <h1 className="event-registration__title">Solicitud de Publicación</h1>
@@ -378,6 +381,7 @@ export default function SolicitudEventoPage() {
           </div>
         </div>
       </div>
+      <Footer/> 
     </div>
   );
 }

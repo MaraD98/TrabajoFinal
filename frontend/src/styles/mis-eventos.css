@@ -33,43 +33,6 @@ body {
   font-weight: bold;
 }
 
-/* --- NAVBAR --- */
-.mis-eventos-navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 30px;
-  background-color: rgba(0,0,0,0.95);
-  border-bottom: 1px solid #333;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-/* AJUSTE LOGO WAKEUP */
-.logo {
-  height: 45px; /* Un poco más grande para que se luzca */
-  width: auto;
-  object-fit: contain; /* Esto evita que se estire o deforme */
-  display: block;
-}
-
-.btn-volver {
-  color: var(--text-white);
-  text-decoration: none;
-  font-weight: 600;
-  border: 1px solid var(--neon-accent);
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: 0.3s;
-  font-size: 0.9rem;
-}
-
-.btn-volver:hover {
-  background-color: var(--neon-accent);
-  color: black;
-}
-
 /* --- MAIN SECTION --- */
 .main-section {
   padding: 30px;
@@ -268,11 +231,51 @@ body {
   border-color: #e67e22;
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  color: #888;
-  padding: 40px;
-  border: 2px dashed #333;
-  border-radius: 10px;
+
+/* 1. El contenedor que centra todo */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px; /* Altura mínima para que no se vea aplastado */
+  width: 100%;
+  gap: 1.5rem; /* Espacio entre el spinner y el texto */
 }
+
+/* 2. El Spinner "Bonito" */
+.spinner {
+  width: 50px;  /* Tamaño más grande y visible */
+  height: 50px;
+  border: 4px solid rgba(255, 107, 53, 0.15); /* Fondo naranja muy suave */
+  border-left-color: #ff6b35; /* Tu color naranja vibrante */
+  border-radius: 50%;
+  
+  /* Aquí está el truca para que se vea fluido */
+  animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+  
+  /* Un pequeño brillo para hacerlo moderno */
+  box-shadow: 0 0 15px rgba(255, 107, 53, 0.2);
+}
+
+/* 3. Texto elegante */
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #6b7280; /* Gris suave profesional */
+  letter-spacing: 0.5px;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+/* 4. Animaciones */
+@keyframes spin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.1); } /* Efecto de latido */
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+

@@ -56,7 +56,6 @@
 .event-registration {
   height: 100vh;
   background: linear-gradient(135deg, #fff8f5 0%, #ffffff 100%);
-  padding: var(--spacing-md);
   font-family: var(--font-primary);
   font-size: var(--font-size-base);
   color: var(--color-text);
@@ -103,7 +102,6 @@
   font-size: 26px;
   font-weight: 800;
   color: var(--color-secondary);
-  margin: 0 0 4px 0;
   letter-spacing: -0.5px;
   text-transform: uppercase;
   background: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-primary) 100%);

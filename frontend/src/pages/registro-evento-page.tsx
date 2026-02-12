@@ -4,6 +4,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 import { useNavigate } from 'react-router-dom';
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
 
 export default function CreateEventPage() {
   // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
@@ -193,6 +195,7 @@ const initMap = () => {
 
   return (
     <div className="event-registration">
+      <Navbar /> 
       <div className="event-registration__container">
         <div className="event-registration__header">
           <h1 className="event-registration__title">Crear Nuevo Evento</h1>
@@ -390,6 +393,7 @@ const initMap = () => {
           </div>
         </div>
       </div>
+      <Footer /> 
     </div>
   );
 }
