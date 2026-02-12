@@ -112,7 +112,8 @@ export default function ReportesPage() {
   const getNombreRol = (id: number) => ({ 1: "Admin", 2: "Supervisor", 3: "Operario", 4: "Cliente" }[id] || `Rol ${id}`);
   const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
-  // --- RENDERS ---
+
+  // --- GRAFICOS RENDERIZADOS ---
   const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const maxValue = Math.max(...data.map(item => item[valueKey]), 1);
