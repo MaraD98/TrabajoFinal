@@ -41,7 +41,7 @@ def export_reportes(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    # Mapeo de roles permitidos
+    # Mapeo de roles permitidos para cada tipo de reporte
     roles_permitidos = {
         "total_eventos": [2],
         "eventos_por_estado": [2, 3],
@@ -54,7 +54,7 @@ def export_reportes(
         "mis_eventos_total": [2,3,4],
         "mis_eventos_por_estado": [2,3,4],
         "mis_inscripciones": [2,3,4],
-        "mis_notificaciones": [2,3,4],
+        "mis_notificaciones": [2,3,4]
     }
 
     if tipo not in roles_permitidos:
@@ -127,6 +127,7 @@ def export_reportes(
         # Placeholder: depende de tu modelo de notificaciones
         data = [{"mensaje": "Tu evento fue aprobado"}]
         fieldnames = ["mensaje"]
+
 
     # Crear CSV en memoria
     output = StringIO()
