@@ -204,9 +204,11 @@ export default function ReportesPage() {
 
   const renderGraficoTorta = (data: any[], labelKey: string, valueKey: string) => {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+
     const total = data.reduce((sum, item) => sum + item[valueKey], 0);
     let acumulado = 0;
-    const colores = ["#ff6b35", "#ffa500", "#4caf50", "#2196f3", "#9c27b0"];
+    const colores = ["#ff6b35", "#4ade80", "#60a5fa", "#fbbf24", "#a78bfa"];
+
     const conicParts = data.map((item, index) => {
       const porcentaje = (item[valueKey] / (total || 1)) * 100;
       const inicio = acumulado;
@@ -215,19 +217,36 @@ export default function ReportesPage() {
     });
 
     return (
-      <div className="grafico-torta-container">
-        <div className="grafico-torta__circulo" style={{ background: `conic-gradient(${conicParts.join(", ")})` }}></div>
-        <div className="grafico-torta__leyenda">
-          {data.map((item, index) => (
-            <div key={index} className="grafico-torta__leyenda-item">
-              <div className="grafico-torta__color" style={{ backgroundColor: colores[index % colores.length] }}></div>
-              <span className="grafico-torta__texto">{item[labelKey]}: <strong>{item[valueKey]}</strong></span>
-            </div>
-          ))}
+      <div className="grafico-pie-container">
+        <div 
+          className="grafico-torta__circulo" 
+          style={{ background: `conic-gradient(${conicParts.join(", ")})` }}
+        ></div>
+        
+        <div className="grafico-pie__leyenda">
+          {data.map((item, index) => {
+            // Calculamos el porcentaje para este item específico
+            const porcentajeIndividual = ((item[valueKey] / (total || 1)) * 100).toFixed(1);
+
+            return (
+              <div key={index} className="grafico-torta__leyenda-item">
+                <div 
+                  className="grafico-torta__color-box" 
+                  style={{ backgroundColor: colores[index % colores.length] }}
+                ></div>
+                <span className="grafico-torta__texto">
+                  {item[labelKey]}: <strong>{item[valueKey]}</strong> 
+                  <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '12px' }}>
+                    ({porcentajeIndividual}%)
+                  </span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
-  };
+};
 
   // --- PROTECCIÓN DE RUTA ---
   if (loadingAuth || loading) {

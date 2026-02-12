@@ -1241,3 +1241,32 @@ button:focus-visible,
   width: 100%;
   margin-top: var(--spacing-md);
 }
+
+/* --- Bloque para las referencias de colores --- */
+
+.grafico-torta__leyenda-item {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Los centra bajo la dona */
+  gap: 10px;               /* Espacio entre el cuadradito y el texto */
+  margin-bottom: 6px;      /* Espacio entre líneas */
+  font-family: inherit;
+}
+
+.grafico-torta__color-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;      /* Bordes suavizados como tus tarjetas */
+  flex-shrink: 0;          /* Que no se deforme el cuadradito */
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+}
+
+.grafico-torta__leyenda-item span {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.grafico-torta__leyenda-item strong {
+  color: var(--color-text); /* El número resalta un poco más */
+  margin-left: 4px;
+}
