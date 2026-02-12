@@ -31,28 +31,44 @@ export default function ReportesPage() {
   const [exportando, setExportando] = useState<string | null>(null);
 
   // 3. Referencia al contenedor que queremos imprimir
-  const reporteRef = useRef<HTMLDivElement>(null);
+  const reporteRef = useRef<HTMLDivElement>(null);  
+  
+  // ✅ CAMBIO CLAVE: Usamos getToken y user del contexto en lugar de localStorage directo
+  const { user, getToken, loadingAuth } = useAuth();
+  
+  // Obtenemos el rol dinámicamente del usuario logueado
+  const usuarioRol = user?.id_rol || 0;
 
-  // DATOS DE SESIÓN Y ROL
-  const token = localStorage.getItem("token") || "";
-  const rolGuardado = localStorage.getItem("rol");
-  const usuarioRol = rolGuardado ? Number(rolGuardado) : 0; 
-  const { loadingAuth } = useAuth();
-
+  // CARGAR REPORTES
   useEffect(() => {
-    if (!loadingAuth && token) {
-      cargarReportes();
-    } else if (!loadingAuth && !token) {
-      setLoading(false);
+    // Solo intentamos cargar si el AuthContext terminó de inicializarse
+    if (!loadingAuth) {
+      const currentToken = getToken();
+      if (currentToken) {
+        cargarReportes(currentToken);
+      } else {
+        setLoading(false);
+      }
     }
-  }, [token, loadingAuth]);
+  }, [loadingAuth, getToken]);
 
-  const cargarReportes = async () => {
+  const cargarReportes = async (tokenParaCargar?: string) => {
     try {
       setLoading(true);
-      const data = await getReporteGeneral(token || "");
+      setError(null);
+      
+      // Usamos el token que viene por parámetro o lo buscamos en el momento
+      const token = tokenParaCargar || getToken();
+      
+      if (!token) {
+        setError("No se encontró una sesión activa.");
+        return;
+      }
+
+      const data = await getReporteGeneral(token);
       setReporteData(data);
     } catch (err: any) {
+      console.error("Error en reportes:", err);
       setError(err.response?.status === 401 ? "Sesión expirada" : "Error al cargar reportes");
     } finally {
       setLoading(false);
@@ -61,6 +77,9 @@ export default function ReportesPage() {
 
   const handleExportarCSV = async (tipo: string) => {
     try {
+      const token = getToken();
+      if (!token) return alert("Sesión no válida");
+      
       setExportando(tipo); 
       await exportReporteCSV(tipo, token);
     } catch (err) {
@@ -137,7 +156,6 @@ export default function ReportesPage() {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const dataOrdenada = [...data].sort((a, b) => a.anio !== b.anio ? a.anio - b.anio : a.mes - b.mes);
     const maxValue = Math.max(...dataOrdenada.map(item => item.cantidad), 1);
-
     return (
       <div className="grafico-linea">
         <div className="grafico-linea__grid">
@@ -172,6 +190,7 @@ export default function ReportesPage() {
     );
   };
 
+  // --- PROTECCIÓN DE RUTA ---
   if (loadingAuth || loading) {
     return (
       <div className="reportes-page"> 
@@ -183,7 +202,9 @@ export default function ReportesPage() {
     );
   }
 
-  if (!token || token === "undefined" || token === "null") {
+  // ✅ Verificación robusta del token
+  const activeToken = getToken();
+  if (!activeToken) {
     return (
       <div className="reportes-page">
         <div className="reportes-alert reportes-alert--error">
@@ -208,7 +229,7 @@ export default function ReportesPage() {
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
-            <p className="reportes-header__subtitle">Gestión centralizada de datos</p>
+            <p className="reportes-header__subtitle">Gestión centralizada de datos para {user?.nombre_y_apellido}</p>
           </div>
           
           <div className="reportes-header__actions" style={{ display: 'flex', gap: '10px' }}>
@@ -222,21 +243,24 @@ export default function ReportesPage() {
                 {exportando === "pdf" ? "Generando..." : "📄 Guardar PDF"}
              </button>
 
-             <button onClick={cargarReportes} className="reportes-header__refresh">
-               ↻ Actualizar Datos
-             </button>
+             <button 
+                onClick={() => cargarReportes()}
+                className="reportes-header__refresh"
+              >
+                ↻ Actualizar Datos
+            </button>
           </div>
         </div>
 
         {/* ALERTAS */}
         {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
+        
         {usuarioRol <= 2 && pendientesCount > 0 && (
           <div className="reportes-alert reportes-alert--warning">
             🔔 Tienes <strong>{pendientesCount}</strong> eventos pendientes de revisión.
           </div>
         )}
 
-        {/* TARJETAS RESUMEN */}
         <div className="reportes-resumen">
           <div className="stat-card stat-card--primary">
             <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
@@ -274,7 +298,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 2. Usuarios por Rol */}
           {usuarioRol === 1 && reporteData?.usuarios_por_rol && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -292,7 +315,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 3. Mis Eventos por Estado */}
           {reporteData?.mis_eventos_por_estado && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -310,7 +332,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {/* 4. Eventos por Tipo */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
             <div className="grafico-card">
               <div className="grafico-card__header">
@@ -350,7 +371,6 @@ export default function ReportesPage() {
               </div>
             </div>
           )}
-
         </div>
       </div>
       <Footer />

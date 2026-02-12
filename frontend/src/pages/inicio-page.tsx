@@ -1,11 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/inicio.css'; 
-import logoWakeUp from '../assets/wakeup-logo.png';
 import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
-import { useAuth } from '../context/auth-context';
-import axios from 'axios';
-
+import { Navbar } from '../components/navbar'; 
+import { Footer } from "../components/footer";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
@@ -45,16 +43,12 @@ interface Evento {
 }
 
 export default function InicioPage() {
-    const { user, logout } = useAuth();
-    const [localUserName, setLocalUserName] = useState<string>("Usuario"); 
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     // ============================================================================
-    // ✅ ESTADOS DE FILTROS (SIN DEBOUNCE - Se aplican al presionar botón)
+    // ✅ ESTADOS DE FILTROS
     // ============================================================================
     const [busqueda, setBusqueda] = useState("");
     const [ubicacion, setUbicacion] = useState("");
@@ -72,32 +66,6 @@ export default function InicioPage() {
     const [mensajeResultado, setMensajeResultado] = useState("");
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
-    useEffect(() => {
-        const storedUser = localStorage.getItem('user') || localStorage.getItem('usuario');
-        if (storedUser) {
-            try {
-                const parsed = JSON.parse(storedUser);
-                const nombreReal = parsed.nombre_y_apellido || parsed.nombre;
-                if (nombreReal && nombreReal !== "Usuario") {
-                    setLocalUserName(nombreReal);
-                }
-            } catch (e) {
-                console.error("Error leyendo datos locales", e);
-            }
-        }
-
-        const token = localStorage.getItem('token');
-        if (token) {
-            axios.get(`${import.meta.env.VITE_API_URL}/me`, {
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
-                const nombreDelServer = res.data.nombre_y_apellido || res.data.nombre;
-                if (nombreDelServer) {
-                    setLocalUserName(nombreDelServer);
-                }
-            }).catch(err => console.log("No se pudo refrescar el nombre desde el servidor", err));
-        }
-    }, [user]);
 
     const getClaseDificultad = (dificultad?: string) => {
         const dif = dificultad?.toLowerCase() || '';
@@ -107,24 +75,12 @@ export default function InicioPage() {
         return '#666'; 
     };
 
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsDropdownOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, [dropdownRef]);
-
     // ============================================================================
-    // ✅ CARGA INICIAL: Cargar catálogos y eventos al montar
+    // ✅ CARGA INICIAL
     // ============================================================================
     useEffect(() => {
         cargarCatalogos();
-        cargarEventos(); // Carga inicial sin filtros
+        cargarEventos(); 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -139,14 +95,13 @@ export default function InicioPage() {
     };
 
     // ============================================================================
-    // ✅ FUNCIÓN DE CARGA (Se ejecuta manualmente al presionar "Aplicar Filtros")
+    // ✅ FUNCIÓN DE CARGA
     // ============================================================================
     const cargarEventos = async () => {
         setLoading(true);
         try {
             const filtros: FiltrosEventos = {};
             
-            // Solo agregar filtros si tienen valor
             if (busqueda.trim()) filtros.busqueda = busqueda.trim();
             if (fechaDesde) filtros.fecha_desde = fechaDesde;
             if (fechaHasta) filtros.fecha_hasta = fechaHasta;
@@ -159,7 +114,6 @@ export default function InicioPage() {
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
 
-            // Filtrar solo eventos futuros (el backend ya lo hace, pero doble validación)
             const eventosProcesados = eventosFiltrados
                 .filter((evento: Evento) => {
                     const fechaEvento = new Date(evento.fecha_evento);
@@ -182,18 +136,11 @@ export default function InicioPage() {
         }
     };
 
-    // ============================================================================
-    // ✅ FUNCIÓN PARA APLICAR FILTROS (Botón manual)
-    // ============================================================================
     const aplicarFiltros = () => {
         cargarEventos();
     };
 
-    // ============================================================================
-    // ✅ FUNCIÓN PARA LIMPIAR FILTROS
-    // ============================================================================
     const limpiarFiltros = async () => {
-        // Limpiar todos los estados
         setBusqueda("");
         setUbicacion("");
         setFechaDesde("");
@@ -201,10 +148,8 @@ export default function InicioPage() {
         setTipoSeleccionado(undefined);
         setDificultadSeleccionada(undefined);
         
-        // Recargar eventos sin filtros (llamada directa sin esperar estados)
         setLoading(true);
         try {
-            // Llamar al backend sin filtros (objeto vacío)
             const resultado = await buscarEventosConFiltros({});
             const eventosFiltrados = resultado.eventos || [];
             const hoy = new Date();
@@ -252,147 +197,25 @@ export default function InicioPage() {
         return IMAGENES_TIPO.default;
     };
 
-    // ============================================================================
-    // ✅ FUNCIÓN PARA DETERMINAR RUTA DE CREACIÓN DE EVENTO SEGÚN ROL
-    // ============================================================================
-    const obtenerRutaCrearEvento = () => {
-        if (!user) return "/login";
-        
-        // Roles 1 y 2 (Admin/Organizador) → /registro-evento
-        if (user.id_rol === 1 || user.id_rol === 2) {
-            return "/registro-evento";
-        }
-        
-        // Roles 3 y 4 (Usuario Externo/Otro) → /publicar-evento
-        if (user.id_rol === 3 || user.id_rol === 4) {
-            return "/publicar-evento";
-        }
-        
-        // Por defecto
-        return "/publicar-evento";
-    };
-
-    // ============================================================================
-    // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
-    // ============================================================================
-    const mostrarBotonPanelAdmin = () => {
-        return user && (user.id_rol === 1 || user.id_rol === 2);
-    };
-
     if (loading) return (
-  <div style={{ 
-    position: 'fixed', // Saca el elemento del flujo normal
-    top: 0,
-    left: 0,
-    width: '100%',     // Asegura ancho completo
-    height: '100vh',   // Asegura alto completo
-    zIndex: 9999,      // Asegura que quede por encima de todo
-    color: '#ccff00', 
-    background: '#0d0d0d', 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  }}>
-    CARGANDO...
-  </div>
-);
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 9999, color: '#ccff00', background: '#0d0d0d', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        CARGANDO...
+      </div>
+    );
 
-if (error) return (
-  <div style={{ 
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100vh',
-    zIndex: 9999,
-    color: 'red', 
-    background: '#0d0d0d', 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  }}>
-    {error}
-  </div>
-);
+    if (error) return (
+      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100vh', zIndex: 9999, color: 'red', background: '#0d0d0d', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        {error}
+      </div>
+    );
 
     return (
         <div className="inicio-container">
+            
+            {/* ✅ AGREGAMOS EL NAVBAR */}
+            <Navbar /> 
+
             <header className="hero-section">
-                <nav className="hero-navbar">
-                    <Link to="/" className="hero-logo-link">
-                        <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
-                    </Link>
-
-                    {user ? (
-                        <div className="user-menu-container" ref={dropdownRef}>
-                            <button
-                                className="user-menu-trigger"
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            >
-                                <span className="user-icon">👤</span>
-                                <span className="user-name">{localUserName}</span>
-                                <span className="dropdown-arrow">▼</span>
-                            </button>
-
-                            {isDropdownOpen && (
-                                <div className="user-dropdown">
-                                    <div className="dropdown-header">MI CUENTA</div>
-                                    <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        👤 Mi Perfil
-                                    </Link>
-                                    <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        📑 Mis Reportes
-                                    </Link>
-
-                                    <div className="dropdown-header">MIS EVENTOS</div>
-                                    {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
-                                    <Link to="/perfil?tab=inscripciones" className="dropdown-item">
-                                         Inscriptos
-                                    </Link>
-                                    <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Mis Eventos
-                                    </Link>
-                                    
-                                    <div className="dropdown-divider"></div>
-                                    <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                        Crear Evento
-                                    </Link>
-                                    
-
-                                    {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
-                                    {mostrarBotonPanelAdmin() && (
-                                        <>
-                                            <div className="dropdown-divider"></div>
-                                            <Link 
-                                                to="/admin" 
-                                                className="dropdown-item"
-                                                style={{ 
-                                                    backgroundColor: '#ff6600', 
-                                                    color: '#fff',
-                                                    fontWeight: 'bold'
-                                                }}
-                                                onClick={() => setIsDropdownOpen(false)}
-                                            >
-                                                ⚙️ Panel de Administrador
-                                            </Link>
-                                        </>
-                                    )}
-
-                                    <div className="dropdown-divider"></div>
-                                    
-                                    <button
-                                        onClick={logout}
-                                        className="dropdown-item logout-button"
-                                    >
-                                        Cerrar Sesión
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-                    )}
-                </nav>
                 <div className="hero-content">
                     <h1>Siente la Adrenalina</h1>
                     <p>Únete a la comunidad más grande de eventos deportivos y solidarios.</p>
@@ -427,11 +250,11 @@ if (error) return (
                 </div>
 
                 {/* ============================================================================ */}
-                {/* ✅ FILTROS CON BOTÓN MANUAL (SIN DEBOUNCE AUTOMÁTICO) */}
+                {/* ✅ FILTROS (MANTENIDOS IGUAL) */}
                 {/* ============================================================================ */}
                 {mostrarFiltros && (
                     <div className="filters-container-advanced" style={{ marginBottom: '30px' }}>
-                        {/* Búsqueda por nombre */}
+                        {/* ... Mismo código de filtros que ya tenías, no cambia nada ... */}
                         <div className="filter-row">
                             <div className="filter-group-full">
                                 <label className="filter-label">🔍 Buscar por nombre del evento</label>
@@ -441,132 +264,54 @@ if (error) return (
                                     className="filter-input"
                                     value={busqueda}
                                     onChange={(e) => setBusqueda(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') aplicarFiltros();
-                                    }}
+                                    onKeyPress={(e) => { if (e.key === 'Enter') aplicarFiltros(); }}
                                 />
                             </div>
                         </div>
 
-                        {/* Fechas */}
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">📅 Desde</label>
-                                <input 
-                                    type="date" 
-                                    className="filter-input"
-                                    value={fechaDesde}
-                                    onChange={(e) => setFechaDesde(e.target.value)}
-                                />
+                                <input type="date" className="filter-input" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} />
                             </div>
                             <div className="filter-group">
                                 <label className="filter-label">📅 Hasta</label>
-                                <input 
-                                    type="date" 
-                                    className="filter-input"
-                                    value={fechaHasta}
-                                    onChange={(e) => setFechaHasta(e.target.value)}
-                                />
+                                <input type="date" className="filter-input" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} />
                             </div>
                         </div>
 
-                        {/* Ubicación */}
                         <div className="filter-row">
                             <div className="filter-group-full">
                                 <label className="filter-label">📍 Ubicación</label>
-                                <input 
-                                    type="text" 
-                                    placeholder="Ej: Córdoba, Buenos Aires, Rosario..." 
-                                    className="filter-input"
-                                    value={ubicacion}
-                                    onChange={(e) => setUbicacion(e.target.value)}
-                                    onKeyPress={(e) => {
-                                        if (e.key === 'Enter') aplicarFiltros();
-                                    }}
-                                />
+                                <input type="text" placeholder="Ej: Córdoba..." className="filter-input" value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} onKeyPress={(e) => { if (e.key === 'Enter') aplicarFiltros(); }} />
                             </div>
                         </div>
 
-                        {/* Tipo y Dificultad */}
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">🏆 Tipo de Evento</label>
-                                <select 
-                                    className="filter-select"
-                                    value={tipoSeleccionado || ""} 
-                                    onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)} 
-                                >
+                                <select className="filter-select" value={tipoSeleccionado || ""} onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)}>
                                     <option value="">Todos los tipos</option>
-                                    {tiposEvento.map(tipo => (
-                                        <option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>
-                                    ))}
+                                    {tiposEvento.map(tipo => (<option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>))}
                                 </select>
                             </div>
-
                             <div className="filter-group">
                                 <label className="filter-label">💪 Dificultad</label>
-                                <select 
-                                    className="filter-select"
-                                    value={dificultadSeleccionada || ""}
-                                    onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}
-                                >
+                                <select className="filter-select" value={dificultadSeleccionada || ""} onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}>
                                     <option value="">Todas las dificultades</option>
-                                    {nivelesDificultad.map(nivel => (
-                                        <option key={nivel.id} value={nivel.id}>{nivel.nombre}</option>
-                                    ))}
+                                    {nivelesDificultad.map(nivel => (<option key={nivel.id} value={nivel.id}>{nivel.nombre}</option>))}
                                 </select>
                             </div>
                         </div>
 
-                        {/* ✅ BOTONES DE ACCIÓN (APLICAR + LIMPIAR) */}
                         <div className="filter-actions">
-                            <button 
-                                className="btn-aplicar-filtros"
-                                onClick={aplicarFiltros}
-                                style={{
-                                    background: '#ccff00',
-                                    color: '#000',
-                                    border: 'none',
-                                    padding: '12px 30px',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    fontSize: '1rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.3s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                            >
+                            <button className="btn-aplicar-filtros" onClick={aplicarFiltros} style={{ background: '#ccff00', color: '#000', border: 'none', padding: '12px 30px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }}>
                                 🔍 BUSCAR
                             </button>
-
-                            <button 
-                                className="btn-limpiar-filtros"
-                                onClick={limpiarFiltros}
-                                style={{
-                                    background: '#ff4444',
-                                    color: '#fff',
-                                    border: 'none',
-                                    padding: '12px 30px',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold',
-                                    fontSize: '1rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.3s'
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                            >
+                            <button className="btn-limpiar-filtros" onClick={limpiarFiltros} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '12px 30px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }}>
                                 🗑️ LIMPIAR FILTROS
                             </button>
                         </div>
-
                         <div style={{ marginTop: '15px', color: '#ccff00', fontSize: '0.9rem', textAlign: 'center' }}>
                             {mensajeResultado} | Total: {totalEventos} eventos
                         </div>
@@ -629,6 +374,8 @@ if (error) return (
                     })}
                 </div>
             </section>
+
+            <Footer />
         </div>
     );
 }

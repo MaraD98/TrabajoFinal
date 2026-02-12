@@ -1,152 +1,84 @@
-import { useState, useEffect } from "react";
-import { AdminService } from '../services/admin-service';
-import TablaGestionPagos from '../pages/gestion-pagos-pages';
-// 👇 AGREGADO: Importamos el panel de inscriptos para usarlo abajo
-import PanelInscriptos from '../pages/inscriptos-page';
-import type { 
-  SolicitudAlta, 
-  SolicitudBaja, 
-  EventoActivo, 
-  EventoEliminado,
-  EventoFinalizado 
-} from "../types/admin-types";
-import { adminEliminarEvento } from '../services/eventos';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
+import Toast from './modals/Toast';
+import ConfirmModal from './modals/ConfirmModal';
+import InputModal from './modals/InputModal';
 import '../styles/admin-dashboard.css';
 
-// ========== COMPONENTE DE TOAST ==========
-interface ToastProps {
-  message: string;
-  type: 'success' | 'error' | 'info';
-  onClose: () => void;
+// ============================================================================
+// 1. TIPOS
+// ============================================================================
+interface SolicitudAlta {
+  id_solicitud: number;
+  nombre_evento: string;
+  fecha_evento: string;
+  ubicacion: string;
+  id_usuario: number;
+  tipo: 'alta';
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-  const colors = { success: '#00cc66', error: '#ff4444', info: '#4da6ff' };
-
-  return (
-    <div style={{
-      position: 'fixed',
-      bottom: '20px',
-      right: '20px',
-      background: '#0a0a0a',
-      border: `2px solid ${colors[type]}`,
-      borderRadius: '8px',
-      padding: '16px 20px',
-      minWidth: '300px',
-      maxWidth: '500px',
-      boxShadow: `0 10px 30px rgba(0, 0, 0, 0.8)`,
-      zIndex: 10000,
-      animation: 'slideInRight 0.3s ease',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      fontFamily: 'Montserrat, sans-serif'
-    }}>
-      <style>{`
-        @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(100px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
-      <span style={{ fontSize: '1.5rem' }}>{icons[type]}</span>
-      <span style={{ color: '#fff', flex: 1, fontSize: '0.95rem', fontWeight: '500' }}>{message}</span>
-      <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: '#888', fontSize: '1.2rem', cursor: 'pointer', padding: '4px 8px' }}>✕</button>
-    </div>
-  );
-};
-
-// ========== MODAL DE CONFIRMACIÓN PERSONALIZADO ==========
-interface ConfirmModalProps {
-  show: boolean;
-  title: string;
-  message: string;
-  confirmText?: string;
-  cancelText?: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-  type?: 'warning' | 'danger' | 'info';
+interface SolicitudBaja {
+  id_eliminacion: number;
+  id_evento: number;
+  nombre_evento: string;
+  motivo: string;
+  fecha_solicitud: string;
+  usuario_solicitante: string;
+  tipo: 'baja';
 }
 
-const ConfirmModal: React.FC<ConfirmModalProps> = ({ 
-  show, 
-  title, 
-  message, 
-  confirmText = 'Confirmar',
-  cancelText = 'Cancelar',
-  onConfirm, 
-  onCancel,
-  type = 'warning'
-}) => {
-  if (!show) return null;
+interface Evento {
+  id_evento: number;
+  nombre_evento: string;
+  fecha_evento: string;
+  ubicacion: string;
+  id_estado: number;
+  id_usuario: number;
+  costo_participacion?: number;
+}
 
-  const typeColors = {
-    warning: '#ff8533',
-    danger: '#ff4444',
-    info: '#4da6ff'
-  };
+interface HistorialItem {
+  id_evento: number;
+  nombre_evento: string;
+  fecha_eliminacion: string;
+  motivo: string;
+  eliminado_por: string;
+  estado: string;
+  tipo_eliminacion: string;
+}
 
-  return (
-    <div className="confirm-modal-overlay" onClick={onCancel}>
-      <div className="confirm-modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="confirm-modal-header" style={{ borderColor: typeColors[type] }}>
-          <div className="confirm-modal-icon" style={{ color: typeColors[type] }}>
-            {type === 'warning' && '⚠️'}
-            {type === 'danger' && '🗑️'}
-            {type === 'info' && 'ℹ️'}
-          </div>
-          <h3 style={{ color: typeColors[type] }}>{title}</h3>
-        </div>
-        <div className="confirm-modal-body">
-          <p>{message}</p>
-        </div>
-        <div className="confirm-modal-footer">
-          <button className="btn-confirm-cancel" onClick={onCancel}>
-            {cancelText}
-          </button>
-          <button 
-            className="btn-confirm-action" 
-            onClick={onConfirm}
-            style={{ 
-              background: typeColors[type]
-            }}
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+interface Reserva {
+  id_reserva: number;
+  usuario_nombre: string;
+  usuario_email: string;
+  nombre_evento: string;
+  fecha_evento: string;
+  fecha_inscripcion: string;
+  estado_reserva: string;
+  monto: number;
+}
 
+// ============================================================================
+// 2. COMPONENTE PRINCIPAL
+// ============================================================================
 const AdminDashboard: React.FC = () => {
-  const [activeView, setActiveView] = useState('pendientes');
+  // --- Estados de Datos ---
+  const [vistaActual, setVistaActual] = useState<'pendientes' | 'activos' | 'historial' | 'pagos' | 'inscriptos'>('pendientes');
   const [solicitudesAlta, setSolicitudesAlta] = useState<SolicitudAlta[]>([]);
   const [solicitudesBaja, setSolicitudesBaja] = useState<SolicitudBaja[]>([]);
-  const [eventosActivos, setEventosActivos] = useState<EventoActivo[]>([]);
-  const [eventosFinalizados, setEventosFinalizados] = useState<EventoFinalizado[]>([]);
-  const [eventosCancelados, setEventosCancelados] = useState<EventoEliminado[]>([]);
-  const [eventosDepurados, setEventosDepurados] = useState<EventoEliminado[]>([]);
+  const [eventosActivos, setEventosActivos] = useState<Evento[]>([]);
+  const [historialEventos, setHistorialEventos] = useState<HistorialItem[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
-  
-  // Modal de motivo
-  const [motivoModal, setMotivoModal] = useState<{
-    show: boolean;
-    tipo: 'rechazar-alta' | 'eliminar-evento' | 'depurar-finalizado' | 'eliminar-definitivo' | null;
-    id: number;
-  }>({ show: false, tipo: null, id: 0 });
-  const [motivoTexto, setMotivoTexto] = useState('');
 
-  // ✅ NUEVO: Modal de confirmación
+  // --- Estados de Filtros ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'todos' | 'finalizados' | 'eliminados'>('todos');
+
+  // --- Estados UI (Modales) ---
+  const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     show: boolean;
     title: string;
@@ -154,23 +86,31 @@ const AdminDashboard: React.FC = () => {
     onConfirm: () => void;
     type: 'warning' | 'danger' | 'info';
   }>({ show: false, title: '', message: '', onConfirm: () => {}, type: 'warning' });
+  
+  const [inputModal, setInputModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    value: string;
+    onConfirm: (value: string) => void;
+    type: 'warning' | 'danger' | 'info';
+  }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
 
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = '/login';
+  // --------------------------------------------------------------------------
+  // HELPERS DE MODALES
+  // --------------------------------------------------------------------------
+  const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') => {
+    setToast({ mensaje, tipo });
   };
 
-  useEffect(() => {
-    cargarDatos();
-  }, [activeView]);
-
-  const showToast = (message: string, type: 'success' | 'error' | 'info') => {
-    setToast({ message, type });
-  };
-
-  const showConfirm = (title: string, message: string, onConfirm: () => void, type: 'warning' | 'danger' | 'info' = 'warning') => {
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    type: 'warning' | 'danger' | 'info' = 'warning'
+  ) => {
     setConfirmModal({ show: true, title, message, onConfirm, type });
   };
 
@@ -178,94 +118,103 @@ const AdminDashboard: React.FC = () => {
     setConfirmModal({ show: false, title: '', message: '', onConfirm: () => {}, type: 'warning' });
   };
 
+  const showInputModal = (
+    title: string,
+    message: string,
+    onConfirm: (value: string) => void,
+    type: 'warning' | 'danger' | 'info' = 'warning'
+  ) => {
+    setInputModal({ show: true, title, message, value: '', onConfirm, type });
+  };
+
+  const hideInputModal = () => {
+    setInputModal({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
+  };
+
+  // --------------------------------------------------------------------------
+  // EFECTOS
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    cargarDatos();
+    setSearchTerm('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vistaActual]);
+
+  // --------------------------------------------------------------------------
+  // CARGA DE DATOS
+  // --------------------------------------------------------------------------
   const cargarDatos = async () => {
     setLoading(true);
+    const token = localStorage.getItem('token');
+    const config = { headers: { Authorization: `Bearer ${token}` } };
+
     try {
-      if (activeView === 'pendientes') {
-        await Promise.all([cargarSolicitudesAlta(), cargarSolicitudesBaja()]);
-      } else if (activeView === 'activos') {
-        await cargarEventosActivos();
-      } else if (activeView === 'finalizados') {
-        await cargarEventosFinalizados();
-      } else if (activeView === 'historial') {
-        await cargarHistorial();
+      if (vistaActual === 'pendientes') {
+        const resAlta = await axios.get('http://localhost:8000/api/v1/admin/solicitudes/pendientes', config);
+        setSolicitudesAlta(Array.isArray(resAlta.data) ? resAlta.data.map((s: any) => ({ ...s, tipo: 'alta' })) : []);
+        
+        const resBaja = await axios.get('http://localhost:8000/api/v1/admin/bajas/pendientes', config);
+        setSolicitudesBaja(Array.isArray(resBaja.data) ? resBaja.data.map((s: any) => ({ ...s, tipo: 'baja' })) : []);
+      } 
+      else if (vistaActual === 'activos') {
+        const res = await axios.get('http://localhost:8000/api/v1/eventos/', config);
+        setEventosActivos(Array.isArray(res.data) ? res.data.filter((e: Evento) => e.id_estado === 3) : []); 
+      } 
+      else if (vistaActual === 'historial') {
+        const res = await axios.get('http://localhost:8000/api/v1/admin/historial-eliminaciones', config);
+        setHistorialEventos(Array.isArray(res.data) ? res.data : []);
+      } 
+      else if (vistaActual === 'pagos' || vistaActual === 'inscriptos') {
+        const res = await axios.get('http://localhost:8000/api/v1/inscripciones', config);
+        setReservas(Array.isArray(res.data) ? res.data : []);
       }
-      // Nota: 'pagos' e 'inscriptos' cargan sus propios datos internamente
-    } catch (error: any) {
-      console.error('Error cargando datos:', error);
-      showToast(error.message || 'Error al cargar datos', 'error');
+    } catch (error) {
+      console.error(error);
+      showToast('Error al conectar con el servidor', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const cargarSolicitudesAlta = async () => {
-    try {
-      const data = await AdminService.obtenerSolicitudesPendientes();
-      setSolicitudesAlta(data);
-    } catch (error: any) {
-      console.error('Error:', error);
-      setSolicitudesAlta([]);
-    }
+  const handleRecargar = () => { 
+    cargarDatos(); 
+    showToast('Datos actualizados', 'success'); 
   };
-
-  const cargarSolicitudesBaja = async () => {
-    try {
-      const data = await AdminService.obtenerBajasPendientes();
-      setSolicitudesBaja(data);
-    } catch (error: any) {
-      console.error('Error:', error);
-      setSolicitudesBaja([]);
-    }
-  };
-
-  const cargarEventosActivos = async () => {
-    try {
-      const data = await AdminService.obtenerEventosActivos();
-      setEventosActivos(data);
-    } catch (error: any) {
-      console.error('Error:', error);
-      setEventosActivos([]);
-    }
-  };
-
-  const cargarEventosFinalizados = async () => {
-    try {
-      const data = await AdminService.obtenerEventosFinalizados();
-      setEventosFinalizados(data);
-    } catch (error: any) {
-      console.error('Error:', error);
-      setEventosFinalizados([]);
-    }
-  };
-
-  const cargarHistorial = async () => {
-    try {
-      const historial = await AdminService.obtenerHistorialEliminaciones();
-      const cancelados = historial.filter((e: EventoEliminado) => e.tipo_eliminacion === 'soft_delete');
-      const depurados = historial.filter((e: EventoEliminado) => e.tipo_eliminacion === 'hard_delete');
-      setEventosCancelados(cancelados);
-      setEventosDepurados(depurados);
-    } catch (error: any) {
-      console.error('Error:', error);
-      setEventosCancelados([]);
-      setEventosDepurados([]);
-    }
-  };
-
-  // ========== HANDLERS - ALTAS ==========
   
-  const handleAprobarAlta = async (idSolicitud: number) => {
+  const handlePrint = () => window.print();
+  
+  const handleExportCSV = (datos: any[], nombre: string) => {
+    if (!datos || !datos.length) return showToast('Sin datos para exportar', 'error');
+    const headers = Object.keys(datos[0]);
+    const csv = [headers.join(','), ...datos.map(row => headers.map(h => `"${String(row[h]||'').replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a'); 
+    link.href = url; 
+    link.download = `${nombre}.csv`; 
+    document.body.appendChild(link); 
+    link.click(); 
+    document.body.removeChild(link);
+  };
+
+  // --------------------------------------------------------------------------
+  // HANDLERS - USANDO MODALES
+  // --------------------------------------------------------------------------
+  
+  const handleAprobarAlta = (id: number) => {
     showConfirm(
       'Aprobar Solicitud',
       '¿Estás seguro de aprobar esta solicitud y publicar el evento?',
       async () => {
         try {
-          await AdminService.aprobarSolicitud(idSolicitud);
-          showToast('Solicitud aprobada y evento publicado', 'success');
+          await axios.patch(`http://localhost:8000/api/v1/admin/solicitudes/${id}/revisar`, 
+            { id_estado_solicitud: 3 }, 
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
+          showToast('Solicitud aprobada correctamente', 'success');
           cargarDatos();
-        } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error al aprobar', 'error');
+        } catch {
+          showToast('Error al aprobar solicitud', 'error');
         }
         hideConfirm();
       },
@@ -273,39 +222,41 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  const abrirModalRechazoAlta = (idSolicitud: number) => {
-    setMotivoModal({ show: true, tipo: 'rechazar-alta', id: idSolicitud });
-    setMotivoTexto('');
-  };
-
-  const handleRechazarAlta = async () => {
-    if (!motivoTexto.trim()) {
-      showToast('Debes ingresar un motivo', 'error');
-      return;
-    }
-    try {
-      await AdminService.rechazarSolicitud(motivoModal.id, motivoTexto);
-      showToast('Solicitud rechazada', 'info');
-      cerrarModal();
-      cargarDatos();
-    } catch (error: any) {
-      showToast(error.response?.data?.detail || 'Error', 'error');
-    }
-  };
-
-  // ========== HANDLERS - BAJAS ==========
-  
-  const handleAprobarBaja = async (idEvento: number) => {
+  const handleRechazarAlta = (id: number) => {
     showConfirm(
-      'Confirmar Eliminación',
-      '¿Estás seguro de eliminar este evento? ',
+      'Rechazar Solicitud',
+      '¿Estás seguro de rechazar esta solicitud?',
       async () => {
         try {
-          await AdminService.aprobarBaja(idEvento);
+          await axios.patch(`http://localhost:8000/api/v1/admin/solicitudes/${id}/revisar`, 
+            { id_estado_solicitud: 4 }, 
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
+          showToast('Solicitud rechazada', 'info');
+          cargarDatos();
+        } catch {
+          showToast('Error al rechazar solicitud', 'error');
+        }
+        hideConfirm();
+      },
+      'warning'
+    );
+  };
+
+  const handleAprobarBaja = (id: number) => {
+    showConfirm(
+      'Aprobar Eliminación',
+      '¿Estás seguro de eliminar este evento?',
+      async () => {
+        try {
+          await axios.patch(`http://localhost:8000/api/v1/admin/bajas/${id}/aprobar`, 
+            {}, 
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
           showToast('Evento eliminado correctamente', 'success');
           cargarDatos();
-        } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
+        } catch {
+          showToast('Error al aprobar baja', 'error');
         }
         hideConfirm();
       },
@@ -313,17 +264,20 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  const handleRechazarBaja = async (idEvento: number) => {
+  const handleRechazarBaja = (id: number) => {
     showConfirm(
-      'Rechazar Solicitud de Baja',
+      'Rechazar Eliminación',
       '¿Rechazar esta solicitud y mantener el evento activo?',
       async () => {
         try {
-          await AdminService.rechazarBaja(idEvento);
+          await axios.patch(`http://localhost:8000/api/v1/admin/bajas/${id}/rechazar`, 
+            {}, 
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
           showToast('Solicitud rechazada. Evento continúa publicado', 'success');
           cargarDatos();
-        } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
+        } catch {
+          showToast('Error al rechazar baja', 'error');
         }
         hideConfirm();
       },
@@ -331,91 +285,70 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  // ========== HANDLERS - EVENTOS ACTIVOS ==========
-  
-  const abrirModalEliminarEvento = (idEvento: number) => {
-    setMotivoModal({ show: true, tipo: 'eliminar-evento', id: idEvento });
-    setMotivoTexto('');
-  };
-
-  const handleEliminarEventoActivo = async () => {
-    if (!motivoTexto.trim()) {
-      showToast('Debes ingresar un motivo', 'error');
-      return;
-    }
-    
-    // Cerrar el modal de motivo primero y guardar los valores
-    const motivoGuardado = motivoTexto;
-    const idEventoGuardado = motivoModal.id;
-    cerrarModal();
-    
-    // Luego mostrar el modal de confirmación personalizado
-    showConfirm(
-      '⚠️ Confirmar Eliminación',
-      '¿Estás seguro de eliminar este evento? Esta acción cancelará el evento.',
-      async () => {
+  const handleEliminarEvento = (id: number, nombre: string) => {
+    showInputModal(
+      '🗑️ Cancelar Evento',
+      `Estás a punto de cancelar el evento "${nombre}". Ingresa el motivo:`,
+      async (motivo) => {
         try {
-          await adminEliminarEvento(idEventoGuardado, motivoGuardado);
-          showToast('Evento eliminado correctamente', 'success');
+          const token = localStorage.getItem('token');
+          await axios.post(
+            `http://localhost:8000/api/v1/eliminacion/admin/eliminar/${id}`,
+            { motivo },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          showToast('Evento cancelado correctamente', 'success');
           cargarDatos();
         } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
+          showToast(error.response?.data?.detail || 'Error al cancelar evento', 'error');
         }
-        hideConfirm();
+        hideInputModal();
       },
       'danger'
     );
   };
 
-  // ========== HANDLERS - FINALIZADOS ==========
-  
-  const abrirModalDepurarFinalizado = (idEvento: number) => {
-    setMotivoModal({ show: true, tipo: 'depurar-finalizado', id: idEvento });
-    setMotivoTexto('');
-  };
-
-  const handleDepurarFinalizado = async () => {
-    if (!motivoTexto.trim()) {
-      showToast('Debes ingresar un motivo', 'error');
-      return;
-    }
-    
-    // Cerrar el modal de motivo primero y guardar los valores
-    const motivoGuardado = motivoTexto;
-    const idEventoGuardado = motivoModal.id;
-    cerrarModal();
-    
-    // Luego mostrar el modal de confirmación personalizado
-    showConfirm(
-      '⚠️ ATENCIÓN - Depuración Permanente',
-      '¿Estás seguro de depurar este evento? Esta acción eliminará el evento de forma PERMANENTE de la base de datos.',
-      async () => {
+  const handleDepurarEvento = (id: number, nombre: string) => {
+    showInputModal(
+      '⚠️ Eliminar Evento Definitivamente',
+      `Esta acción eliminará PERMANENTEMENTE el evento "${nombre}" de la base de datos. Ingresa el motivo:`,
+      async (motivo) => {
         try {
-          await AdminService.depurarEvento(idEventoGuardado, motivoGuardado);
-          showToast('Evento depurado correctamente', 'success');
+          const token = localStorage.getItem('token');
+          await axios.delete(
+            `http://localhost:8000/api/v1/eliminacion/admin/depurar/${id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              data: { motivo }
+            }
+          );
+          showToast('Evento depurado definitivamente', 'success');
           cargarDatos();
         } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
+          showToast(error.response?.data?.detail || 'Error al depurar evento', 'error');
         }
-        hideConfirm();
+        hideInputModal();
       },
       'danger'
     );
   };
 
-  // ========== HANDLERS - HISTORIAL ==========
-  
-  const handleRestaurarCancelado = async (idEvento: number) => {
+  const handleRestaurarEvento = (id: number, nombre: string) => {
     showConfirm(
-      'Restaurar Evento',
-      '¿Restaurar este evento y volver a publicarlo?',
+      '♻️ Restaurar Evento',
+      `¿Estás seguro de restaurar "${nombre}"? Volverá a estar publicado y activo.`,
       async () => {
         try {
-          await AdminService.restaurarEvento(idEvento);
+          const token = localStorage.getItem('token');
+          await axios.patch(
+            `http://localhost:8000/api/v1/eliminacion/admin/restaurar/${id}`,
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
           showToast('Evento restaurado y publicado', 'success');
           cargarDatos();
         } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
+          showToast(error.response?.data?.detail || 'Error al restaurar evento', 'error');
         }
         hideConfirm();
       },
@@ -423,308 +356,367 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  const abrirModalEliminarDefinitivo = (idEvento: number) => {
-    setMotivoModal({ show: true, tipo: 'eliminar-definitivo', id: idEvento });
-    setMotivoTexto('');
-  };
-
-  const handleEliminarDefinitivamente = async () => {
-    if (!motivoTexto.trim()) {
-      showToast('Debes ingresar un motivo', 'error');
-      return;
-    }
-
-    // Cerrar el modal de motivo primero y guardar los valores
-    const motivoGuardado = motivoTexto;
-    const idEventoGuardado = motivoModal.id;
-    cerrarModal();
-
-    // Luego mostrar el modal de confirmación personalizado
-    showConfirm(
-      '⚠️ ADVERTENCIA - Eliminación Definitiva',
-      'Esta acción eliminará el evento PERMANENTEMENTE de la base de datos y NO se podrá recuperar. ¿Estás seguro?',
-      async () => {
-        try {
-          await AdminService.depurarEvento(idEventoGuardado, motivoGuardado);
-          showToast('Evento eliminado definitivamente', 'success');
-          cargarDatos();
-        } catch (error: any) {
-          showToast(error.response?.data?.detail || 'Error', 'error');
-        }
-        hideConfirm();
-      },
-      'danger'
-    );
-  };
-
-  // ========== MODAL ==========
-  
-  const cerrarModal = () => {
-    setMotivoModal({ show: false, tipo: null, id: 0 });
-    setMotivoTexto('');
-  };
-
-  const confirmarAccionModal = () => {
-    if (motivoModal.tipo === 'rechazar-alta') {
-      handleRechazarAlta();
-    } else if (motivoModal.tipo === 'eliminar-evento') {
-      handleEliminarEventoActivo();
-    } else if (motivoModal.tipo === 'depurar-finalizado') {
-      handleDepurarFinalizado();
-    } else if (motivoModal.tipo === 'eliminar-definitivo') {
-      handleEliminarDefinitivamente();
+  const handleConfirmarPago = async () => {
+    if (!pagoModal.reserva) return;
+    try {
+      await axios.post(
+        `http://localhost:8000/api/v1/inscripciones/confirmar-pago/${pagoModal.reserva.id_reserva}`,
+        {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      showToast('Pago confirmado correctamente', 'success');
+      setPagoModal({ show: false, reserva: null });
+      cargarDatos();
+    } catch {
+      showToast('Error al confirmar pago', 'error');
     }
   };
 
-  // ========== VISTAS ==========
+  // --------------------------------------------------------------------------
+  // FILTROS
+  // --------------------------------------------------------------------------
+  const normalize = (s: string) => s ? s.toLowerCase().trim() : '';
 
-  const PendientesView = () => (
-    <>
-      <div className="admin-card">
-        <div className="card-header-admin">
-          <h2 className="card-title-admin">
-            📋 Solicitudes de Publicación
-            {solicitudesAlta.length > 0 && <span className="badge-count-admin">{solicitudesAlta.length}</span>}
-          </h2>
-        </div>
-        {solicitudesAlta.length === 0 ? (
-          <div className="empty-state-admin">Sin solicitudes pendientes</div>
-        ) : (
-          <div className="table-wrapper-admin">
-            <table className="data-table-admin">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Evento</th><th>Usuario</th><th>Fecha</th><th>Ubicación</th><th>Tipo</th><th className="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {solicitudesAlta.map((sol) => (
-                  <tr key={sol.id_solicitud}>
-                    <td className="text-muted-admin">{sol.id_solicitud}</td>
-                    <td className="text-highlight-admin">{sol.nombre_evento}</td>
-                    <td>{sol.usuario?.email || 'N/A'}</td>
-                    <td>{new Date(sol.fecha_evento).toLocaleDateString('es-AR')}</td>
-                    <td className="text-sm-admin">{sol.ubicacion}</td>
-                    <td><span className="badge-admin">{sol.tipo_evento?.nombre || 'N/A'}</span></td>
-                    <td className="actions-admin">
-                      <button className="btn-icon-admin btn-success-admin" onClick={() => handleAprobarAlta(sol.id_solicitud)} title="Aprobar">✓</button>
-                      <button className="btn-icon-admin btn-danger-admin" onClick={() => abrirModalRechazoAlta(sol.id_solicitud)} title="Rechazar">✕</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+  const filtrarHistorial = () => {
+    let res = historialEventos;
+    
+    if (filterType === 'finalizados') {
+      res = res.filter(h => {
+        const estado = normalize(h.estado);
+        return estado === 'finalizado' && !estado.includes('depurado');
+      });
+    }
+    
+    if (filterType === 'eliminados') {
+      res = res.filter(h => {
+        const estado = normalize(h.estado);
+        return estado.includes('cancelado') || estado.includes('depurado');
+      });
+    }
+    
+    if (searchTerm) {
+      res = res.filter(h => h.nombre_evento.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+    
+    return res;
+  };
 
-      <div className="admin-card card-danger-admin">
-        <div className="card-header-admin">
-          <h2 className="card-title-admin">
-            🗑️ Solicitudes de Eliminación
-            {solicitudesBaja.length > 0 && <span className="badge-count-admin">{solicitudesBaja.length}</span>}
-          </h2>
-        </div>
-        {solicitudesBaja.length === 0 ? (
-          <div className="empty-state-admin">Sin solicitudes de baja</div>
-        ) : (
-          <div className="table-wrapper-admin">
-            <table className="data-table-admin">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Evento</th><th>Motivo</th><th>Solicitante</th><th>Fecha Solicitud</th><th className="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {solicitudesBaja.map((baja) => (
-                  <tr key={baja.id_eliminacion}>
-                    <td className="text-muted-admin">{baja.id_evento}</td>
-                    <td className="text-highlight-admin">{baja.nombre_evento}</td>
-                    <td className="text-sm-admin">{baja.motivo}</td>
-                    <td>{baja.usuario_solicitante}</td>
-                    <td>{new Date(baja.fecha_solicitud).toLocaleString('es-AR')}</td>
-                    <td className="actions-admin">
-                      <button className="btn-sm-admin btn-danger-admin" onClick={() => handleAprobarBaja(baja.id_evento)}>Eliminar</button>
-                      <button className="btn-sm-admin btn-success-admin" onClick={() => handleRechazarBaja(baja.id_evento)}>Mantener</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
+  const filtrarGenerico = (lista: any[], campo: string) => {
+    if (!searchTerm) return lista;
+    return lista.filter(item => String(item[campo]).toLowerCase().includes(searchTerm.toLowerCase()));
+  };
 
-  const ActivosView = () => (
-    <div className="admin-card">
-      <div className="card-header-admin">
-        <h2 className="card-title-admin">
-          ✅ Eventos Activos
-          {eventosActivos.length > 0 && <span className="badge-count-admin">{eventosActivos.length}</span>}
-        </h2>
-      </div>
-      {eventosActivos.length === 0 ? (
-        <div className="empty-state-admin">No hay eventos activos</div>
-      ) : (
-        <div className="table-wrapper-admin">
-          <table className="data-table-admin">
-            <thead>
-              <tr>
-                <th>ID</th><th>Evento</th><th>Fecha</th><th>Ubicación</th><th>Tipo</th><th>Costo</th><th>Cupo</th><th className="text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventosActivos.map((evento) => (
-                <tr key={evento.id_evento}>
-                  <td className="text-muted-admin">{evento.id_evento}</td>
-                  <td className="text-highlight-admin">{evento.nombre_evento}</td>
-                  <td>{new Date(evento.fecha_evento).toLocaleDateString('es-AR')}</td>
-                  <td className="text-sm-admin">{evento.ubicacion}</td>
-                  <td><span className="badge-admin">{evento.tipo_evento?.nombre || 'N/A'}</span></td>
-                  <td>${evento.costo_participacion}</td>
-                  <td>{evento.cupo_maximo || '∞'}</td>
-                  <td className="actions-admin">
-                    <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalEliminarEvento(evento.id_evento)}>Eliminar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+  const esRestaurable = (estado: string) => {
+    const s = normalize(estado);
+    return s.includes('cancelado') && s.includes('soft delete');
+  };
 
-  const FinalizadosView = () => (
-    <div className="admin-card">
-      <div className="card-header-admin">
-        <h2 className="card-title-admin">
-          🕐 Eventos Finalizados
-          {eventosFinalizados.length > 0 && <span className="badge-count-admin">{eventosFinalizados.length}</span>}
-        </h2>
-      </div>
-      <p className="info-text-admin">Eventos cuya fecha ya pasó. Puedes depurarlos para limpiar la base de datos.</p>
-      {eventosFinalizados.length === 0 ? (
-        <div className="empty-state-admin">No hay eventos finalizados</div>
-      ) : (
-        <div className="table-wrapper-admin">
-          <table className="data-table-admin">
-            <thead>
-              <tr>
-                <th>ID</th><th>Evento</th><th>Fecha</th><th>Ubicación</th><th>Tipo</th><th className="text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventosFinalizados.map((evento) => (
-                <tr key={evento.id_evento}>
-                  <td className="text-muted-admin">{evento.id_evento}</td>
-                  <td className="text-highlight-admin">{evento.nombre_evento}</td>
-                  <td>{new Date(evento.fecha_evento).toLocaleDateString('es-AR')}</td>
-                  <td className="text-sm-admin">{evento.ubicacion}</td>
-                  <td><span className="badge-admin">{evento.tipo_evento?.nombre || 'N/A'}</span></td>
-                  <td className="actions-admin">
-                    <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalDepurarFinalizado(evento.id_evento)} title="Depurar">
-                      🗑️ Depurar
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+  const esDepurable = (estado: string) => {
+    const s = normalize(estado);
+    return !s.includes('depurado') && !s.includes('hard delete');
+  };
 
-  const HistorialView = () => (
-    <>
-      <div className="admin-card">
-        <div className="card-header-admin">
-          <h2 className="card-title-admin">
-            🔄 Eventos Cancelados 
-            {eventosCancelados.length > 0 && <span className="badge-count-admin">{eventosCancelados.length}</span>}
-          </h2>
-        </div>
-        <p className="info-text-admin">Eventos cancelados que pueden ser restaurados o eliminados definitivamente.</p>
-        {eventosCancelados.length === 0 ? (
-          <div className="empty-state-admin">No hay eventos cancelados</div>
-        ) : (
-          <div className="table-wrapper-admin">
-            <table className="data-table-admin">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Evento</th><th>Fecha Eliminación</th><th>Motivo</th><th>Eliminado Por</th><th className="text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventosCancelados.map((evento, i) => (
-                  <tr key={`${evento.id_evento}-${i}`}>
-                    <td className="text-muted-admin">{evento.id_evento}</td>
-                    <td className="text-highlight-admin">{evento.nombre_evento}</td>
-                    <td>{evento.fecha_eliminacion}</td>
-                    <td className="text-sm-admin">{evento.motivo}</td>
-                    <td>{evento.eliminado_por}</td>
-                    <td className="actions-admin">
-                      <button className="btn-sm-admin btn-success-admin" onClick={() => handleRestaurarCancelado(evento.id_evento)} title="Restaurar evento">
-                        ♻️ Restaurar
-                      </button>
-                      <button className="btn-sm-admin btn-danger-admin" onClick={() => abrirModalEliminarDefinitivo(evento.id_evento)} title="Eliminar definitivamente">
-                        🗑️ Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+  const getBadgeClass = (estado: string) => {
+    const s = normalize(estado);
+    if (s.includes('depurado') || s.includes('hard delete')) return 'badge-estado-depurado';
+    if (s.includes('cancelado') || s.includes('soft delete')) return 'badge-estado-eliminado';
+    if (['finalizado', 'confirmada'].includes(s)) return 'badge-estado-finalizado';
+    return 'badge-estado-default';
+  };
 
-      <div className="admin-card">
-        <div className="card-header-admin">
-          <h2 className="card-title-admin">
-            💀 Eventos Depurados 
-            {eventosDepurados.length > 0 && <span className="badge-count-admin">{eventosDepurados.length}</span>}
-          </h2>
-        </div>
-        <p className="info-text-admin">Registro permanente de eventos depurados. No se pueden restaurar.</p>
-        {eventosDepurados.length === 0 ? (
-          <div className="empty-state-admin">No hay eventos depurados</div>
-        ) : (
-          <div className="table-wrapper-admin">
-            <table className="data-table-admin">
-              <thead>
-                <tr>
-                  <th>ID</th><th>Evento</th><th>Fecha Depuración</th><th>Motivo</th><th>Depurado Por</th><th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventosDepurados.map((evento, i) => (
-                  <tr key={`${evento.id_evento}-${i}`}>
-                    <td className="text-muted-admin">{evento.id_evento}</td>
-                    <td className="text-highlight-admin">{evento.nombre_evento}</td>
-                    <td>{evento.fecha_eliminacion}</td>
-                    <td className="text-sm-admin">{evento.motivo}</td>
-                    <td>{evento.eliminado_por}</td>
-                    <td><span className="badge-depurado-admin">Depurado</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </>
-  );
-
+  // ============================================================================
+  // RENDER
+  // ============================================================================
   return (
-    <div className="admin-dashboard-container">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    <div className='contenttotal'>
+      <Navbar />
+      <div style={{ display: 'flex', flex: 1 }}>
+        
+        {/* SIDEBAR */}
+        <aside className="admin-sidebar">
+          <h2 className="admin-title">Panel Admin</h2>
+          <nav className="admin-nav">
+            <button className={vistaActual === 'pendientes' ? 'active' : ''} onClick={() => setVistaActual('pendientes')}>📋 Pendientes</button>
+            <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => setVistaActual('activos')}>✅ Activos</button>
+            <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial</button>
+            <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos</button>
+            <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Inscriptos</button>
+          </nav>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <main className="admin-main-content">
+          {loading && <div style={{ textAlign: 'center', padding: '10px', color: '#777' }}>Cargando datos...</div>}
+
+          {/* VISTA PENDIENTES */}
+          {vistaActual === 'pendientes' && (
+            <div className="admin-content-view">
+              <div className="view-header">
+                <h2>📋 Solicitudes Pendientes</h2>
+                <div className="toolbar-admin">
+                  <div className="search-form-admin">
+                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <button className="btn-search-admin">Buscar</button>
+                  </div>
+                  <div className="action-buttons-inline">
+                    <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV([...solicitudesAlta, ...solicitudesBaja], 'Pendientes')}>📂 Excel</button>
+                    <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="seccion-solicitudes">
+                <h3>📝 Altas</h3>
+                <table className="data-table-admin">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Evento</th>
+                      <th style={{ textAlign: 'left' }}>Usuario</th>
+                      <th style={{ textAlign: 'center' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtrarGenerico(solicitudesAlta, 'nombre_evento').map(s => (
+                      <tr key={s.id_solicitud}>
+                        <td style={{ textAlign: 'left' }}>{s.nombre_evento}</td>
+                        <td style={{ textAlign: 'left' }}>{s.id_usuario}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)}>✓</button>
+                          <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)}>✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
+                <h3 style={{ color: '#fc8181' }}>🗑️ Bajas</h3>
+                <table className="data-table-admin">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Evento</th>
+                      <th style={{ textAlign: 'left' }}>Motivo</th>
+                      <th style={{ textAlign: 'center' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtrarGenerico(solicitudesBaja, 'nombre_evento').map(s => (
+                      <tr key={s.id_eliminacion}>
+                        <td style={{ textAlign: 'left' }}>{s.nombre_evento}</td>
+                        <td style={{ textAlign: 'left' }}>{s.motivo}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)}>✓</button>
+                          <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)}>✕</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* VISTA ACTIVOS */}
+          {vistaActual === 'activos' && (
+            <div className="admin-content-view">
+              <div className="view-header">
+                <h2>✅ Eventos Activos ({eventosActivos.length})</h2>
+                <div className="toolbar-admin">
+                  <div className="search-form-admin">
+                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <button className="btn-search-admin">Buscar</button>
+                  </div>
+                  <div className="action-buttons-inline">
+                    <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV(eventosActivos, 'Activos')}>📂 Excel</button>
+                    <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
+                  </div>
+                </div>
+              </div>
+              <table className="data-table-admin">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>ID</th>
+                    <th style={{ textAlign: 'left' }}>Evento</th>
+                    <th style={{ textAlign: 'left' }}>Fecha</th>
+                    <th style={{ textAlign: 'center' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrarGenerico(eventosActivos, 'nombre_evento').map(e => (
+                    <tr key={e.id_evento}>
+                      <td style={{ textAlign: 'left' }}>{e.id_evento}</td>
+                      <td style={{ textAlign: 'left' }}>{e.nombre_evento}</td>
+                      <td style={{ textAlign: 'left' }}>{e.fecha_evento}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>
+                          🗑️ Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VISTA HISTORIAL */}
+          {vistaActual === 'historial' && (
+            <div className="admin-content-view">
+              <div className="view-header">
+                <h2>📖 Historial ({filtrarHistorial().length})</h2>
+                <div className="toolbar-admin">
+                  <div className="search-form-admin">
+                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <button className="btn-search-admin">Buscar</button>
+                  </div>
+                  <div className="filter-buttons-admin">
+                    <button onClick={() => setFilterType('todos')}>Todos</button>
+                    <button onClick={() => setFilterType('finalizados')}>Final.</button>
+                    <button onClick={() => setFilterType('eliminados')}>Elim.</button>
+                  </div>
+                  <div className="action-buttons-inline">
+                    <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV(filtrarHistorial(), 'Historial')}>📂 Excel</button>
+                    <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
+                  </div>
+                </div>
+              </div>
+              <table className="data-table-admin">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Evento</th>
+                    <th style={{ textAlign: 'left' }}>Motivo</th>
+                    <th style={{ textAlign: 'center' }}>Estado</th>
+                    <th style={{ textAlign: 'center' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrarHistorial().map((item, idx) => (
+                    <tr key={idx}>
+                      <td style={{ textAlign: 'left' }}>
+                        <strong>{item.nombre_evento}</strong>
+                        <br />
+                        <small>{item.fecha_eliminacion}</small>
+                      </td>
+                      <td style={{ textAlign: 'left' }}>{item.motivo}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge-estado-small ${getBadgeClass(item.estado)}`}>
+                          {item.estado}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="action-buttons-inline">
+                          {esRestaurable(item.estado) && (
+                            <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>
+                              ♻️
+                            </button>
+                          )}
+                          {esDepurable(item.estado) && (
+                            <button className="btn-depurar-admin" title="Eliminar Definitivamente" onClick={() => handleDepurarEvento(item.id_evento, item.nombre_evento)}>
+                              🧹
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VISTA PAGOS */}
+          {vistaActual === 'pagos' && (
+            <div className="admin-content-view">
+              <div className="view-header">
+                <h2>💳 Pagos Pendientes</h2>
+                <div className="toolbar-admin">
+                  <div className="search-form-admin">
+                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <button className="btn-search-admin">Buscar</button>
+                  </div>
+                  <div className="action-buttons-inline">
+                    <button className="btn-print-admin" onClick={handleRecargar}>🔄</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV(reservas, 'Pagos')}>📂 Excel</button>
+                    <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
+                  </div>
+                </div>
+              </div>
+              <table className="data-table-admin">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Usuario</th>
+                    <th style={{ textAlign: 'left' }}>Evento</th>
+                    <th style={{ textAlign: 'left' }}>Monto</th>
+                    <th style={{ textAlign: 'center' }}>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrarGenerico(reservas.filter(r => r.estado_reserva === 'Pendiente'), 'usuario_email').map(r => (
+                    <tr key={r.id_reserva}>
+                      <td style={{ textAlign: 'left' }}>{r.usuario_email}</td>
+                      <td style={{ textAlign: 'left' }}>{r.nombre_evento}</td>
+                      <td style={{ textAlign: 'left' }}>${r.monto}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button className="btn-confirmar-pago-admin" onClick={() => setPagoModal({ show: true, reserva: r })}>
+                          Confirmar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* VISTA INSCRIPTOS */}
+          {vistaActual === 'inscriptos' && (
+            <div className="admin-content-view">
+              <div className="view-header">
+                <h2>👥 Inscriptos</h2>
+                <div className="toolbar-admin">
+                  <div className="search-form-admin">
+                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <button className="btn-search-admin">Buscar</button>
+                  </div>
+                  <div className="action-buttons-inline">
+                    <button className="btn-print-admin" onClick={handleRecargar}>🔄</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV(reservas, 'Inscriptos')}>📂 Excel</button>
+                    <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
+                  </div>
+                </div>
+              </div>
+              <table className="data-table-admin">
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'left' }}>Usuario</th>
+                    <th style={{ textAlign: 'left' }}>Evento</th>
+                    <th style={{ textAlign: 'center' }}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtrarGenerico(reservas.filter(r => r.estado_reserva === 'Confirmada'), 'usuario_nombre').map(r => (
+                    <tr key={r.id_reserva}>
+                      <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
+                      <td style={{ textAlign: 'left' }}>{r.nombre_evento}</td>
+                      <td style={{ textAlign: 'center' }}>{r.estado_reserva}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </main>
+      </div>
+      <Footer />
+
+      {/* MODALES */}
+      {toast && <Toast message={toast.mensaje} type={toast.tipo} onClose={() => setToast(null)} />}
       
-      {/* ✅ MODAL DE CONFIRMACIÓN PERSONALIZADO */}
-      <ConfirmModal 
+      <ConfirmModal
         show={confirmModal.show}
         title={confirmModal.title}
         message={confirmModal.message}
@@ -733,125 +725,32 @@ const AdminDashboard: React.FC = () => {
         type={confirmModal.type}
       />
 
-      <header className="admin-header-main">
-        <div className="header-left-admin">
-          <a href="/" className="btn-volver-inicio">← Volver al Inicio</a>
-          <h1 className="admin-page-title">Panel de Administración</h1>
-        </div>
-        <div className="header-right-admin">
-          <button className="btn-refresh-admin" onClick={cargarDatos}>↻ Refrescar</button>
-          <div className="user-menu-container">
-            <button className="user-menu-trigger" onClick={() => setUserMenuOpen(!userMenuOpen)}>
-              <span className="user-name">{currentUser.nombre_y_apellido || currentUser.nombre || 'ADMIN'}</span>
-              <span className="arrow-icon">{userMenuOpen ? '▲' : '▼'}</span>
-            </button>
-            {userMenuOpen && (
-              <div className="user-dropdown">
-                <div className="dropdown-header">{currentUser.email}</div>
-                <a href="/perfil" className="dropdown-item">Mi Perfil</a>
-                <button className="dropdown-item logout-button" onClick={handleLogout}>Cerrar Sesión</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <InputModal
+        show={inputModal.show}
+        title={inputModal.title}
+        message={inputModal.message}
+        value={inputModal.value}
+        onChange={(value) => setInputModal({ ...inputModal, value })}
+        onConfirm={() => {
+          inputModal.onConfirm(inputModal.value);
+          hideInputModal();
+        }}
+        onCancel={hideInputModal}
+        type={inputModal.type}
+      />
 
-      <div className="admin-layout-main">
-        <aside className="admin-sidebar">
-          <button className={`sidebar-btn-admin ${activeView === 'pendientes' ? 'active' : ''}`} onClick={() => setActiveView('pendientes')}>
-            <span className="icon-admin">📋</span>
-            <span className="text-admin">Pendientes</span>
-            {(solicitudesAlta.length + solicitudesBaja.length) > 0 && <span className="badge-sidebar-admin">{solicitudesAlta.length + solicitudesBaja.length}</span>}
-          </button>
-          <button className={`sidebar-btn-admin ${activeView === 'activos' ? 'active' : ''}`} onClick={() => setActiveView('activos')}>
-            <span className="icon-admin">✅</span>
-            <span className="text-admin">Eventos Activos</span>
-          </button>
-          <button className={`sidebar-btn-admin ${activeView === 'finalizados' ? 'active' : ''}`} onClick={() => setActiveView('finalizados')}>
-            <span className="icon-admin">🕐</span>
-            <span className="text-admin">Finalizados</span>
-            {eventosFinalizados.length > 0 && <span className="badge-sidebar-admin">{eventosFinalizados.length}</span>}
-          </button>
-          <button className={`sidebar-btn-admin ${activeView === 'historial' ? 'active' : ''}`} onClick={() => setActiveView('historial')}>
-            <span className="icon-admin">📜</span>
-            <span className="text-admin">Historial</span>
-          </button>
-
-          <button 
-            className={`sidebar-btn ${activeView === 'pagos' ? 'active' : ''}`}
-            onClick={() => setActiveView('pagos')}
-          >
-            <span className="btn-icon">💰</span>
-            <span className="btn-text">Gestión Pagos</span>
-          </button>
-          
-          {/* 👇 AGREGADO: Botón para cambiar a la vista de Inscriptos */}
-          <button 
-            className={`sidebar-btn ${activeView === 'inscriptos' ? 'active' : ''}`}
-            onClick={() => setActiveView('inscriptos')}
-          >
-            <span className="btn-icon">👥</span>
-            <span className="btn-text">Inscriptos</span>
-          </button>
-          {/* ----------------------------- */}
-          
-        </aside>
-
-        <main className="admin-main-content">
-          {loading ? (
-            <div className="loading-admin">
-              <div className="spinner-admin"></div>
-              <p>Cargando datos...</p>
+      {/* MODAL PAGO */}
+      {pagoModal.show && pagoModal.reserva && (
+        <div className="modal-pago-overlay" onClick={() => setPagoModal({ show: false, reserva: null })}>
+          <div className="modal-pago-content" onClick={e => e.stopPropagation()}>
+            <div className="modal-pago-header"><h2>Confirmar Pago</h2></div>
+            <div className="modal-pago-detalles">
+              <p>Evento: {pagoModal.reserva.nombre_evento}</p>
+              <p>Monto: <b>${pagoModal.reserva.monto}</b></p>
             </div>
-          ) : (
-            <>
-              {activeView === 'pendientes' && <PendientesView />}
-              {activeView === 'activos' && <ActivosView />}
-              {activeView === 'finalizados' && <FinalizadosView />}
-              {activeView === 'historial' && <HistorialView />}
-
-              {activeView === 'pagos' && <TablaGestionPagos />}
-              
-              {/* 👇 AGREGADO: Renderizado condicional del Panel de Inscriptos */}
-              {activeView === 'inscriptos' && <PanelInscriptos />}
-              {/* ----------------------------- */}
-            </>
-          )}
-        </main>
-      </div>
-
-      {/* MODAL DE MOTIVO */}
-      {motivoModal.show && (
-        <div className="modal-overlay-admin" onClick={cerrarModal}>
-          <div className="modal-content-admin" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header-admin">
-              <h3>
-                {motivoModal.tipo === 'rechazar-alta' && '❌ Rechazar Solicitud'}
-                {motivoModal.tipo === 'eliminar-evento' && '🗑️ Eliminar Evento'}
-                {motivoModal.tipo === 'depurar-finalizado' && '⚠️ Depurar Evento'}
-                {motivoModal.tipo === 'eliminar-definitivo' && '💀 Eliminación Definitiva'}
-              </h3>
-              <button className="modal-close-admin" onClick={cerrarModal}>✕</button>
-            </div>
-            <div className="modal-body-admin">
-              <label className="modal-label-admin">Motivo (obligatorio):</label>
-              <textarea 
-                className="modal-textarea-admin" 
-                placeholder="Describe la razón de esta acción..." 
-                value={motivoTexto} 
-                onChange={(e) => setMotivoTexto(e.target.value)} 
-                rows={4} 
-              />
-            </div>
-            <div className="modal-footer-admin">
-              <button className="btn-modal-admin btn-cancel-admin" onClick={cerrarModal}>Cancelar</button>
-              <button 
-                className="btn-modal-admin btn-confirm-admin" 
-                onClick={confirmarAccionModal} 
-                disabled={!motivoTexto.trim()}
-              >
-                Confirmar
-              </button>
+            <div className="modal-pago-actions">
+              <button className="btn-cancelar-pago" onClick={() => setPagoModal({ show: false, reserva: null })}>Cancelar</button>
+              <button className="btn-confirmar-pago" onClick={handleConfirmarPago}>Confirmar</button>
             </div>
           </div>
         </div>
