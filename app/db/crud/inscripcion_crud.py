@@ -2,6 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.inscripcion_models import ReservaEvento
 from app.models.auth_models import Usuario 
+from app.models.notificacion_models import Notificacion # Importamos el modelo para el Sprint 4
 
 # =============================================================================
 #  MÉTODOS SPRINT 3 (CUPOS Y RESERVAS) - HU 8.1 a 8.9
@@ -40,6 +41,18 @@ def create_reserva(db: Session, id_evento: int, id_usuario: int, id_estado: int)
         id_estado_reserva=id_estado # Dinámico
     )
     db.add(nueva_reserva)
+
+    # --- SPRINT 4: Generar Notificación ---
+    # id_estado 1 = Pago (Pendiente), id_estado 2 = Gratis (Confirmado)
+    texto_notif = "¡Reserva exitosa! Tienes 72 hs para confirmar tu pago." if id_estado == 1 else "¡Inscripción exitosa! Ya tienes tu lugar asegurado."
+    
+    nueva_notif = Notificacion(
+        id_usuario=id_usuario,
+        mensaje=texto_notif
+    )
+    db.add(nueva_notif)
+    # --------------------------------------
+
     db.commit()
     
     # IMPORTANTE: El refresh trae de vuelta la fecha_expiracion calculada por la BD (Computed)
@@ -65,6 +78,15 @@ def confirmar_reserva_pago(db: Session, reserva: ReservaEvento):
     Cambia el estado de una reserva a 2 (Inscripto/Pagado).
     """
     reserva.id_estado_reserva = 2
+
+    # --- SPRINT 4: Notificar confirmación de pago ---
+    notif_pago = Notificacion(
+        id_usuario=reserva.id_usuario,
+        mensaje="Tu pago ha sido verificado. ¡Ya estás oficialmente inscripto!"
+    )
+    db.add(notif_pago)
+    # -----------------------------------------------
+
     db.commit()
     db.refresh(reserva)
     return reserva
