@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import '../styles/mis-eventos.css'; // Asegúrate de usar el CSS correcto
-import logoWakeUp from '../assets/wakeup-logo.png'; 
+import '../styles/mis-eventos.css'; 
 import { getMisEventos } from '../services/eventos'; 
 import CancelEventModal from '../components/CancelEventModal';
+import { Navbar } from '../components/navbar';
+import { Footer } from '../components/footer';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.split('/api')[0] : 'http://localhost:8000';
 
@@ -14,7 +15,6 @@ const IMAGENES_TIPO: Record<number | string, string> = {
     4: "https://images.unsplash.com/photo-1475666675596-cca2035b3d79?q=80&w=800&auto=format&fit=crop", 
     default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop" 
 };
-
 const NOMBRES_TIPO: Record<number | string, string> = {
     1: "Carrera", 2: "Paseo", 3: "Entrenamiento", 4: "Cicloturismo"
 };
@@ -46,7 +46,8 @@ export default function MisEventosPage() {
 
     useEffect(() => {
         cargarMisEventos();
-    }, [navigate]);
+        // Quitamos 'navigate' de las dependencias para asegurar que solo cargue al montar
+    }, []); 
 
     const cargarMisEventos = async () => {
         const token = localStorage.getItem("token") || sessionStorage.getItem("token");
@@ -56,9 +57,12 @@ export default function MisEventosPage() {
         }
 
         try {
+            // Nota: Si el backend tarda, el 'await' espera aquí.
             const data = await getMisEventos();
-            // Ordenar: Futuros primero
+            
+            // Ordenamos
             data.sort((a: Evento, b: Evento) => new Date(a.fecha_evento).getTime() - new Date(b.fecha_evento).getTime());
+            
             setEventos(data);
         } catch (err) {
             console.error(err);
@@ -68,7 +72,8 @@ export default function MisEventosPage() {
         }
     };
 
-    const obtenerImagen = (evento: Evento) => {
+    // Optimizamos esta función para que no se recalcule innecesariamente
+    const obtenerImagen = useCallback((evento: Evento) => {
         if (evento.multimedia && evento.multimedia.length > 0) {
             let mediaUrl = evento.multimedia[0].url_archivo;
             mediaUrl = mediaUrl.replace(/\\/g, "/");
@@ -84,7 +89,7 @@ export default function MisEventosPage() {
         }
         if (url && url.startsWith("http")) return url;
         return IMAGENES_TIPO[evento.id_tipo] || IMAGENES_TIPO.default;
-    };
+    }, []);
 
     const handleClickEliminar = (id: number) => {
         setSelectedEventoId(id);
@@ -92,106 +97,111 @@ export default function MisEventosPage() {
     };
 
     const handleModalSuccess = () => {
+        setLoading(true); 
         cargarMisEventos();
     };
 
     const handleEditar = (id: number) => {
-        // navigate(`/editar-evento/${id}`);
         console.log("Editar", id);
+        // navigate(`/editar-evento/${id}`);
     };
-
-    if (loading) return <div className="loading-screen">CARGANDO...</div>;
 
     return (
         <div className="mis-eventos-container">
-            <nav className="mis-eventos-navbar">
-                <Link to="/" className="hero-logo-link">
-                        <img src={logoWakeUp} alt="Wake Up Bikes" className="hero-logo" />
-                    </Link>
-                <Link to="/" className="btn-volver">Volver al Inicio</Link>
-            </nav>
-
-            <section className="main-section">
-                <div className="header-actions">
-                    <h2>Gestionar Mis Eventos</h2>
-                    <Link to="/publicar-evento" className="btn-crear">
-                        + Crear Nuevo
-                    </Link>
-                </div>
-
-                {error && <p className="error-msg">{error}</p>}
-                
-                {eventos.length === 0 ? (
-                    <div className="empty-state">
-                        <h3>Aún no has creado eventos.</h3>
-                        <p>¡Anímate a organizar tu primera salida!</p>
-                        <Link to="/publicar-evento" className="btn-crear-empty">
-                            Publicar Evento
+            <Navbar />
+            
+            <main className="mis-eventos-content-wrapper">
+                <section className="main-section">
+                    <div className="header-actions">
+                        <h2>Gestionar Mis Eventos</h2>
+                        <Link to="/publicar-evento" className="btn-crear">
+                            + Crear Nuevo
                         </Link>
                     </div>
-                ) : (
-                    <div className="grid-eventos">
-                        {eventos.map((evento) => {
-                            const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
-                            const nombreTipo = evento.nombre_tipo || NOMBRES_TIPO[evento.id_tipo] || "Evento";
 
-                            return (
-                            <article key={evento.id_evento} className="evento-card">
-                                <div className="card-img-wrapper">
-                                    <span className="tipo-badge">{nombreTipo}</span>
-                                    <img 
-                                        src={obtenerImagen(evento)}
-                                        alt={evento.nombre_evento} 
-                                        className="card-img"
-                                        onError={(e) => {
-                                            e.currentTarget.onerror = null;
-                                            e.currentTarget.src = IMAGENES_TIPO.default;
-                                        }}
-                                    />
-                                </div>
-                                
-                                <div className="card-content">
-                                    <div className="card-header">
-                                        <h3>{evento.nombre_evento}</h3>
+                    {error && <p className="error-msg">{error}</p>}
+                    
+                    {/* ✅ LÓGICA DE CARGA MEJORADA */}
+                    {loading ? (
+                        <div className="loading-container">
+                           <div className="spinner"></div>
+                            <p className="loading-text">Cargando tus eventos...</p>
+                        </div>
+                    ) : eventos.length === 0 ? (
+                        <div className="empty-state">
+                            <h3>Aún no has creado eventos.</h3>
+                            <p>¡Anímate a organizar tu primera salida!</p>
+                            <Link to="/publicar-evento" className="btn-crear-empty">
+                                Publicar Evento
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="grid-eventos">
+                            {eventos.map((evento) => {
+                                const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
+                                const nombreTipo = evento.nombre_tipo || NOMBRES_TIPO[evento.id_tipo] || "Evento";
+
+                                return (
+                                <article key={evento.id_evento} className="evento-card">
+                                    <div className="card-img-wrapper">
+                                        <span className="tipo-badge">{nombreTipo}</span>
+                                        <img 
+                                            src={obtenerImagen(evento)}
+                                            alt={evento.nombre_evento} 
+                                            className="card-img"
+                                            loading="lazy" /* 🚀 ESTO ACELERA LA PÁGINA */
+                                            onError={(e) => {
+                                                e.currentTarget.onerror = null;
+                                                e.currentTarget.src = IMAGENES_TIPO.default;
+                                            }}
+                                        />
                                     </div>
+                                    
+                                    <div className="card-content">
+                                        <div className="card-header">
+                                            <h3>{evento.nombre_evento}</h3>
+                                        </div>
 
-                                    <div className="card-info">
-                                        <div className="info-item">
-                                            <span className="icon">📅</span> {fechaLimpia}
+                                        <div className="card-info">
+                                            <div className="info-item">
+                                                <span className="icon">📅</span> {fechaLimpia}
+                                            </div>
+                                            <div className="info-item">
+                                                <span className="icon">📍</span> {evento.ubicacion}
+                                            </div>
+                                            <div className="info-cupo">
+                                                Cupo: {evento.cupo_maximo > 0 ? evento.cupo_maximo : 'Ilimitado'}
+                                            </div>
                                         </div>
-                                        <div className="info-item">
-                                            <span className="icon">📍</span> {evento.ubicacion}
-                                        </div>
-                                        <div className="info-cupo">
-                                            Cupo: {evento.cupo_maximo > 0 ? evento.cupo_maximo : 'Ilimitado'}
-                                        </div>
-                                    </div>
 
-                                    <div className="card-actions">
-                                        <button onClick={() => handleEditar(evento.id_evento)} className="btn-editar">
-                                            ✏️ Editar
-                                        </button>
-                                        
-                                        {evento.id_estado !== 5 && evento.id_estado !== 6 && (
-                                            <button onClick={() => handleClickEliminar(evento.id_evento)} className="btn-eliminar">
-                                                ✕ Cancelar
+                                        <div className="card-actions">
+                                            <button onClick={() => handleEditar(evento.id_evento)} className="btn-editar">
+                                                ✏️ Editar
                                             </button>
-                                        )}
+                                            
+                                            {evento.id_estado !== 5 && evento.id_estado !== 6 && (
+                                                <button onClick={() => handleClickEliminar(evento.id_evento)} className="btn-eliminar">
+                                                    ✕ Cancelar
+                                                </button>
+                                            )}
 
-                                        {evento.id_estado === 5 && (
-                                            <span className="estado-cancelado">🚫 CANCELADO</span>
-                                        )}
-                                        {evento.id_estado === 6 && (
-                                            <span className="estado-pendiente-baja">⏳ PENDIENTE BAJA</span>
-                                        )}
+                                            {evento.id_estado === 5 && (
+                                                <span className="estado-cancelado">🚫 CANCELADO</span>
+                                            )}
+                                            {evento.id_estado === 6 && (
+                                                <span className="estado-pendiente-baja">⏳ PENDIENTE BAJA</span>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            </article>
-                            );
-                        })}
-                    </div>
-                )}
-            </section>
+                                </article>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+            </main>
+
+            <Footer />
 
             {selectedEventoId && (
                 <CancelEventModal 

@@ -1,10 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useLocation } from 'react-router-dom';
-import '../styles/inicio.css';
-import { Link } from 'react-router-dom';
+import { useNavigate} from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { Footer } from "../components/footer";
+import { Navbar } from '../components/navbar';
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -81,13 +80,12 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
 };
 
 export default function PerfilPage() {
-    // 🔥 DESESTRUCTURACIÓN COMPLETA DEL CONTEXTO
-    const { user, logout, getToken } = useAuth();
+    const { getToken } = useAuth();
     
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [inscripciones, setInscripciones] = useState<Inscripcion[]>([]);
     
-    const [loading, setLoading] = useState(true);
+
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     
@@ -109,79 +107,8 @@ export default function PerfilPage() {
     });
 
     const navigate = useNavigate();
-    const location = useLocation();
     const apiUrl = import.meta.env.VITE_API_URL;
     
-    // 🔥 NOMBRE DE USUARIO DINÁMICO (con optional chaining para evitar errores)
-    const displayUserName = (perfil?.nombre_y_apellido?.split(' ')[0] || user?.nombre_y_apellido?.split(' ')[0] || "Usuario").toUpperCase();
-    
-    // 🔥 DETECCIÓN DE ROLES (usa user?.id_rol con optional chaining)
-    const esAdmin = user?.id_rol === 1; // Admin total
-    const esSupervisor = user?.id_rol === 2; // Supervisor
-    const esOperario = user?.id_rol === 3; // Operario
-    const esCliente = user?.id_rol === 4; // Cliente
-    
-    // 🔥 ROLES CON ACCESO TOTAL (Admin + Supervisor)
-    const tieneAccesoTotal = esAdmin || esSupervisor;
-    
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setIsDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    // 1. LEER URL Y CARGAR PERFIL
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        if (params.get('tab') === 'inscripciones') {
-            setActiveTab('inscripciones');
-        }
-        
-        fetchPerfil();
-    }, [location]);
-
-    // 2. EFECTO: Si cambio a la pestaña inscripciones, cargo los datos
-    useEffect(() => {
-        if (activeTab === 'inscripciones') {
-            fetchInscripciones();
-        }
-    }, [activeTab]);
-
-    // 🔥 FUNCIÓN CORREGIDA: Usa getToken()
-    const fetchPerfil = async () => {
-        const token = getToken();
-        
-        if (!token) { 
-            navigate('/login'); 
-            return; 
-        }
-
-        try {
-            const response = await axios.get(`${apiUrl}/me`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setPerfil(response.data);
-            setEditForm({
-                nombre_y_apellido: response.data.nombre_y_apellido || '',
-                email: response.data.email || '',
-                telefono: response.data.telefono || '',
-                direccion: response.data.direccion || '',
-                enlace_redes: response.data.enlace_redes || ''
-            });
-        } catch (err) {
-            console.error(err);
-            setError('No se pudo cargar el perfil.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const fetchInscripciones = async () => {
         const token = getToken();
@@ -295,154 +222,10 @@ export default function PerfilPage() {
         }
     };
 
-    if (loading) {
-        return (
-            <div className="perfil-page-loading-container"> 
-                <div className="perfil-loading">
-                    <div className="spinner-large"></div>
-                    <p style={{ color: '#ccff00', marginTop: '10px', fontWeight: 'bold' }}>CARGANDO PERFIL...</p>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="inicio-container" style={{ minHeight: '100vh', paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: '50px' }}>
-            
-            <div style={{ 
-                width: '100%', 
-                maxWidth: '800px', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                position: 'relative', 
-                marginBottom: '30px',
-                padding: '0 20px' 
-            }}>
-                
-                <Link
-                  to="/"
-                  className="btn-volver-inicio"
-                  style={{
-                    position: 'fixed',
-                    left: '60px',
-                    top: '40px'
-                  }}
-                >
-                  <span className="icono-flecha">←</span>
-                  <span className="texto-volver">VOLVER AL INICIO</span>
-                </Link>
-
-                <h2 className="section-title" style={{ margin: 0, textAlign: 'center' }}>Mi Cuenta</h2>
-
-                <div style={{ position: 'fixed', right: '60px' }}>
-                    {user ? (
-                        <div className="user-menu-container" ref={dropdownRef} style={{ margin: 0 }}>
-                            <button
-                                className="user-menu-trigger"
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                style={{ whiteSpace: 'nowrap' }}
-                            >
-                                <span className="user-icon">👤</span>
-                                <span className="user-name">{displayUserName}</span>
-                                <span className="dropdown-arrow">▼</span>
-                            </button>
-
-                            {/* 🔥 MENÚ DESPLEGABLE CONDICIONAL POR ROL */}
-                            {isDropdownOpen && (
-                                <div className="user-dropdown" style={{ right: 0, left: 'auto' }}>
-                                    {/* ========== SECCIÓN: MI CUENTA (TODOS) ========== */}
-                                    <div className="dropdown-header" style={{ textAlign: 'center', width: '100%', display: 'block' }}>
-                                        MI CUENTA
-                                    </div>
-                                    
-                                    <Link 
-                                        to="/perfil" 
-                                        className="dropdown-item" 
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        👤 Mi Perfil
-                                    </Link>
-
-                                    {/* Mis Reportes: Solo para usuarios estándar (Operario y Cliente) */}
-                                    {(esOperario || esCliente) && (
-                                        <Link 
-                                            to="/reportes" 
-                                            className="dropdown-item" 
-                                            onClick={() => setIsDropdownOpen(false)}
-                                        >
-                                            📊 Mis Reportes
-                                        </Link>
-                                    )}
-
-                                    {/* ========== SECCIÓN: MIS EVENTOS (TODOS) ========== */}
-                                    <div className="dropdown-header">MIS EVENTOS</div>
-
-                                    {/* Inscriptos: diferente ruta según rol */}
-                                    <Link 
-                                        to={tieneAccesoTotal ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
-                                        className="dropdown-item" 
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        📅 Inscriptos
-                                    </Link>
-
-                                    <Link 
-                                        to="/mis-eventos" 
-                                        className="dropdown-item" 
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        📋 Mis Eventos
-                                    </Link>
-
-                                    {/* ========== SECCIÓN: GESTIÓN (SOLO ADMIN Y SUPERVISOR) ========== */}
-                                    {tieneAccesoTotal && (
-                                        <>
-                                            <div className="dropdown-header">GESTIÓN</div>
-                                            
-                                            <Link 
-                                                to="/admin" 
-                                                className="dropdown-item" 
-                                                onClick={() => setIsDropdownOpen(false)}
-                                            >
-                                                🏠 Panel General
-                                            </Link>
-
-                                            <Link 
-                                                to="/registro-evento" 
-                                                className="dropdown-item" 
-                                                onClick={() => setIsDropdownOpen(false)}
-                                            >
-                                                ➕ Gestionar Eventos
-                                            </Link>
-
-                                            <Link 
-                                                to="/admin/usuarios" 
-                                                className="dropdown-item" 
-                                                onClick={() => setIsDropdownOpen(false)}
-                                            >
-                                                👥 Usuarios
-                                            </Link>
-                                        </>
-                                    )}
-                                    
-                                    <div className="dropdown-divider"></div>
-                                    
-                                    <button
-                                        onClick={logout}
-                                        className="dropdown-item logout-button"
-                                    >
-                                        🚪 Cerrar Sesión
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-                    )}
-                </div>
-            </div>
-
+        <div>
+            <Navbar /> 
+        <div className="inicio-container" style={{ paddingTop: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {/* ========== PESTAÑAS ========== */}
             <div style={{ display: 'flex', gap: '20px', marginBottom: '30px' }}>
                 <button 
@@ -701,7 +484,9 @@ export default function PerfilPage() {
                     </div>
                 )}
             </div>
-            <Footer />
+            
+        </div>
+        <Footer />
         </div>
     );
 }

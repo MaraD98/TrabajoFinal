@@ -99,9 +99,9 @@ export const Navbar = () => {
             </div>
 
             <div className="nav-center" style={{ display: 'flex', justifyContent: 'center' }}>
-                <Link to="/">
+                <a href="https://www.wakeupbikes.com/" target="_blank" rel="noopener noreferrer">
                     <img src={logoWakeUp} alt="Wake Up Bikes" className="nav-logo" />
-                </Link>
+                </a>
             </div>
 
             <div className="nav-right" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
