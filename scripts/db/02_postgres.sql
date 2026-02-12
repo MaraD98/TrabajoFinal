@@ -73,7 +73,6 @@ INSERT INTO EstadoEvento (nombre) VALUES
 ('Publicado'),
 ('Finalizado'),
 ('Cancelado'), # Estado para eventos eliminados por el organizador(softdelete)
-('Pendiente de Eliminación'), # Estado para eventos de solicitantes externos
 ('Depurado por Admin');  #Nuevo estado para eventos eliminados por admin para limpieza de datos
 
 -----------------------------------------------------------------------------------------------------------------------------------
@@ -251,7 +250,6 @@ CREATE TABLE Detalle_Cambio_Evento(
 	valor_anterior TEXT NOT NULL,
 	valor_nuevo TEXT NOT NULL,
 	CONSTRAINT FK_Cambio FOREIGN KEY (id_historial_edicion) REFERENCES Historial_Edicion_Evento(id_historial_edicion)
-
 );
 
 -----------------------------------------------------------------------------------------------------------------------------------
@@ -268,3 +266,30 @@ CREATE TABLE Eliminacion_Evento (
     CONSTRAINT FK_Eliminacion_Evento FOREIGN KEY (id_evento) REFERENCES Evento(id_evento) ON DELETE CASCADE,
     CONSTRAINT FK_Eliminacion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
 );
+
+
+-- TABLA SOLICITUD DE EDICIÓN DE EVENTO
+CREATE TABLE IF NOT EXISTS Solicitud_Edicion_Evento (
+    id_solicitud_edicion SERIAL PRIMARY KEY,                 -- autoincremental
+    id_evento INT NOT NULL,                                  -- FK al evento
+    id_usuario INT NOT NULL,                                 -- quien solicita
+    fecha_solicitud TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, -- cuando se solicitó
+    cambios_propuestos JSONB NOT NULL,                       -- JSONB con los cambios propuestos
+    aprobada BOOLEAN DEFAULT NULL,                           -- NULL = Pendiente, TRUE = Aprobada, FALSE = Rechazada
+    fecha_resolucion TIMESTAMP WITH TIME ZONE,               -- cuando se resolvió
+    id_admin_resolutor INT,                                  -- admin que resolvió
+    id_historial_origen INT,                                 -- opcional: referencia al historial original
+    CONSTRAINT FK_Solicitud_Evento FOREIGN KEY (id_evento) REFERENCES Evento(id_evento),
+    CONSTRAINT FK_Solicitud_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Solicitud_Admin FOREIGN KEY (id_admin_resolutor) REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Solicitud_Historial FOREIGN KEY (id_historial_origen) REFERENCES Historial_Edicion_Evento(id_historial_edicion)
+);
+
+-- Índices recomendados
+CREATE INDEX IF NOT EXISTS idx_solicitud_edicion_evento_id_evento
+    ON Solicitud_Edicion_Evento(id_evento);
+
+CREATE INDEX IF NOT EXISTS idx_solicitud_edicion_pendientes
+    ON Solicitud_Edicion_Evento(aprobada)
+    WHERE aprobada IS NULL;
+

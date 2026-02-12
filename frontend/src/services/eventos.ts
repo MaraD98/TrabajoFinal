@@ -28,10 +28,53 @@ export async function getMisEventos() {
     return res.data;
 }
 
+// --- OBTENER MIS SOLICITUDES DE PUBLICACIÓN ---
+export async function getMisSolicitudes() {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get("/solicitudes-eventos/mis-solicitudes", {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+}
+
+// --- OBTENER HISTORIAL DE EDICIONES DE UN EVENTO ---
+export async function getHistorialEdiciones(idEvento: number) {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get(`/eventos/${idEvento}/historial-ediciones`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
+}
+
+export const getMisSolicitudesEliminacion = async () => {
+    try {
+        const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/eliminacion/mis-solicitudes`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al obtener solicitudes de eliminación');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error en getMisSolicitudesEliminacion:', error);
+        throw error;
+    }
+};
+
 // HU 4.1: Cancelar evento propio
 export const cancelarEventoPropio = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // ✅ NUEVA URL
     const response = await api.post(`/eliminacion/cancelar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -42,7 +85,6 @@ export const cancelarEventoPropio = async (idEvento: number, motivo: string) => 
 // HU 4.2: Solicitar baja (Usuario Externo)
 export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // ✅ NUEVA URL
     const response = await api.post(`/eliminacion/solicitar-baja/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -53,7 +95,6 @@ export const solicitarBajaEvento = async (idEvento: number, motivo: string) => {
 // HU 4.3: Eliminar como Administrador
 export const adminEliminarEvento = async (idEvento: number, motivo: string) => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    // ✅ NUEVA URL
     const response = await api.post(`/eliminacion/admin/eliminar/${idEvento}`, 
         { motivo }, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -72,7 +113,6 @@ export async function getEventosCalendario(month: number, year: number) {
 }
 
 export const inscribirseEvento = async (id_evento: number, token: string) => {
-    // Agregamos el token en los headers para que el backend sepa quién es el usuario
     const response = await api.post(`/inscripciones/${id_evento}`, {}, {
         headers: {
             Authorization: `Bearer ${token}`
@@ -83,27 +123,17 @@ export const inscribirseEvento = async (id_evento: number, token: string) => {
 
 // Login: recibe email y contrasenia, devuelve token
 export async function login(email: string, contrasenia: string) {
-  // =========================================================================
-  // CAMBIO IMPORTANTE: Formato Formulario (OAuth2 Standard)
-  // =========================================================================
-  // ¿Por qué no usamos JSON aquí?
-  // FastAPI y Swagger usan el estándar "OAuth2PasswordRequestForm".
-  // Este estándar requiere que los datos se envíen como un formulario (x-www-form-urlencoded)
-  // y que los campos se llamen estrictamente 'username' y 'password'.
-  // Esto permite que el botón "Authorize" de la documentación (Swagger) funcione correctamente.
-  // =========================================================================
-
   const formData = new URLSearchParams();
-  formData.append('username', email);       // El backend espera 'username', aunque le pasemos el email
-  formData.append('password', contrasenia); // El backend espera 'password'
+  formData.append('username', email);
+  formData.append('password', contrasenia);
 
   const res = await api.post("/auth/login", formData, {
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded' // Avisamos que es un formulario
+      'Content-Type': 'application/x-www-form-urlencoded'
     }
   });
   
-  return res.data; // { access_token, token_type }
+  return res.data;
 }
 
 // Obtener usuario actual a partir del token
@@ -113,7 +143,7 @@ export async function getCurrentUser(token: string) {
       Authorization: `Bearer ${token}`,
     },
   });
-  return res.data; // UsuarioResponse con id_rol, nombre, etc.
+  return res.data;
 }
 
 // Registro de usuario
@@ -122,7 +152,7 @@ export async function register(usuarioData: any) {
   return res.data; 
 }
 
-// REPORTESS 
+// REPORTES
 
 export async function getReporte(tipo: string, token: string, anio?: string, mes?: string) {
   const res = await api.get(`/reportes/${tipo}`, {
@@ -132,7 +162,7 @@ export async function getReporte(tipo: string, token: string, anio?: string, mes
       Authorization: `Bearer ${token}`,
     },
   });
-  return res.data; // Devuelve el objeto JSON con el reporte
+  return res.data;
 }
 
 // Exportar un reporte en CSV (descargar archivo)
@@ -142,10 +172,9 @@ export async function exportReporteCSV(tipo: string, token: string) {
     headers: {
       Authorization: `Bearer ${token}`,
     },
-    responseType: "blob", // 👈 importante para manejar archivos
+    responseType: "blob",
   });
 
-  // Crear un link temporal para descargar el archivo
   const url = window.URL.createObjectURL(new Blob([res.data]));
   const link = document.createElement("a");
   link.href = url;
@@ -156,34 +185,28 @@ export async function exportReporteCSV(tipo: string, token: string) {
 }
 
 export async function getReporteGeneral(token: string) {
-  // Si tu 'api' ya tiene el baseURL, usa la ruta sin la primera barra si es necesario, 
-  // o simplemente '/reportes/'
   const res = await api.get('/reportes/', { 
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
 }
+
 // ============================================================================
-// NUEVAS INTERFACES Y FUNCIONES PARA BÚSQUEDA AVANZADA CON FILTROS
+// BÚSQUEDA AVANZADA CON FILTROS
 // ============================================================================
-/**
- * Interfaz para los parámetros de filtrado (HU-7.1 a 7.7)
- */
+
 export interface FiltrosEventos {
-  busqueda?: string;          // HU-7.6: Búsqueda por nombre/palabra clave
-  fecha_desde?: string;       // HU-7.2: Rango de fechas (formato: YYYY-MM-DD)
-  fecha_hasta?: string;       // HU-7.2: Rango de fechas
-  fecha_exacta?: string;      // HU-7.2: Fecha exacta
-  ubicacion?: string;         // HU-7.3: Filtro por ubicación
-  id_tipo?: number;           // HU-7.4: Filtro por tipo de evento
-  id_dificultad?: number;     // HU-7.5: Filtro por dificultad
-  skip?: number;              // Paginación
-  limit?: number;             // Paginación (máx 100)
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  fecha_exacta?: string;
+  ubicacion?: string;
+  id_tipo?: number;
+  id_dificultad?: number;
+  skip?: number;
+  limit?: number;
 }
 
-/**
- * Interfaz para la respuesta de búsqueda filtrada
- */
 export interface EventosFiltradosResponse {
   total: number;
   eventos: any[];
@@ -193,40 +216,15 @@ export interface EventosFiltradosResponse {
   mensaje: string;
 }
 
-/**
- * Interfaz para los catálogos
- */
 export interface CatalogosResponse {
   tipos_evento: Array<{ id: number; nombre: string }>;
   niveles_dificultad: Array<{ id: number; nombre: string }>;
 }
 
-// ============================================================================
-// NUEVAS FUNCIONES: Búsqueda Avanzada con Filtros (HU-7.1 a 7.10)
-// ============================================================================
-
-/**
- * Buscar eventos con filtros combinables (HU-7.1 a 7.10)
- * 
- * @param filtros - Objeto con los criterios de filtrado
- * @returns Respuesta con eventos filtrados y metadata
- * 
- * @example
- * ```typescript
- * // Buscar carreras en Córdoba en febrero 2026
- * const resultado = await buscarEventosConFiltros({
- *   id_tipo: 1,
- *   ubicacion: "Córdoba",
- *   fecha_desde: "2026-02-01",
- *   fecha_hasta: "2026-02-28"
- * });
- * ```
- */
 export async function buscarEventosConFiltros(
   filtros: FiltrosEventos
 ): Promise<EventosFiltradosResponse> {
   try {
-    // Construir query params solo con los filtros que tienen valor
     const params = new URLSearchParams();
     
     if (filtros.busqueda) params.append("busqueda", filtros.busqueda);
@@ -250,18 +248,12 @@ export async function buscarEventosConFiltros(
   }
 }
 
-/**
- * Obtener catálogos para poblar los filtros (tipos y dificultades)
- * 
- * @returns Objeto con arrays de tipos de evento y niveles de dificultad
- */
 export async function obtenerCatalogosParaFiltros(): Promise<CatalogosResponse> {
   try {
     const response = await api.get("/eventos/catalogos/filtros");
     return response.data;
   } catch (error) {
     console.error("Error obteniendo catálogos:", error);
-    // Retornar valores por defecto en caso de error
     return {
       tipos_evento: [],
       niveles_dificultad: []
@@ -269,10 +261,6 @@ export async function obtenerCatalogosParaFiltros(): Promise<CatalogosResponse> 
   }
 }
 
-/**
- * Hook auxiliar para limpiar filtros vacíos
- * Útil para evitar enviar parámetros innecesarios al backend
- */
 export function limpiarFiltrosVacios(filtros: FiltrosEventos): FiltrosEventos {
   const filtrosLimpios: FiltrosEventos = {};
   
@@ -283,4 +271,21 @@ export function limpiarFiltrosVacios(filtros: FiltrosEventos): FiltrosEventos {
   });
   
   return filtrosLimpios;
+}
+
+// ============================================================================
+// SOLICITUDES DE EDICIÓN (USUARIO)
+// ============================================================================
+
+/**
+ * Obtener mis solicitudes de edición pendientes
+ */
+export async function getMisSolicitudesEdicion() {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) throw new Error("No hay token de autenticación");
+
+    const res = await api.get("/edicion-eventos/mis-solicitudes-edicion", {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.data;
 }

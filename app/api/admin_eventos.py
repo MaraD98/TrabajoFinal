@@ -23,7 +23,7 @@ from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
 
 # ✅ NUEVO: Importar servicio de eliminación
 from app.services.eliminacion_services import EliminacionService
-from app.schemas.eliminacion_schema import EliminacionRequest
+from app.schemas.eliminacion_schema import EliminacionRequest, SolicitudBajaResponse
 
 
 router = APIRouter(prefix="/admin", tags=["Administración de Eventos"])
@@ -108,20 +108,20 @@ def revisar_alta(
 
 @router.get(
     "/bajas/pendientes", 
-    response_model=list[SolicitudEliminacionResponse], 
+    response_model=list[SolicitudBajaResponse], 
     summary="Ver Bajas Pendientes"
 )
 def ver_pendientes_baja(db: Session = Depends(get_db), admin: Usuario = Depends(require_admin)):
     """
     Muestra organizadores que piden borrar un evento YA publicado.
-    Solo muestra eventos en estado 6 (Pendiente de Eliminación).
+    Los eventos permanecen en estado 3 (Publicado) hasta que el admin apruebe.
     """
     # ✅ Usar el nuevo servicio
     bajas = EliminacionService.obtener_bajas_pendientes(db)
     
     # Formatear para el schema de respuesta
     return [
-        SolicitudEliminacionResponse(
+        SolicitudBajaResponse(
             id_eliminacion=b['id_eliminacion'],
             id_evento=b['id_evento'],
             nombre_evento=b['nombre_evento'],
@@ -184,7 +184,7 @@ def depurar_evento(
     admin: Usuario = Depends(require_admin)
 ):
     """
-    ¡PELIGRO! Esto marca el evento como depurado (Estado 7).
+    ¡PELIGRO! Esto marca el evento como depurado (Estado 6).
     Usar para contenido inapropiado o limpieza de base de datos.
     """
     return EliminacionService.depurar_evento(
@@ -212,6 +212,44 @@ def obtener_historial_eliminaciones(
     
     Muestra eventos que están en:
     - Estado 5 (Cancelado - Soft Delete)
-    - Estado 7 (Depurado - Hard Delete Lógico)
+    - Estado 6 (Depurado - Hard Delete Lógico)
     """
     return EliminacionService.obtener_historial(db)
+# ============================================================================
+# SECCIÓN 4: EDICIÓN DIRECTA DE EVENTOS (ADMIN)
+# ============================================================================
+
+@router.patch(
+    "/eventos/{id_evento}/editar-directo",
+    summary="Admin: Editar evento directamente (sin solicitud)"
+)
+def editar_evento_directo(
+    id_evento: int,
+    evento_data: dict,  # Recibimos dict para flexibilidad
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)
+):
+    """
+    ✅ ADMIN SOLAMENTE: Edita un evento activo directamente.
+    Los cambios se aplican de inmediato sin necesidad de aprobación.
+    Se registra en el historial de ediciones.
+    """
+    from app.services.editar_services import EditarEventoService
+    from app.schemas.editar_schema import EventoEditar
+    
+    # Convertir dict a schema
+    try:
+        evento_update = EventoEditar(**evento_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datos inválidos: {str(e)}"
+        )
+    
+    # Usar el servicio existente pero forzando actualización directa
+    return EditarEventoService.editar_evento_como_admin(
+        db=db,
+        id_evento=id_evento,
+        evento_update=evento_update,
+        id_admin=admin.id_usuario
+    )

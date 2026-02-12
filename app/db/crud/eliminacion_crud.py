@@ -1,10 +1,9 @@
 """
-CRUD de Eliminación de Eventos - COMPLETO
+CRUD de Eliminación de Eventos - ACTUALIZADO
+
 Archivo: app/db/crud/eliminacion_crud.py
-
-Maneja estados: 5 (Cancelado), 6 (Pendiente), 7 (Depurado)
+Maneja estados: 5 (Cancelado), 6 (Depurado)
 """
-
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.models.eliminacion_models import EliminacionEvento
@@ -13,22 +12,17 @@ from app.models.auth_models import Usuario
 from datetime import datetime
 from typing import List
 
-
 # ============================================================================
 # CONSTANTES DE ESTADO
 # ============================================================================
-
 ID_ESTADO_PUBLICADO = 3
 ID_ESTADO_FINALIZADO = 4
 ID_ESTADO_CANCELADO = 5
-ID_ESTADO_PENDIENTE_ELIMINACION = 6
-ID_ESTADO_DEPURADO = 7
-
+ID_ESTADO_DEPURADO = 6  # ✅ ANTES ERA 7, AHORA ES 6
 
 # ============================================================================
 # CREAR REGISTROS DE ELIMINACIÓN
 # ============================================================================
-
 def crear_registro_eliminacion(
     db: Session,
     id_evento: int,
@@ -50,18 +44,15 @@ def crear_registro_eliminacion(
     db.flush()
     return nueva_eliminacion
 
-
 def obtener_registro_eliminacion(db: Session, id_evento: int) -> EliminacionEvento | None:
     """Obtiene el registro de eliminación de un evento."""
     return db.query(EliminacionEvento).filter(
         EliminacionEvento.id_evento == id_evento
     ).first()
 
-
 # ============================================================================
 # CAMBIAR ESTADOS DE EVENTOS
 # ============================================================================
-
 def cancelar_evento(db: Session, id_evento: int) -> Evento:
     """Cambia el evento a estado 5 (Cancelado - Soft Delete)."""
     evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
@@ -70,15 +61,13 @@ def cancelar_evento(db: Session, id_evento: int) -> Evento:
         db.flush()
     return evento
 
-
 def depurar_evento(db: Session, id_evento: int) -> Evento:
-    """Cambia el evento a estado 7 (Depurado - Hard Delete Lógico)."""
+    """Cambia el evento a estado 6 (Depurado - Hard Delete Lógico)."""
     evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
     if evento:
         evento.id_estado = ID_ESTADO_DEPURADO
         db.flush()
     return evento
-
 
 def restaurar_evento(db: Session, id_evento: int) -> Evento:
     """Restaura el evento a estado 3 (Publicado)."""
@@ -88,11 +77,9 @@ def restaurar_evento(db: Session, id_evento: int) -> Evento:
         db.flush()
     return evento
 
-
 # ============================================================================
 # CONSULTAS - SOLICITUDES DE BAJA
 # ============================================================================
-
 def obtener_bajas_pendientes(db: Session) -> List[dict]:
     """
     Obtiene todas las solicitudes de baja pendientes.
@@ -123,19 +110,17 @@ def obtener_bajas_pendientes(db: Session) -> List[dict]:
     
     return resultados
 
-
 # ============================================================================
 # CONSULTAS - HISTORIAL DE ELIMINACIONES
 # ============================================================================
-
 def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     """
     Obtiene todos los eventos del historial:
     - Estado 4: Finalizados (fecha pasada)
     - Estado 5: Cancelados (Soft Delete)
-    - Estado 7: Depurados (Hard Delete Lógico)
+    - Estado 6: Depurados (Hard Delete Lógico)
     """
-    # Primero obtenemos eventos con registro de eliminación (estados 5 y 7)
+    # Primero obtenemos eventos con registro de eliminación (estados 5 y 6)
     query_con_eliminacion = (
         db.query(EliminacionEvento, Evento, Usuario)
         .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
@@ -198,11 +183,9 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     
     return resultados
 
-
 # ============================================================================
 # NOTIFICACIONES
 # ============================================================================
-
 def marcar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
     """
     Marca que ya se enviaron las notificaciones a los inscritos.
@@ -218,7 +201,6 @@ def marcar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
     
     return False
 
-
 def verificar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
     """Verifica si ya se enviaron las notificaciones."""
     eliminacion = db.query(EliminacionEvento).filter(
@@ -227,11 +209,9 @@ def verificar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
     
     return eliminacion.notificacion_enviada if eliminacion else False
 
-
 # ============================================================================
 # ELIMINAR REGISTROS (Para rechazos)
 # ============================================================================
-
 def eliminar_registro_eliminacion(db: Session, id_evento: int) -> bool:
     """
     Elimina el registro de eliminación cuando el admin rechaza una solicitud.

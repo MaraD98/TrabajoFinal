@@ -20,6 +20,7 @@ import NotificationBell from './components/notificaciones';
 // ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
 import TablaGestionPagos from "./pages/gestion-pagos-pages";
 import PanelInscriptos from "./pages/inscriptos-page";
+import HistorialEdicionPage from "./pages/historial-edicion-pages"; // 🆕 NUEVO
 
 function App() {
   return (
@@ -34,7 +35,7 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
 
-          {/* ========== RUTAS PROTEGIDAS - USUARIOS COMUNES (Rol 4) ========== */}
+          {/* ========== RUTAS PROTEGIDAS - TODOS LOS USUARIOS AUTENTICADOS ========== */}
           
           {/* Perfil - Accesible para TODOS los usuarios autenticados */}
           <Route 
@@ -46,37 +47,49 @@ function App() {
             } 
           />
 
-          {/* Reportes - Accesible para usuarios Rol 4 */}
-          <Route 
-            path="/reportes" 
-            element={
-              <ProtectedRoute allowedRoles={[1, 2, 4]}>
-                <ReportesPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Solicitar Evento - Accesible para usuarios Rol 4 */}
-          <Route 
-            path="/publicar-evento" 
-            element={
-              <ProtectedRoute allowedRoles={[1, 2, 4]}>
-                <SolicitudEventoPage />
-              </ProtectedRoute>
-            } 
-          />
-
-          {/* Mis Eventos - Accesible para usuarios Rol 4 */}
+          {/* ✅ CORREGIDO: Mis Eventos - Accesible para TODOS los roles (1,2,3,4) */}
           <Route 
             path="/mis-eventos" 
             element={
-              <ProtectedRoute allowedRoles={[1, 2, 4]}>
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
                 <MisEventosPage />
               </ProtectedRoute>
             } 
           />
 
-          {/* ========== RUTAS PROTEGIDAS - ADMIN/ORGANIZADORES (Rol 1, 2) ========== */}
+          {/* 🆕 NUEVO: Historial de Ediciones - Accesible para TODOS los usuarios */}
+          <Route 
+            path="/historial-ediciones/:id_evento" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <HistorialEdicionPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ========== RUTAS PROTEGIDAS - ORGANIZADORES Y ADMIN ========== */}
+          
+          {/* ✅ CORREGIDO: Reportes - Incluir rol 3 (Operario/Organizador) */}
+          <Route 
+            path="/reportes" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <ReportesPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ✅ CORREGIDO: Solicitar Evento - Incluir rol 3 (Operario/Organizador) */}
+          <Route 
+            path="/publicar-evento" 
+            element={
+              <ProtectedRoute allowedRoles={[1, 2, 3, 4]}>
+                <SolicitudEventoPage />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* ========== RUTAS PROTEGIDAS - SOLO ADMIN/SUPERVISORES (Rol 1, 2) ========== */}
           
           {/* Crear Evento Directamente */}
           <Route 

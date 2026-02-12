@@ -1,30 +1,24 @@
 from sqlalchemy.orm import Session
-from app.models.registro_models import Evento, EventoMultimedia, TipoEvento, NivelDificultad 
+from app.models.registro_models import Evento, EventoMultimedia, TipoEvento, NivelDificultad
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
 from sqlalchemy import or_, func
 from typing import Optional
 
-
 # ============================================================================
 # CONSTANTES DE ESTADO
 # ============================================================================
-
 ID_ESTADO_BORRADOR = 1
 ID_ESTADO_PUBLICADO = 3
 ID_ESTADO_FINALIZADO = 4
 ID_ESTADO_CANCELADO = 5
-ID_ESTADO_PENDIENTE_ELIMINACION = 6
-ID_ESTADO_DEPURADO = 7
-
+ID_ESTADO_DEPURADO = 6  # ✅ ANTES ERA 7, AHORA ES 6
 ID_ROL_ADMINISTRADOR = 1
 ID_ROL_SUPERVISOR = 2
-
 
 # ============================================================================
 # FUNCIÓN AUXILIAR: Normalizar texto para búsqueda sin acentos
 # ============================================================================
-
 def normalizar_texto(texto: str) -> str:
     """
     Remueve acentos y convierte a minúsculas para búsqueda flexible.
@@ -36,33 +30,9 @@ def normalizar_texto(texto: str) -> str:
     sin_acentos = ''.join(char for char in texto_nfd if unicodedata.category(char) != 'Mn')
     return sin_acentos.lower()
 
-# -----------------------------------------------------------------------------
-# 1. CREATE (Crear)
-# -----------------------------------------------------------------------------
-def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):    
-    db_evento = Evento(
-        nombre_evento       = evento.nombre_evento,
-        ubicacion           = evento.ubicacion,
-        fecha_evento        = evento.fecha_evento,
-        descripcion         = evento.descripcion,
-        costo_participacion = evento.costo_participacion,
-        id_tipo             = evento.id_tipo,
-        id_dificultad       = evento.id_dificultad,
-        cupo_maximo         = evento.cupo_maximo,
-        id_estado  = id_estado_final, 
-        id_usuario = user_id,
-        lat = evento.lat,  
-        lng = evento.lng   
-    )
-    db.add(db_evento)
-    db.commit()
-    db.refresh(db_evento)
-    return db_evento
-
 # ============================================================================
 # FUNCIÓN AUXILIAR: Actualizar eventos pasados automáticamente
 # ============================================================================
-
 def actualizar_eventos_finalizados(db: Session):
     """
     Cambia el estado de eventos publicados cuya fecha ya pasó a FINALIZADO (4).
@@ -79,42 +49,38 @@ def actualizar_eventos_finalizados(db: Session):
         print(f"🔄 [AUTO-UPDATE] Finalizando {len(eventos_pasados)} eventos pasados...")
         for evento in eventos_pasados:
             evento.id_estado = ID_ESTADO_FINALIZADO
-            print(f"   ✅ Evento '{evento.nombre_evento}' ({evento.fecha_evento}) → FINALIZADO")
+            print(f"  ✅ Evento '{evento.nombre_evento}' ({evento.fecha_evento}) → FINALIZADO")
         
         db.commit()
         print(f"✅ [AUTO-UPDATE] {len(eventos_pasados)} eventos actualizados")
 
-
 # ============================================================================
 # CREATE (Crear)
 # ============================================================================
-
 def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_final: int):
     """Crea un nuevo evento en la base de datos"""
     db_evento = Evento(
-        nombre_evento       = evento.nombre_evento,
-        ubicacion           = evento.ubicacion,
-        fecha_evento        = evento.fecha_evento,
-        descripcion         = evento.descripcion,
+        nombre_evento = evento.nombre_evento,
+        ubicacion = evento.ubicacion,
+        fecha_evento = evento.fecha_evento,
+        descripcion = evento.descripcion,
         costo_participacion = evento.costo_participacion,
-        id_tipo             = evento.id_tipo,
-        id_dificultad       = evento.id_dificultad,
-        id_estado           = id_estado_final, 
-        id_usuario          = user_id,
-        lat                 = evento.lat,  
-        lng                 = evento.lng,
-        cupo_maximo         = evento.cupo_maximo or 0
+        id_tipo = evento.id_tipo,
+        id_dificultad = evento.id_dificultad,
+        id_estado = id_estado_final, 
+        id_usuario = user_id,
+        lat = evento.lat, 
+        lng = evento.lng,
+        cupo_maximo = evento.cupo_maximo or 0
     )
     db.add(db_evento)
     db.commit()
     db.refresh(db_evento)
     return db_evento
 
-
 # ============================================================================
 # READ (Leer)
 # ============================================================================
-
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     """
     Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
@@ -137,7 +103,6 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
         .all()
     )
 
-
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
     """
     Devuelve TODOS los eventos de un usuario (incluyendo pasados y borradores).
@@ -152,11 +117,9 @@ def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: 
         .all()
     )
 
-
 def get_evento_by_id(db: Session, evento_id: int):
     """Obtiene un evento por su ID"""
     return db.query(Evento).filter(Evento.id_evento == evento_id).first()
-
 
 def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
     """Valida duplicados: mismo nombre y fecha"""
@@ -165,34 +128,30 @@ def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
         Evento.fecha_evento == fecha
     ).first()
 
-
 # ============================================================================
 # UPDATE (Actualizar)
 # ============================================================================
-
 def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
     """Actualiza un evento existente"""
     db_evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
     if db_evento:
-        db_evento.nombre_evento       = evento_data.nombre_evento
-        db_evento.ubicacion           = evento_data.ubicacion
-        db_evento.fecha_evento        = evento_data.fecha_evento
-        db_evento.descripcion         = evento_data.descripcion
+        db_evento.nombre_evento = evento_data.nombre_evento
+        db_evento.ubicacion = evento_data.ubicacion
+        db_evento.fecha_evento = evento_data.fecha_evento
+        db_evento.descripcion = evento_data.descripcion
         db_evento.costo_participacion = evento_data.costo_participacion
-        db_evento.id_tipo             = evento_data.id_tipo
-        db_evento.id_dificultad       = evento_data.id_dificultad
-        db_evento.cupo_maximo         = evento_data.cupo_maximo
-        db_evento.lat                 = evento_data.lat
-        db_evento.lng                 = evento_data.lng
+        db_evento.id_tipo = evento_data.id_tipo
+        db_evento.id_dificultad = evento_data.id_dificultad
+        db_evento.cupo_maximo = evento_data.cupo_maximo
+        db_evento.lat = evento_data.lat
+        db_evento.lng = evento_data.lng
         db.commit()
         db.refresh(db_evento)
     return db_evento
 
-
 # ============================================================================
 # MULTIMEDIA
 # ============================================================================
-
 def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     """Crea un registro de multimedia para un evento"""
     nuevo_registro = EventoMultimedia(
@@ -205,11 +164,9 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     db.refresh(nuevo_registro)
     return nuevo_registro
 
-
 # ============================================================================
 # FILTRADO AVANZADO (HU 7.1 a 7.10)
 # ============================================================================
-
 def filtrar_eventos_avanzado(
     db: Session,
     busqueda: Optional[str] = None,
@@ -330,7 +287,6 @@ def filtrar_eventos_avanzado(
         "skip": skip,
         "limit": limit
     }
-
 
 def obtener_catalogos_filtros(db: Session):
     """Devuelve los catálogos para poblar los filtros."""
