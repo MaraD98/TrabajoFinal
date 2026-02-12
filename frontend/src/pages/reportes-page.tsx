@@ -17,12 +17,13 @@ interface ReporteData {
   usuarios_total?: number;
   usuarios_por_rol?: { rol: number; cantidad: number }[];
   eventos_por_tipo?: { tipo: string; cantidad: number }[];
-  eventos_por_dificultad?: { dificultad: string; cantidad: number }[]; // NUEVO
+  eventos_por_dificultad?: { dificultad: string; cantidad: number }[]; 
   solicitudes_externas?: { estado: string; cantidad: number }[];
   mis_eventos_total?: number;
   mis_eventos_por_estado?: { estado: number; cantidad: number }[];
   mis_inscripciones?: any[];
   mis_notificaciones?: any[];
+  eventos_por_ubicacion?: { ubicacion: string; cantidad: number }[];
 }
 
 export default function ReportesPage() {
@@ -157,6 +158,35 @@ export default function ReportesPage() {
               <div className="grafico-barras__bar" style={{ width: `${(item[valueKey] / maxValue) * 100}%` }}>
                 <span className="grafico-barras__valor">{item[valueKey]}</span>
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // --- 2. NUEVO RENDERIZADOR PARA UBICACIONES (Barras Horizontales) ---
+  const renderRankingHorizontal = (data: any[], labelKey: string, valueKey: string) => {
+    if (!data || data.length === 0) return <p className="no-data">Sin datos de ubicación</p>;
+    // Ordenamos de mayor a menor y tomamos top 10 para visualización
+    const dataSorted = [...data].sort((a, b) => b[valueKey] - a[valueKey]).slice(0, 10);
+    const maxValue = Math.max(...dataSorted.map(d => d[valueKey]), 1);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+        {dataSorted.map((item, index) => (
+          <div key={index} style={{ display: 'flex', flexDirection: 'column', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+              <span style={{ fontWeight: 500, color: '#e0e0e0' }}>{item[labelKey]}</span>
+              <span style={{ fontWeight: 'bold', color: '#4ade80' }}>{item[valueKey]}</span>
+            </div>
+            <div style={{ width: '100%', height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ 
+                width: `${(item[valueKey] / maxValue) * 100}%`, 
+                height: '100%', 
+                backgroundColor: '#4ade80',
+                borderRadius: '4px' 
+              }}></div>
             </div>
           </div>
         ))}
@@ -349,6 +379,7 @@ export default function ReportesPage() {
           </div>
         </div>
 
+
         {/* SECCIÓN DE GRÁFICOS */}
         <div className="reportes-graficos">
           
@@ -406,6 +437,26 @@ export default function ReportesPage() {
               </div>
               <div className="grafico-card__body">
                 {renderGraficoTorta(reporteData.eventos_por_dificultad, "dificultad", "cantidad")}
+              </div>
+            </div>
+          )}
+
+          {/* NUEVO CARD: TOP UBICACIONES */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_ubicacion && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>📍 Top Ubicaciones</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_ubicacion"}
+                  onClick={() => handleExportarCSV("eventos_por_ubicacion")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_ubicacion" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body" style={{ overflowY: 'auto', maxHeight: '300px' }}>
+                {renderRankingHorizontal(reporteData.eventos_por_ubicacion, "ubicacion", "cantidad")}
               </div>
             </div>
           )}

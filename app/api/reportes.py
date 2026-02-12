@@ -51,27 +51,39 @@ def export_reportes(
         "eventos_por_mes": [2],
         "usuarios_total": [1],
         "usuarios_por_rol": [1],
-        "eventos_por_tipo": [1, 2], # Agregamos rol 1
-        "eventos_por_dificultad": [1, 2], # Agregamos nuevo reporte
+        "eventos_por_tipo": [1, 2], 
+        "eventos_por_dificultad": [1, 2], 
         "solicitudes_externas": [2],
         "mis_eventos_total": [2,3,4],
         "mis_eventos_por_estado": [2,3,4],
         "mis_inscripciones": [2,3,4],
-        "mis_notificaciones": [2,3,4]
+        "mis_notificaciones": [2,3,4],
+        "eventos_por_ubicacion": [1,2] 
     }
 
     if tipo not in roles_permitidos:
         raise HTTPException(status_code=400, detail="Tipo de reporte no válido")
+    
+    # Validación de rol (Rol 1 es Admin y tiene acceso a todo lo de roles_permitidos)
+    es_admin = current_user.id_rol == 1
+    tiene_permiso = current_user.id_rol in roles_permitidos.get(tipo, [])
 
-
-    if current_user.id_rol != 1 and current_user.id_rol not in roles_permitidos[tipo]:
+    if not es_admin and not tiene_permiso:
         raise HTTPException(status_code=403, detail="No tienes permisos para exportar este reporte")
+    
+    # Inicializamos variables
+    data = []
+    fieldnames = []
 
     # Generar datos según tipo
     if tipo == "total_eventos":
         total_eventos = db.query(func.count(Evento.id_evento)).scalar()
         data = [{"total_eventos": total_eventos}]
         fieldnames = ["total_eventos"]
+
+    if current_user.id_rol == 1:
+        # Ahora pasamos el ID para que el Admin también vea sus "Mis Eventos"
+        data = ReporteService.reportes_admin(db, current_user.id_usuario)
 
     elif tipo == "eventos_por_estado":
         resultados = db.query(Evento.id_estado, func.count(Evento.id_evento)).group_by(Evento.id_estado).all()
@@ -137,12 +149,25 @@ def export_reportes(
         data = ReporteService.reportes_admin(db)["eventos_por_dificultad"]
         fieldnames = ["dificultad", "cantidad"]
 
+    elif tipo == "eventos_por_ubicacion":
+        if current_user.id_rol == 1:
+            reporte = ReporteService.reportes_admin(db)
+        else:
+            reporte = ReporteService.reportes_supervisor(db, current_user.id_usuario)
+
+        data = reporte.get("eventos_por_ubicacion", [])
+        fieldnames = ["ubicacion", "cantidad"]
+
 
     # Crear CSV en memoria
     output = StringIO()
-    writer = csv.DictWriter(output, fieldnames=fieldnames)
-    writer.writeheader()
-    writer.writerows(data)
+    if fieldnames:
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(data)
+    else:
+        # Fallback por si data viene vacío para no romper el CSV
+        output.write("Sin datos disponibles para este reporte")
     output.seek(0)
 
     return StreamingResponse(
