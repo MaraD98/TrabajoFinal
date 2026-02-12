@@ -154,10 +154,11 @@ export async function register(usuarioData: any) {
 
 // REPORTES
 
-// Obtener un reporte en JSON (para mostrar en pantalla)
-export async function getReporte(tipo: string, token: string) {
+export async function getReporte(tipo: string, token: string, anio?: string, mes?: string) {
   const res = await api.get(`/reportes/${tipo}`, {
-    headers: {
+    params: { anio, mes }, // Axios se encarga de agregarlos a la URL si existen
+    headers: 
+    {
       Authorization: `Bearer ${token}`,
     },
   });

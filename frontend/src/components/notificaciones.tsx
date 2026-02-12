@@ -3,6 +3,8 @@ import '../styles/notificaciones.css';
 import { getMisNotificaciones, marcarNotificacionLeida } from '../services/notificacion-service';
 import type { Notificacion } from '../services/notificacion-service';
 import { useNavigate } from 'react-router-dom';
+import { Navbar } from './navbar';
+import { Footer } from './footer';
 
 export default function NotificacionesPage() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
@@ -108,8 +110,10 @@ export default function NotificacionesPage() {
   };
 
   return (
-    <div className="notificaciones-container">
+    <div className="notificaciones-page-layout">
+      <Navbar /> 
       {/* 🎯 Header */}
+      <main className="notificaciones-content-wrapper">
       <div className="notif-header">
         <div className="notif-title-section">
           <h1 className="notif-title">Notificaciones</h1>
@@ -233,6 +237,8 @@ export default function NotificacionesPage() {
           ))
         )}
       </div>
+      </main>
+      <Footer />
     </div>
   );
 };

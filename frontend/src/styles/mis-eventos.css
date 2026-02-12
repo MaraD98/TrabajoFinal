@@ -57,79 +57,16 @@ body {
   font-size: 1.2rem;
 }
 
-/* ================================
-   NAVBAR
-   ================================ */
-.mis-eventos-navbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 40px;
-  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
-  border-bottom: 1px solid var(--border-primary);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: var(--shadow-md);
+/* --- MAIN SECTION --- */
+.main-section {
+  padding: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.hero-logo {
-  height: 45px;
-  width: auto;
-  object-fit: contain;
-  display: block;
-}
-
-.btn-volver {
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 600;
-  border: 1px solid var(--border-accent);
-  padding: 10px 20px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: transparent;
-}
-
-.btn-volver:hover {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
-  border-color: var(--color-primary);
-  transform: translateY(-1px);
-}
-
-/* ================================
-   LAYOUT CON SIDEBAR
-   ================================ */
-.mis-eventos-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-/* ================================
-   SIDEBAR
-   ================================ */
-.mis-eventos-sidebar {
-  width: 260px;
-  background: var(--bg-secondary);
-  padding: 1.5rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  border-right: 1px solid var(--border-primary);
-  overflow-y: auto;
-}
-
-.sidebar-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
-  padding: 12px 14px;
-  border-radius: 8px;
+.header-actions {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -649,3 +586,51 @@ body {
     padding: 6px 12px;
   }
 }
+
+/* 1. El contenedor que centra todo */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px; /* Altura mínima para que no se vea aplastado */
+  width: 100%;
+  gap: 1.5rem; /* Espacio entre el spinner y el texto */
+}
+
+/* 2. El Spinner "Bonito" */
+.spinner {
+  width: 50px;  /* Tamaño más grande y visible */
+  height: 50px;
+  border: 4px solid rgba(255, 107, 53, 0.15); /* Fondo naranja muy suave */
+  border-left-color: #ff6b35; /* Tu color naranja vibrante */
+  border-radius: 50%;
+  
+  /* Aquí está el truca para que se vea fluido */
+  animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+  
+  /* Un pequeño brillo para hacerlo moderno */
+  box-shadow: 0 0 15px rgba(255, 107, 53, 0.2);
+}
+
+/* 3. Texto elegante */
+.loading-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #6b7280; /* Gris suave profesional */
+  letter-spacing: 0.5px;
+  animation: pulse-text 1.5s ease-in-out infinite;
+}
+
+/* 4. Animaciones */
+@keyframes spin {
+  0% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(180deg) scale(1.1); } /* Efecto de latido */
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+

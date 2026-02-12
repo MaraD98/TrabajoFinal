@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import '../styles/mis-eventos.css';
 import { 
     getMisEventos, 
@@ -11,6 +11,7 @@ import {
 import Toast from '../components/modals/Toast';
 import InputModal from '../components/modals/InputModal';
 import EditEventModal from '../components/EditEventModal';
+import CancelEventModal from '../components/CancelEventModal';
 import { Navbar } from '../components/navbar';
 import { Footer } from '../components/footer';
 
@@ -24,7 +25,6 @@ const IMAGENES_TIPO: Record<number | string, string> = {
     4: "https://images.unsplash.com/photo-1475666675596-cca2035b3d79?q=80&w=800&auto=format&fit=crop",
     default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop"
 };
-
 const NOMBRES_TIPO: Record<number | string, string> = {
     1: "Carrera", 2: "Paseo", 3: "Entrenamiento", 4: "Cicloturismo"
 };
@@ -106,7 +106,7 @@ export default function MisEventosPage() {
     const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
     const [solicitudesEliminacion, setSolicitudesEliminacion] = useState<SolicitudEliminacion[]>([]);
     const [solicitudesEdicion, setSolicitudesEdicion] = useState<SolicitudEdicion[]>([]); // ✅ AGREGADO
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Estados de modales
@@ -484,8 +484,6 @@ export default function MisEventosPage() {
         </article>
     );
     };
-
-    if (loading) return <div className="loading-screen">CARGANDO...</div>;
 
     return (
         <>

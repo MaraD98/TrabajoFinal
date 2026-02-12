@@ -3,6 +3,8 @@ import { useNavigate, Link } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
+import { Navbar } from "../components/navbar";
+import { Footer } from "../components/footer";
 import Toast from '../components/modals/Toast';
 
 export default function SolicitudEventoPage() {
@@ -399,6 +401,7 @@ export default function SolicitudEventoPage() {
     <div className="event-registration">
       {toast && <Toast message={toast.mensaje} type={toast.tipo} onClose={() => setToast(null)} />}
       
+      <Navbar /> 
       <div className="event-registration__container">
         <div className="event-registration__header">
           <div>
@@ -613,6 +616,7 @@ export default function SolicitudEventoPage() {
           </div>
         </div>
       </div>
+      <Footer/> 
     </div>
   );
 }
