@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"; // 1. Agregamos useRef
-import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
+import { exportReporteCSV, getReporte } from "../services/eventos"; 
 import "../styles/reportes.css";
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
@@ -17,6 +17,7 @@ interface ReporteData {
   usuarios_total?: number;
   usuarios_por_rol?: { rol: number; cantidad: number }[];
   eventos_por_tipo?: { tipo: string; cantidad: number }[];
+  eventos_por_dificultad?: { dificultad: string; cantidad: number }[]; // NUEVO
   solicitudes_externas?: { estado: string; cantidad: number }[];
   mis_eventos_total?: number;
   mis_eventos_por_estado?: { estado: number; cantidad: number }[];
@@ -29,6 +30,10 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
+
+  // Filtros para la consulta
+  const [anioFiltro, setAnioFiltro] = useState<string>("");
+  const [mesFiltro, setMesFiltro] = useState<string>("");
 
   // 3. Referencia al contenedor que queremos imprimir
   const reporteRef = useRef<HTMLDivElement>(null);  
@@ -50,7 +55,7 @@ export default function ReportesPage() {
         setLoading(false);
       }
     }
-  }, [loadingAuth, getToken]);
+  }, [loadingAuth, getToken, anioFiltro, mesFiltro]);
 
   const cargarReportes = async (tokenParaCargar?: string) => {
     try {
@@ -65,7 +70,14 @@ export default function ReportesPage() {
         return;
       }
 
-      const data = await getReporteGeneral(token);
+      // ✅ CORRECCIÓN AQUÍ: Pasamos los filtros de forma que el backend no reciba strings vacíos
+      // Usamos "" para el tipo (que es el primer parámetro en tu service actual)
+      const data = await getReporte(
+        "", 
+        token, 
+        anioFiltro || undefined, 
+        mesFiltro || undefined
+      );
       setReporteData(data);
     } catch (err: any) {
       console.error("Error en reportes:", err);
@@ -190,6 +202,33 @@ export default function ReportesPage() {
     );
   };
 
+  const renderGraficoTorta = (data: any[], labelKey: string, valueKey: string) => {
+    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+    const total = data.reduce((sum, item) => sum + item[valueKey], 0);
+    let acumulado = 0;
+    const colores = ["#ff6b35", "#ffa500", "#4caf50", "#2196f3", "#9c27b0"];
+    const conicParts = data.map((item, index) => {
+      const porcentaje = (item[valueKey] / (total || 1)) * 100;
+      const inicio = acumulado;
+      acumulado += porcentaje;
+      return `${colores[index % colores.length]} ${inicio}% ${acumulado}%`;
+    });
+
+    return (
+      <div className="grafico-torta-container">
+        <div className="grafico-torta__circulo" style={{ background: `conic-gradient(${conicParts.join(", ")})` }}></div>
+        <div className="grafico-torta__leyenda">
+          {data.map((item, index) => (
+            <div key={index} className="grafico-torta__leyenda-item">
+              <div className="grafico-torta__color" style={{ backgroundColor: colores[index % colores.length] }}></div>
+              <span className="grafico-torta__texto">{item[labelKey]}: <strong>{item[valueKey]}</strong></span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   // --- PROTECCIÓN DE RUTA ---
   if (loadingAuth || loading) {
     return (
@@ -232,13 +271,28 @@ export default function ReportesPage() {
             <p className="reportes-header__subtitle">Gestión centralizada de datos para {user?.nombre_y_apellido}</p>
           </div>
           
-          <div className="reportes-header__actions" style={{ display: 'flex', gap: '10px' }}>
+          <div className="reportes-header__actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+             {/* Selectores de Filtro */}
+             <div data-html2canvas-ignore="true" style={{ display: 'flex', gap: '5px' }}>
+                <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} className="filter-select">
+                  <option value="">Año (Todos)</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+                <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} className="filter-select">
+                  <option value="">Mes (Todos)</option>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                    <option key={m} value={m}>{getNombreMes(m)}</option>
+                  ))}
+                </select>
+             </div>
+
              {/* 6. Botón para Descargar PDF */}
              <button 
                 onClick={handleDescargarPDF} 
                 disabled={exportando === "pdf"}
-                className="reportes-header__refresh" // Reutilicé la clase, puedes crear una btn-pdf
-                style={{ backgroundColor: '#e74c3c' }} // Rojo PDF
+                className="reportes-header__refresh" 
+                style={{ backgroundColor: '#e74c3c' }} 
              >
                 {exportando === "pdf" ? "Generando..." : "📄 Guardar PDF"}
              </button>
@@ -246,7 +300,7 @@ export default function ReportesPage() {
              <button 
                 onClick={() => cargarReportes()}
                 className="reportes-header__refresh"
-              >
+               >
                 ↻ Actualizar Datos
             </button>
           </div>
@@ -276,7 +330,7 @@ export default function ReportesPage() {
           </div>
         </div>
 
-        {/* SECCIÓN DE GRÁFICOS (El resto queda igual) */}
+        {/* SECCIÓN DE GRÁFICOS */}
         <div className="reportes-graficos">
           
           {/* 1. Tendencia Mensual */}
@@ -284,9 +338,8 @@ export default function ReportesPage() {
             <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
                 <h3>📅 Tendencia Mensual de Eventos</h3>
-                {/* Ocultamos el botón CSV al imprimir para que no salga en el PDF si se ve feo (opcional) */}
                 <button 
-                  data-html2canvas-ignore="true" // Esto hace que el botón no salga en el PDF
+                  data-html2canvas-ignore="true" 
                   disabled={exportando === "eventos_por_mes"}
                   onClick={() => handleExportarCSV("eventos_por_mes")}
                   className="btn-export"
@@ -295,6 +348,46 @@ export default function ReportesPage() {
                 </button>
               </div>
               <div className="grafico-card__body">{renderGraficoLinea(reporteData.eventos_por_mes)}</div>
+            </div>
+          )}
+
+          {/* Gráfico Tipo (Torta) */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🏃‍♂️ Eventos por Tipo</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_tipo"}
+                  onClick={() => handleExportarCSV("eventos_por_tipo")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                {renderGraficoTorta(reporteData.eventos_por_tipo, "tipo", "cantidad")}
+              </div>
+            </div>
+          )}
+
+          {/* Gráfico Dificultad (Torta) */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_dificultad && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🧗 Eventos por Dificultad</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_dificultad"}
+                  onClick={() => handleExportarCSV("eventos_por_dificultad")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_dificultad" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                {renderGraficoTorta(reporteData.eventos_por_dificultad, "dificultad", "cantidad")}
+              </div>
             </div>
           )}
 
@@ -332,23 +425,6 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
-            <div className="grafico-card">
-              <div className="grafico-card__header">
-                <h3>🏃‍♂️ Categorías de Eventos</h3>
-                <button 
-                  data-html2canvas-ignore="true"
-                  disabled={exportando === "eventos_por_tipo"}
-                  onClick={() => handleExportarCSV("eventos_por_tipo")}
-                  className="btn-export"
-                >
-                  {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
-                </button>
-              </div>
-              <div className="grafico-card__body">{renderGraficoPie(reporteData.eventos_por_tipo, "tipo", "cantidad")}</div>
-            </div>
-          )}
-
           {/* 5. Auditoría */}
           {(usuarioRol <= 2) && (
             <div className="grafico-card">
@@ -365,7 +441,7 @@ export default function ReportesPage() {
               </div>
               <div className="grafico-card__body">
                  <p style={{fontSize: '0.9rem', color: '#e0e0e0'}}>
-                   Registro de intervenciones.
+                    Registro de intervenciones.
                  </p>
                  <div className="audit-badge">Auditoría Activa</div>
               </div>
