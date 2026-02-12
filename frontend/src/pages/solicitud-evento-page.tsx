@@ -616,7 +616,7 @@ export default function SolicitudEventoPage() {
           </div>
         </div>
       </div>
-      <Footer/> 
+      {/* <Footer/>  */}
     </div>
   );
 }

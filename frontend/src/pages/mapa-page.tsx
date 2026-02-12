@@ -3,6 +3,7 @@ import { getEventos } from "../services/eventos";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/mapa.css";
+import { Navbar } from "../components/navbar";
 
 interface Evento {
   id_evento: number;
@@ -198,6 +199,7 @@ export default function EventsMapPage() {
 
   return (
     <div className="events-map-page">
+      <Navbar/>
       <div className="events-map-page__container">
         <div className="events-map-page__header">
           <h1 className="events-map-page__title">Mapa de Eventos Deportivos</h1>
