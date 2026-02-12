@@ -9,7 +9,9 @@ export const Footer = () => {
         
         {/* BRANDING */}
         <div className="footer-section brand">
-          <img src={logoWakeUp} alt="Wake Up" className="footer-logo" />
+          <a href="https://www.wakeupbikes.com/" target="_blank" rel="noopener noreferrer">
+              <img src={logoWakeUp} alt="Wake Up" className="footer-logo" />
+          </a>
           <p>La comunidad más grande de ciclistas. Registra tus eventos, compite y pedalea con nosotros.</p>
         </div>
 
