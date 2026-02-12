@@ -1,5 +1,5 @@
 /* 🎨 Variables de diseño - Tema elegante y moderno */
-.notificaciones-container {
+.notificaciones-page-layout {
   --notif-primary: #6366f1;
   --notif-primary-dark: #4f46e5;
   --notif-bg: #ffffff;
@@ -14,7 +14,28 @@
   --notif-shadow-hover: 0 4px 12px rgba(99, 102, 241, 0.15);
   --notif-radius: 12px;
   --notif-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Estructura Flex para el Sticky Footer */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ocupa toda la altura de la ventana */
+  background: var(--notif-bg);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
 }
+
+
+/* =========================================
+   2. CONTENIDO CENTRAL (Limitado y Centrado)
+   ========================================= */
+.notificaciones-content-wrapper {
+  flex: 1; /* IMPORTANTE: Esto empuja el Footer hacia abajo */
+  
+  width: 100%;
+  max-width: 900px; /* Aquí controlas el ancho del contenido (900px o 1200px) */
+  margin: 0 auto;   /* Centra el bloque horizontalmente */
+  padding: 2rem 1.5rem; /* El espacio interno */
+}
+
 
 /* 🌙 Tema oscuro (opcional) */
 @media (prefers-color-scheme: dark) {
@@ -39,6 +60,9 @@
   background: var(--notif-bg);
   min-height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ocupa al menos el 100% de la altura de la pantalla */
 }
 
 /* 🎯 Header */
@@ -459,3 +483,4 @@
   outline-offset: 2px;
   border-color: var(--notif-primary);
 }
+
