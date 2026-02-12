@@ -559,7 +559,7 @@ export default function CalendarioPage() {
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`https://maps.google.com/?q=${e.lat},${e.lng}`} target="_blank" rel="noopener noreferrer" className="ver-mapa-link">
+                                                    <a href={`/mapa`}  rel="noopener noreferrer" className="ver-mapa-link">
                                                         Ver mapa
                                                     </a>
                                                 )}

@@ -393,7 +393,7 @@ const initMap = () => {
           </div>
         </div>
       </div>
-      <Footer /> 
+      {/* <Footer />  */}
     </div>
   );
 }
