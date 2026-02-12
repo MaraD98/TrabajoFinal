@@ -1,13 +1,9 @@
 from sqlalchemy.orm import Session
-from app.models.editar_models import Evento, HistorialEdicionEvento, DetalleCambioEvento
-
-from sqlalchemy.orm import Session
 
 # 1. Traemos 'Evento' desde TU archivo 'registro_models'
 from app.models.registro_models import Evento 
 
 # 2. Traemos los historiales desde 'editar_models'
-# (Asumo que el archivo se llama editar_models.py como vi en tu pestaña antes)
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
 
 def obtener_evento_por_id(db: Session, id_evento: int):

@@ -1,0 +1,337 @@
+/* ============================================
+   MODAL DE DETALLE DE EDICIÓN
+   ============================================ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9998;
+  animation: fadeIn 0.2s ease;
+}
+
+.detalle-edicion-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #1a1a1a;
+  border-radius: 16px;
+  border: 1px solid #2a2a2a;
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  z-index: 9999;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    transform: translate(-50%, -40%);
+    opacity: 0;
+  }
+  to { 
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+}
+
+/* Header */
+.detalle-edicion-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  border-bottom: 2px solid #ccff00;
+}
+
+.detalle-edicion-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: #fff;
+  font-weight: 700;
+}
+
+.detalle-edicion-modal .modal-subtitle {
+  margin: 4px 0 0 0;
+  font-size: 0.9rem;
+  color: #ccff00;
+  font-weight: 500;
+}
+
+.detalle-edicion-modal .btn-close {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1.8rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.detalle-edicion-modal .btn-close:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+/* Body */
+.detalle-edicion-modal .modal-body {
+  padding: 24px 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.detalle-edicion-modal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.detalle-edicion-modal .modal-body::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+
+.detalle-edicion-modal .modal-body::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.detalle-edicion-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #3a3a3a;
+}
+
+/* Info Section */
+.info-section {
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.info-row:not(:last-child) {
+  border-bottom: 1px solid #1a1a1a;
+}
+
+.info-label {
+  color: #888;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.info-value {
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Cambios Section */
+.cambios-section h3 {
+  color: #ccff00;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cambios-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cambio-item {
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.cambio-item:hover {
+  border-color: #ccff00;
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.1);
+}
+
+.cambio-header {
+  margin-bottom: 16px;
+}
+
+.campo-nombre {
+  color: #ccff00;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cambio-valores {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.valor-anterior,
+.valor-nuevo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.valor-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.valor-anterior .valor-label {
+  color: #ef4444;
+}
+
+.valor-nuevo .valor-label {
+  color: #10b981;
+}
+
+.valor-texto {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.valor-anterior .valor-texto {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.valor-nuevo .valor-texto {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #6ee7b7;
+}
+
+.arrow {
+  color: #666;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* Footer */
+.detalle-edicion-modal .modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 20px 32px;
+  background: #0f0f0f;
+  border-top: 1px solid #2a2a2a;
+  justify-content: flex-end;
+}
+
+.btn-rechazar-modal,
+.btn-aprobar-modal {
+  padding: 12px 28px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Montserrat', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn-rechazar-modal {
+  background: transparent;
+  border: 2px solid #ef4444;
+  color: #ef4444;
+}
+
+.btn-rechazar-modal:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.btn-aprobar-modal {
+  background: #ccff00;
+  color: #000;
+}
+
+.btn-aprobar-modal:hover {
+  background: #d4ff1a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(204, 255, 0, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .detalle-edicion-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .detalle-edicion-modal .modal-header,
+  .detalle-edicion-modal .modal-body,
+  .detalle-edicion-modal .modal-footer {
+    padding: 16px 20px;
+  }
+
+  .cambio-valores {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .arrow {
+    transform: rotate(90deg);
+    text-align: center;
+  }
+
+  .detalle-edicion-modal .modal-footer {
+    flex-direction: column;
+  }
+
+  .btn-rechazar-modal,
+  .btn-aprobar-modal {
+    width: 100%;
+  }
+}

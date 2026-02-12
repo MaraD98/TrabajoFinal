@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/mis-eventos.css';
-import { getMisEventos, getMisSolicitudes, getMisSolicitudesEliminacion, solicitarBajaEvento } from '../services/eventos';
+import { 
+    getMisEventos, 
+    getMisSolicitudes, 
+    getMisSolicitudesEliminacion,
+    getMisSolicitudesEdicion, // ✅ AGREGADO
+    solicitarBajaEvento 
+} from '../services/eventos';
 import Toast from '../components/modals/Toast';
 import InputModal from '../components/modals/InputModal';
 import EditEventModal from '../components/EditEventModal';
@@ -74,6 +80,23 @@ interface SolicitudEliminacion {
     fecha_solicitud: string;
 }
 
+// ✅ NUEVA INTERFAZ
+interface SolicitudEdicion {
+    id_solicitud_edicion: number;
+    id_evento: number;
+    nombre_evento: string;
+    fecha_evento: string;
+    ubicacion: string;
+    id_tipo: number;
+    cambios_propuestos: Record<string, {
+        anterior: string;
+        nuevo: string;
+        valor_real: any;
+    }>;
+    fecha_solicitud: string;
+    estado: string;
+}
+
 export default function MisEventosPage() {
     const [vistaActiva, setVistaActiva] = useState<Vista>('borradores');
     const [filtroHistorial, setFiltroHistorial] = useState<FiltroHistorial>('activos');
@@ -82,6 +105,7 @@ export default function MisEventosPage() {
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
     const [solicitudesEliminacion, setSolicitudesEliminacion] = useState<SolicitudEliminacion[]>([]);
+    const [solicitudesEdicion, setSolicitudesEdicion] = useState<SolicitudEdicion[]>([]); // ✅ AGREGADO
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -129,14 +153,16 @@ export default function MisEventosPage() {
         try {
             setLoading(true);
             setError(null);
-            const [eventosData, solicitudesData, eliminacionesData] = await Promise.all([
+            const [eventosData, solicitudesData, eliminacionesData, edicionesData] = await Promise.all([
                 getMisEventos(),
                 getMisSolicitudes(),
-                getMisSolicitudesEliminacion() // ✅ NUEVO
+                getMisSolicitudesEliminacion(),
+                getMisSolicitudesEdicion() // ✅ AGREGADO
             ]);
             setEventos(eventosData);
             setSolicitudes(solicitudesData);
-            setSolicitudesEliminacion(eliminacionesData); // ✅ NUEVO
+            setSolicitudesEliminacion(eliminacionesData);
+            setSolicitudesEdicion(edicionesData); // ✅ AGREGADO
         } catch (err: any) {
             console.error('Error cargando datos:', err);
             setError(err.response?.data?.detail || 'Error al cargar eventos');
@@ -152,8 +178,16 @@ export default function MisEventosPage() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
     
+    // ✅ IDs de eventos que tienen solicitudes pendientes (para filtrarlos)
+    const idsEventosConSolicitudEdicion = solicitudesEdicion.map(s => s.id_evento);
+    const idsEventosConSolicitudEliminacion = solicitudesEliminacion.map(s => s.id_evento);
+    
+    // ✅ Eventos activos: Estado 3, fecha futura, SIN solicitudes pendientes
     const eventosActivos = eventos.filter(e => 
-        e.id_estado === 3 && new Date(e.fecha_evento) >= hoy
+        e.id_estado === 3 && 
+        new Date(e.fecha_evento) >= hoy &&
+        !idsEventosConSolicitudEdicion.includes(e.id_evento) &&
+        !idsEventosConSolicitudEliminacion.includes(e.id_evento)
     );
     
     const eventosFinalizados = eventos.filter(e => 
@@ -164,8 +198,8 @@ export default function MisEventosPage() {
 
     // ✅ PENDIENTES
     const pendientesAprobacion = solicitudesPendientes;
-    const pendientesEdicion = eventos.filter(e => e.id_estado === 2);
-    const pendientesEliminacion = solicitudesEliminacion; // ✅ NUEVO
+    const pendientesEdicion = solicitudesEdicion;
+    const pendientesEliminacion = solicitudesEliminacion;
 
     const obtenerImagen = (item: Evento | Solicitud | SolicitudEliminacion) => {
         if ('multimedia' in item && item.multimedia && item.multimedia.length > 0) {
@@ -365,7 +399,6 @@ export default function MisEventosPage() {
         );
     };
 
-    // ✅ NUEVO: Renderizar card de solicitud de eliminación
     const renderSolicitudEliminacionCard = (solicitud: SolicitudEliminacion) => {
         const fechaLimpia = solicitud.fecha_evento.toString().split('T')[0];
         const nombreTipo = NOMBRES_TIPO[solicitud.id_tipo] || "Evento";
@@ -406,6 +439,50 @@ export default function MisEventosPage() {
                 </div>
             </article>
         );
+    };
+
+    // ✅ NUEVA FUNCIÓN
+    const renderSolicitudEdicionCard = (solicitud: SolicitudEdicion) => {
+    const fechaLimpia = solicitud.fecha_evento.toString().split('T')[0];
+    const nombreTipo = NOMBRES_TIPO[solicitud.id_tipo] || "Evento";
+    const cantidadCambios = Object.keys(solicitud.cambios_propuestos || {}).length;
+    
+    // Obtener imagen de forma segura
+    const imagenUrl = IMAGENES_TIPO[solicitud.id_tipo] || IMAGENES_TIPO.default;
+
+    return (
+        <article key={solicitud.id_solicitud_edicion} className="evento-card">
+            <div className="card-img-wrapper">
+                <span className="tipo-badge">{nombreTipo}</span>
+                <img
+                    src={imagenUrl}
+                    alt={solicitud.nombre_evento}
+                    className="card-img"
+                />
+            </div>
+            
+            <div className="card-content">
+                <div className="card-header">
+                    <h3>{solicitud.nombre_evento}</h3>
+                </div>
+                <div className="card-info">
+                    <div className="info-item">
+                        <span className="icon">📅</span> {fechaLimpia}
+                    </div>
+                    <div className="info-item">
+                        <span className="icon">📍</span> {solicitud.ubicacion}
+                    </div>
+                    <div className="info-item">
+                        <span className="icon">✏️</span> 
+                        <small>{cantidadCambios} campo{cantidadCambios !== 1 ? 's' : ''} modificado{cantidadCambios !== 1 ? 's' : ''}</small>
+                    </div>
+                </div>
+                <div className="card-actions">
+                    <span className="estado-pendiente">⏳ PENDIENTE DE APROBACIÓN</span>
+                </div>
+            </div>
+        </article>
+    );
     };
 
     if (loading) return <div className="loading-screen">CARGANDO...</div>;
@@ -475,7 +552,6 @@ export default function MisEventosPage() {
                         </>
                     )}
 
-                    {/* ✅ VISTA PENDIENTES COMPLETA */}
                     {vistaActiva === 'pendientes' && (
                         <>
                             <div className="section-header">
@@ -522,7 +598,7 @@ export default function MisEventosPage() {
                                     </div>
                                 ) : (
                                     <div className="grid-eventos">
-                                        {pendientesEdicion.map(renderEventoCard)}
+                                        {pendientesEdicion.map(renderSolicitudEdicionCard)}
                                     </div>
                                 )
                             )}

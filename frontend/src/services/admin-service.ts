@@ -44,7 +44,6 @@ export class AdminService {
   // SOLICITUDES DE BAJA
   // ===========================
   
-  // ✅ CORREGIDO: Sin parámetro idEliminacion
   static async aprobarBaja(idEvento: number) {
     try {
       const response = await api.patch(`/eliminacion/admin/aprobar-baja/${idEvento}`);
@@ -55,7 +54,6 @@ export class AdminService {
     }
   }
 
-  // ✅ CORREGIDO: Sin parámetro idEliminacion
   static async rechazarBaja(idEvento: number) {
     try {
       const response = await api.patch(`/eliminacion/admin/rechazar-baja/${idEvento}`);
@@ -73,6 +71,62 @@ export class AdminService {
     } catch (error) {
       console.error('Error obteniendo bajas pendientes:', error);
       return [];
+    }
+  }
+
+  // ===========================
+  // ✅ NUEVO: SOLICITUDES DE EDICIÓN
+  // ===========================
+
+  /**
+   * Admin: Obtener solicitudes de edición pendientes
+   */
+  static async obtenerSolicitudesEdicionPendientes() {
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await api.get('/edicion-eventos/solicitudes-edicion-pendientes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error obteniendo solicitudes de edición:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Admin: Aprobar solicitud de edición
+   */
+  static async aprobarSolicitudEdicion(idEvento: number) {
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await api.patch(
+        `/eventos/${idEvento}/aprobar-edicion`, 
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error aprobando edición:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Rechazar solicitud de edición
+   */
+  static async rechazarSolicitudEdicion(idEvento: number) {
+    try {
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      const response = await api.patch(
+        `/eventos/${idEvento}/rechazar-edicion`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error rechazando edición:', error);
+      throw error;
     }
   }
 
@@ -149,7 +203,6 @@ export class AdminService {
   
   static async obtenerTodasLasReservas() {
     try {
-      // NOTA: Si tu backend requiere ruta admin, cámbialo a '/admin/reservas'
       const response = await api.get('/reservas'); 
       return response.data;
     } catch (error) {
@@ -158,3 +211,11 @@ export class AdminService {
     }
   }
 }
+
+// ============================================================================
+// EXPORTS INDIVIDUALES (para compatibilidad con imports directos)
+// ============================================================================
+
+export const getSolicitudesEdicionPendientes = AdminService.obtenerSolicitudesEdicionPendientes;
+export const aprobarSolicitudEdicion = AdminService.aprobarSolicitudEdicion;
+export const rechazarSolicitudEdicion = AdminService.rechazarSolicitudEdicion;

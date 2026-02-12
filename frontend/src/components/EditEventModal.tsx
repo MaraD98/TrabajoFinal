@@ -14,6 +14,7 @@ interface Evento {
     cupo_maximo?: number;
     lat?: number | null;
     lng?: number | null;
+    id_estado: number;
 }
 
 interface Solicitud {
@@ -63,7 +64,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
     const [dificultades, setDificultades] = useState<Catalogo[]>([]);
     const [loading, setLoading] = useState(false);
     
-    // Estados del mapa (idénticos a registro-evento-page)
     const [isSearching, setIsSearching] = useState(false);
     const [locationStatus, setLocationStatus] = useState<"idle" | "found" | "not-found">("idle");
     const mapRef = useRef<L.Map | null>(null);
@@ -74,7 +74,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         if (isOpen) {
             cargarCatalogos();
             cargarDatosItem();
-            // Inicializar mapa después de que el modal esté renderizado
             setTimeout(() => initMap(), 100);
         }
         
@@ -125,7 +124,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         });
     };
 
-    // ===== LÓGICA DEL MAPA (COPIADA DE registro-evento-page.tsx) =====
     const initMap = () => {
         if (mapRef.current) {
             mapRef.current.remove();
@@ -148,7 +146,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             maxZoom: 19,
         }).addTo(map);
 
-        // Si ya hay coordenadas, agregar marcador
         if (formData.lat && formData.lng) {
             const customIcon = L.divIcon({
                 className: "custom-marker",
@@ -178,11 +175,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             try {
                 const res = await fetch(
                     `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
-                    {
-                        headers: {
-                            "User-Agent": "EventRegistrationApp/1.0",
-                        },
-                    }
+                    { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
                 );
                 const data = await res.json();
                 if (data && data.display_name) {
@@ -195,7 +188,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         });
     };
 
-    // Búsqueda de ubicación por texto
     useEffect(() => {
         if (searchTimeoutRef.current) {
             clearTimeout(searchTimeoutRef.current);
@@ -216,11 +208,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ar&q=${encodeURIComponent(
                         formData.ubicacion
                     )}&limit=1`,
-                    {
-                        headers: {
-                            "User-Agent": "EventRegistrationApp/1.0",
-                        },
-                    }
+                    { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
                 );
                 const data = await res.json();
                 
@@ -293,7 +281,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
 
             const isEvento = 'id_evento' in item;
             const endpoint = isEvento 
-                ? `/eventos/actualizar/${(item as Evento).id_evento}`
+                ? `/edicion-eventos/actualizar/${(item as Evento).id_evento}`
                 : `/solicitudes-eventos/${(item as Solicitud).id_solicitud}`;
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
@@ -306,6 +294,23 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             });
 
             if (response.ok) {
+                const data = await response.json();
+                
+                // ✅ CORRECCIÓN: Detectar tipo de respuesta
+                // Si tiene "id_solicitud" → Es solicitud de organizador
+                // Si tiene "id_evento" pero NO "id_solicitud" → Es edición directa de admin
+                
+                if (data.id_solicitud) {
+                    // Solicitud de edición creada
+                    onShowToast(
+                        data.mensaje || 'Solicitud de edición enviada. Quedará pendiente de aprobación.', 
+                        'success'
+                    );
+                } else {
+                    // Edición directa aplicada
+                    onShowToast('Cambios guardados exitosamente', 'success');
+                }
+                
                 onSuccess();
                 onClose();
             } else {
@@ -324,7 +329,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
 
     return (
         <>
-            {/* Overlay */}
             <div 
                 onClick={onClose}
                 style={{
@@ -338,7 +342,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 }}
             />
             
-            {/* Modal */}
             <div style={{
                 position: 'fixed',
                 top: '50%',
@@ -354,7 +357,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 zIndex: 9999,
                 fontFamily: 'Montserrat, sans-serif'
             }}>
-                {/* Header */}
                 <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -398,16 +400,13 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     </button>
                 </div>
 
-                {/* Content - Grid 2 columnas */}
                 <div style={{ 
                     display: 'grid', 
                     gridTemplateColumns: '1fr 1fr',
                     gap: '24px',
                     padding: '24px'
                 }}>
-                    {/* Columna 1: Formulario */}
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {/* Nombre */}
                         <div>
                             <label style={{ 
                                 display: 'block', 
@@ -438,7 +437,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             />
                         </div>
 
-                        {/* Fecha */}
                         <div>
                             <label style={{ 
                                 display: 'block', 
@@ -469,7 +467,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             />
                         </div>
 
-                        {/* Ubicación */}
                         <div>
                             <label style={{ 
                                 display: 'block', 
@@ -517,7 +514,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             </span>
                         </div>
 
-                        {/* Tipo y Dificultad */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                             <div>
                                 <label style={{ 
@@ -592,7 +588,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             </div>
                         </div>
 
-                        {/* Costo y Cupo */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                             <div>
                                 <label style={{ 
@@ -656,7 +651,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             </div>
                         </div>
 
-                        {/* Descripción */}
                         <div>
                             <label style={{ 
                                 display: 'block', 
@@ -688,7 +682,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                             />
                         </div>
 
-                        {/* Botones */}
                         <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
                             <button
                                 type="button"
@@ -728,7 +721,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                         </div>
                     </form>
 
-                    {/* Columna 2: Mapa */}
                     <div>
                         <div style={{
                             background: '#0f0f0f',
@@ -756,7 +748,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 </div>
             </div>
 
-            {/* Estilos para el marcador personalizado */}
             <style>{`
                 .custom-marker {
                     background: transparent;

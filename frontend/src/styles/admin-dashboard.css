@@ -1011,3 +1011,45 @@
     border: 1px solid #ddd;
   }
 }
+/* Agregar este CSS a tu admin-dashboard.css */
+
+.btn-ver-detalle-admin {
+  background: transparent;
+  border: 2px solid #4a9eff;
+  color: #4a9eff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  font-weight: 600;
+}
+
+.btn-ver-detalle-admin:hover {
+  background: #4a9eff;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(74, 158, 255, 0.3);
+}
+
+/* Hacer que las filas de ediciones sean clickeables */
+.data-table-admin tbody tr[style*="cursor: pointer"]:hover {
+  background: rgba(204, 255, 0, 0.05);
+  transition: all 0.2s ease;
+}
+.btn-editar-admin {
+  background: linear-gradient(135deg, #4a9eff 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-editar-admin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+}

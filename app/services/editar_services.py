@@ -1,340 +1,508 @@
-from datetime import date, datetime
-from decimal import Decimal
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from fastapi import HTTPException, status
+"""
+Servicio de Edición de Eventos - VERSIÓN DEFINITIVA
+Archivo: app/services/editar_services.py
 
-# Tus modelos
+🔥 SOLUCIÓN DEFINITIVA AL ERROR 422
+"""
+from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from app.models.registro_models import Evento
+from app.models.solicitud_edicion_models import SolicitudEdicionEvento
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
-from app.db.crud.notificacion_crud import NotificacionCRUD
+from app.models.auth_models import Usuario
+from app.schemas.editar_schema import EventoEditar
+from app.db.crud import solicitud_edicion_crud
+from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_auditoria
+from datetime import datetime
+import json
+
+ID_ESTADO_PUBLICADO = 3
+
 
 class EditarEventoService:
     
+    # ========================================================================
+    # MÉTODO PRINCIPAL: ACTUALIZAR EVENTO
+    # ========================================================================
+    
     @staticmethod
-    def actualizar_evento(db: Session, id_evento: int, evento_update, id_usuario_actual: int, id_rol_actual: int):
+    def actualizar_evento(
+        db: Session, 
+        id_evento: int, 
+        evento_update: EventoEditar, 
+        id_usuario_actual: int,
+        id_rol_actual: int
+    ):
         """
-        ✅ CORREGIDO: Edición con flujo de aprobación.
-        
-        LÓGICA:
-        - Admin (1) o Supervisor (2): Editan DIRECTAMENTE. Evento sigue en estado 3 (Publicado).
-        - Dueño (3/4): Crea SOLICITUD de edición. Evento sigue en estado 3 (visible), 
-          pero aparece en "Pendientes de Edición" para admin.
-        
-        SIMILAR al flujo de eliminación:
-        - El evento queda ACTIVO y visible para todos
-        - Se crea un registro de auditoría con los cambios propuestos
-        - El admin puede aprobar/rechazar los cambios
+        Actualizar evento según el rol del usuario:
+        - Admin/Supervisor (rol 1 o 2): cambios directos
+        - Organizador (rol 3): crear solicitud de edición
         """
-        
-        # 1. BUSCAR EL EVENTO
-        evento_db = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento_db:
+        # Verificar que el evento existe
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+        if not evento:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"El evento con id {id_evento} no existe."
+                detail="Evento no encontrado"
             )
 
-        # === 2. VALIDACIÓN DE PERMISOS ===
-        
-        ROL_ADMIN = 1
-        ROL_SUPERVISOR = 2
-        ESTADO_PUBLICADO = 3
-        
-        es_autoridad = id_rol_actual in [ROL_ADMIN, ROL_SUPERVISOR]
-        es_dueno = evento_db.id_usuario == id_usuario_actual
-        esta_publicado = evento_db.id_estado == ESTADO_PUBLICADO
-        
-        # Caso A: No es ni autoridad ni el dueño → FUERA
-        if not es_autoridad and not es_dueno:
+        es_admin = id_rol_actual in [1, 2]
+        es_dueno = evento.id_usuario == id_usuario_actual
+
+        # Verificar permisos
+        if not es_admin and not es_dueno:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, 
-                detail="No tienes permisos para editar este evento."
+                detail="No tienes permiso para editar este evento"
             )
-        
-        # Caso B: Es el dueño (pero no admin), y el evento está publicado → CREAR SOLICITUD
-        if es_dueno and not es_autoridad and esta_publicado:
+
+        # Redirigir según rol
+        if es_admin:
+            return EditarEventoService._aplicar_cambios_directo(
+                db=db, 
+                evento=evento, 
+                evento_update=evento_update, 
+                id_usuario=id_usuario_actual
+            )
+        else:
             return EditarEventoService._crear_solicitud_edicion(
-                db=db,
-                evento=evento_db,
-                cambios=evento_update,
+                db=db, 
+                evento=evento, 
+                evento_update=evento_update, 
                 id_usuario=id_usuario_actual
             )
-        
-        # Caso C: Admin/Supervisor → EDICIÓN DIRECTA
-        if es_autoridad:
-            return EditarEventoService._aplicar_cambios_directos(
-                db=db,
-                evento=evento_db,
-                cambios=evento_update,
-                id_usuario=id_usuario_actual
-            )
-        
-        # Caso D: Dueño edita su evento en borrador/pendiente (no publicado)
-        return EditarEventoService._aplicar_cambios_directos(
-            db=db,
-            evento=evento_db,
-            cambios=evento_update,
-            id_usuario=id_usuario_actual
-        )
+
+    # ========================================================================
+    # MÉTODO PRIVADO: CAMBIOS DIRECTOS (ADMIN)
+    # ========================================================================
     
     @staticmethod
-    def _crear_solicitud_edicion(db: Session, evento: Evento, cambios, id_usuario: int):
+    def _aplicar_cambios_directo(
+        db: Session, 
+        evento: Evento, 
+        evento_update: EventoEditar, 
+        id_usuario: int
+    ):
         """
-        ✅ NUEVO: Crea una solicitud de edición (similar a solicitud de baja).
-        
-        El evento:
-        - Permanece en estado 3 (Publicado) → Visible para todos
-        - Pero aparece en "Pendientes de Edición" para el dueño y admin
-        
-        Cómo funciona:
-        - Guardamos los cambios propuestos en historial_edicion_evento
-        - Cambiamos temporalmente el estado a 2 (Pendiente)
-        - El admin puede aprobar/rechazar desde su panel
+        Admin aplica cambios directamente al evento.
+        Registra en historial de ediciones.
         """
+        cambios = EditarEventoService._detectar_cambios(evento, evento_update)
         
-        # Validar que no sea un evento pasado
-        if evento.fecha_evento < date.today():
+        if not cambios:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="No se permite editar un evento cuya fecha ya ha pasado."
+                detail="No se detectaron cambios"
             )
+
+        # Aplicar cambios al evento
+        for campo, valores in cambios.items():
+            setattr(evento, campo, valores["nuevo"])
+
+        # Registrar en historial
+        historial = HistorialEdicionEvento(
+            id_evento=evento.id_evento,
+            id_usuario=id_usuario,
+            fecha_edicion=datetime.now()
+        )
+        db.add(historial)
+        db.flush()
+
+        # Registrar detalles de cada cambio
+        for campo, valores in cambios.items():
+            detalle = DetalleCambioEvento(
+                id_historial_edicion=historial.id_historial_edicion,
+                campo_modificado=campo,
+                valor_anterior=str(valores["anterior"]),
+                valor_nuevo=str(valores["nuevo"])
+            )
+            db.add(detalle)
+
+        db.commit()
+        db.refresh(evento)
         
-        # Detectar cambios
-        datos_nuevos = cambios.model_dump(exclude_unset=True)
-        cambios_detectados = []
+        return evento
+
+    # ========================================================================
+    # MÉTODO PRIVADO: CREAR SOLICITUD (ORGANIZADOR)
+    # ========================================================================
+    
+    @staticmethod
+    def _crear_solicitud_edicion(
+        db: Session, 
+        evento: Evento, 
+        evento_update: EventoEditar, 
+        id_usuario: int
+    ):
+        """
+        Organizador crea solicitud de edición.
+        ✅ CRÍTICO: El evento SIEMPRE permanece en estado 3 (visible).
+        """
+        # Verificar si ya existe una solicitud pendiente
+        solicitud_existente = solicitud_edicion_crud.obtener_solicitud_pendiente(
+            db=db, 
+            id_evento=evento.id_evento
+        )
         
-        for campo, valor_nuevo in datos_nuevos.items():
-            valor_anterior = getattr(evento, campo)
-            
-            str_anterior = str(valor_anterior) if valor_anterior is not None else ""
-            str_nuevo = str(valor_nuevo) if valor_nuevo is not None else ""
-            
-            if str_anterior != str_nuevo:
-                cambios_detectados.append({
-                    "campo": campo,
-                    "anterior": str_anterior,
-                    "nuevo": str_nuevo,
-                    "valor_real": valor_nuevo
-                })
-        
-        if not cambios_detectados:
+        if solicitud_existente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No se detectaron cambios en el evento."
+                detail="Ya existe una solicitud de edición pendiente para este evento. Debes esperar a que sea aprobada o rechazada."
             )
+
+        # Detectar cambios
+        cambios = EditarEventoService._detectar_cambios(evento, evento_update)
         
-        try:
-            # 1. Crear historial de edición (SOLICITUD)
-            nuevo_historial = HistorialEdicionEvento(
-                id_evento=evento.id_evento,
-                id_usuario=id_usuario
-            )
-            db.add(nuevo_historial)
-            db.flush()
-            
-            # 2. Guardar detalles de los cambios PROPUESTOS
-            for cambio in cambios_detectados:
-                detalle = DetalleCambioEvento(
-                    id_historial_edicion=nuevo_historial.id_historial_edicion,
-                    campo_modificado=cambio["campo"],
-                    valor_anterior=cambio["anterior"],
-                    valor_nuevo=cambio["nuevo"]
-                )
-                db.add(detalle)
-            
-            # 3. ✅ CRUCIAL: Cambiar estado a 2 (Pendiente de Edición)
-            # Esto hace que aparezca en "Pendientes de Edición"
-            evento.id_estado = 2
-            
-            db.commit()
-            db.refresh(evento)
-            
-            return {
-                "mensaje": "Solicitud de edición enviada. El evento seguirá visible hasta que el administrador apruebe los cambios.",
-                "id_evento": evento.id_evento,
-                "estado_actual": "Pendiente de Edición",
-                "id_historial": nuevo_historial.id_historial_edicion
-            }
-            
-        except Exception as e:
-            db.rollback()
-            print(f"Error al crear solicitud de edición: {e}")
-            raise HTTPException(status_code=500, detail="Error al procesar la solicitud de edición.")
-    
-    @staticmethod
-    def _aplicar_cambios_directos(db: Session, evento: Evento, cambios, id_usuario: int):
-        """
-        Aplica cambios INMEDIATOS al evento (para Admin/Supervisor o eventos no publicados).
-        Guarda auditoría pero NO cambia el estado.
-        """
-        
-        # Validar que no sea un evento pasado
-        if evento.fecha_evento < date.today():
+        if not cambios:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail="No se permite editar un evento cuya fecha ya ha pasado."
+                detail="No se detectaron cambios"
             )
-        
-        # Detectar cambios
-        datos_nuevos = cambios.model_dump(exclude_unset=True)
-        cambios_detectados = []
-        
-        for campo, valor_nuevo in datos_nuevos.items():
-            valor_anterior = getattr(evento, campo)
-            
-            str_anterior = str(valor_anterior) if valor_anterior is not None else ""
-            str_nuevo = str(valor_nuevo) if valor_nuevo is not None else ""
-            
-            if str_anterior != str_nuevo:
-                cambios_detectados.append({
-                    "campo": campo,
-                    "anterior": str_anterior,
-                    "nuevo": str_nuevo,
-                    "valor_real": valor_nuevo
-                })
-        
-        if not cambios_detectados:
-            return evento
-        
-        try:
-            # 1. Crear historial
-            nuevo_historial = HistorialEdicionEvento(
-                id_evento=evento.id_evento,
-                id_usuario=id_usuario
-            )
-            db.add(nuevo_historial)
-            db.flush()
-            
-            # 2. Guardar detalles
-            for cambio in cambios_detectados:
-                detalle = DetalleCambioEvento(
-                    id_historial_edicion=nuevo_historial.id_historial_edicion,
-                    campo_modificado=cambio["campo"],
-                    valor_anterior=cambio["anterior"],
-                    valor_nuevo=cambio["nuevo"]
-                )
-                db.add(detalle)
-                
-                # 3. APLICAR CAMBIO AL EVENTO
-                setattr(evento, cambio["campo"], cambio["valor_real"])
-            
-            db.commit()
-            db.refresh(evento)
-            return evento
-            
-        except Exception as e:
-            db.rollback()
-            print(f"Error al aplicar cambios: {e}")
-            raise HTTPException(status_code=500, detail="Error al guardar cambios.")
-    
-    @staticmethod
-    def obtener_eventos_pendientes(db: Session):
-        """
-        Devuelve todos los eventos que están esperando aprobación (Estado 2).
-        Incluye tanto solicitudes de edición como nuevos eventos.
-        """
-        eventos_pendientes = db.query(Evento).filter(Evento.id_estado == 2).all()
-        return eventos_pendientes
-    
-    @staticmethod
-    def aprobar_cambios(db: Session, id_evento: int):
-        """
-        Admin aprueba los cambios propuestos.
-        
-        Proceso:
-        1. Obtener el último historial de edición
-        2. Aplicar los cambios al evento
-        3. Cambiar estado a 3 (Publicado)
-        """
-        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
-        
-        # Pasa a Publicado (3)
-        evento.id_estado = 3 
-        try:
-            db.commit()
-            
-            # --- NOTIFICACIÓN POR APROBACIÓN ---
-            NotificacionCRUD.create_notificacion(
-                db=db,
-                id_usuario=evento.id_usuario,
-                mensaje=f"¡Buenas noticias! Tu evento '{evento.nombre_evento}' ha sido aprobado y ya está visible para todos."
-            )
-            return {"mensaje": "Evento aprobado y publicado exitosamente."}
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Error al aprobar el evento.")
 
-    @staticmethod
-    def rechazar_y_revertir(db: Session, id_evento: int):
-        # 1. Buscar evento
-        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
+        # ✅ CREAR SOLICITUD (evento permanece en estado 3)
+        solicitud = solicitud_edicion_crud.crear_solicitud_edicion(
+            db=db,
+            id_evento=evento.id_evento,
+            id_usuario=id_usuario,
+            cambios_propuestos=cambios
+        )
 
-        # 2. Buscar último historial
-        ultimo_historial = db.query(HistorialEdicionEvento)\
-            .filter(HistorialEdicionEvento.id_evento == id_evento)\
-            .order_by(desc(HistorialEdicionEvento.fecha_edicion))\
-            .first()
-        
-        if not ultimo_historial:
-            raise HTTPException(status_code=400, detail="No hay cambios pendientes para aprobar.")
-        
-        # Obtener detalles de los cambios
-        detalles = db.query(DetalleCambioEvento)\
-            .filter(DetalleCambioEvento.id_historial_edicion == ultimo_historial.id_historial_edicion)\
-            .all()
-        
-        try:
-            # Aplicar cada cambio
-            for detalle in detalles:
-                campo = detalle.campo_modificado
-                valor_nuevo_str = detalle.valor_nuevo
-                
-                # Convertir string a tipo correcto
-                if campo == "fecha_evento":
-                    val_aplicar = datetime.strptime(valor_nuevo_str, "%Y-%m-%d").date()
-                elif campo in ["costo_participacion", "lat", "lng"]:
-                    val_aplicar = Decimal(valor_nuevo_str) if valor_nuevo_str else None
-                elif campo in ["id_tipo", "id_dificultad", "id_estado", "cupo_maximo"]:
-                    val_aplicar = int(valor_nuevo_str)
-                else:
-                    val_aplicar = valor_nuevo_str
-                
-                setattr(evento, campo, val_aplicar)
-            
-            # Cambiar estado a Publicado
-            evento.id_estado = 3
-            
-            db.commit()
-            # --- NOTIFICACIÓN POR RECHAZO ---
-            NotificacionCRUD.create_notificacion(
-                db=db,
-                id_usuario=evento.id_usuario,
-                mensaje=f"Los cambios recientes en tu evento '{evento.nombre_evento}' no fueron aprobados y se restauró la versión anterior."
-            )
-            return {"mensaje": "Cambios rechazados. Se ha restaurado la versión anterior."}
-            
-        except Exception as e:
-            db.rollback()
-            print(f"Error al aprobar cambios: {e}")
-            raise HTTPException(status_code=500, detail="Error al aprobar cambios.")
+        return {
+            "mensaje": "Solicitud de edición enviada exitosamente. Quedará pendiente de aprobación por un administrador.",
+            "id_solicitud": solicitud.id_solicitud_edicion,
+            "evento_visible": True,
+            "estado_evento": "El evento permanece publicado mientras se aprueba la solicitud"
+        }
+
+    # ========================================================================
+    # MÉTODO PRIVADO: DETECTAR CAMBIOS
+    # ========================================================================
     
     @staticmethod
-    def rechazar_y_revertir(db: Session, id_evento: int):
+    def _detectar_cambios(evento: Evento, evento_update: EventoEditar) -> dict:
         """
-        Admin rechaza los cambios propuestos.
-        El evento vuelve a estado 3 (Publicado) sin aplicar cambios.
+        Detecta qué campos cambiaron entre el evento actual y los nuevos datos.
+        Retorna un dict con estructura: {campo: {anterior, nuevo, valor_real}}
         """
+        cambios = {}
+        campos_editables = [
+            'nombre_evento', 'fecha_evento', 'ubicacion', 'descripcion',
+            'costo_participacion', 'id_tipo', 'id_dificultad', 
+            'cupo_maximo', 'lat', 'lng'
+        ]
+
+        for campo in campos_editables:
+            valor_nuevo = getattr(evento_update, campo, None)
+            valor_actual = getattr(evento, campo, None)
+
+            # Solo registrar si hay cambio real
+            if valor_nuevo is not None and valor_nuevo != valor_actual:
+                cambios[campo] = {
+                    "anterior": str(valor_actual) if valor_actual is not None else "",
+                    "nuevo": str(valor_nuevo),
+                    "valor_real": valor_nuevo  # Valor original para aplicar
+                }
+
+        return cambios
+
+    # ========================================================================
+    # APROBAR SOLICITUD (ADMIN)
+    # ========================================================================
+    
+    @staticmethod
+    def aprobar_solicitud_edicion(db: Session, id_evento: int, id_admin: int):
+        """
+        Admin aprueba solicitud de edición.
+        Aplica cambios y mantiene evento en estado 3.
+        """
+        solicitud = solicitud_edicion_crud.obtener_solicitud_pendiente(
+            db=db, 
+            id_evento=id_evento
+        )
+        
+        if not solicitud:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="No hay solicitud de edición pendiente para este evento"
+            )
+
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
-            raise HTTPException(status_code=404, detail="Evento no encontrado")
-        
-        # Simplemente volver a estado Publicado
-        evento.id_estado = 3
-        
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Evento no encontrado"
+            )
+
+        # Parsear cambios propuestos
+        try:
+            cambios = json.loads(solicitud.cambios_propuestos)
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error al parsear cambios propuestos"
+            )
+
+        # Aplicar cambios al evento
+        for campo, valores in cambios.items():
+            setattr(evento, campo, valores["valor_real"])
+
+        # Registrar en historial
+        historial = HistorialEdicionEvento(
+            id_evento=evento.id_evento,
+            id_usuario=solicitud.id_usuario,
+            fecha_edicion=datetime.now()
+        )
+        db.add(historial)
+        db.flush()
+
+        # Registrar detalles
+        for campo, valores in cambios.items():
+            detalle = DetalleCambioEvento(
+                id_historial_edicion=historial.id_historial_edicion,
+                campo_modificado=campo,
+                valor_anterior=valores["anterior"],
+                valor_nuevo=valores["nuevo"]
+            )
+            db.add(detalle)
+
+        # Marcar solicitud como aprobada
+        solicitud_edicion_crud.aprobar_solicitud(
+            db=db, 
+            solicitud=solicitud, 
+            id_admin=id_admin
+        )
+
         db.commit()
-        return {"mensaje": "Cambios rechazados. El evento mantiene su versión anterior."}
+        db.refresh(evento)
+
+        return {
+            "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
+            "id_evento": evento.id_evento,
+            "nombre_evento": evento.nombre_evento,
+            "cambios_aplicados": list(cambios.keys())
+        }
+
+    # ========================================================================
+    # RECHAZAR SOLICITUD (ADMIN)
+    # ========================================================================
+    
+    @staticmethod
+    def rechazar_solicitud_edicion(db: Session, id_evento: int, id_admin: int):
+        """
+        Admin rechaza solicitud. Evento permanece sin cambios.
+        """
+        solicitud = solicitud_edicion_crud.obtener_solicitud_pendiente(
+            db=db, 
+            id_evento=id_evento
+        )
+        
+        if not solicitud:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="No hay solicitud de edición pendiente para este evento"
+            )
+
+        # Obtener evento para nombre
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+
+        # Marcar solicitud como rechazada
+        solicitud_edicion_crud.rechazar_solicitud(
+            db=db, 
+            solicitud=solicitud, 
+            id_admin=id_admin
+        )
+
+        db.commit()
+
+        return {
+            "mensaje": "Solicitud de edición rechazada. El evento permanece sin cambios.",
+            "id_evento": id_evento,
+            "nombre_evento": evento.nombre_evento if evento else "Desconocido"
+        }
+
+    # ========================================================================
+    # ✅ OBTENER MIS SOLICITUDES (ORGANIZADOR)
+    # ========================================================================
+    
+    @staticmethod
+    def obtener_mis_solicitudes_edicion(db: Session, id_usuario: int):
+        """
+        ✅ CORREGIDO: Obtiene las solicitudes de edición pendientes del usuario.
+        Retorna lista vacía si no hay solicitudes.
+        """
+        # Obtener solicitudes pendientes del usuario
+        solicitudes = db.query(SolicitudEdicionEvento).filter(
+            SolicitudEdicionEvento.id_usuario == id_usuario,
+            SolicitudEdicionEvento.aprobada == None  # NULL = Pendiente
+        ).all()
+
+        # Si no hay solicitudes, retornar lista vacía
+        if not solicitudes:
+            return []
+
+        resultado = []
+        for solicitud in solicitudes:
+            # Obtener el evento asociado
+            evento = db.query(Evento).filter(
+                Evento.id_evento == solicitud.id_evento
+            ).first()
+            
+            if not evento:
+                continue  # Saltar si el evento no existe
+            
+            # Parsear cambios propuestos
+            try:
+                cambios = json.loads(solicitud.cambios_propuestos)
+            except:
+                cambios = {}
+
+            resultado.append({
+                "id_solicitud_edicion": solicitud.id_solicitud_edicion,
+                "id_evento": evento.id_evento,
+                "nombre_evento": evento.nombre_evento,
+                "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
+                "ubicacion": evento.ubicacion,
+                "cambios_propuestos": cambios,
+                "fecha_solicitud": solicitud.fecha_solicitud.isoformat() if solicitud.fecha_solicitud else None,
+                "estado": "Pendiente de aprobación"
+            })
+
+        return resultado
+
+    # ========================================================================
+    # ✅ OBTENER SOLICITUDES PENDIENTES (ADMIN)
+    # ========================================================================
+    
+    @staticmethod
+    def obtener_solicitudes_pendientes(db: Session):
+        """
+        ✅ CORREGIDO: Admin obtiene TODAS las solicitudes de edición pendientes.
+        Retorna lista vacía si no hay solicitudes.
+        """
+        # Obtener TODAS las solicitudes pendientes
+        solicitudes = db.query(SolicitudEdicionEvento).filter(
+            SolicitudEdicionEvento.aprobada == None
+        ).all()
+
+        # Si no hay solicitudes, retornar lista vacía
+        if not solicitudes:
+            return []
+
+        resultado = []
+        for solicitud in solicitudes:
+            # Obtener evento
+            evento = db.query(Evento).filter(
+                Evento.id_evento == solicitud.id_evento
+            ).first()
+            
+            # Obtener usuario que solicitó
+            usuario = db.query(Usuario).filter(
+                Usuario.id_usuario == solicitud.id_usuario
+            ).first()
+            
+            if not evento or not usuario:
+                continue  # Saltar si faltan datos
+            
+            # Parsear cambios propuestos
+            try:
+                cambios = json.loads(solicitud.cambios_propuestos)
+            except:
+                cambios = {}
+
+            resultado.append({
+                "id_solicitud_edicion": solicitud.id_solicitud_edicion,
+                "id_evento": evento.id_evento,
+                "nombre_evento": evento.nombre_evento,
+                "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
+                "ubicacion": evento.ubicacion,
+                "cambios_propuestos": cambios,
+                "fecha_solicitud": solicitud.fecha_solicitud.isoformat() if solicitud.fecha_solicitud else None,
+                "usuario_solicitante": usuario.email,
+                "usuario_nombre": usuario.nombre_y_apellido,
+                "estado": "Pendiente de aprobación"
+            })
+
+        return resultado
+    @staticmethod
+    def editar_evento_como_admin(
+        db: Session,
+        id_evento: int,
+        evento_update: EventoEditar,
+        id_admin: int
+    ):
+        """
+        ✅ NUEVO: Permite a admin editar eventos directamente sin solicitud.
+        Registra cambios en historial de auditoría.
+        """
+        # 1. Verificar que el evento existe
+        evento = obtener_evento_por_id(db, id_evento)
+        if not evento:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Evento no encontrado"
+            )
+        
+        # 2. Verificar que está en estado activo (3 = Publicado)
+        if evento.id_estado != 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Solo se pueden editar eventos activos"
+            )
+        
+        # 3. Preparar historial de cambios
+        cambios_realizados = []
+        historial = HistorialEdicionEvento(
+            id_evento=id_evento,
+            id_usuario=id_admin,
+            fecha_edicion=datetime.now()
+        )
+        
+        # 4. Aplicar cambios y registrar
+        campos_editables = {
+            'nombre_evento': 'Nombre del Evento',
+            'fecha_evento': 'Fecha',
+            'ubicacion': 'Ubicación',
+            'descripcion': 'Descripción',
+            'costo_participacion': 'Costo',
+            'id_tipo': 'Tipo de Evento',
+            'id_dificultad': 'Dificultad',
+            'cupo_maximo': 'Cupo Máximo',
+            'lat': 'Latitud',
+            'lng': 'Longitud'
+        }
+        
+        for campo, nombre_legible in campos_editables.items():
+            nuevo_valor = getattr(evento_update, campo, None)
+            
+            if nuevo_valor is not None:
+                valor_anterior = getattr(evento, campo)
+                
+                # Solo registrar si realmente cambió
+                if str(valor_anterior) != str(nuevo_valor):
+                    cambios_realizados.append(
+                        DetalleCambioEvento(
+                            campo_modificado=campo,
+                            valor_anterior=str(valor_anterior or ''),
+                            valor_nuevo=str(nuevo_valor)
+                        )
+                    )
+                    
+                    # Aplicar cambio
+                    setattr(evento, campo, nuevo_valor)
+        
+        # 5. Verificar que hubo cambios
+        if not cambios_realizados:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No se detectaron cambios"
+            )
+        
+        # 6. Guardar todo en auditoría
+        guardar_cambios_auditoria(db, evento, historial, cambios_realizados)
+        
+        return {
+            "success": True,
+            "message": f"Evento actualizado correctamente. {len(cambios_realizados)} cambio(s) aplicado(s).",
+            "cambios_aplicados": len(cambios_realizados),
+            "id_evento": id_evento
+        }

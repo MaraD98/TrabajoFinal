@@ -23,7 +23,7 @@ from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
 
 # ✅ NUEVO: Importar servicio de eliminación
 from app.services.eliminacion_services import EliminacionService
-from app.schemas.eliminacion_schema import EliminacionRequest
+from app.schemas.eliminacion_schema import EliminacionRequest, SolicitudBajaResponse
 
 
 router = APIRouter(prefix="/admin", tags=["Administración de Eventos"])
@@ -108,7 +108,7 @@ def revisar_alta(
 
 @router.get(
     "/bajas/pendientes", 
-    response_model=list[SolicitudEliminacionResponse], 
+    response_model=list[SolicitudBajaResponse], 
     summary="Ver Bajas Pendientes"
 )
 def ver_pendientes_baja(db: Session = Depends(get_db), admin: Usuario = Depends(require_admin)):
@@ -121,7 +121,7 @@ def ver_pendientes_baja(db: Session = Depends(get_db), admin: Usuario = Depends(
     
     # Formatear para el schema de respuesta
     return [
-        SolicitudEliminacionResponse(
+        SolicitudBajaResponse(
             id_eliminacion=b['id_eliminacion'],
             id_evento=b['id_evento'],
             nombre_evento=b['nombre_evento'],
@@ -215,3 +215,41 @@ def obtener_historial_eliminaciones(
     - Estado 6 (Depurado - Hard Delete Lógico)
     """
     return EliminacionService.obtener_historial(db)
+# ============================================================================
+# SECCIÓN 4: EDICIÓN DIRECTA DE EVENTOS (ADMIN)
+# ============================================================================
+
+@router.patch(
+    "/eventos/{id_evento}/editar-directo",
+    summary="Admin: Editar evento directamente (sin solicitud)"
+)
+def editar_evento_directo(
+    id_evento: int,
+    evento_data: dict,  # Recibimos dict para flexibilidad
+    db: Session = Depends(get_db),
+    admin: Usuario = Depends(require_admin)
+):
+    """
+    ✅ ADMIN SOLAMENTE: Edita un evento activo directamente.
+    Los cambios se aplican de inmediato sin necesidad de aprobación.
+    Se registra en el historial de ediciones.
+    """
+    from app.services.editar_services import EditarEventoService
+    from app.schemas.editar_schema import EventoEditar
+    
+    # Convertir dict a schema
+    try:
+        evento_update = EventoEditar(**evento_data)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Datos inválidos: {str(e)}"
+        )
+    
+    # Usar el servicio existente pero forzando actualización directa
+    return EditarEventoService.editar_evento_como_admin(
+        db=db,
+        id_evento=id_evento,
+        evento_update=evento_update,
+        id_admin=admin.id_usuario
+    )
