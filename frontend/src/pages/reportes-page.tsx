@@ -100,7 +100,7 @@ export default function ReportesPage() {
       // Capturamos el contenido como imagen
       const canvas = await html2canvas(input, { 
         scale: 2, // Mejora la resolución
-        backgroundColor: "#ffffff" // Asegura fondo blanco
+        backgroundColor: "#000000" // Asegura fondo negro
       });
       
       const imgData = canvas.toDataURL("image/png");
