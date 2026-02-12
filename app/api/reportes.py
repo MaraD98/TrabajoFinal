@@ -1,5 +1,5 @@
 # app/api/api.py
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query # Importamos Query para los filtros
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.api.admin_eventos import get_current_user
@@ -19,12 +19,14 @@ router = APIRouter(prefix="/reportes", tags=["Reportes"])
 @router.get("/", summary="Obtener reportes según rol")
 def obtener_reportes(
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    anio: int = Query(None, description="Año para filtrar"), # Filtro opcional
+    mes: int = Query(None, description="Mes para filtrar")    # Filtro opcional
 ):
     if current_user.id_rol == 1:
-        return ReporteService.reportes_admin(db)
+        return ReporteService.reportes_admin(db, anio=anio, mes=mes) # Pasamos filtros
     elif current_user.id_rol == 2:
-        return ReporteService.reportes_supervisor(db, current_user.id_usuario)
+        return ReporteService.reportes_supervisor(db, current_user.id_usuario, anio=anio, mes=mes) # Pasamos filtros
     elif current_user.id_rol == 3:
         return ReporteService.reportes_operario(db, current_user.id_usuario)
     elif current_user.id_rol == 4:
@@ -49,7 +51,8 @@ def export_reportes(
         "eventos_por_mes": [2],
         "usuarios_total": [1],
         "usuarios_por_rol": [1],
-        "eventos_por_tipo": [2],
+        "eventos_por_tipo": [1, 2], # Agregamos rol 1
+        "eventos_por_dificultad": [1, 2], # Agregamos nuevo reporte
         "solicitudes_externas": [2],
         "mis_eventos_total": [2,3,4],
         "mis_eventos_por_estado": [2,3,4],
@@ -127,6 +130,12 @@ def export_reportes(
         # Placeholder: depende de tu modelo de notificaciones
         data = [{"mensaje": "Tu evento fue aprobado"}]
         fieldnames = ["mensaje"]
+
+    # --- AGREGADO AL FINAL: REPORTE DIFICULTAD ---
+    elif tipo == "eventos_por_dificultad":
+        # Obtenemos la data usando el service para asegurar consistencia
+        data = ReporteService.reportes_admin(db)["eventos_por_dificultad"]
+        fieldnames = ["dificultad", "cantidad"]
 
 
     # Crear CSV en memoria
