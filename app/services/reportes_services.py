@@ -1,10 +1,53 @@
+from typing import Counter
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.auth_models import Usuario
 from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublicacion
-from app.models.registro_models import Evento, TipoEvento, NivelDificultad # Importamos NivelDificultad
+from app.models.registro_models import Evento, TipoEvento, NivelDificultad 
 
 class ReporteService:
+
+    @staticmethod
+    def _get_mis_estadisticas(db: Session, id_usuario: int):
+        """Calcula estadísticas personales para cualquier rol"""
+        total = db.query(func.count(Evento.id_evento))\
+                  .filter(Evento.id_usuario == id_usuario).scalar()
+        
+        # Opcional: También estados personales
+        res_estados = db.query(Evento.id_estado, func.count(Evento.id_evento))\
+                        .filter(Evento.id_usuario == id_usuario)\
+                        .group_by(Evento.id_estado).all()
+        por_estado = [{"estado": e, "cantidad": c} for e, c in res_estados]
+
+        return {
+            "mis_eventos_total": total,
+            "mis_eventos_por_estado": por_estado
+        }
+
+    # Función auxiliar para limpiar el desastre de Google Maps
+    @staticmethod
+    def _limpiar_ubicacion(ubicacion_completa: str) -> str:
+        if not ubicacion_completa:
+            return "Sin definir"
+        
+        partes = [p.strip() for p in ubicacion_completa.split(',')]
+        
+        # ESTRATEGIA 1: Buscar "Municipio de..." (Es lo más preciso para localidad)
+        for parte in partes:
+            if "Municipio de" in parte:
+                return parte.replace("Municipio de", "").strip()
+        
+        # ESTRATEGIA 2: Si no hay municipio, buscar "Departamento"
+        for parte in partes:
+            if "Departamento" in parte:
+                return parte.strip()
+
+        # ESTRATEGIA 3: Si falla todo, intentar sacar la Provincia 
+        # (Generalmente es el 3ro contando desde el final: ... Córdoba, X5000, Argentina)
+        if len(partes) >= 3:
+            return partes[-3] 
+            
+        return partes[0] # Si todo falla, devolvemos el primer pedazo
 
     # ---------------- ADMIN (Rol 1) ----------------
     @staticmethod
@@ -57,6 +100,28 @@ class ReporteService:
         resultados_roles = db.query(Usuario.id_rol, func.count(Usuario.id_usuario)).group_by(Usuario.id_rol).all()
         usuarios_por_rol = [{"rol": rol, "cantidad": cantidad} for rol, cantidad in resultados_roles]
 
+        # ==========================================================
+        # NUEVA LÓGICA DE UBICACIÓN (Procesamiento en Python)
+        # ==========================================================
+        # 1. Traemos SOLO las ubicaciones crudas de la BD (es rápido)
+        ubicaciones_crudas = db.query(Evento.ubicacion).filter(*filtros).all()
+        
+        # 2. Limpiamos cada ubicación una por una
+        # ubicaciones_crudas es una lista de tuplas [('Direccion 1',), ('Direccion 2',)]
+        lista_lugares_limpios = [
+            ReporteService._limpiar_ubicacion(u[0]) for u in ubicaciones_crudas if u[0]
+        ]
+
+        # 3. Contamos usando Counter (hace el trabajo sucio de agrupar)
+        conteo = Counter(lista_lugares_limpios)
+
+        # 4. Convertimos al formato que quiere el frontend y tomamos el TOP 10
+        eventos_por_ubicacion = [
+            {"ubicacion": lugar, "cantidad": cantidad}
+            for lugar, cantidad in conteo.most_common(10)
+        ]
+        # ==========================================================
+
         return {
             "total_eventos": total_eventos,
             "eventos_por_tipo": eventos_por_tipo,
@@ -65,7 +130,8 @@ class ReporteService:
             "eventos_por_usuario": eventos_por_usuario,
             "eventos_por_mes": eventos_por_mes,
             "usuarios_total": usuarios_total,
-            "usuarios_por_rol": usuarios_por_rol
+            "usuarios_por_rol": usuarios_por_rol,
+            "eventos_por_ubicacion": eventos_por_ubicacion
         }
 
    # ---------------- SUPERVISOR (Rol 2) ----------------
