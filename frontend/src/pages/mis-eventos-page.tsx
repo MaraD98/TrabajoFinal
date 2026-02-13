@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState} from 'react';
+import { Link } from 'react-router-dom';
 import '../styles/mis-eventos.css';
 import { 
     getMisEventos, 
@@ -11,7 +11,6 @@ import {
 import Toast from '../components/modals/Toast';
 import InputModal from '../components/modals/InputModal';
 import EditEventModal from '../components/EditEventModal';
-import CancelEventModal from '../components/CancelEventModal';
 import { Navbar } from '../components/navbar';
 import { Footer } from '../components/footer';
 

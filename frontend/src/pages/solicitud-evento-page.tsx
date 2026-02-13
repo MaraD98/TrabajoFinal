@@ -4,7 +4,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 import { Navbar } from "../components/navbar";
-import { Footer } from "../components/footer";
 import Toast from '../components/modals/Toast';
 
 export default function SolicitudEventoPage() {

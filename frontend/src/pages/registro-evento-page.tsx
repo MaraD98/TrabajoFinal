@@ -5,7 +5,6 @@ import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from "../components/navbar";
-import { Footer } from "../components/footer";
 
 export default function CreateEventPage() {
   // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
