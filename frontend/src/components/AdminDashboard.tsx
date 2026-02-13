@@ -136,9 +136,6 @@ const AdminDashboard: React.FC = () => {
     evento: Evento | null 
   }>({ show: false, evento: null });
 
-  const userString = localStorage.getItem('user') || sessionStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : null;
-
   // --------------------------------------------------------------------------
   // HELPERS DE MODALES
   // --------------------------------------------------------------------------
