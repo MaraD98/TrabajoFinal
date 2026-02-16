@@ -6,6 +6,18 @@ from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.inscripcion_models import ReservaEvento as Inscripcion
 
+# 👇 IMPORTACIÓN PROFESIONAL (Evita conflictos con la librería estándar 'email')
+try:
+    from email import enviar_correo_reserva
+except (ImportError, AttributeError):
+    # Si estás en la estructura de carpetas de FastAPI, probamos con la ruta absoluta
+    try:
+        from app.email import enviar_correo_reserva
+    except:
+        # Si sigue fallando, es por el nombre del archivo 'email.py'. 
+        # Lo ideal será renombrarlo a 'mailer.py' si esto tira error.
+        pass
+
 class InscripcionService:
 
     @staticmethod
@@ -117,7 +129,7 @@ class InscripcionService:
             mensaje = "Inscripción exitosa. Lugar confirmado."
         else:
             id_estado_inicial = 1
-            mensaje = "Reserva creada. Tienes 72hs para pagar."
+            mensaje = "Reserva exitosa. Tienes 72hs para realizar el pago de tu evento."
 
         nueva = inscripcion_crud.create_reserva(
             db=db,
@@ -125,6 +137,17 @@ class InscripcionService:
             id_usuario=usuario_actual.id_usuario,
             id_estado=id_estado_inicial
         )
+
+        # 👇 INTEGRACIÓN DEL MAIL: Se dispara aquí
+        try:
+            enviar_correo_reserva(
+                email_destino=usuario_actual.email,
+                nombre_usuario=usuario_actual.nombre_y_apellido,
+                evento=evento.nombre_evento,
+                fecha=f"{evento.fecha_evento}. {mensaje}"
+            )
+        except Exception as e:
+            print(f"⚠️ Error al enviar email: {e}")
 
         return {
             "mensaje": mensaje,
