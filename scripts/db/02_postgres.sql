@@ -30,7 +30,7 @@ CREATE TABLE Contacto (
 INSERT INTO Rol (nombre_rol) VALUES 
 ('Administrador'),
 ('Supervisor'),
-('Operario'),
+('Organización Externa'),
 ('Cliente');
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
