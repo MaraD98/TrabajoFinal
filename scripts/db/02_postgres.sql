@@ -30,7 +30,7 @@ CREATE TABLE Contacto (
 INSERT INTO Rol (nombre_rol) VALUES 
 ('Administrador'),
 ('Supervisor'),
-('Operario'),
+('Organización Externa'),
 ('Cliente');
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -212,7 +212,7 @@ INSERT INTO EstadoSuscripcion (nombre) VALUES
 CREATE TABLE Suscripcion_Novedades (
     id_suscripcion SERIAL PRIMARY KEY,
     id_usuario INT NOT NULL,
-    id_evento INT NOT NULL,
+    id_evento INT,
     fecha_suscripcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     preferencias VARCHAR(255),
     id_estado_suscripcion INT NOT NULL,
