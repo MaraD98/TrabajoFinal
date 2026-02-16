@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query
 from fastapi import security
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -26,16 +26,67 @@ def get_current_user(
     response_model=SolicitudPublicacionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Crear solicitud de evento externo",
-    description="Permite a un usuario autenticado enviar una solicitud para publicar un evento ciclista. Estado inicial: Borrador."
+    description="Permite a un usuario autenticado enviar una solicitud para publicar un evento ciclista."
 )
 def crear_solicitud_evento(
     solicitud: SolicitudPublicacionCreate,
+    enviar: bool = Query(True, description="True: Enviar directamente (estado 2) | False: Guardar borrador (estado 1)"),  # ✅ NUEVO PARÁMETRO
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    nueva_solicitud = EventoSolicitudService.crear_solicitud(db, solicitud, current_user.id_usuario)
+    """
+    Crea una solicitud de publicación.
+    
+    **Parámetros:**
+    - `enviar=True` (default): Crea en estado 2 (Pendiente) → Botón "ENVIAR SOLICITUD"
+    - `enviar=False`: Crea en estado 1 (Borrador) → Autoguardado automático
+    
+    **Flujo normal:**
+    Usuario completa formulario → Click "ENVIAR SOLICITUD" → enviar=True → Estado 2
+    """
+    # ✅ CAMBIO: Determinar estado según parámetro
+    estado_inicial = 2 if enviar else 1
+    
+    nueva_solicitud = EventoSolicitudService.crear_solicitud(
+        db, 
+        solicitud, 
+        current_user.id_usuario,
+        id_estado_inicial=estado_inicial  # ✅ PASAR ESTADO AL SERVICIO
+    )
     return nueva_solicitud
-
+# ============================================================================
+# ✅ NUEVO ENDPOINT: Actualizar solicitud (para autoguardado)
+# ============================================================================
+@router.put(
+    "/{id_solicitud}",
+    response_model=SolicitudPublicacionResponse,
+    summary="Actualizar solicitud existente",
+    description="Actualiza una solicitud de evento. Usado para autoguardado de borradores."
+)
+def actualizar_solicitud_evento(
+    id_solicitud: int,
+    solicitud: SolicitudPublicacionCreate,
+    enviar: bool = Query(False, description="True: Cambiar a Pendiente | False: Mantener como Borrador"),
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Actualiza una solicitud existente.
+    
+    **Uso principal:** Autoguardado de borradores cada 30 segundos.
+    
+    **Parámetros:**
+    - `enviar=False` (default): Actualiza sin cambiar estado (borrador)
+    - `enviar=True`: Actualiza y envía para revisión (estado 2)
+    """
+    solicitud_actualizada = EventoSolicitudService.actualizar_solicitud(
+        db,
+        id_solicitud,
+        solicitud,
+        current_user.id_usuario,
+        enviar=enviar
+    )
+    return solicitud_actualizada
 
 # ============ Obtener mis solicitudes ============
 @router.get(
@@ -67,19 +118,24 @@ def consultar_solicitud(
         db, id_solicitud, current_user
     )
     return solicitud
+
 @router.patch(
     "/{id_solicitud}/enviar",
     response_model=SolicitudPublicacionResponse,
     summary="Enviar solicitud para revisión",
-    description="Cambia el estado del evento de Borrador a Pendiente."
-    
+    description="Cambia el estado del evento de Borrador (1) a Pendiente (2). Solo para borradores guardados."
 )
 def enviar_solicitud_para_revision(
     id_solicitud: int,
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    # Envía la solicitud para que sea revisada por un administrador.
+    """
+    Envía una solicitud que estaba en borrador.
+    
+    **Uso:** Cuando el usuario completa un borrador guardado automáticamente
+    y hace clic en "📤 Enviar" desde "Mis Eventos → Borradores".
+    """
     solicitud_enviada = EventoSolicitudService.enviar_solicitud_para_revision(
         db, id_solicitud, current_user
     )

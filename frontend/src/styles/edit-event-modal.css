@@ -1,0 +1,148 @@
+.edit-event-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: 1001;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.edit-event-modal .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.edit-event-modal .modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.edit-event-modal .btn-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.8rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.edit-event-modal .btn-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.edit-event-modal .modal-body {
+  padding: 24px;
+}
+
+.edit-event-modal .error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border-left: 4px solid #c33;
+}
+
+.edit-event-modal .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.edit-event-modal .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-event-modal .form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.edit-event-modal .form-group label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.edit-event-modal .form-group input,
+.edit-event-modal .form-group select,
+.edit-event-modal .form-group textarea {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.edit-event-modal .form-group input:focus,
+.edit-event-modal .form-group select:focus,
+.edit-event-modal .form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.edit-event-modal .modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.edit-event-modal .btn-cancelar,
+.edit-event-modal .btn-guardar {
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-size: 1rem;
+}
+
+.edit-event-modal .btn-cancelar {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.edit-event-modal .btn-cancelar:hover:not(:disabled) {
+  background: #e0e0e0;
+}
+
+.edit-event-modal .btn-guardar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.edit-event-modal .btn-guardar:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.edit-event-modal .btn-guardar:disabled,
+.edit-event-modal .btn-cancelar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

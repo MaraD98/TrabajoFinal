@@ -52,12 +52,68 @@ class EventoSolicitudService:
     # ========================================================================
     
     @staticmethod
-    def crear_solicitud(db: Session, solicitud: SolicitudPublicacionCreate, id_usuario: int):
-        """Crea una nueva solicitud de publicación"""
+    def crear_solicitud(
+        db: Session, 
+        solicitud: SolicitudPublicacionCreate, 
+        id_usuario: int,
+        id_estado_inicial: int = 2  # ✅ CAMBIO: Agregar parámetro (default 2)
+    ):
+        """
+        Crea una nueva solicitud de publicación.
+        
+        Args:
+            id_estado_inicial: 1=Borrador (autoguardado), 2=Pendiente (envío normal)
+        """
         EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
         EventoSolicitudService.validar_usuario(db, id_usuario)
-        return Solicitud_PublicacionCRUD.crear_solicitud_publicacion(db, solicitud, id_usuario)
-
+        
+        # ✅ CAMBIO: Pasar el estado inicial al CRUD
+        return Solicitud_PublicacionCRUD.crear_solicitud_publicacion(
+            db, 
+            solicitud, 
+            id_usuario,
+            id_estado_inicial=id_estado_inicial  # ✅ NUEVO PARÁMETRO
+        )
+    # ========================================================================
+    # ✅ NUEVO MÉTODO: Actualizar solicitud existente
+    # ========================================================================
+    @staticmethod
+    def actualizar_solicitud(
+        db: Session,
+        id_solicitud: int,
+        solicitud: SolicitudPublicacionCreate,
+        id_usuario: int,
+        enviar: bool = False
+    ):
+        """
+        Actualiza una solicitud existente.
+        
+        Args:
+            id_solicitud: ID de la solicitud a actualizar
+            solicitud: Nuevos datos
+            id_usuario: ID del usuario que actualiza
+            enviar: Si True, cambia estado a 2 (Pendiente)
+        """
+        # Buscar solicitud
+        solicitud_db = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
+        if not solicitud_db:
+            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+        
+        # Verificar que sea el dueño
+        if solicitud_db.id_usuario != id_usuario:
+            raise HTTPException(status_code=403, detail="No tienes permiso para editar esta solicitud")
+        
+        # Validar fecha
+        EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
+        
+        # Actualizar en BD
+        return Solicitud_PublicacionCRUD.actualizar_solicitud(
+            db,
+            id_solicitud,
+            solicitud,
+            enviar=enviar
+        )
+    
     @staticmethod
     def obtener_mis_solicitudes(db: Session, id_usuario: int):
         """Obtiene todas las solicitudes de un usuario específico"""
@@ -73,7 +129,7 @@ class EventoSolicitudService:
 
     @staticmethod
     def enviar_solicitud_para_revision(db: Session, id_solicitud: int, usuario_actual: Usuario):
-        """Envía una solicitud para revisión del admin"""
+        """Envía una solicitud para revisión del admin (1 → 2)"""
         solicitud = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
         if not solicitud:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")

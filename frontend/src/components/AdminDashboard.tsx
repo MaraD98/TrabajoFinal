@@ -5,6 +5,8 @@ import { Footer } from "../components/footer";
 import Toast from './modals/Toast';
 import ConfirmModal from './modals/ConfirmModal';
 import InputModal from './modals/InputModal';
+import DetalleEdicionModal from './DetalleEdicionModal';
+import EditEventModal from './modals/EditEventModal';
 import '../styles/admin-dashboard.css';
 
 // ============================================================================
@@ -29,6 +31,24 @@ interface SolicitudBaja {
   tipo: 'baja';
 }
 
+interface SolicitudEdicion {
+  id_solicitud_edicion: number;
+  id_evento: number;
+  nombre_evento: string;
+  cambios_propuestos: Record<string, {
+    anterior: string | number | null;
+    nuevo: string | number | null;
+    valor_real: any;
+  }>;
+  fecha_solicitud: string;
+  usuario_solicitante: string;
+  tipo: 'edicion';
+  fecha_evento: string;
+  ubicacion: string;
+  id_tipo: number;
+  estado: string;
+}
+
 interface Evento {
   id_evento: number;
   nombre_evento: string;
@@ -37,6 +57,12 @@ interface Evento {
   id_estado: number;
   id_usuario: number;
   costo_participacion?: number;
+  descripcion?: string;
+  id_tipo?: number;
+  id_dificultad?: number;
+  cupo_maximo?: number;
+  lat?: number;
+  lng?: number;
 }
 
 interface HistorialItem {
@@ -68,6 +94,7 @@ const AdminDashboard: React.FC = () => {
   const [vistaActual, setVistaActual] = useState<'pendientes' | 'activos' | 'historial' | 'pagos' | 'inscriptos'>('pendientes');
   const [solicitudesAlta, setSolicitudesAlta] = useState<SolicitudAlta[]>([]);
   const [solicitudesBaja, setSolicitudesBaja] = useState<SolicitudBaja[]>([]);
+  const [solicitudesEdicion, setSolicitudesEdicion] = useState<SolicitudEdicion[]>([]);
   const [eventosActivos, setEventosActivos] = useState<Evento[]>([]);
   const [historialEventos, setHistorialEventos] = useState<HistorialItem[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
@@ -97,6 +124,17 @@ const AdminDashboard: React.FC = () => {
   }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
 
   const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
+  
+  const [detalleEdicionModal, setDetalleEdicionModal] = useState<{
+    show: boolean;
+    solicitud: SolicitudEdicion | null;
+  }>({ show: false, solicitud: null });
+
+  // ✅ NUEVO: Estado para modal de edición directa
+  const [editModal, setEditModal] = useState<{ 
+    show: boolean; 
+    evento: Evento | null 
+  }>({ show: false, evento: null });
 
   // --------------------------------------------------------------------------
   // HELPERS DE MODALES
@@ -137,7 +175,6 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     cargarDatos();
     setSearchTerm('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vistaActual]);
 
   // --------------------------------------------------------------------------
@@ -150,11 +187,15 @@ const AdminDashboard: React.FC = () => {
 
     try {
       if (vistaActual === 'pendientes') {
-        const resAlta = await axios.get('http://localhost:8000/api/v1/admin/solicitudes/pendientes', config);
-        setSolicitudesAlta(Array.isArray(resAlta.data) ? resAlta.data.map((s: any) => ({ ...s, tipo: 'alta' })) : []);
+        const [resAlta, resBaja, resEdicion] = await Promise.all([
+          axios.get('http://localhost:8000/api/v1/admin/solicitudes/pendientes', config),
+          axios.get('http://localhost:8000/api/v1/admin/bajas/pendientes', config),
+          axios.get('http://localhost:8000/api/v1/edicion-eventos/solicitudes-edicion-pendientes', config)
+        ]);
         
-        const resBaja = await axios.get('http://localhost:8000/api/v1/admin/bajas/pendientes', config);
+        setSolicitudesAlta(Array.isArray(resAlta.data) ? resAlta.data.map((s: any) => ({ ...s, tipo: 'alta' })) : []);
         setSolicitudesBaja(Array.isArray(resBaja.data) ? resBaja.data.map((s: any) => ({ ...s, tipo: 'baja' })) : []);
+        setSolicitudesEdicion(Array.isArray(resEdicion.data) ? resEdicion.data.map((s: any) => ({ ...s, tipo: 'edicion' })) : []);
       } 
       else if (vistaActual === 'activos') {
         const res = await axios.get('http://localhost:8000/api/v1/eventos/', config);
@@ -198,7 +239,7 @@ const AdminDashboard: React.FC = () => {
   };
 
   // --------------------------------------------------------------------------
-  // HANDLERS - USANDO MODALES
+  // HANDLERS - ALTAS Y BAJAS
   // --------------------------------------------------------------------------
   
   const handleAprobarAlta = (id: number) => {
@@ -282,6 +323,53 @@ const AdminDashboard: React.FC = () => {
         hideConfirm();
       },
       'info'
+    );
+  };
+
+  // --------------------------------------------------------------------------
+  // HANDLERS - EDICIONES
+  // --------------------------------------------------------------------------
+  const handleAprobarEdicion = (idEvento: number, nombreEvento: string) => {
+    showConfirm(
+      'Aprobar Edición',
+      `¿Aprobar los cambios propuestos para "${nombreEvento}"?`,
+      async () => {
+        try {
+          await axios.patch(
+            `http://localhost:8000/api/v1/edicion-eventos/${idEvento}/aprobar-edicion`,
+            {},
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
+          showToast('Cambios aprobados y aplicados al evento', 'success');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error al aprobar edición', 'error');
+        }
+        hideConfirm();
+      },
+      'info'
+    );
+  };
+
+  const handleRechazarEdicion = (idEvento: number, nombreEvento: string) => {
+    showConfirm(
+      'Rechazar Edición',
+      `¿Rechazar los cambios propuestos para "${nombreEvento}"? El evento mantendrá su versión anterior.`,
+      async () => {
+        try {
+          await axios.patch(
+            `http://localhost:8000/api/v1/eventos/${idEvento}/rechazar-edicion`,
+            {},
+            { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+          );
+          showToast('Cambios rechazados. Evento sin modificar', 'info');
+          cargarDatos();
+        } catch (error: any) {
+          showToast(error.response?.data?.detail || 'Error al rechazar edición', 'error');
+        }
+        hideConfirm();
+      },
+      'warning'
     );
   };
 
@@ -424,6 +512,43 @@ const AdminDashboard: React.FC = () => {
     return 'badge-estado-default';
   };
 
+  // --------------------------------------------------------------------------
+  // HELPERS PARA EDICIONES
+  // --------------------------------------------------------------------------
+  const formatearCampo = (campo: string): string => {
+    const mapeo: Record<string, string> = {
+      nombre_evento: 'Nombre',
+      fecha_evento: 'Fecha',
+      ubicacion: 'Ubicación',
+      descripcion: 'Descripción',
+      costo_participacion: 'Costo',
+      id_tipo: 'Tipo',
+      id_dificultad: 'Dificultad',
+      cupo_maximo: 'Cupo',
+    };
+    return mapeo[campo] || campo;
+  };
+
+  const obtenerResumenCambios = (cambios: Record<string, any>): string => {
+    const cantidad = Object.keys(cambios).length;
+    const campos = Object.keys(cambios).slice(0, 2).map(formatearCampo).join(', ');
+    return cantidad > 2 ? `${campos} y ${cantidad - 2} más` : campos;
+  };
+
+  const formatearFecha = (fecha: string): string => {
+    try {
+      return new Date(fecha).toLocaleDateString('es-AR', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return fecha;
+    }
+  };
+
   // ============================================================================
   // RENDER
   // ============================================================================
@@ -460,12 +585,13 @@ const AdminDashboard: React.FC = () => {
                   </div>
                   <div className="action-buttons-inline">
                     <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
-                    <button className="btn-export-admin" onClick={() => handleExportCSV([...solicitudesAlta, ...solicitudesBaja], 'Pendientes')}>📂 Excel</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV([...solicitudesAlta, ...solicitudesBaja, ...solicitudesEdicion], 'Pendientes')}>📂 Excel</button>
                     <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
                   </div>
                 </div>
               </div>
               
+              {/* SECCIÓN ALTAS */}
               <div className="seccion-solicitudes">
                 <h3>📝 Altas</h3>
                 <table className="data-table-admin">
@@ -490,7 +616,97 @@ const AdminDashboard: React.FC = () => {
                   </tbody>
                 </table>
               </div>
+
+              {/* SECCIÓN EDICIONES */}
+              <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
+                <h3 style={{ color: '#4a9eff' }}>✏️ Ediciones</h3>
+                <table className="data-table-admin">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left', width: '30%' }}>Evento</th>
+                      <th style={{ textAlign: 'left', width: '25%' }}>Cambios</th>
+                      <th style={{ textAlign: 'left', width: '15%' }}>Usuario</th>
+                      <th style={{ textAlign: 'left', width: '15%' }}>Fecha Solicitud</th>
+                      <th style={{ textAlign: 'center', width: '15%' }}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtrarGenerico(solicitudesEdicion, 'nombre_evento').length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                          No hay solicitudes de edición pendientes
+                        </td>
+                      </tr>
+                    ) : (
+                      filtrarGenerico(solicitudesEdicion, 'nombre_evento').map(s => (
+                        <tr 
+                          key={s.id_solicitud_edicion}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
+                          title="Click para ver detalles"
+                        >
+                          <td style={{ textAlign: 'left' }}>
+                            <strong>{s.nombre_evento}</strong>
+                          </td>
+                          <td style={{ textAlign: 'left' }}>
+                            <small style={{ color: '#a8a8a8' }}>
+                              {obtenerResumenCambios(s.cambios_propuestos || {})}
+                            </small>
+                            <br />
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              color: '#ccff00',
+                              fontWeight: 'bold'
+                            }}>
+                              {Object.keys(s.cambios_propuestos || {}).length} cambio{Object.keys(s.cambios_propuestos || {}).length !== 1 ? 's' : ''}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'left' }}>
+                            <small>{s.usuario_solicitante}</small>
+                          </td>
+                          <td style={{ textAlign: 'left' }}>
+                            <small style={{ color: '#888' }}>
+                              {formatearFecha(s.fecha_solicitud)}
+                            </small>
+                          </td>
+                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <button 
+                              className="btn-ver-detalle-admin" 
+                              onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
+                              title="Ver detalles"
+                              style={{ marginRight: '8px' }}
+                            >
+                              👁️
+                            </button>
+                            <button 
+                              className="btn-aprobar-admin" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAprobarEdicion(s.id_evento, s.nombre_evento);
+                              }}
+                              title="Aprobar cambios"
+                            >
+                              ✓
+                            </button>
+                            <button 
+                              className="btn-rechazar-admin" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRechazarEdicion(s.id_evento, s.nombre_evento);
+                              }}
+                              title="Rechazar cambios"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
               
+              {/* SECCIÓN BAJAS */}
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#fc8181' }}>🗑️ Bajas</h3>
                 <table className="data-table-admin">
@@ -518,7 +734,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* VISTA ACTIVOS */}
+          {/* ✅ VISTA ACTIVOS - CON BOTÓN DE EDITAR */}
           {vistaActual === 'activos' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -551,7 +767,19 @@ const AdminDashboard: React.FC = () => {
                       <td style={{ textAlign: 'left' }}>{e.nombre_evento}</td>
                       <td style={{ textAlign: 'left' }}>{e.fecha_evento}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>
+                        {/* ✅ BOTÓN DE EDITAR */}
+                        <button 
+                          className="btn-editar-admin" 
+                          onClick={() => setEditModal({ show: true, evento: e })}
+                          title="Editar evento"
+                          style={{ marginRight: '8px' }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button 
+                          className="btn-rechazar-admin" 
+                          onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}
+                        >
                           🗑️ Eliminar
                         </button>
                       </td>
@@ -737,6 +965,26 @@ const AdminDashboard: React.FC = () => {
         }}
         onCancel={hideInputModal}
         type={inputModal.type}
+      />
+
+      {/* MODAL DE DETALLE DE EDICIÓN */}
+      <DetalleEdicionModal
+        show={detalleEdicionModal.show}
+        solicitud={detalleEdicionModal.solicitud}
+        onClose={() => setDetalleEdicionModal({ show: false, solicitud: null })}
+        onAprobar={handleAprobarEdicion}
+        onRechazar={handleRechazarEdicion}
+      />
+
+      {/* ✅ MODAL DE EDICIÓN DIRECTA */}
+      <EditEventModal
+        show={editModal.show}
+        evento={editModal.evento}
+        onClose={() => setEditModal({ show: false, evento: null })}
+        onSuccess={() => {
+          showToast('Evento actualizado correctamente', 'success');
+          cargarDatos();
+        }}
       />
 
       {/* MODAL PAGO */}

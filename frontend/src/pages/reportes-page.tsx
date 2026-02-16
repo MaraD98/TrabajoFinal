@@ -1,9 +1,13 @@
-import { useState, useEffect } from "react";
-import { exportReporteCSV, getReporteGeneral } from "../services/eventos"; 
+import { useState, useEffect, useRef } from "react"; // 1. Agregamos useRef
+import { exportReporteCSV, getReporte } from "../services/eventos"; 
 import "../styles/reportes.css";
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
 import { useAuth } from "../context/auth-context";
+
+// 2. Importamos las librerías para PDF
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface ReporteData {
   total_eventos?: number;
@@ -13,11 +17,13 @@ interface ReporteData {
   usuarios_total?: number;
   usuarios_por_rol?: { rol: number; cantidad: number }[];
   eventos_por_tipo?: { tipo: string; cantidad: number }[];
+  eventos_por_dificultad?: { dificultad: string; cantidad: number }[]; 
   solicitudes_externas?: { estado: string; cantidad: number }[];
   mis_eventos_total?: number;
   mis_eventos_por_estado?: { estado: number; cantidad: number }[];
   mis_inscripciones?: any[];
   mis_notificaciones?: any[];
+  eventos_por_ubicacion?: { ubicacion: string; cantidad: number }[];
 }
 
 export default function ReportesPage() {
@@ -26,6 +32,13 @@ export default function ReportesPage() {
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
 
+  // Filtros para la consulta
+  const [anioFiltro, setAnioFiltro] = useState<string>("");
+  const [mesFiltro, setMesFiltro] = useState<string>("");
+
+  // 3. Referencia al contenedor que queremos imprimir
+  const reporteRef = useRef<HTMLDivElement>(null);  
+  
   // ✅ CAMBIO CLAVE: Usamos getToken y user del contexto en lugar de localStorage directo
   const { user, getToken, loadingAuth } = useAuth();
   
@@ -43,7 +56,7 @@ export default function ReportesPage() {
         setLoading(false);
       }
     }
-  }, [loadingAuth, getToken]);
+  }, [loadingAuth, getToken, anioFiltro, mesFiltro]);
 
   const cargarReportes = async (tokenParaCargar?: string) => {
     try {
@@ -58,7 +71,14 @@ export default function ReportesPage() {
         return;
       }
 
-      const data = await getReporteGeneral(token);
+      // ✅ CORRECCIÓN AQUÍ: Pasamos los filtros de forma que el backend no reciba strings vacíos
+      // Usamos "" para el tipo (que es el primer parámetro en tu service actual)
+      const data = await getReporte(
+        "", 
+        token, 
+        anioFiltro || undefined, 
+        mesFiltro || undefined
+      );
       setReporteData(data);
     } catch (err: any) {
       console.error("Error en reportes:", err);
@@ -78,16 +98,54 @@ export default function ReportesPage() {
     } catch (err) {
       alert("Error al exportar el reporte CSV");
     } finally {
+      setExportando(null); 
+    }
+  };
+
+  // 4. NUEVA FUNCIÓN: Descargar PDF
+  const handleDescargarPDF = async () => {
+    const input = reporteRef.current;
+    if (!input) return;
+
+    try {
+      setExportando("pdf"); // Usamos este estado para mostrar feedback visual en el botón
+      
+      // Capturamos el contenido como imagen
+      const canvas = await html2canvas(input, { 
+        scale: 2, // Mejora la resolución
+        backgroundColor: "#000000" // Asegura fondo negro
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      
+      // Creamos el PDF (A4 vertical, medidas en mm)
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      
+      // Calculamos dimensiones para ajustar la imagen al PDF
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfImgHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      // Agregamos la imagen al PDF (con un pequeño margen superior)
+      pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, pdfImgHeight);
+      
+      pdf.save("reporte-panel-control.pdf");
+      
+    } catch (err) {
+      console.error("Error al generar PDF", err);
+      alert("No se pudo generar el PDF");
+    } finally {
       setExportando(null);
     }
   };
 
   // --- FORMATEADORES ---
-  const getNombreEstado = (id: number) => ({ 1: "Pendiente", 2: "Aprobado", 3: "Rechazado", 4: "Cancelado" }[id] || `Estado ${id}`);
+  const getNombreEstado = (id: number) => ({ 1: "Borrador", 2: "Pendiente", 3: "Publicado", 4: "Finalizado", 5: "Cancelado", 6: "Depurado por Admin" }[id] || `Estado ${id}`);
   const getNombreRol = (id: number) => ({ 1: "Admin", 2: "Supervisor", 3: "Operario", 4: "Cliente" }[id] || `Rol ${id}`);
   const getNombreMes = (mes: number) => ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][mes - 1] || mes.toString();
 
-  // --- MÉTODOS DE RENDERIZADO (Se mantienen igual) ---
+
+  // --- GRAFICOS RENDERIZADOS ---
   const renderGraficoBarras = (data: any[], labelKey: string, valueKey: string, getLabelFn?: (val: any) => string) => {
     if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
     const maxValue = Math.max(...data.map(item => item[valueKey]), 1);
@@ -100,6 +158,35 @@ export default function ReportesPage() {
               <div className="grafico-barras__bar" style={{ width: `${(item[valueKey] / maxValue) * 100}%` }}>
                 <span className="grafico-barras__valor">{item[valueKey]}</span>
               </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // --- 2. NUEVO RENDERIZADOR PARA UBICACIONES (Barras Horizontales) ---
+  const renderRankingHorizontal = (data: any[], labelKey: string, valueKey: string) => {
+    if (!data || data.length === 0) return <p className="no-data">Sin datos de ubicación</p>;
+    // Ordenamos de mayor a menor y tomamos top 10 para visualización
+    const dataSorted = [...data].sort((a, b) => b[valueKey] - a[valueKey]).slice(0, 10);
+    const maxValue = Math.max(...dataSorted.map(d => d[valueKey]), 1);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
+        {dataSorted.map((item, index) => (
+          <div key={index} style={{ display: 'flex', flexDirection: 'column', fontSize: '0.9rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+              <span style={{ fontWeight: 500, color: '#e0e0e0' }}>{item[labelKey]}</span>
+              <span style={{ fontWeight: 'bold', color: '#4ade80' }}>{item[valueKey]}</span>
+            </div>
+            <div style={{ width: '100%', height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ 
+                width: `${(item[valueKey] / maxValue) * 100}%`, 
+                height: '100%', 
+                backgroundColor: '#4ade80',
+                borderRadius: '4px' 
+              }}></div>
             </div>
           </div>
         ))}
@@ -145,6 +232,52 @@ export default function ReportesPage() {
     );
   };
 
+  const renderGraficoTorta = (data: any[], labelKey: string, valueKey: string) => {
+    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+
+    const total = data.reduce((sum, item) => sum + item[valueKey], 0);
+    let acumulado = 0;
+    const colores = ["#ff6b35", "#4ade80", "#60a5fa", "#fbbf24", "#a78bfa"];
+
+    const conicParts = data.map((item, index) => {
+      const porcentaje = (item[valueKey] / (total || 1)) * 100;
+      const inicio = acumulado;
+      acumulado += porcentaje;
+      return `${colores[index % colores.length]} ${inicio}% ${acumulado}%`;
+    });
+
+    return (
+      <div className="grafico-pie-container">
+        <div 
+          className="grafico-torta__circulo" 
+          style={{ background: `conic-gradient(${conicParts.join(", ")})` }}
+        ></div>
+        
+        <div className="grafico-pie__leyenda">
+          {data.map((item, index) => {
+            // Calculamos el porcentaje para este item específico
+            const porcentajeIndividual = ((item[valueKey] / (total || 1)) * 100).toFixed(1);
+
+            return (
+              <div key={index} className="grafico-torta__leyenda-item">
+                <div 
+                  className="grafico-torta__color-box" 
+                  style={{ backgroundColor: colores[index % colores.length] }}
+                ></div>
+                <span className="grafico-torta__texto">
+                  {item[labelKey]}: <strong>{item[valueKey]}</strong> 
+                  <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '12px' }}>
+                    ({porcentajeIndividual}%)
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+};
+
   // --- PROTECCIÓN DE RUTA ---
   if (loadingAuth || loading) {
     return (
@@ -176,15 +309,53 @@ export default function ReportesPage() {
   return (
     <div className="reportes-page">
       <Navbar />
-      <div className="reportes-page__container">
+
+      {/* 5. Agregamos la ref AQUÍ para que capture todo este contenedor */}
+      <div className="reportes-page__container" ref={reporteRef}>
+        
+        {/* HEADER */}
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
             <p className="reportes-header__subtitle">Gestión centralizada de datos para {user?.nombre_y_apellido}</p>
           </div>
-          <button onClick={() => cargarReportes()} className="reportes-header__refresh">↻ Actualizar Datos</button>
+          
+          <div className="reportes-header__actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+             {/* Selectores de Filtro */}
+             <div data-html2canvas-ignore="true" style={{ display: 'flex', gap: '5px' }}>
+                <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} className="filter-select">
+                  <option value="">Año (Todos)</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                </select>
+                <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} className="filter-select">
+                  <option value="">Mes (Todos)</option>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
+                    <option key={m} value={m}>{getNombreMes(m)}</option>
+                  ))}
+                </select>
+             </div>
+
+             {/* 6. Botón para Descargar PDF */}
+             <button 
+                onClick={handleDescargarPDF} 
+                disabled={exportando === "pdf"}
+                className="reportes-header__refresh" 
+                style={{ backgroundColor: '#e74c3c' }} 
+             >
+                {exportando === "pdf" ? "Generando..." : "📄 Guardar PDF"}
+             </button>
+
+             <button 
+                onClick={() => cargarReportes()}
+                className="reportes-header__refresh"
+               >
+                ↻ Actualizar Datos
+            </button>
+          </div>
         </div>
 
+        {/* ALERTAS */}
         {error && <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>}
         
         {usuarioRol <= 2 && pendientesCount > 0 && (
@@ -208,20 +379,85 @@ export default function ReportesPage() {
           </div>
         </div>
 
+
+        {/* SECCIÓN DE GRÁFICOS */}
         <div className="reportes-graficos">
+          
+          {/* 1. Tendencia Mensual */}
           {(usuarioRol <= 2) && reporteData?.eventos_por_mes && (
             <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
                 <h3>📅 Tendencia Mensual de Eventos</h3>
                 <button 
+                  data-html2canvas-ignore="true" 
                   disabled={exportando === "eventos_por_mes"}
                   onClick={() => handleExportarCSV("eventos_por_mes")}
                   className="btn-export"
                 >
-                  {exportando === "eventos_por_mes" ? "Generando..." : "📥 CSV"}
+                  {exportando === "eventos_por_mes" ? "..." : "📥 CSV"}
                 </button>
               </div>
               <div className="grafico-card__body">{renderGraficoLinea(reporteData.eventos_por_mes)}</div>
+            </div>
+          )}
+
+          {/* Gráfico Tipo (Torta) */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🏃‍♂️ Eventos por Tipo</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_tipo"}
+                  onClick={() => handleExportarCSV("eventos_por_tipo")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                {renderGraficoTorta(reporteData.eventos_por_tipo, "tipo", "cantidad")}
+              </div>
+            </div>
+          )}
+
+          {/* Gráfico Dificultad (Torta) */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_dificultad && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>🧗 Eventos por Dificultad</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_dificultad"}
+                  onClick={() => handleExportarCSV("eventos_por_dificultad")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_dificultad" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                {renderGraficoTorta(reporteData.eventos_por_dificultad, "dificultad", "cantidad")}
+              </div>
+            </div>
+          )}
+
+          {/* NUEVO CARD: TOP UBICACIONES */}
+          {(usuarioRol <= 2) && reporteData?.eventos_por_ubicacion && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>📍 Top Ubicaciones</h3>
+                <button 
+                  data-html2canvas-ignore="true" 
+                  disabled={exportando === "eventos_por_ubicacion"}
+                  onClick={() => handleExportarCSV("eventos_por_ubicacion")}
+                  className="btn-export"
+                >
+                  {exportando === "eventos_por_ubicacion" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body" style={{ overflowY: 'auto', maxHeight: '300px' }}>
+                {renderRankingHorizontal(reporteData.eventos_por_ubicacion, "ubicacion", "cantidad")}
+              </div>
             </div>
           )}
 
@@ -230,6 +466,7 @@ export default function ReportesPage() {
               <div className="grafico-card__header">
                 <h3>🎭 Distribución por Roles</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "usuarios_por_rol"}
                   onClick={() => handleExportarCSV("usuarios_por_rol")}
                   className="btn-export"
@@ -246,6 +483,7 @@ export default function ReportesPage() {
               <div className="grafico-card__header">
                 <h3>📊 Mi Actividad (Estados)</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "mis_eventos_por_estado"}
                   onClick={() => handleExportarCSV("mis_eventos_por_estado")}
                   className="btn-export"
@@ -257,27 +495,13 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {(usuarioRol <= 2) && reporteData?.eventos_por_tipo && (
-            <div className="grafico-card">
-              <div className="grafico-card__header">
-                <h3>🏃‍♂️ Categorías de Eventos</h3>
-                <button 
-                  disabled={exportando === "eventos_por_tipo"}
-                  onClick={() => handleExportarCSV("eventos_por_tipo")}
-                  className="btn-export"
-                >
-                  {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
-                </button>
-              </div>
-              <div className="grafico-card__body">{renderGraficoPie(reporteData.eventos_por_tipo, "tipo", "cantidad")}</div>
-            </div>
-          )}
-
+          {/* 5. Auditoría */}
           {(usuarioRol <= 2) && (
             <div className="grafico-card">
               <div className="grafico-card__header">
                 <h3>🕵️ Auditoría de Cambios</h3>
                 <button 
+                  data-html2canvas-ignore="true"
                   disabled={exportando === "auditoria"}
                   onClick={() => handleExportarCSV("auditoria")}
                   className="btn-export"
@@ -287,7 +511,7 @@ export default function ReportesPage() {
               </div>
               <div className="grafico-card__body">
                  <p style={{fontSize: '0.9rem', color: '#e0e0e0'}}>
-                   Registro de intervenciones realizadas por administradores en eventos de terceros.
+                    Registro de intervenciones.
                  </p>
                  <div className="audit-badge">Auditoría Activa</div>
               </div>

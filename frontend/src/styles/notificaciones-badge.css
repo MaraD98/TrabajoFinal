@@ -131,7 +131,7 @@
 }
 
 .dropdown-item.unread {
-  background-color: rgba(219, 247, 44, 0.05); /* Fondo muy sutil para no leídas */
+  background-color: #6b6b6b; 
   border-left: 3px solid #dbf72c;
 }
 
@@ -151,7 +151,7 @@
 
 .dropdown-item.unread .item-mensaje {
   font-weight: 600;
-  color: #111827; /* Texto más oscuro para no leídas */
+  color: #3e4555; 
 }
 
 .item-dot {
