@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status, HTTPException, File, Form, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import date
 
@@ -160,6 +161,75 @@ def read_eventos(
 ):
     """Lista todos los eventos publicados y futuros (público)"""
     return EventoService.listar_todos_los_eventos(db, skip=skip, limit=limit)
+
+# ============================================================================
+# ⚠️  ORDEN DE RUTAS - MUY IMPORTANTE
+#
+# FastAPI evalúa las rutas de arriba hacia abajo y usa la primera que hace
+# match con la URL recibida.
+#
+# Si /{evento_id} estuviera ANTES que /{evento_id}/detalle, FastAPI capturaría
+# "detalle" como valor del parámetro evento_id (un string, no un int) y
+# devolvería un error 422 Unprocessable Entity.
+#
+# Por eso /{evento_id}/detalle va PRIMERO, y /{evento_id} después.
+#
+#   ✅ CORRECTO:   /{evento_id}/detalle   →   luego   /{evento_id}
+#   ❌ MAL:        /{evento_id}           →   luego   /{evento_id}/detalle
+# ============================================================================
+
+@router.get(
+    "/{evento_id}/detalle",
+    summary="Detalle completo de un evento (para modal de vista rápida)"
+)
+def get_detalle_evento(evento_id: int, db: Session = Depends(get_db)):
+    """
+    Devuelve todos los campos necesarios para el EventoDetalleModal del frontend.
+    Calcula en tiempo real: cupos disponibles, cantidad de inscriptos y datos del organizador.
+    Funciona para cualquier estado (activo, finalizado, cancelado).
+    No requiere autenticación.
+    """
+    from app.models.registro_models import Evento
+    from app.models.auth_models import Usuario
+    from app.models.inscripcion_models import ReservaEvento
+
+    evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+
+    # Contar inscriptos en un solo query (usa el índice idx_reserva_evento)
+    inscriptos = db.query(func.count(ReservaEvento.id_reserva)).filter(
+        ReservaEvento.id_evento == evento_id
+    ).scalar() or 0
+
+    # Datos del organizador
+    organizador = db.query(Usuario).filter(
+        Usuario.id_usuario == evento.id_usuario
+    ).first()
+
+    # Cupos disponibles: None significa ilimitado
+    cupos_disponibles = None
+    if evento.cupo_maximo and evento.cupo_maximo > 0:
+        cupos_disponibles = max(0, evento.cupo_maximo - inscriptos)
+
+    return {
+        "id_evento":           evento.id_evento,
+        "nombre_evento":       evento.nombre_evento,
+        "descripcion":         evento.descripcion or "",
+        "fecha_evento":        str(evento.fecha_evento),
+        "ubicacion":           evento.ubicacion,
+        "costo_participacion": float(evento.costo_participacion or 0),
+        "cupo_maximo":         evento.cupo_maximo,
+        "cupos_disponibles":   cupos_disponibles,
+        "inscriptos":          inscriptos,
+        "id_tipo":             evento.id_tipo,
+        "id_dificultad":       evento.id_dificultad,
+        "id_estado":           evento.id_estado,
+        "organizador_nombre":  organizador.nombre_y_apellido if organizador else None,
+        "organizador_email":   organizador.email if organizador else None,
+        "lat":                 float(evento.lat) if evento.lat is not None else None,
+        "lng":                 float(evento.lng) if evento.lng is not None else None,
+    }
 
 
 @router.get(

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from datetime import datetime
 from typing import Optional
 
@@ -16,6 +16,12 @@ class NotificacionResponse(BaseModel):
     fecha_creacion: datetime
     leida: bool
 
+    @field_serializer('fecha_creacion')
+    def serializar_fecha(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y %H:%M')
+    
     class Config:
         from_attributes = True
 

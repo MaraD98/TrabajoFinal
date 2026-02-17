@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from datetime import datetime, date
 
 
@@ -63,6 +63,12 @@ class SolicitudBajaResponse(BaseModel):
     fecha_solicitud: datetime
     usuario_solicitante: str
     estado_solicitud: str = 'pendiente'
+    
+    @field_serializer('fecha_solicitud')
+    def serializar_fecha(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y %H:%M')
     
     model_config = ConfigDict(from_attributes=True)
 

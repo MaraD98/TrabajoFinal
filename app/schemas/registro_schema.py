@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, field_serializer
 from datetime import date, datetime 
 from typing import Optional
 from decimal import Decimal
@@ -21,7 +21,6 @@ class EventoBase(BaseModel):
     lng: Optional[Decimal] = None
     cupo_maximo: Optional[int] = Field(default=0, ge=0, description="Cupo máximo de participantes")
 
-
 class EventoCreate(EventoBase):
     """Schema para crear eventos con validaciones"""
     
@@ -42,7 +41,12 @@ class EventoResponse(EventoBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-
+# 👇 AGREGAR ESTO — formatea la fecha en TODAS las respuestas
+    @field_serializer('fecha_evento')
+    def serializar_fecha(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
 # ============================================================================
 # SCHEMAS DE MULTIMEDIA
 # ============================================================================
