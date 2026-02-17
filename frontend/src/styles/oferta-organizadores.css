@@ -1,0 +1,275 @@
+/* GENERAL */
+.org-page {
+    font-family: 'Montserrat', sans-serif;
+    color: #333;
+    background-color: #f8f9fa;
+}
+
+/* 1. HERO SECTION */
+.org-hero {
+    height: 85vh; /* Ocupa casi toda la pantalla */
+    width: 100%;
+    /* IMAGEN DE FONDO: Cambia la URL por una foto de un pelotón de bicis o una largada */
+    background-image: url('https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=2070&auto=format&fit=crop');
+    background-size: cover;
+    background-position: center;
+    
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Oscurece la imagen para que se lea el texto */
+.org-hero-overlay {
+    background: rgba(0, 0, 0, 0.85);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.org-title {
+    font-size: 4rem; /* Muy grande */
+    font-weight: 900;
+    color: #fff;
+    margin: 0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+}
+
+.org-subtitle {
+    font-size: 1.5rem;
+    color: #ff6600; /* Naranja */
+    margin-top: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.org-description {
+    color: #ddd;
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 20px auto 40px auto;
+    line-height: 1.6;
+}
+
+/* BOTONES HERO */
+.org-actions {
+    display: flex;
+    gap: 20px;
+}
+
+.btn-primary-org {
+    background-color: #ff6600;
+    color: white;
+    padding: 15px 35px;
+    text-decoration: none;
+    font-weight: 800;
+    border-radius: 50px;
+    text-transform: uppercase;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.btn-primary-org:hover {
+    background-color: #e65c00;
+    transform: scale(1.05);
+}
+
+.btn-secondary-org {
+    background-color: transparent;
+    color: white;
+    border: 2px solid white;
+    padding: 13px 35px;
+    text-decoration: none;
+    font-weight: 700;
+    border-radius: 50px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.btn-secondary-org:hover {
+    background-color: white;
+    color: #000;
+}
+
+/* 2. STATS BAR */
+.stats-bar {
+    background-color: #111;
+    color: white;
+    display: flex;
+    justify-content: center;
+    gap: 80px;
+    padding: 30px 20px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ff6600;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #bbb;
+}
+
+/* 3. BENEFITS */
+.org-benefits {
+    padding: 80px 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 60px;
+}
+
+.section-header h3 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 10px;
+    color: #222;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.benefit-card {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    text-align: center;
+    transition: transform 0.3s;
+    border-bottom: 4px solid transparent;
+}
+
+.benefit-card:hover {
+    transform: translateY(-10px);
+    border-bottom: 4px solid #ff6600;
+}
+
+.icon-box {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.benefit-card h4 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+}
+
+.benefit-card p {
+    color: #666;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+/* 4. STEPS */
+.org-steps {
+    background-color: #fff;
+    padding: 80px 20px;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+}
+
+.steps-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    max-width: 1000px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.step {
+    text-align: center;
+    flex: 1;
+    min-width: 200px;
+}
+
+.step-number {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #e0e0e0; /* Gris muy claro */
+    display: block;
+    margin-bottom: 10px;
+}
+
+.step h4 {
+    font-weight: 800;
+    margin-bottom: 10px;
+}
+
+/* Línea conectora (solo visible en desktop) */
+.step-connector {
+    height: 2px;
+    background: #e0e0e0;
+    flex: 0.5;
+    margin-top: 50px;
+    display: none; /* Oculto por defecto en movil */
+}
+
+@media (min-width: 768px) {
+    .step-connector { display: block; }
+}
+
+/* 5. CTA FINAL */
+.org-cta-final {
+    background-color: #ff6600;
+    color: white;
+    text-align: center;
+    padding: 80px 20px;
+}
+
+.org-cta-final h2 {
+    font-size: 2.5rem;
+    font-weight: 900;
+    margin-bottom: 10px;
+}
+
+.btn-large-cta {
+    display: inline-block;
+    margin-top: 30px;
+    background-color: white;
+    color: #ff6600;
+    font-size: 1.1rem;
+    font-weight: 800;
+    padding: 20px 50px;
+    border-radius: 50px;
+    text-decoration: none;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+
+.btn-large-cta:hover {
+    transform: scale(1.05);
+    background-color: #f0f0f0;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+    .org-title { font-size: 2.5rem; }
+    .stats-bar { gap: 30px; }
+}

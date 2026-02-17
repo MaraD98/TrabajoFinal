@@ -17,10 +17,11 @@ import MisEventosPage from "./pages/mis-eventos-page";
 import AdminDashboardPage from "./pages/admin-dashboard-page";
 import PerfilPage from "./pages/perfil-page";
 import NotificationBell from './components/notificaciones';
-// ⚠️ AGREGADO: Tus nuevas páginas de Admin (Pagos e Inscriptos)
 import TablaGestionPagos from "./pages/gestion-pagos-pages";
 import PanelInscriptos from "./pages/inscriptos-page";
-import HistorialEdicionPage from "./pages/historial-edicion-pages"; // 🆕 NUEVO
+import HistorialEdicionPage from "./pages/historial-edicion-pages"; 
+import { TiposCarrerasPage } from './pages/tipos-de-carreras-page';
+import { OfertaOrganizadoresPage } from './pages/oferta-organizadores-page';
 
 function App() {
   return (
@@ -34,6 +35,8 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/olvide-password" element={<ForgotPasswordPage />} />
+          <Route path="/tipos-de-carreras" element={<TiposCarrerasPage />} />
+          <Route path="/organizadores" element={<OfertaOrganizadoresPage />} />
 
           {/* ========== RUTAS PROTEGIDAS - TODOS LOS USUARIOS AUTENTICADOS ========== */}
           
