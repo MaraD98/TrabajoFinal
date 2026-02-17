@@ -1,21 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
-import logoWakeUp from '../assets/wakeup-logo.png'; 
 import { Footer } from "../components/footer";
-
-// 🔥 IMPORTACIÓN DE ICONOS LUCIDE
-import { 
-  User, 
-  Calendar, 
-  ClipboardList, 
-  PlusCircle, 
-  LogOut,
-  FileText,
-  ArrowLeft
-} from 'lucide-react';
+import { Navbar } from '../components/navbar';
 
 interface Evento {
   id_evento: number;
@@ -48,12 +37,8 @@ export default function CalendarioPage() {
   const location = useLocation(); 
   const navigate = useNavigate();
   
-  // 🔥 AJUSTE 1: DESESTRUCTURACIÓN COMPLETA INCLUYENDO getToken
-  const { user, logout, getToken } = useAuth(); 
+  const { user, getToken } = useAuth(); 
   
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -77,37 +62,23 @@ export default function CalendarioPage() {
   const hoyReal = new Date();
   hoyReal.setHours(0, 0, 0, 0);
 
-  // 🔥 AJUSTE 3: VERIFICACIÓN DE HEADER - Usa user?.nombre_y_apellido del contexto
-  const displayUserName = user?.nombre_y_apellido 
-    ? user.nombre_y_apellido.split(' ')[0].toUpperCase() 
-    : "USUARIO";
-
-  // 🔥 DETECTAR SI ES ADMIN (ROL 1 O 2)
-  const esAdmin = user?.id_rol === 1 || user?.id_rol === 2;
-
-  // 🔥 CERRAR DROPDOWN AL HACER CLICK AFUERA
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   useEffect(() => {
     cargarEventos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, anio]);
 
+  // 1. CAMBIO: Lectura de URL (DD-MM-AAAA)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const fechaParam = params.get('fecha');
     const idParam = params.get('id');
 
     if (fechaParam && idParam) {
-        const [yearStr, monthStr] = fechaParam.split('-');
+        // Asumimos formato DD-MM-AAAA
+        const [monthStr, yearStr] = fechaParam.split('-');
+        
+        // Creamos la fecha destino (Año, Mes index 0, Dia)
         const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
         
         setFechaNavegacion(fechaDestino);
@@ -158,12 +129,20 @@ export default function CalendarioPage() {
     return dias;
   };
 
+  // 2. CAMBIO: Comparación con formato DD-MM-AAAA
   const obtenerEventosDelDia = (dia: number) => {
-    const fechaBuscada = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    // Formato deseado: DD-MM-AAAA
+    const fechaBuscada = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
+    
     return (Array.isArray(eventos) ? eventos : []).filter(evento => {
         if (!evento.fecha_evento) return false;
-        const fechaEventoStr = String(evento.fecha_evento).substring(0, 10);
-        return fechaEventoStr === fechaBuscada;
+        
+        // La API devuelve AAAA-MM-DD. La convertimos para comparar.
+        const fechaIso = String(evento.fecha_evento).substring(0, 10); // AAAA-MM-DD
+        const [y, m, d] = fechaIso.split('-');
+        const fechaEventoFormateada = `${d}-${m}-${y}`; // DD-MM-AAAA
+        
+        return fechaEventoFormateada === fechaBuscada;
     });
   };
 
@@ -181,9 +160,11 @@ export default function CalendarioPage() {
     setIdEventoSeleccionado(null);
   };
 
+  // 3. CAMBIO: Guardar selección como DD-MM-AAAA
   const manejarClickDia = (dia: number, esPasado: boolean) => {
     if (esPasado) return;
-    const fechaClick = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    // Construcción: DD-MM-AAAA
+    const fechaClick = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
     setFechaSeleccionada(fechaClick);
     setIdEventoSeleccionado(null);
     
@@ -214,17 +195,14 @@ export default function CalendarioPage() {
       }
   };
 
-  // 🔥 AJUSTE 2: FUNCIÓN CORREGIDA CON TOKEN DESDE getToken()
   const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
     
-    // Verificar que el usuario esté logueado
     if (!user) {
         setMsgError("Debes iniciar sesión para inscribirte.");
         return;
     }
 
-    // 🔥 CRÍTICO: Obtener el token usando getToken() (busca en ambos storages)
     const token = getToken();
     if (!token) {
         setMsgError("No se encontró tu sesión. Por favor, vuelve a iniciar sesión.");
@@ -242,7 +220,6 @@ export default function CalendarioPage() {
     }
 
     try {
-        // 🔥 CRÍTICO: Pasar el token como segundo parámetro
         await inscribirseEvento(idEventoSeleccionado, token);
         
         setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
@@ -255,11 +232,11 @@ export default function CalendarioPage() {
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
-        
+
         // Manejo de errores detallado
         if (error.response) {
             const detalle = error.response.data?.detail || error.response.data?.message;
-            
+
             if (error.response.status === 401) {
                 setMsgError("Tu sesión expiró. Por favor, vuelve a iniciar sesión.");
                 setTimeout(() => navigate('/login'), 2000);
@@ -292,22 +269,15 @@ export default function CalendarioPage() {
     return 'dificultad-general';
   };
 
+  const modoDetalle = idEventoSeleccionado !== null;
   return (
     <div className="calendario-container">
-        {/* ========================================== */}
-        {/* 🔥 HEADER ACTUALIZADO CON MENÚ PROFESIONAL */}
-        {/* ========================================== */}
-        <header className="cal-header">
-            <div className="header-left">
-                <Link to="/" className="btn-volver-inicio">
-                    <ArrowLeft size={20} style={{ marginRight: '8px' }} />
-                    <span className="texto-volver">VOLVER AL INICIO</span>
-                </Link>
-            </div>
+        <Navbar/>
 
+        {!modoDetalle && (
+            <header className="cal-header">
             <div className="header-center">
                 <div className="cal-branding-vertical">
-                    <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo-centered" />
                     <div className="cal-title-wrapper-centered">
                         <h1 className="cal-title">CALENDARIO</h1>
                         <span className="cal-subtitle">DE EVENTOS</span>
@@ -340,160 +310,97 @@ export default function CalendarioPage() {
                         ))}
                     </select>
                 </div>
-
-                {/* 🔥 MENÚ DE USUARIO PROFESIONAL CON ICONOS LUCIDE */}
-                {user ? (
-                    <div className="user-menu-container" ref={dropdownRef}>
-                        <button
-                            className="user-menu-trigger"
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        >
-                            <User size={18} className="user-icon" />
-                            <span className="user-name">{displayUserName}</span>
-                            <span className="dropdown-arrow">▼</span>
-                        </button>
-
-                        {isDropdownOpen && (
-                            <div className="user-dropdown">
-                                {/* SECCIÓN: MI CUENTA */}
-                                <div className="dropdown-header">MI CUENTA</div>
-                                
-                                <Link 
-                                    to="/perfil" 
-                                    className="dropdown-item" 
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <User size={16} style={{ marginRight: '8px' }} />
-                                    Mi Perfil
-                                </Link>
-
-                                {esAdmin && (
-                                    <Link 
-                                        to="/reportes" 
-                                        className="dropdown-item" 
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        <FileText size={16} style={{ marginRight: '8px' }} />
-                                        Mis Reportes
-                                    </Link>
-                                )}
-
-                                {/* SECCIÓN: MIS EVENTOS */}
-                                <div className="dropdown-header">MIS EVENTOS</div>
-
-                                <Link 
-                                    to={esAdmin ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
-                                    className="dropdown-item"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <Calendar size={16} style={{ marginRight: '8px' }} />
-                                    Inscriptos
-                                </Link>
-
-                                <Link 
-                                    to="/mis-eventos" 
-                                    className="dropdown-item"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <ClipboardList size={16} style={{ marginRight: '8px' }} />
-                                    Mis Eventos
-                                </Link>
-
-                                {esAdmin && (
-                                    <Link 
-                                        to="/registro-evento" 
-                                        className="dropdown-item"
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        <PlusCircle size={16} style={{ marginRight: '8px' }} />
-                                        Crear Evento
-                                    </Link>
-                                )}
-                                
-                                <div className="dropdown-divider"></div>
-                                
-                                <button
-                                    onClick={() => {
-                                        logout();
-                                        setIsDropdownOpen(false);
-                                    }}
-                                    className="dropdown-item logout-button"
-                                >
-                                    <LogOut size={16} style={{ marginRight: '8px' }} />
-                                    Cerrar Sesión
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-                )}
             </div>
         </header>
-
-      {/* ========================================== */}
-      {/* GRID DEL CALENDARIO (SIN CAMBIOS) */}
-      {/* ========================================== */}
-      <div className="calendario-wrapper">
-        {cargando ? (
-          <div className="calendario-cargando">
-             <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
-             <p className="loader-texto no-select">Cargando eventos...</p>
-          </div>
-        ) : (
-          <div className="calendario-grid-wrapper">
-            <div className="calendario-grid">
-              {DIAS_SEMANA.map(dia => <div key={dia} className="dia-semana-header no-select">{dia}</div>)}
-
-              {dias.map((dia, index) => {
-                if (dia === null) return <div key={`vacio-${index}`} className="dia-celda dia-vacio"></div>;
-
-                const fechaCelda = new Date(anio, mes, dia);
-                fechaCelda.setHours(0, 0, 0, 0);
-
-                const esPasado = fechaCelda < hoyReal;
-                const esHoy = fechaCelda.getTime() === hoyReal.getTime();
-                const eventosDelDia = obtenerEventosDelDia(dia);
-                const tieneEventos = eventosDelDia.length > 0;
-                const fechaActualStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                const esSeleccionado = fechaSeleccionada === fechaActualStr;
-
-                return (
-                  <div 
-                    key={`dia-${dia}`} 
-                    onClick={() => manejarClickDia(dia, esPasado)}
-                    className={`dia-celda 
-                      ${tieneEventos ? 'dia-con-eventos' : ''} 
-                      ${esSeleccionado ? 'dia-seleccionado' : ''}
-                      ${esPasado ? 'dia-pasado' : ''} 
-                      ${esHoy ? 'dia-hoy' : ''}
-                    `}
-                  >
-                    <div className="dia-numero">{dia}</div>
-                    
-                    {tieneEventos && (
-                      <div className="icono-evento-bici">
-                        <span style={{fontSize: '12px'}}>🚴</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         )}
 
+      <div className="calendario-wrapper">
+      
+      {!modoDetalle && (
+          <>
+            {cargando ? (
+            <div className="calendario-cargando">
+                <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
+                <p className="loader-texto no-select">Cargando eventos...</p>
+            </div>
+            ) : (
+            <div className="calendario-grid-wrapper">
+                <div className="calendario-grid">
+                {DIAS_SEMANA.map(dia => <div key={dia} className="dia-semana-header no-select">{dia}</div>)}
+
+                {dias.map((dia, index) => {
+                    if (dia === null) return <div key={`vacio-${index}`} className="dia-celda dia-vacio"></div>;
+
+                    const fechaCelda = new Date(anio, mes, dia);
+                    fechaCelda.setHours(0, 0, 0, 0);
+
+                    const esPasado = fechaCelda < hoyReal;
+                    const esHoy = fechaCelda.getTime() === hoyReal.getTime();
+                    const eventosDelDia = obtenerEventosDelDia(dia);
+                    const tieneEventos = eventosDelDia.length > 0;
+                    
+                    // 4. CAMBIO: Comparación Grid en DD-MM-AAAA
+                    const fechaActualStr = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
+                    const esSeleccionado = fechaSeleccionada === fechaActualStr;
+
+                    return (
+                    <div 
+                        key={`dia-${dia}`} 
+                        onClick={() => manejarClickDia(dia, esPasado)}
+                        className={`dia-celda 
+                        ${tieneEventos ? 'dia-con-eventos' : ''} 
+                        ${esSeleccionado ? 'dia-seleccionado' : ''}
+                        ${esPasado ? 'dia-pasado' : ''} 
+                        ${esHoy ? 'dia-hoy' : ''}
+                        `}
+                    >
+                        <div className="dia-numero">{dia}</div>
+                        
+                        {tieneEventos && (
+                        <div className="icono-evento-bici">
+                            <span style={{fontSize: '12px'}}>🚴</span>
+                        </div>
+                        )}
+                    </div>
+                    );
+                })}
+                </div>
+            </div>
+            )}
+          </>
+      )}
+
         {/* ========================================== */}
-        {/* PANEL DE RESERVAS (SIN CAMBIOS) */}
+        {/* PANEL DE RESERVAS / DETALLE */}
         {/* ========================================== */}
-        {fechaSeleccionada && (
-          <div className="reserva-panel">
+
+      {(fechaSeleccionada || idEventoSeleccionado) && (
+        <div className={modoDetalle ? "reserva-panel modo-full-screen" : "reserva-panel"}>
+          
+          {modoDetalle && (
+            <button 
+                className="btn-volver-calendario"
+                onClick={() => {
+                    setIdEventoSeleccionado(null);
+                    navigate('/calendario'); 
+                }}
+            >
+                ← Volver al Calendario
+            </button>
+          )}
+
             <h3 className="panel-titulo no-select">
-                RUTAS DEL <span className="fecha-destacada">{fechaSeleccionada}</span>
+                {modoDetalle 
+                    ? 'COMPLETA TU INSCRIPCIÓN' 
+                    : <span>RUTAS DEL <span className="fecha-destacada">{fechaSeleccionada}</span></span>
+                }
             </h3>
             
             {(() => {
-                const diaNumero = parseInt(fechaSeleccionada.split('-')[2]);
+                if (!fechaSeleccionada) return null;
+
+                // 5. CAMBIO: El día ahora está en la posición 0 (DD-MM-AAAA)
+                const diaNumero = parseInt(fechaSeleccionada.split('-')[0]);
                 const eventosDia = obtenerEventosDelDia(diaNumero);
                 
                 if(eventosDia.length > 0) {
@@ -502,15 +409,11 @@ export default function CalendarioPage() {
                             {eventosDia.map((e) => {
                                 const estaAbierto = idEventoSeleccionado === e.id_evento;
                                 const claseDificultad = getClaseDificultad(e.nombre_dificultad);
-                                const cupoMaximo = e.cupo_maximo;
-                                const cuposDisponibles = e.cupos_disponibles;
-                                const esCupoLimitado = cupoMaximo !== undefined && cupoMaximo !== null && cupoMaximo > 0;
-
+                                const esCupoLimitado = e.cupo_maximo !== undefined && e.cupo_maximo !== null && e.cupo_maximo > 0;
+                                
                                 let estaAgotado = false;
-                                if (esCupoLimitado) {
-                                    if (cuposDisponibles !== undefined && cuposDisponibles !== null) {
-                                        estaAgotado = cuposDisponibles <= 0;
-                                    }
+                                if (esCupoLimitado && e.cupos_disponibles !== undefined && e.cupos_disponibles !== null) {
+                                    estaAgotado = e.cupos_disponibles <= 0;
                                 }
 
                                 return (
@@ -540,9 +443,9 @@ export default function CalendarioPage() {
                                             ) : (
                                                 <span className="badge-cupo" style={!esCupoLimitado ? {backgroundColor: '#28a745', color: 'white'} : {}}>
                                                     {esCupoLimitado 
-                                                        ? (cuposDisponibles !== null && cuposDisponibles !== undefined 
-                                                            ? `🔥 Quedan: ${cuposDisponibles}` 
-                                                            : `Cupo: ${cupoMaximo}`)
+                                                        ? (e.cupos_disponibles !== null && e.cupos_disponibles !== undefined 
+                                                            ? `🔥 Quedan: ${e.cupos_disponibles}` 
+                                                            : `Cupo: ${e.cupo_maximo}`)
                                                         : '✅ Cupo Libre'
                                                     }
                                                 </span>
@@ -550,18 +453,14 @@ export default function CalendarioPage() {
                                         </div>
 
                                         {e.descripcion && (
-                                            <div className="evento-descripcion">
-                                                "{e.descripcion}"
-                                            </div>
+                                            <div className="evento-descripcion">"{e.descripcion}"</div>
                                         )}
                                         
                                         {e.ubicacion && (
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`/mapa`}  rel="noopener noreferrer" className="ver-mapa-link">
-                                                        Ver mapa
-                                                    </a>
+                                                    <a href={`/mapa`} rel="noopener noreferrer" className="ver-mapa-link">Ver mapa</a>
                                                 )}
                                             </div>
                                         )}
