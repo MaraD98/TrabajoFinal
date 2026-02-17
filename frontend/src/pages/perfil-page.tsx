@@ -109,6 +109,41 @@ export default function PerfilPage() {
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
     
+useEffect(() => {
+    const cargarDatosIniciales = async () => {
+        const token = getToken();
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            // 1. Cargamos datos del perfil del usuario logueado
+            const resPerfil = await axios.get(`${apiUrl}/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPerfil(resPerfil.data);
+            
+            // Llenamos el formulario de edición con lo que trajo el server
+            setEditForm({
+                nombre_y_apellido: resPerfil.data.nombre_y_apellido || '',
+                email: resPerfil.data.email || '',
+                telefono: resPerfil.data.telefono || '',
+                direccion: resPerfil.data.direccion || '',
+                enlace_redes: resPerfil.data.enlace_redes || ''
+            });
+
+            // 2. Cargamos sus inscripciones
+            await fetchInscripciones();
+
+        } catch (err: any) {
+            console.error("Error al cargar datos iniciales:", err);
+            setError("No se pudo cargar la información del perfil.");
+        }
+    };
+
+    cargarDatosIniciales();
+}, [apiUrl, getToken, navigate]);
 
     const fetchInscripciones = async () => {
         const token = getToken();

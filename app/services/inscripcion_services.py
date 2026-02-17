@@ -6,27 +6,13 @@ from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.inscripcion_models import ReservaEvento as Inscripcion
 
-# 👇 IMPORTACIÓN PROFESIONAL (Evita conflictos con la librería estándar 'email')
-try:
-    from email import enviar_correo_reserva
-except (ImportError, AttributeError):
-    # Si estás en la estructura de carpetas de FastAPI, probamos con la ruta absoluta
-    try:
-        from app.email import enviar_correo_reserva
-    except:
-        # Si sigue fallando, es por el nombre del archivo 'email.py'. 
-        # Lo ideal será renombrarlo a 'mailer.py' si esto tira error.
-        pass
+from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva
+
 
 class InscripcionService:
 
     @staticmethod
     def listar_todas(db: Session):
-        """
-        Recupera reservas corrigiendo el error de atributo 'nombre'.
-        Usa 'nombre_y_apellido' como está definido en auth.models.
-        """
-        # Traemos la reserva con sus relaciones para no fallar al leer datos
         reservas = db.query(ReservaEvento).options(
             joinedload(ReservaEvento.usuario),
             joinedload(ReservaEvento.evento).joinedload(Evento.tipo_evento),
@@ -36,11 +22,9 @@ class InscripcionService:
         datos_formateados = []
 
         for r in reservas:
-            # 1. OBJETOS RELACIONADOS
             evt = r.evento
             usr = r.usuario
 
-            # 2. MAPEO DE ESTADOS (IDs a Texto)
             nombre_estado = "Desconocido"
             if r.id_estado_reserva == 1:
                 nombre_estado = "Pendiente"
@@ -51,40 +35,24 @@ class InscripcionService:
             elif r.id_estado_reserva == 4:
                 nombre_estado = "Expirada"
 
-            # 3. CORRECCIÓN DEL USUARIO (Aquí estaba el error 500)
-            # Usamos 'nombre_y_apellido' que es lo que existe en tu BD.
             u_nombre_completo = usr.nombre_y_apellido if usr else "Usuario Eliminado"
             u_email = usr.email if usr else "Sin Email"
-
-            # 4. DATOS DEL EVENTO (Para que se vea bonito en el front)
             nombre_evt = evt.nombre_evento if evt else "Evento no encontrado"
-            
-            # Tipo y Dificultad: Si existen, sacamos el .nombre, si no "N/A"
             tipo_txt = evt.tipo_evento.nombre if (evt and evt.tipo_evento) else "N/A"
             dificultad_txt = evt.nivel_dificultad.nombre if (evt and evt.nivel_dificultad) else "N/A"
-            
-            # Fecha y Costo
             fecha_evt = str(evt.fecha_evento) if (evt and evt.fecha_evento) else "-"
             monto_real = float(evt.costo_participacion) if (evt and evt.costo_participacion) else 0.0
-
-            # Fecha Inscripción (formato string)
             fecha_insc = str(r.fecha_reserva).split(".")[0] if r.fecha_reserva else "-"
 
             item = {
                 "id_reserva": r.id_reserva,
-                
-                # CORRECCIÓN AQUÍ:
                 "usuario_nombre": u_nombre_completo, 
-                "usuario_apellido": "", # Lo dejamos vacío porque tu BD tiene todo junto en nombre_y_apellido
+                "usuario_apellido": "", 
                 "usuario_email": u_email,
-
-                # DATOS DE EVENTO
                 "nombre_evento": nombre_evt,
                 "fecha_evento": fecha_evt,
-                "tipo_evento": tipo_txt,            # Ej: "Carrera"
-                "nivel_dificultad": dificultad_txt, # Ej: "Básico"
-                
-                # DATOS DE RESERVA
+                "tipo_evento": tipo_txt,
+                "nivel_dificultad": dificultad_txt,
                 "fecha_inscripcion": fecha_insc,
                 "estado_reserva": nombre_estado,
                 "monto": monto_real
@@ -93,9 +61,39 @@ class InscripcionService:
 
         return datos_formateados
 
-    # -------------------------------------------------------------------------
-    # MÉTODOS DE CREACIÓN Y PAGO (Sin cambios lógicos, solo limpieza)
-    # -------------------------------------------------------------------------
+    # 👇 ESTE ES EL MÉTODO NUEVO QUE AGREGAMOS PARA TU PERFIL
+    @staticmethod
+    def listar_por_usuario(db: Session, id_usuario: int):
+        reservas = db.query(ReservaEvento).filter(ReservaEvento.id_usuario == id_usuario).options(
+            joinedload(ReservaEvento.evento).joinedload(Evento.tipo_evento),
+            joinedload(ReservaEvento.evento).joinedload(Evento.nivel_dificultad)
+        ).all()
+
+        datos_formateados = []
+        for r in reservas:
+            evt = r.evento
+            nombre_estado = "Desconocido"
+            if r.id_estado_reserva == 1:
+                nombre_estado = "Pendiente"
+            elif r.id_estado_reserva == 2:
+                nombre_estado = "Confirmada"
+            elif r.id_estado_reserva == 3:
+                nombre_estado = "Cancelada"
+            elif r.id_estado_reserva == 4:
+                nombre_estado = "Expirada"
+
+            item = {
+                "id_reserva": r.id_reserva,
+                "nombre_evento": evt.nombre_evento if evt else "Evento no encontrado",
+                "fecha_evento": str(evt.fecha_evento) if (evt and evt.fecha_evento) else "-",
+                "tipo_evento": evt.tipo_evento.nombre if (evt and evt.tipo_evento) else "N/A",
+                "nivel_dificultad": evt.nivel_dificultad.nombre if (evt and evt.nivel_dificultad) else "N/A",
+                "fecha_inscripcion": str(r.fecha_reserva).split(".")[0] if r.fecha_reserva else "-",
+                "estado_reserva": nombre_estado,
+                "monto": float(evt.costo_participacion) if (evt and evt.costo_participacion) else 0.0
+            }
+            datos_formateados.append(item)
+        return datos_formateados
 
     @staticmethod
     def crear_inscripcion(db: Session, id_evento: int, usuario_actual):
@@ -103,11 +101,9 @@ class InscripcionService:
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
 
-        # Verificar si está publicado (Estado 3 = Publicado)
         if evento.id_estado != 3:
              raise HTTPException(status_code=400, detail="No puedes inscribirte a un evento que no está publicado.")
 
-        # Verificar si ya tiene reserva
         reserva_existente = inscripcion_crud.get_reserva_activa_usuario(db, id_evento, usuario_actual.id_usuario)
         if reserva_existente:
             estado_txt = "Confirmada" if reserva_existente.id_estado_reserva == 2 else "Pendiente"
@@ -116,13 +112,11 @@ class InscripcionService:
                 detail=f"Ya tienes una inscripción activa ({estado_txt}) para este evento."
             )
 
-        # Verificar cupos
         if evento.cupo_maximo and evento.cupo_maximo > 0:
             inscritos = inscripcion_crud.count_reservas_activas(db, id_evento)
             if inscritos >= evento.cupo_maximo:
                 raise HTTPException(status_code=400, detail="Lo sentimos, no hay cupos disponibles.")
 
-        # Costo 0 -> Confirmado (2), Costo > 0 -> Pendiente (1)
         costo = evento.costo_participacion or 0
         if costo == 0:
             id_estado_inicial = 2
@@ -138,7 +132,6 @@ class InscripcionService:
             id_estado=id_estado_inicial
         )
 
-        # 👇 INTEGRACIÓN DEL MAIL: Se dispara aquí
         try:
             enviar_correo_reserva(
                 email_destino=usuario_actual.email,
@@ -158,20 +151,14 @@ class InscripcionService:
 
     @staticmethod
     def confirmar_pago_manual(db: Session, id_reserva: int, usuario_actual):
-        # Solo Admin(1) o Supervisor(2)
         if usuario_actual.id_rol not in [1, 2]:
              raise HTTPException(status_code=403, detail="No tienes permisos para confirmar pagos.")
-
         reserva = inscripcion_crud.get_reserva_por_id(db, id_reserva)
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada.")
-        
         if reserva.id_estado_reserva == 2:
              raise HTTPException(status_code=400, detail="Esta reserva ya está confirmada.")
-
-        # Confirmar
         reserva_act = inscripcion_crud.confirmar_reserva_pago(db, reserva)
-        
         return {
             "mensaje": "Pago registrado. Inscripción confirmada.",
             "id_reserva": reserva_act.id_reserva,
@@ -180,18 +167,32 @@ class InscripcionService:
     
     @staticmethod
     def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual):
-        # 1. Buscar la inscripción (recordá usar .id_reserva)
-        inscripcion = db.query(Inscripcion).filter(Inscripcion.id_reserva == id_inscripcion).first()
+        # 1. Buscamos la inscripción
+        inscripcion = db.query(Inscripcion).options(joinedload(Inscripcion.evento)).filter(Inscripcion.id_reserva == id_inscripcion).first()
         
         if not inscripcion:
             raise HTTPException(status_code=404, detail="La inscripción no existe.")
-
-        # 2. Seguridad... (verificación de usuario)
+        
         if usuario_actual.id_rol not in [1, 2] and inscripcion.id_usuario != usuario_actual.id_usuario:
-             raise HTTPException(status_code=403, detail="No tienes permiso...")
+             raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva.")
+        
+        # 2. CAPTURAMOS LOS DATOS AQUÍ (Esto es lo que asegura que el mail salga bien siempre)
+        email_u = usuario_actual.email
+        nom_u = usuario_actual.nombre_y_apellido
+        nom_e = "Evento"
+        if inscripcion.evento:
+            nom_e = inscripcion.evento.nombre_evento
 
-        # 3. Borrar la inscripción
+        # 3. BORRAMOS Y HACEMOS COMMIT
         db.delete(inscripcion)
         db.commit()
+
+        # 4. DISPARAMOS EL MAIL (con un print para que vos veas que sale)
+        try:
+            print(f"📧 Enviando cancelación a {email_u}...")
+            enviar_correo_cancelacion_reserva(email_destino=email_u, nombre_usuario=nom_u, evento=nom_e)
+            print("✅ Mail enviado.")
+        except Exception as e:
+            print(f"⚠️ El mail no salió: {e}")
         
         return {"message": "Inscripción cancelada exitosamente"}

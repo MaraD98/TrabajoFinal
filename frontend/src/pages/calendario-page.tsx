@@ -242,16 +242,18 @@ export default function CalendarioPage() {
     }
 
     try {
-        // 🔥 CRÍTICO: Pasar el token como segundo parámetro
-        await inscribirseEvento(idEventoSeleccionado, token);
+        // 1. Guardamos la respuesta del servidor en una variable 'respuesta'
+        const respuesta = await inscribirseEvento(idEventoSeleccionado, token);
         
-        setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
+        // 2. Usamos el mensaje que viene del Backend (respuesta.mensaje)
+        // Si por alguna razón no viene, ponemos uno por defecto
+        setMsgExito(respuesta.mensaje || `¡Inscripción exitosa a ${nombreEvento}!`);
         
         setTimeout(() => {
             setIdEventoSeleccionado(null);
             setMsgExito(null);
             cargarEventos();
-        }, 2000);
+        }, 4000); // Le damos 4 segundos para que el usuario llegue a leer el texto largo de las 72hs
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);

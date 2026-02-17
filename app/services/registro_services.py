@@ -17,6 +17,8 @@ from app.db.crud.registro_crud import (
 from app.schemas.registro_schema import EventoCreate, EventoResponse 
 from app.db.crud.notificacion_crud import NotificacionCRUD
 from app.models.inscripcion_models import ReservaEvento      
+from app.models.suscripcion_models import SuscripcionNovedades
+from app.email import enviar_correo_nuevo_evento
 
 
 UPLOAD_DIR = "static/uploads"
@@ -74,6 +76,25 @@ class EventoService:
             mensaje=f"Se publicó el evento: {nuevo_evento.nombre_evento}"
         )
         
+        # ==========================================================
+        # 🚀 LÓGICA DE SUSCRIPCIÓN: AVISAR A LOS USUARIOS POR MAIL
+        # ==========================================================
+        if estado_calculado == 3: # Solo si el evento está PUBLICADO
+            # Buscamos a los usuarios que tengan suscripción activa (id_estado 1) y general (evento NULL)
+            suscriptores = db.query(Usuario).join(SuscripcionNovedades).filter(
+                SuscripcionNovedades.id_estado_suscripcion == 1,
+                SuscripcionNovedades.id_evento == None
+            ).all()
+
+            for s in suscriptores:
+                # Usamos la función de email.py
+                enviar_correo_nuevo_evento(
+                    email_destino=s.email,
+                    nombre_evento=nuevo_evento.nombre_evento,
+                    fecha_evento=nuevo_evento.fecha_evento.strftime('%d/%m/%Y %H:%M')
+                )
+        # ==========================================================
+
         return nuevo_evento
     
     # ========================================================================
