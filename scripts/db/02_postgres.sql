@@ -262,6 +262,7 @@ CREATE TABLE Eliminacion_Evento (
     fecha_eliminacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     id_usuario INT NOT NULL, -- admin/supervisor que elimina
     notificacion_enviada BOOLEAN NOT NULL DEFAULT FALSE,
+    estado_solicitud VARCHAR(20) NOT NULL DEFAULT 'pendiente';
     
     CONSTRAINT FK_Eliminacion_Evento FOREIGN KEY (id_evento) REFERENCES Evento(id_evento) ON DELETE CASCADE,
     CONSTRAINT FK_Eliminacion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)

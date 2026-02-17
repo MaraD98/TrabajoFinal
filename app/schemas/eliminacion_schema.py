@@ -62,6 +62,7 @@ class SolicitudBajaResponse(BaseModel):
     motivo: str
     fecha_solicitud: datetime
     usuario_solicitante: str
+    estado_solicitud: str = 'pendiente'
     
     model_config = ConfigDict(from_attributes=True)
 
