@@ -84,13 +84,11 @@ export const Navbar = () => {
     // ============================================================================
     // ✅ FUNCIÓN PARA DETERMINAR SI MOSTRAR BOTÓN DE PANEL DE ADMIN
     // ============================================================================
-    const mostrarBotonPanelAdmin = () => {
-        return user && (user.id_rol === 1 || user.id_rol === 2);
-    };
+    const mostrarBotonPanelAdmin = () => user?.id_rol === 1 || user?.id_rol === 2;
 
     return (
         <nav className="main-navbar">
-            <div className="nav-left"style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+            <div className="nav-left">
                 {showBackButton && (
                     <button className="btn-back-nav" onClick={() => navigate('/')}>
                         ← <span className="hide-mobile">Inicio</span>
@@ -98,17 +96,29 @@ export const Navbar = () => {
                 )}
             </div>
 
-            <div className="nav-center" style={{ display: 'flex', justifyContent: 'center' }}>
+            <div className="nav-center" style={{paddingRight:'2em' }}>
                 <a href="https://www.wakeupbikes.com/" target="_blank" rel="noopener noreferrer">
                     <img src={logoWakeUp} alt="Wake Up Bikes" className="nav-logo" />
                 </a>
             </div>
 
-            <div className="nav-right" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            {/* 2. MENÚ PRINCIPAL (Centro - Estilo Imagen) */}
+            {/* Estos enlaces solo se ven en desktop, podrías ocultarlos en mobile con CSS */}
+            <div className="nav-center-links">
+                <Link to="/tipos-de-carreras" className="nav-link-item">TIPOS DE CARRERAS</Link>
+                <Link to="/calendario" className="nav-link-item">CALENDARIO</Link>
+                <Link to="/mapa" className="nav-link-item">MAPA</Link>
+                <Link to="/organizadores" className="nav-link-item">OFERTA DE LOS ORGANIZADORES</Link>
+            </div>
+
+            {/* 3. USUARIO Y ACCIONES (Derecha) */}
+            <div className="nav-right">
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        {/* Notificaciones */}
                         <NotificacionesBadge />
 
+                    {/* Menú Usuario */}
                     <div className="user-menu-container" ref={dropdownRef}>
                         <button 
                             className="user-menu-trigger" 
@@ -121,31 +131,31 @@ export const Navbar = () => {
 
                         {isDropdownOpen && (
                             <div className="user-dropdown">
+                                {/* SECCIÓN 1: MI PERFIL (Corredor) */}
                                 <div className="dropdown-header">MI CUENTA</div>
                                 <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>👤 Mi Perfil</Link>
-                                <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>📊 Mis Reportes</Link>
-                                <div className="dropdown-header">MIS EVENTOS</div>
-                                {/* Usamos ?tab=inscripciones para que PerfilPage sepa qué mostrar */}
-                                <Link to="/perfil?tab=inscripciones" className="dropdown-item">
-                                     Inscriptos
+                                <Link to="/perfil?tab=inscripciones" className="dropdown-item"> 🎫 Mis Inscripciones</Link>
+
+                                {/* SECCIÓN 2: GESTIÓN (Organizador) */}
+                                <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
+                                    ➕ Crear Nuevo Evento
                                 </Link>
                                 <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                    Mis Eventos
+                                    📅 Mis Eventos Creados
                                 </Link>
+                                <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>📊 Reportes y Estadísticas</Link>
+                                
                                 <div className="dropdown-divider"></div>
-                                <Link to={obtenerRutaCrearEvento()}  className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
-                                    Crear Evento
-                                </Link>
+                                
 
                                 {/* ✅ NUEVO: Botón Panel de Admin (SOLO para Admin y Supervisor) */}
                                 {mostrarBotonPanelAdmin() && (
                                     <>
-                                        <div className="dropdown-divider"></div>
                                         <Link 
                                             to="/admin" 
                                             className="dropdown-item"
                                             style={{ 
-                                                backgroundColor: '#ff6600', 
+                                                backgroundColor: 'rgba(217, 112, 42, 0.77)', 
                                                 color: '#fff',
                                                 fontWeight: 'bold'
                                             }}
@@ -156,8 +166,6 @@ export const Navbar = () => {
                                     </>
                                 )}
                                 
-                                <div className="dropdown-divider"></div>
-
                                 <button 
                                     onClick={logout} className="dropdown-item logout-button">Cerrar Sesión
                                 </button>
