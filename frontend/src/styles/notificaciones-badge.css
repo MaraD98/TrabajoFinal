@@ -1,6 +1,7 @@
 .notif-badge-container {
   position: relative;
   display: inline-block;
+  padding: 1em;
 }
 
 .notif-badge-btn {
@@ -122,8 +123,8 @@
 .dropdown-item {
   padding: 12px 15px;
   border-bottom: 1px solid #333;
-  cursor: pointer;
-  transition: background 0.2s;
+  transition: none;
+  transform: none !important;
 }
 
 .dropdown-item:hover {

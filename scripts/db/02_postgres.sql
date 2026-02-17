@@ -41,11 +41,12 @@ CREATE TABLE TipoEvento (
 
 -- Datos iniciales
 INSERT INTO TipoEvento (nombre) VALUES
-('Carrera'),
-('Paseo'),
-('Entrenamiento'),
-('Cicloturismo');
-
+('Ciclismo de Ruta'),
+('Mountain Bike (MTB)'),
+('Rural Bike'),
+('Gravel'),
+('Cicloturismo'),
+('Entrenamiento / Social');
 ---------------------------------
 
 CREATE TABLE NivelDificultad (

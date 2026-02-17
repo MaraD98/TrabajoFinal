@@ -14,7 +14,6 @@
   min-height: 100vh;
   color: var(--cal-text);
   font-family: 'Montserrat', sans-serif;
-  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -137,6 +136,7 @@
   border-bottom: 1px solid #222;
   flex-wrap: wrap; 
   gap: 20px;
+  padding: 2em;
 }
 
 .header-left { flex: 1; display: flex; align-items: center; }
@@ -273,4 +273,30 @@
 /* En móvil ocultamos el nombre y dejamos solo el ícono si no hay espacio */
 @media (max-width: 600px) {
     .user-name-responsive { display: none; }
+}
+
+/* El botón para volver */
+.btn-volver-calendario {
+    align-items: center;
+    padding: 8px 35px;
+    background: #0D0D0D;
+    border: 1px solid #394663;
+    color: #ffffff;
+    border-radius: var(--radius);
+    font-weight: 800;
+    text-transform: uppercase;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.btn-volver-calendario:hover {
+  color: #ccff00; 
+  border-color: #ccff00;
+  box-shadow: 0 0 15px var(--color-primary-glow);
+  transform: translateX(-5px);
+  color: #ccff00 !important;
+  background: rgba(204, 255, 0, 0.1);
+  transform: scale(1.1);
 }

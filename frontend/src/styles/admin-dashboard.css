@@ -652,17 +652,6 @@
   background-color: #718096;
 }
 
-.btn-confirmar {
-  background: linear-gradient(135deg, var(--accent-yellow) 0%, #b3e600 100%);
-  color: #0a0a0a;
-  padding: 10px 24px;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
 .btn-confirmar:hover {
   background: linear-gradient(135deg, #b3e600 0%, #99cc00 100%);
   transform: translateY(-1px);
