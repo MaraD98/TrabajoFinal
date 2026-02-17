@@ -295,7 +295,7 @@ export default function CalendarioPage() {
         setTimeout(() => {
             setIdEventoSeleccionado(null);
             setMsgExito(null);
-            cargarEventos();
+            navigate('/perfil?tab=inscripciones');
         }, 2000);
 
     } catch (error: any) {
