@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate} from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
@@ -405,9 +405,6 @@ export default function SolicitudEventoPage() {
         <div className="event-registration__header">
           <div>
             <h1 className="event-registration__title">Solicitud de Publicación</h1>
-            <p className="event-registration__subtitle">
-              Completa la información para solicitar un evento externo
-            </p>
           </div>
           
           {/* Indicador de Autoguardado */}
@@ -422,9 +419,6 @@ export default function SolicitudEventoPage() {
                 ✓ Guardado {formatearUltimoAutoguardado()}
               </span>
             )}
-            <Link to="/" style={{ color: '#ccff00', textDecoration: 'none', fontWeight: '600' }}>
-              ← Volver al Inicio
-            </Link>
           </div>
         </div>
 
@@ -477,10 +471,12 @@ export default function SolicitudEventoPage() {
                     className="event-form__select"
                     required
                   >
-                    <option value={1}>Carrera</option>
-                    <option value={2}>Paseo</option>
-                    <option value={3}>Entrenamiento</option>
-                    <option value={4}>Cicloturismo</option>
+                    <option value={1}>Ciclismo de Ruta</option>
+                    <option value={2}>Mountain Bike (MTB)</option>
+                    <option value={3}>Rural Bike</option>
+                    <option value={4}>Gravel</option>
+                    <option value={5}>Cicloturismo</option>
+                    <option value={6}>Entrenamiento / Social</option>
                   </select>
                 </div>
 
