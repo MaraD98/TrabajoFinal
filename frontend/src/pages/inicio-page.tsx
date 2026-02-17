@@ -8,18 +8,22 @@ import { Footer } from "../components/footer";
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
 const IMAGENES_TIPO: Record<number | string, string> = {
-    1: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=800&auto=format&fit=crop",
-    2: "https://images.unsplash.com/photo-1541625602330-2277a4c46182?q=80&w=800&auto=format&fit=crop",
-    3: "https://images.unsplash.com/photo-1471506480208-91b3a4cc78be?q=80&w=800&auto=format&fit=crop",
-    4: "https://images.unsplash.com/photo-1475666675596-cca2035b3d79?q=80&w=800&auto=format&fit=crop",
-    default: "https://images.unsplash.com/photo-1507035895480-2b3156c31110?q=80&w=800&auto=format&fit=crop"
+    1: "https://images.unsplash.com/photo-1615845522846-02f89af04c2e?q=80&w=1638&auto=format&fit=crop",
+    2: "https://images.unsplash.com/photo-1629056528325-f328b5f27ae7?q=80&w=1170&auto=format&fit=crop",
+    3: "https://images.unsplash.com/photo-1769293191463-e0d620e71860?q=80&w=1029&auto=format&fit=crop",
+    4: "https://plus.unsplash.com/premium_photo-1670002408049-f19bd003901c?q=80&w=1170&auto=format&fit=crop",
+    5: "https://plus.unsplash.com/premium_photo-1681885419412-dd7fb2802d3e?q=80&w=1170&auto=format&fit=crop",
+    6: "https://images.unsplash.com/photo-1757366225063-33e161f1a44c?q=80&w=1170&auto=format&fit=crop",
+    default: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=800&auto=format&fit=crop"
 };
 
 const NOMBRES_TIPO: Record<number | string, string> = {
-    1: "Carrera",
-    2: "Paseo",
-    3: "Entrenamiento",
-    4: "Cicloturismo"
+    1: "Ciclismo de Ruta",
+    2: "Mountain Bike (MTB)",
+    3: "Rural Bike",
+    4: "Gravel",
+    5: "Cicloturismo",
+    6: "Entrenamiento / Social"
 };
 
 interface CatalogoItem {
@@ -360,7 +364,7 @@ export default function InicioPage() {
                                             <span title="Fecha" style={{ color: '#ccff00' }}>📅</span>
                                             <span>{fechaLimpia}</span>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', paddingBottom: '1em' }}>
                                             <span style={{ marginTop: '2px', color: '#ccff00' }} title="Ubicación">📍</span>
                                             <span style={{ lineHeight: '1.4', wordBreak: 'break-word' }}>{evento.ubicacion}</span>
                                         </div>
