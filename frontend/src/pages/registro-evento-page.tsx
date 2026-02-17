@@ -251,10 +251,12 @@ const initMap = () => {
                     required
                   >
                     {/* VALORES NUMÉRICOS CORRECTOS */}
-                    <option value={1}>Carrera</option>
-                    <option value={2}>Paseo</option>
-                    <option value={3}>Entrenamiento</option>
-                    <option value={4}>Cicloturismo</option>
+                    <option value={1}>Ciclismo de Ruta</option>
+                    <option value={2}>Mountain Bike (MTB)</option>
+                    <option value={3}>Rural Bike</option>
+                    <option value={4}>Gravel</option>
+                    <option value={5}>Cicloturismo</option>
+                    <option value={6}>Entrenamiento / Social</option>
                   </select>
                 </div>
 
