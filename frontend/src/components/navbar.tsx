@@ -114,7 +114,7 @@ export const Navbar = () => {
             {/* 3. USUARIO Y ACCIONES (Derecha) */}
             <div className="nav-right">
                 {user ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center'}}>
                         {/* Notificaciones */}
                         <NotificacionesBadge />
 
