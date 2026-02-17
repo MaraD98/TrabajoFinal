@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback} from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
@@ -63,57 +63,125 @@ export default function CalendarioPage() {
   hoyReal.setHours(0, 0, 0, 0);
 
 
+  const ultimoPedidoId = useRef(0);
+  const cargarEventos = useCallback(async () => {
+    // Generamos un ID único para ESTA ejecución
+    const pedidoActual = ultimoPedidoId.current + 1;
+    ultimoPedidoId.current = pedidoActual;
+
+    setCargando(true);
+    
+    try {
+      console.log(`📡 Pidiendo eventos (ID: ${pedidoActual}) para: ${mes + 1}/${anio}`);
+      
+      // Pequeña pausa para que se sienta fluido (opcional)
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const data = await getEventosCalendario(mes + 1, anio);
+
+      if (pedidoActual !== ultimoPedidoId.current) {
+          console.log(`🚫 Ignorando petición vieja (ID: ${pedidoActual})`);
+          return;
+      }
+
+      console.log("✅ Datos válidos recibidos:", data);
+      
+      if (Array.isArray(data)) {
+          setEventos(data);
+      } else if (data && data.data && Array.isArray(data.data)) {
+          setEventos(data.data);
+      } else {
+          setEventos([]);
+      }
+
+    } catch (error) {
+      if (pedidoActual === ultimoPedidoId.current) {
+          console.error('Error al cargar eventos:', error);
+          setEventos([]);
+      }
+    } finally {
+      if (pedidoActual === ultimoPedidoId.current) {
+          setCargando(false);
+      }
+    }
+  }, [mes, anio]); 
+
+
   useEffect(() => {
     cargarEventos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mes, anio]);
+  }, [cargarEventos]); 
+  
 
   // 1. CAMBIO: Lectura de URL (DD-MM-AAAA)
+  // 2. LECTURA DE URL CORREGIDA Y NORMALIZADA
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const fechaParam = params.get('fecha');
     const idParam = params.get('id');
 
-    if (fechaParam && idParam) {
-        // Asumimos formato DD-MM-AAAA
-        const [monthStr, yearStr] = fechaParam.split('-');
+    if (fechaParam) {
+        const partes = fechaParam.split('-');
         
-        // Creamos la fecha destino (Año, Mes index 0, Dia)
-        const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-        
-        setFechaNavegacion(fechaDestino);
-        setFechaSeleccionada(fechaParam); 
-        setIdEventoSeleccionado(Number(idParam));
+        let anioDestino = ANIO_ACTUAL;
+        let mesDestino = mes;
+        let diaDestino = 1;
+        let fechaNormalizada = fechaParam; // Por defecto usamos la que viene
 
-        if (user) {
-            const nombreEncontrado = user.nombre_y_apellido || '';
-            setNombre(nombreEncontrado);            
-            setEmail(user.email || '');
-            setTelefono(user.telefono || ''); 
-        }
-
-        setTimeout(() => {
-            const panel = document.querySelector('.reserva-panel');
-            if (panel) {
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // LÓGICA DE DETECCIÓN Y NORMALIZACIÓN
+        if (partes.length === 3) {
+            // Caso A: Formato ISO (YYYY-MM-DD) -> El año está al principio
+            if (partes[0].length === 4) {
+                anioDestino = Number(partes[0]);
+                mesDestino = Number(partes[1]) - 1;
+                diaDestino = Number(partes[2]);
+                
+                // ¡AQUÍ ESTÁ LA SOLUCIÓN!
+                // Convertimos lo que viene de la URL al formato que tu app entiende (DD-MM-AAAA)
+                fechaNormalizada = `${String(diaDestino).padStart(2, '0')}-${String(mesDestino + 1).padStart(2, '0')}-${anioDestino}`;
+            } 
+            // Caso B: Formato Latino (DD-MM-YYYY) -> El año está al final
+            else {
+                mesDestino = Number(partes[1]) - 1; 
+                anioDestino = Number(partes[2]);
+                diaDestino = Number(partes[0]);
+                // En este caso el formato ya es correcto (DD-MM-AAAA)
+                fechaNormalizada = fechaParam;
             }
-        }, 800); 
-    }
-  }, [location.search, user]); 
+        } 
+        
+        // Corrección de seguridad para años
+        if (anioDestino < 100) anioDestino += 2000;
 
-  const cargarEventos = async () => {
-    setCargando(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const data = await getEventosCalendario(mes + 1, anio);
-      setEventos(data || []);
-    } catch (error) {
-      console.error('Error al cargar eventos:', error);
-      setEventos([]);
-    } finally {
-      setCargando(false);
+        // Ejecutar solo si el año es válido
+        if (!isNaN(anioDestino) && !isNaN(mesDestino) && anioDestino > 2000) {
+            
+            // 1. Navegamos el calendario al mes correcto
+            const fechaDestino = new Date(anioDestino, mesDestino, 1);
+            setFechaNavegacion(fechaDestino);
+            
+            // 2. Guardamos la fecha SIEMPRE en formato DD-MM-AAAA
+            setFechaSeleccionada(fechaNormalizada); 
+            
+            if (idParam) {
+                setIdEventoSeleccionado(Number(idParam));
+                
+                if (user) {
+                    setNombre(user.nombre_y_apellido || '');            
+                    setEmail(user.email || '');
+                    setTelefono(user.telefono || ''); 
+                }
+
+                setTimeout(() => {
+                    const panel = document.querySelector('.reserva-panel');
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 600); 
+            }
+        }
     }
-  };
+  }, [location.search, user]);
+
 
   const obtenerDiasDelMes = () => {
     const primerDia = new Date(anio, mes, 1);
@@ -396,7 +464,13 @@ export default function CalendarioPage() {
                 }
             </h3>
             
-            {(() => {
+            {cargando ? (
+                <div className="calendario-cargando" style={{padding: '3rem 0', textAlign: 'center'}}>
+                    <div className="wheel-spinning" style={{fontSize: '2rem', display: 'inline-block'}}>☸</div>
+                    <p className="loader-texto no-select" style={{marginTop: '10px'}}>Cargando evento...</p>
+                </div>
+            ) : (
+            (() => {
                 if (!fechaSeleccionada) return null;
 
                 // 5. CAMBIO: El día ahora está en la posición 0 (DD-MM-AAAA)
@@ -531,7 +605,8 @@ export default function CalendarioPage() {
                 } else {
                     return <p className="mensaje-vacio">No hay eventos programados para este día.</p>;
                 }
-            })()}
+            })()
+            )}
           </div>
         )}
       </div>
