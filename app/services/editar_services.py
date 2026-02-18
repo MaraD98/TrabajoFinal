@@ -14,6 +14,8 @@ from app.schemas.editar_schema import EventoEditar
 from app.db.crud import solicitud_edicion_crud
 from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_auditoria
 from datetime import datetime
+from app.email import enviar_correo_modificacion_evento
+from app.models.registro_models import ReservaEvento  
 import json
 
 ID_ESTADO_PUBLICADO = 3
@@ -121,7 +123,24 @@ class EditarEventoService:
         db.commit()
         db.refresh(evento)
         
+        inscriptos = db.query(ReservaEvento).filter(
+            ReservaEvento.id_evento == evento.id_evento,
+            ReservaEvento.id_estado != 4
+        ).all()
+
+        for reser in inscriptos:
+            if reser.usuario and reser.usuario.email:
+                enviar_correo_modificacion_evento(
+                    email_destino=reser.usuario.email,
+                    nombre_evento=evento.nombre_evento,
+                    id_evento=evento.id_evento,
+                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                )
+    
+
         return evento
+    
+    
 
     # ========================================================================
     # MÉTODO PRIVADO: CREAR SOLICITUD (ORGANIZADOR)
@@ -274,7 +293,21 @@ class EditarEventoService:
 
         db.commit()
         db.refresh(evento)
+     
+        inscriptos = db.query(ReservaEvento).filter(
+            ReservaEvento.id_evento == evento.id_evento,
+            ReservaEvento.id_estado != 4
+        ).all()
 
+        for reser in inscriptos:
+            if reser.usuario and reser.usuario.email:
+                enviar_correo_modificacion_evento(
+                    email_destino=reser.usuario.email,
+                    nombre_evento=evento.nombre_evento,
+                    id_evento=evento.id_evento,
+                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                )
+        
         return {
             "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
             "id_evento": evento.id_evento,

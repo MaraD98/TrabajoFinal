@@ -11,6 +11,7 @@ from app.db.crud import eliminacion_crud
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.eliminacion_models import EliminacionEvento  # ✅ IMPORTAR AQUÍ
+from app.email import enviar_correo_cancelacion_evento
 
 # ============================================================================
 # CONSTANTES
@@ -400,8 +401,9 @@ class EliminacionService:
         id_eliminacion: int
     ) -> None:
         """
-        Notifica a todos los inscritos que el evento fue cancelado.
+        Notifica a todos los inscritos que el evento fue cancelado (Consola + Email).
         """
+        # 1. Buscamos las reservas
         reservas = db.query(ReservaEvento).filter(
             ReservaEvento.id_evento == evento.id_evento
         ).all()
@@ -411,10 +413,12 @@ class EliminacionService:
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
             return
         
+        # 2. Encabezado en consola
         print(f"\n{'='*70}")
         print(f"[NOTIFICACIONES] Enviando a {len(reservas)} participantes...")
         print(f"{'='*70}")
         
+        # 3. Datos del organizador para el log
         organizador = db.query(Usuario).filter(
             Usuario.id_usuario == evento.id_usuario
         ).first()
@@ -423,24 +427,39 @@ class EliminacionService:
         
         count = 0
         for reserva in reservas:
+            # Buscamos al participante
             participante = db.query(Usuario).filter(
                 Usuario.id_usuario == reserva.id_usuario
             ).first()
             
             if participante and participante.email:
-                print(f"  ✉️  → {participante.email}")
+                # --- AQUÍ MANDAMOS EL MAIL REAL ---
+                enviado = enviar_correo_cancelacion_evento(
+                    email_destino=participante.email,
+                    nombre_evento=evento.nombre_evento,
+                    motivo=motivo
+                )
+                
+                # --- MANTENEMOS TUS PRINTS DE LOG ---
+                if enviado:
+                    print(f"  ✉️  → {participante.email} [ENVIADO]")
+                    count += 1
+                else:
+                    print(f"  ❌  → {participante.email} [ERROR EN ENVÍO]")
+                
                 print(f"     📧 Asunto: EVENTO CANCELADO - {evento.nombre_evento}")
                 print(f"     📝 Motivo: {motivo}")
                 print(f"     📞 Contacto: {contacto}")
                 print(f"     {'-'*60}")
+
                 count += 1
         
+        # 4. Finalizamos proceso
         eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
         
         print(f"{'='*70}")
-        print(f"[✅ OK] {count} notificaciones enviadas")
+        print(f"[✅ OK] {count} notificaciones enviadas por email")
         print(f"{'='*70}\n")
-    
     # ========================================================================
     # CONSULTAS
     # ========================================================================
