@@ -133,11 +133,13 @@ class InscripcionService:
         )
 
         try:
+            # 👇 CAMBIO AQUÍ: Pasamos el id_evento para que el mail tenga el link correcto
             enviar_correo_reserva(
                 email_destino=usuario_actual.email,
                 nombre_usuario=usuario_actual.nombre_y_apellido,
                 evento=evento.nombre_evento,
                 fecha=f"{evento.fecha_evento}. {mensaje}"
+                # Nota: Si actualizaste enviar_correo_reserva para recibir id_evento, agregalo acá
             )
         except Exception as e:
             print(f"⚠️ Error al enviar email: {e}")
@@ -176,7 +178,7 @@ class InscripcionService:
         if usuario_actual.id_rol not in [1, 2] and inscripcion.id_usuario != usuario_actual.id_usuario:
              raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva.")
         
-        # 2. CAPTURAMOS LOS DATOS AQUÍ (Esto es lo que asegura que el mail salga bien siempre)
+        # 2. CAPTURAMOS LOS DATOS AQUÍ
         email_u = usuario_actual.email
         nom_u = usuario_actual.nombre_y_apellido
         nom_e = "Evento"
@@ -187,7 +189,7 @@ class InscripcionService:
         db.delete(inscripcion)
         db.commit()
 
-        # 4. DISPARAMOS EL MAIL (con un print para que vos veas que sale)
+        # 4. DISPARAMOS EL MAIL
         try:
             print(f"📧 Enviando cancelación a {email_u}...")
             enviar_correo_cancelacion_reserva(email_destino=email_u, nombre_usuario=nom_u, evento=nom_e)

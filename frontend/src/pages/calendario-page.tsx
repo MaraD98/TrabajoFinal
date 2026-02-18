@@ -103,32 +103,40 @@ export default function CalendarioPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const fechaParam = params.get('fecha');
-    const idParam = params.get('id');
+    const fechaParam = params.get('fecha'); // Ejemplo: 2024-10-15
+    const idParam = params.get('evento_id');       // Ejemplo: 45
 
-    if (fechaParam && idParam) {
-        const [yearStr, monthStr] = fechaParam.split('-');
-        const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
+    if (fechaParam) {
+        const [yearStr, monthStr, dayStr] = fechaParam.split('-');
         
+        // 1. Mover el calendario al mes y año correcto
+        const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
         setFechaNavegacion(fechaDestino);
+        
+        // 2. Seleccionar el día para que se abra el panel inferior
         setFechaSeleccionada(fechaParam); 
-        setIdEventoSeleccionado(Number(idParam));
 
+        // 3. Si viene un ID, abrir automáticamente el formulario de ese evento
+        if (idParam) {
+            setIdEventoSeleccionado(Number(idParam));
+        }
+
+        // 4. Autocompletar datos si el usuario está logueado
         if (user) {
-            const nombreEncontrado = user.nombre_y_apellido || '';
-            setNombre(nombreEncontrado);            
+            setNombre(user.nombre_y_apellido || '');            
             setEmail(user.email || '');
             setTelefono(user.telefono || ''); 
         }
 
+        // 5. Scroll suave hacia el panel de detalles para que el usuario lo vea
         setTimeout(() => {
             const panel = document.querySelector('.reserva-panel');
             if (panel) {
                 panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
-        }, 800); 
+        }, 800); // Esperamos un poco a que los eventos se carguen
     }
-  }, [location.search, user]); 
+  }, [location.search, user]);
 
   const cargarEventos = async () => {
     setCargando(true);

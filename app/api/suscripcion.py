@@ -1,19 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func 
 from app.db.database import get_db
 from app.models.auth_models import Usuario
 from app.models.suscripcion_models import SuscripcionNovedades
-from fastapi.responses import HTMLResponse # Asegurate de que esto esté
+from fastapi.responses import HTMLResponse
 
 router = APIRouter(prefix="/suscripcion", tags=["Suscripciones"])
 
-@router.get("/alta") # Saqué el response_class de acá para hacerlo manual abajo
+# ==========================================
+# FUNCIÓN DE ALTA (SUSCRIBIRSE)
+# ==========================================
+@router.get("/alta")
 def alta_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    # Buscamos ignorando mayúsculas y quitando espacios
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email.strip().lower()).first()
+    
     if not usuario:
-        return HTMLResponse(content="<html><body><h1>Error: Usuario no encontrado</h1></body></html>", status_code=404)
+        return HTMLResponse(content=f"<html><body style='background:#121212; color:white; text-align:center; padding-top:50px;'><h1>Error: Usuario no encontrado</h1><p>No existe el mail: {email}</p></body></html>", status_code=404)
 
-    # Buscamos si ya tiene registro
+    # Buscamos si ya tiene registro en la tabla de SuscripcionNovedades
     suscripcion = db.query(SuscripcionNovedades).filter(
         SuscripcionNovedades.id_usuario == usuario.id_usuario,
         SuscripcionNovedades.id_evento == None
@@ -31,7 +37,6 @@ def alta_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
     
     db.commit()
 
-    # 👇 AQUÍ ESTÁ EL CAMBIO: Usamos HTMLResponse explícito
     return HTMLResponse(content=f"""
     <html>
         <body style="background-color: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 100px;">
@@ -46,12 +51,18 @@ def alta_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
     </html>
     """, status_code=200)
 
+# ==========================================
+# FUNCIÓN DE BAJA (DESUSCRIBIRSE)
+# ==========================================
 @router.get("/baja")
 def baja_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    # Buscamos ignorando mayúsculas
+    usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email.strip().lower()).first()
+    
     if not usuario:
         return HTMLResponse(content="<html><body><h1>Error: Usuario no encontrado</h1></body></html>", status_code=404)
 
+    # AQUÍ USAMOS SuscripcionNovedades, NO ReservaEvento
     suscripcion = db.query(SuscripcionNovedades).filter(
         SuscripcionNovedades.id_usuario == usuario.id_usuario,
         SuscripcionNovedades.id_evento == None

@@ -87,11 +87,17 @@ class EventoService:
             ).all()
 
             for s in suscriptores:
-                # Usamos la función de email.py
+                # 1. Preparamos la fecha en formato AAAA-MM-DD para la URL
+                fecha_url = nuevo_evento.fecha_evento.strftime('%Y-%m-%d')
+                
+                # 2. Usamos la función de email.py con los parámetros correctos
                 enviar_correo_nuevo_evento(
                     email_destino=s.email,
                     nombre_evento=nuevo_evento.nombre_evento,
-                    fecha_evento=nuevo_evento.fecha_evento.strftime('%d/%m/%Y %H:%M')
+                    # Este es el texto que el usuario VE en el mail (podés dejarlo así)
+                    fecha_evento=nuevo_evento.fecha_evento.strftime('%d/%m/%Y %H:%M'),
+                    id_evento=nuevo_evento.id_evento,
+                    fecha_url=fecha_url  
                 )
         # ==========================================================
 

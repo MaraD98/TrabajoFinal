@@ -117,7 +117,7 @@ def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, e
         print(f"⚠️ Error al enviar mail de cancelación: {e}")
         return False
 
-def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_evento: str):
+def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_evento: str, id_evento: int, fecha_url: str):
     REMITENTE = os.getenv("MAIL_REMITENTE")
     PASSWORD = os.getenv("MAIL_PASSWORD")
 
@@ -127,6 +127,8 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     msg['To'] = email_destino
 
     url_baja = f"http://localhost:8000/api/v1/suscripcion/baja?email={email_destino}"
+    # 👇 Link modificado para pasar el ID del evento al frontend
+    url_evento = f"http://localhost:5173/calendario?fecha={fecha_url}&evento_id={id_evento}"
 
     html_content = f"""
     <html>
@@ -142,7 +144,7 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
                         <h2 style="color: #ff6b35; margin: 0;">{nombre_evento}</h2>
                         <p style="font-size: 16px; color: #ffffff;">📅 Fecha: {fecha_evento}</p>
                         <br>
-                        <a href="http://localhost:5173/calendario" style="background-color: #ff6b35; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Ver detalles e Inscribirme</a>
+                        <a href="{url_evento}" style="background-color: #ff6b35; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Ver detalles e Inscribirme</a>
                     </div>
 
                     <p style="color: #cccccc; font-size: 14px;">Recordá que los cupos son limitados. ¡No te quedes afuera!</p>
