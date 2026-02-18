@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 from datetime import datetime, date
 from typing import Optional
 from decimal import Decimal
@@ -31,6 +31,12 @@ class ReservaResponseSchema(BaseModel):
     fecha_expiracion: Optional[datetime] # Para mostrar cuándo vence el pago
     id_estado_reserva: int
 
+    @field_serializer('fecha_reserva', 'fecha_expiracion')
+    def serializar_fechas_datetime(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y %H:%M')
+       
     model_config = ConfigDict(from_attributes=True)
     
 class MiReservaDetalle(BaseModel):
@@ -45,5 +51,17 @@ class MiReservaDetalle(BaseModel):
     fecha_evento: date
     costo: Decimal
 
+    @field_serializer('fecha_reserva')
+    def serializar_fecha_reserva(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y %H:%M')
+
+    @field_serializer('fecha_evento')
+    def serializar_fecha_evento(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
+    
     class Config:
         from_attributes = True

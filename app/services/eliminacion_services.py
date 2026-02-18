@@ -231,9 +231,11 @@ class EliminacionService:
         
         # Actualizar motivo
         eliminacion.motivo_eliminacion += " | [✅ APROBADO POR ADMIN]"
+        eliminacion.estado_solicitud = 'aprobada'
         
         # Cancelar evento (estado → 5)
         eliminacion_crud.cancelar_evento(db, id_evento)
+        eliminacion.estado_solicitud = 'aprobada'
         
         # Notificar inscritos
         EliminacionService._notificar_inscritos(
@@ -275,7 +277,7 @@ class EliminacionService:
             )
         
         # Eliminar registro de solicitud
-        eliminacion_crud.eliminar_registro_eliminacion(db, id_evento)
+        eliminacion_crud.rechazar_registro_eliminacion(db, id_evento)
         
         db.commit()
         
@@ -498,6 +500,7 @@ class EliminacionService:
             EliminacionEvento.id_evento,
             EliminacionEvento.motivo_eliminacion,
             EliminacionEvento.fecha_eliminacion,
+            EliminacionEvento.estado_solicitud,
             Evento.nombre_evento,
             Evento.fecha_evento,
             Evento.ubicacion,
@@ -508,7 +511,7 @@ class EliminacionService:
         ).filter(
             Evento.id_usuario == id_usuario,
             Evento.id_estado == ID_ESTADO_PUBLICADO,  # Solo eventos activos
-            EliminacionEvento.notificacion_enviada == False  # Solo pendientes
+            EliminacionEvento.estado_solicitud == 'pendiente'
         ).all()
         
         # Formatear respuesta
@@ -524,6 +527,7 @@ class EliminacionService:
                 "cupo_maximo": sol.cupo_maximo,
                 "motivo": sol.motivo_eliminacion,
                 "fecha_solicitud": sol.fecha_eliminacion.isoformat() if sol.fecha_eliminacion else None,
+                "estado_solicitud": sol.estado_solicitud
             })
         
         return resultado

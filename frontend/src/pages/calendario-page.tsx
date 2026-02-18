@@ -1,21 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback} from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
-import logoWakeUp from '../assets/wakeup-logo.png'; 
 import { Footer } from "../components/footer";
-
-// 🔥 IMPORTACIÓN DE ICONOS LUCIDE
-import { 
-  User, 
-  Calendar, 
-  ClipboardList, 
-  PlusCircle, 
-  LogOut,
-  FileText,
-  ArrowLeft
-} from 'lucide-react';
+import { Navbar } from '../components/navbar';
 
 interface Evento {
   id_evento: number;
@@ -48,12 +37,8 @@ export default function CalendarioPage() {
   const location = useLocation(); 
   const navigate = useNavigate();
   
-  // 🔥 AJUSTE 1: DESESTRUCTURACIÓN COMPLETA INCLUYENDO getToken
-  const { user, logout, getToken } = useAuth(); 
+  const { user, getToken } = useAuth(); 
   
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
   const [fechaNavegacion, setFechaNavegacion] = useState(new Date());
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -77,80 +62,126 @@ export default function CalendarioPage() {
   const hoyReal = new Date();
   hoyReal.setHours(0, 0, 0, 0);
 
-  // 🔥 AJUSTE 3: VERIFICACIÓN DE HEADER - Usa user?.nombre_y_apellido del contexto
-  const displayUserName = user?.nombre_y_apellido 
-    ? user.nombre_y_apellido.split(' ')[0].toUpperCase() 
-    : "USUARIO";
 
-  // 🔥 DETECTAR SI ES ADMIN (ROL 1 O 2)
-  const esAdmin = user?.id_rol === 1 || user?.id_rol === 2;
+  const ultimoPedidoId = useRef(0);
+  const cargarEventos = useCallback(async () => {
+    // Generamos un ID único para ESTA ejecución
+    const pedidoActual = ultimoPedidoId.current + 1;
+    ultimoPedidoId.current = pedidoActual;
 
-  // 🔥 CERRAR DROPDOWN AL HACER CLICK AFUERA
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+    setCargando(true);
+    
+    try {
+      console.log(`📡 Pidiendo eventos (ID: ${pedidoActual}) para: ${mes + 1}/${anio}`);
+      
+      // Pequeña pausa para que se sienta fluido (opcional)
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      const data = await getEventosCalendario(mes + 1, anio);
+
+      if (pedidoActual !== ultimoPedidoId.current) {
+          console.log(`🚫 Ignorando petición vieja (ID: ${pedidoActual})`);
+          return;
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+      console.log("✅ Datos válidos recibidos:", data);
+      
+      if (Array.isArray(data)) {
+          setEventos(data);
+      } else if (data && data.data && Array.isArray(data.data)) {
+          setEventos(data.data);
+      } else {
+          setEventos([]);
+      }
+
+    } catch (error) {
+      if (pedidoActual === ultimoPedidoId.current) {
+          console.error('Error al cargar eventos:', error);
+          setEventos([]);
+      }
+    } finally {
+      if (pedidoActual === ultimoPedidoId.current) {
+          setCargando(false);
+      }
+    }
+  }, [mes, anio]); 
+
 
   useEffect(() => {
     cargarEventos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mes, anio]);
+  }, [cargarEventos]); 
+  
 
+  // 1. CAMBIO: Lectura de URL (DD-MM-AAAA)
+  // 2. LECTURA DE URL CORREGIDA Y NORMALIZADA
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const fechaParam = params.get('fecha'); // Ejemplo: 2024-10-15
-    const idParam = params.get('evento_id');       // Ejemplo: 45
+    const fechaParam = params.get('fecha');
+    const idParam = params.get('id');
 
     if (fechaParam) {
-        const [yearStr, monthStr, dayStr] = fechaParam.split('-');
+        const partes = fechaParam.split('-');
         
-        // 1. Mover el calendario al mes y año correcto
-        const fechaDestino = new Date(Number(yearStr), Number(monthStr) - 1, 1);
-        setFechaNavegacion(fechaDestino);
-        
-        // 2. Seleccionar el día para que se abra el panel inferior
-        setFechaSeleccionada(fechaParam); 
+        let anioDestino = ANIO_ACTUAL;
+        let mesDestino = mes;
+        let diaDestino = 1;
+        let fechaNormalizada = fechaParam; // Por defecto usamos la que viene
 
-        // 3. Si viene un ID, abrir automáticamente el formulario de ese evento
-        if (idParam) {
-            setIdEventoSeleccionado(Number(idParam));
-        }
-
-        // 4. Autocompletar datos si el usuario está logueado
-        if (user) {
-            setNombre(user.nombre_y_apellido || '');            
-            setEmail(user.email || '');
-            setTelefono(user.telefono || ''); 
-        }
-
-        // 5. Scroll suave hacia el panel de detalles para que el usuario lo vea
-        setTimeout(() => {
-            const panel = document.querySelector('.reserva-panel');
-            if (panel) {
-                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // LÓGICA DE DETECCIÓN Y NORMALIZACIÓN
+        if (partes.length === 3) {
+            // Caso A: Formato ISO (YYYY-MM-DD) -> El año está al principio
+            if (partes[0].length === 4) {
+                anioDestino = Number(partes[0]);
+                mesDestino = Number(partes[1]) - 1;
+                diaDestino = Number(partes[2]);
+                
+                // ¡AQUÍ ESTÁ LA SOLUCIÓN!
+                // Convertimos lo que viene de la URL al formato que tu app entiende (DD-MM-AAAA)
+                fechaNormalizada = `${String(diaDestino).padStart(2, '0')}-${String(mesDestino + 1).padStart(2, '0')}-${anioDestino}`;
+            } 
+            // Caso B: Formato Latino (DD-MM-YYYY) -> El año está al final
+            else {
+                mesDestino = Number(partes[1]) - 1; 
+                anioDestino = Number(partes[2]);
+                diaDestino = Number(partes[0]);
+                // En este caso el formato ya es correcto (DD-MM-AAAA)
+                fechaNormalizada = fechaParam;
             }
-        }, 800); // Esperamos un poco a que los eventos se carguen
+        } 
+        
+        // Corrección de seguridad para años
+        if (anioDestino < 100) anioDestino += 2000;
+
+        // Ejecutar solo si el año es válido
+        if (!isNaN(anioDestino) && !isNaN(mesDestino) && anioDestino > 2000) {
+            
+            // 1. Navegamos el calendario al mes correcto
+            const fechaDestino = new Date(anioDestino, mesDestino, 1);
+            setFechaNavegacion(fechaDestino);
+            
+            // 2. Guardamos la fecha SIEMPRE en formato DD-MM-AAAA
+            setFechaSeleccionada(fechaNormalizada); 
+            
+            if (idParam) {
+                setIdEventoSeleccionado(Number(idParam));
+                
+                if (user) {
+                    setNombre(user.nombre_y_apellido || '');            
+                    setEmail(user.email || '');
+                    setTelefono(user.telefono || ''); 
+                }
+
+                setTimeout(() => {
+                    const panel = document.querySelector('.reserva-panel');
+                    if (panel) {
+                        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 600); 
+            }
+        }
     }
   }, [location.search, user]);
 
-  const cargarEventos = async () => {
-    setCargando(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const data = await getEventosCalendario(mes + 1, anio);
-      setEventos(data || []);
-    } catch (error) {
-      console.error('Error al cargar eventos:', error);
-      setEventos([]);
-    } finally {
-      setCargando(false);
-    }
-  };
 
   const obtenerDiasDelMes = () => {
     const primerDia = new Date(anio, mes, 1);
@@ -166,12 +197,20 @@ export default function CalendarioPage() {
     return dias;
   };
 
+  // 2. CAMBIO: Comparación con formato DD-MM-AAAA
   const obtenerEventosDelDia = (dia: number) => {
-    const fechaBuscada = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    // Formato deseado: DD-MM-AAAA
+    const fechaBuscada = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
+    
     return (Array.isArray(eventos) ? eventos : []).filter(evento => {
         if (!evento.fecha_evento) return false;
-        const fechaEventoStr = String(evento.fecha_evento).substring(0, 10);
-        return fechaEventoStr === fechaBuscada;
+        
+        // La API devuelve AAAA-MM-DD. La convertimos para comparar.
+        const fechaIso = String(evento.fecha_evento).substring(0, 10); // AAAA-MM-DD
+        const [y, m, d] = fechaIso.split('-');
+        const fechaEventoFormateada = `${d}-${m}-${y}`; // DD-MM-AAAA
+        
+        return fechaEventoFormateada === fechaBuscada;
     });
   };
 
@@ -189,9 +228,11 @@ export default function CalendarioPage() {
     setIdEventoSeleccionado(null);
   };
 
+  // 3. CAMBIO: Guardar selección como DD-MM-AAAA
   const manejarClickDia = (dia: number, esPasado: boolean) => {
     if (esPasado) return;
-    const fechaClick = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+    // Construcción: DD-MM-AAAA
+    const fechaClick = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
     setFechaSeleccionada(fechaClick);
     setIdEventoSeleccionado(null);
     
@@ -222,17 +263,14 @@ export default function CalendarioPage() {
       }
   };
 
-  // 🔥 AJUSTE 2: FUNCIÓN CORREGIDA CON TOKEN DESDE getToken()
   const manejarEnvioReserva = async (e: React.FormEvent, nombreEvento: string) => {
     e.preventDefault();
     
-    // Verificar que el usuario esté logueado
     if (!user) {
         setMsgError("Debes iniciar sesión para inscribirte.");
         return;
     }
 
-    // 🔥 CRÍTICO: Obtener el token usando getToken() (busca en ambos storages)
     const token = getToken();
     if (!token) {
         setMsgError("No se encontró tu sesión. Por favor, vuelve a iniciar sesión.");
@@ -250,26 +288,23 @@ export default function CalendarioPage() {
     }
 
     try {
-        // 1. Guardamos la respuesta del servidor en una variable 'respuesta'
-        const respuesta = await inscribirseEvento(idEventoSeleccionado, token);
+        await inscribirseEvento(idEventoSeleccionado, token);
         
-        // 2. Usamos el mensaje que viene del Backend (respuesta.mensaje)
-        // Si por alguna razón no viene, ponemos uno por defecto
-        setMsgExito(respuesta.mensaje || `¡Inscripción exitosa a ${nombreEvento}!`);
+        setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
         
         setTimeout(() => {
             setIdEventoSeleccionado(null);
             setMsgExito(null);
-            cargarEventos();
-        }, 4000); // Le damos 4 segundos para que el usuario llegue a leer el texto largo de las 72hs
+            navigate('/perfil?tab=inscripciones');
+        }, 2000);
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
-        
+
         // Manejo de errores detallado
         if (error.response) {
             const detalle = error.response.data?.detail || error.response.data?.message;
-            
+
             if (error.response.status === 401) {
                 setMsgError("Tu sesión expiró. Por favor, vuelve a iniciar sesión.");
                 setTimeout(() => navigate('/login'), 2000);
@@ -302,22 +337,15 @@ export default function CalendarioPage() {
     return 'dificultad-general';
   };
 
+  const modoDetalle = idEventoSeleccionado !== null;
   return (
     <div className="calendario-container">
-        {/* ========================================== */}
-        {/* 🔥 HEADER ACTUALIZADO CON MENÚ PROFESIONAL */}
-        {/* ========================================== */}
-        <header className="cal-header">
-            <div className="header-left">
-                <Link to="/" className="btn-volver-inicio">
-                    <ArrowLeft size={20} style={{ marginRight: '8px' }} />
-                    <span className="texto-volver">VOLVER AL INICIO</span>
-                </Link>
-            </div>
+        <Navbar/>
 
+        {!modoDetalle && (
+            <header className="cal-header">
             <div className="header-center">
                 <div className="cal-branding-vertical">
-                    <img src={logoWakeUp} alt="Wake Up Logo" className="cal-logo-centered" />
                     <div className="cal-title-wrapper-centered">
                         <h1 className="cal-title">CALENDARIO</h1>
                         <span className="cal-subtitle">DE EVENTOS</span>
@@ -350,160 +378,103 @@ export default function CalendarioPage() {
                         ))}
                     </select>
                 </div>
-
-                {/* 🔥 MENÚ DE USUARIO PROFESIONAL CON ICONOS LUCIDE */}
-                {user ? (
-                    <div className="user-menu-container" ref={dropdownRef}>
-                        <button
-                            className="user-menu-trigger"
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        >
-                            <User size={18} className="user-icon" />
-                            <span className="user-name">{displayUserName}</span>
-                            <span className="dropdown-arrow">▼</span>
-                        </button>
-
-                        {isDropdownOpen && (
-                            <div className="user-dropdown">
-                                {/* SECCIÓN: MI CUENTA */}
-                                <div className="dropdown-header">MI CUENTA</div>
-                                
-                                <Link 
-                                    to="/perfil" 
-                                    className="dropdown-item" 
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <User size={16} style={{ marginRight: '8px' }} />
-                                    Mi Perfil
-                                </Link>
-
-                                {esAdmin && (
-                                    <Link 
-                                        to="/reportes" 
-                                        className="dropdown-item" 
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        <FileText size={16} style={{ marginRight: '8px' }} />
-                                        Mis Reportes
-                                    </Link>
-                                )}
-
-                                {/* SECCIÓN: MIS EVENTOS */}
-                                <div className="dropdown-header">MIS EVENTOS</div>
-
-                                <Link 
-                                    to={esAdmin ? "/reporte-inscriptos" : "/perfil?tab=inscripciones"}
-                                    className="dropdown-item"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <Calendar size={16} style={{ marginRight: '8px' }} />
-                                    Inscriptos
-                                </Link>
-
-                                <Link 
-                                    to="/mis-eventos" 
-                                    className="dropdown-item"
-                                    onClick={() => setIsDropdownOpen(false)}
-                                >
-                                    <ClipboardList size={16} style={{ marginRight: '8px' }} />
-                                    Mis Eventos
-                                </Link>
-
-                                {esAdmin && (
-                                    <Link 
-                                        to="/registro-evento" 
-                                        className="dropdown-item"
-                                        onClick={() => setIsDropdownOpen(false)}
-                                    >
-                                        <PlusCircle size={16} style={{ marginRight: '8px' }} />
-                                        Crear Evento
-                                    </Link>
-                                )}
-                                
-                                <div className="dropdown-divider"></div>
-                                
-                                <button
-                                    onClick={() => {
-                                        logout();
-                                        setIsDropdownOpen(false);
-                                    }}
-                                    className="dropdown-item logout-button"
-                                >
-                                    <LogOut size={16} style={{ marginRight: '8px' }} />
-                                    Cerrar Sesión
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <Link to="/login" className="hero-login-btn">INICIAR SESIÓN</Link>
-                )}
             </div>
         </header>
-
-      {/* ========================================== */}
-      {/* GRID DEL CALENDARIO (SIN CAMBIOS) */}
-      {/* ========================================== */}
-      <div className="calendario-wrapper">
-        {cargando ? (
-          <div className="calendario-cargando">
-             <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
-             <p className="loader-texto no-select">Cargando eventos...</p>
-          </div>
-        ) : (
-          <div className="calendario-grid-wrapper">
-            <div className="calendario-grid">
-              {DIAS_SEMANA.map(dia => <div key={dia} className="dia-semana-header no-select">{dia}</div>)}
-
-              {dias.map((dia, index) => {
-                if (dia === null) return <div key={`vacio-${index}`} className="dia-celda dia-vacio"></div>;
-
-                const fechaCelda = new Date(anio, mes, dia);
-                fechaCelda.setHours(0, 0, 0, 0);
-
-                const esPasado = fechaCelda < hoyReal;
-                const esHoy = fechaCelda.getTime() === hoyReal.getTime();
-                const eventosDelDia = obtenerEventosDelDia(dia);
-                const tieneEventos = eventosDelDia.length > 0;
-                const fechaActualStr = `${anio}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                const esSeleccionado = fechaSeleccionada === fechaActualStr;
-
-                return (
-                  <div 
-                    key={`dia-${dia}`} 
-                    onClick={() => manejarClickDia(dia, esPasado)}
-                    className={`dia-celda 
-                      ${tieneEventos ? 'dia-con-eventos' : ''} 
-                      ${esSeleccionado ? 'dia-seleccionado' : ''}
-                      ${esPasado ? 'dia-pasado' : ''} 
-                      ${esHoy ? 'dia-hoy' : ''}
-                    `}
-                  >
-                    <div className="dia-numero">{dia}</div>
-                    
-                    {tieneEventos && (
-                      <div className="icono-evento-bici">
-                        <span style={{fontSize: '12px'}}>🚴</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         )}
 
+      <div className="calendario-wrapper">
+      
+      {!modoDetalle && (
+          <>
+            {cargando ? (
+            <div className="calendario-cargando">
+                <div className="wheel-spinning" style={{fontSize: '2rem'}}>☸</div>
+                <p className="loader-texto no-select">Cargando eventos...</p>
+            </div>
+            ) : (
+            <div className="calendario-grid-wrapper">
+                <div className="calendario-grid">
+                {DIAS_SEMANA.map(dia => <div key={dia} className="dia-semana-header no-select">{dia}</div>)}
+
+                {dias.map((dia, index) => {
+                    if (dia === null) return <div key={`vacio-${index}`} className="dia-celda dia-vacio"></div>;
+
+                    const fechaCelda = new Date(anio, mes, dia);
+                    fechaCelda.setHours(0, 0, 0, 0);
+
+                    const esPasado = fechaCelda < hoyReal;
+                    const esHoy = fechaCelda.getTime() === hoyReal.getTime();
+                    const eventosDelDia = obtenerEventosDelDia(dia);
+                    const tieneEventos = eventosDelDia.length > 0;
+                    
+                    // 4. CAMBIO: Comparación Grid en DD-MM-AAAA
+                    const fechaActualStr = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
+                    const esSeleccionado = fechaSeleccionada === fechaActualStr;
+
+                    return (
+                    <div 
+                        key={`dia-${dia}`} 
+                        onClick={() => manejarClickDia(dia, esPasado)}
+                        className={`dia-celda 
+                        ${tieneEventos ? 'dia-con-eventos' : ''} 
+                        ${esSeleccionado ? 'dia-seleccionado' : ''}
+                        ${esPasado ? 'dia-pasado' : ''} 
+                        ${esHoy ? 'dia-hoy' : ''}
+                        `}
+                    >
+                        <div className="dia-numero">{dia}</div>
+                        
+                        {tieneEventos && (
+                        <div className="icono-evento-bici">
+                            <span style={{fontSize: '12px'}}>🚴</span>
+                        </div>
+                        )}
+                    </div>
+                    );
+                })}
+                </div>
+            </div>
+            )}
+          </>
+      )}
+
         {/* ========================================== */}
-        {/* PANEL DE RESERVAS (SIN CAMBIOS) */}
+        {/* PANEL DE RESERVAS / DETALLE */}
         {/* ========================================== */}
-        {fechaSeleccionada && (
-          <div className="reserva-panel">
+
+      {(fechaSeleccionada || idEventoSeleccionado) && (
+        <div className={modoDetalle ? "reserva-panel modo-full-screen" : "reserva-panel"}>
+          
+          {modoDetalle && (
+            <button 
+                className="btn-volver-calendario"
+                onClick={() => {
+                    setIdEventoSeleccionado(null);
+                    navigate('/calendario'); 
+                }}
+            >
+                ← Volver al Calendario
+            </button>
+          )}
+
             <h3 className="panel-titulo no-select">
-                RUTAS DEL <span className="fecha-destacada">{fechaSeleccionada}</span>
+                {modoDetalle 
+                    ? 'COMPLETA TU INSCRIPCIÓN' 
+                    : <span>RUTAS DEL <span className="fecha-destacada">{fechaSeleccionada}</span></span>
+                }
             </h3>
             
-            {(() => {
-                const diaNumero = parseInt(fechaSeleccionada.split('-')[2]);
+            {cargando ? (
+                <div className="calendario-cargando" style={{padding: '3rem 0', textAlign: 'center'}}>
+                    <div className="wheel-spinning" style={{fontSize: '2rem', display: 'inline-block'}}>☸</div>
+                    <p className="loader-texto no-select" style={{marginTop: '10px'}}>Cargando evento...</p>
+                </div>
+            ) : (
+            (() => {
+                if (!fechaSeleccionada) return null;
+
+                // 5. CAMBIO: El día ahora está en la posición 0 (DD-MM-AAAA)
+                const diaNumero = parseInt(fechaSeleccionada.split('-')[0]);
                 const eventosDia = obtenerEventosDelDia(diaNumero);
                 
                 if(eventosDia.length > 0) {
@@ -512,15 +483,11 @@ export default function CalendarioPage() {
                             {eventosDia.map((e) => {
                                 const estaAbierto = idEventoSeleccionado === e.id_evento;
                                 const claseDificultad = getClaseDificultad(e.nombre_dificultad);
-                                const cupoMaximo = e.cupo_maximo;
-                                const cuposDisponibles = e.cupos_disponibles;
-                                const esCupoLimitado = cupoMaximo !== undefined && cupoMaximo !== null && cupoMaximo > 0;
-
+                                const esCupoLimitado = e.cupo_maximo !== undefined && e.cupo_maximo !== null && e.cupo_maximo > 0;
+                                
                                 let estaAgotado = false;
-                                if (esCupoLimitado) {
-                                    if (cuposDisponibles !== undefined && cuposDisponibles !== null) {
-                                        estaAgotado = cuposDisponibles <= 0;
-                                    }
+                                if (esCupoLimitado && e.cupos_disponibles !== undefined && e.cupos_disponibles !== null) {
+                                    estaAgotado = e.cupos_disponibles <= 0;
                                 }
 
                                 return (
@@ -550,9 +517,9 @@ export default function CalendarioPage() {
                                             ) : (
                                                 <span className="badge-cupo" style={!esCupoLimitado ? {backgroundColor: '#28a745', color: 'white'} : {}}>
                                                     {esCupoLimitado 
-                                                        ? (cuposDisponibles !== null && cuposDisponibles !== undefined 
-                                                            ? `🔥 Quedan: ${cuposDisponibles}` 
-                                                            : `Cupo: ${cupoMaximo}`)
+                                                        ? (e.cupos_disponibles !== null && e.cupos_disponibles !== undefined 
+                                                            ? `🔥 Quedan: ${e.cupos_disponibles}` 
+                                                            : `Cupo: ${e.cupo_maximo}`)
                                                         : '✅ Cupo Libre'
                                                     }
                                                 </span>
@@ -560,18 +527,14 @@ export default function CalendarioPage() {
                                         </div>
 
                                         {e.descripcion && (
-                                            <div className="evento-descripcion">
-                                                "{e.descripcion}"
-                                            </div>
+                                            <div className="evento-descripcion">"{e.descripcion}"</div>
                                         )}
                                         
                                         {e.ubicacion && (
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`/mapa`}  rel="noopener noreferrer" className="ver-mapa-link">
-                                                        Ver mapa
-                                                    </a>
+                                                    <a href={`/mapa`} rel="noopener noreferrer" className="ver-mapa-link">Ver mapa</a>
                                                 )}
                                             </div>
                                         )}
@@ -642,7 +605,8 @@ export default function CalendarioPage() {
                 } else {
                     return <p className="mensaje-vacio">No hay eventos programados para este día.</p>;
                 }
-            })()}
+            })()
+            )}
           </div>
         )}
       </div>

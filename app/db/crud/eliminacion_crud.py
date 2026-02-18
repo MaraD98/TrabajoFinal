@@ -38,7 +38,8 @@ def crear_registro_eliminacion(
         motivo_eliminacion=motivo_completo,
         fecha_eliminacion=datetime.now(),
         id_usuario=id_usuario,
-        notificacion_enviada=False
+        notificacion_enviada=False,
+        estado_solicitud='pendiente'
     )
     db.add(nueva_eliminacion)
     db.flush()
@@ -90,8 +91,7 @@ def obtener_bajas_pendientes(db: Session) -> List[dict]:
         .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
         .join(Usuario, EliminacionEvento.id_usuario == Usuario.id_usuario)
         .filter(
-            Evento.id_estado == ID_ESTADO_PUBLICADO,
-            EliminacionEvento.notificacion_enviada == False
+            EliminacionEvento.estado_solicitud == 'pendiente'
         )
         .order_by(desc(EliminacionEvento.fecha_eliminacion))
         .all()
@@ -217,11 +217,12 @@ def eliminar_registro_eliminacion(db: Session, id_evento: int) -> bool:
     Elimina el registro de eliminación cuando el admin rechaza una solicitud.
     """
     eliminacion = db.query(EliminacionEvento).filter(
-        EliminacionEvento.id_evento == id_evento
+        EliminacionEvento.id_evento == id_evento, 
+        EliminacionEvento.estado_solicitud == 'pendiente'
     ).first()
     
     if eliminacion:
-        db.delete(eliminacion)
+        eliminacion.estado_solicitud = 'rechazada'  # ← Mantiene historial
         db.flush()
         return True
     
