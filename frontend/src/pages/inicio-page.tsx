@@ -4,6 +4,9 @@ import '../styles/inicio.css';
 import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { Navbar } from '../components/navbar'; 
 import { Footer } from "../components/footer";
+import AlertaPagosPendientes from '../components/AlertaPagosPendientes'; // ✅ NUEVO
+import { parsearFechaDD_MM_YYYY } from '../utils/fecha'  // ← AGREGAR ESTA
+import { useAuth } from '../context/auth-context';                        // ✅ NUEVO
 
 const API_BASE_URL = import.meta.env.VITE_API_URL.split('/api')[0];
 
@@ -47,6 +50,8 @@ interface Evento {
 }
 
 export default function InicioPage() {
+    const { user } = useAuth(); // ✅ NUEVO
+
     const [eventos, setEventos] = useState<Evento[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -120,13 +125,13 @@ export default function InicioPage() {
 
             const eventosProcesados = eventosFiltrados
                 .filter((evento: Evento) => {
-                    const fechaEvento = new Date(evento.fecha_evento);
-                    return fechaEvento >= hoy;
+                    const fechaEvento = parsearFechaDD_MM_YYYY(evento.fecha_evento);
+return fechaEvento && fechaEvento >= hoy;
                 })
                 .sort((a: Evento, b: Evento) => {
-                    const fechaA = new Date(a.fecha_evento).getTime();
-                    const fechaB = new Date(b.fecha_evento).getTime();
-                    return fechaA - fechaB;
+                const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
+                const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
+                return fechaA - fechaB;
                 });
 
             setEventos(eventosProcesados);
@@ -161,13 +166,13 @@ export default function InicioPage() {
 
             const eventosProcesados = eventosFiltrados
                 .filter((evento: Evento) => {
-                    const fechaEvento = new Date(evento.fecha_evento);
-                    return fechaEvento >= hoy;
+                    const fechaEvento = parsearFechaDD_MM_YYYY(evento.fecha_evento);
+                    return fechaEvento && fechaEvento >= hoy;
                 })
                 .sort((a: Evento, b: Evento) => {
-                    const fechaA = new Date(a.fecha_evento).getTime();
-                    const fechaB = new Date(b.fecha_evento).getTime();
-                    return fechaA - fechaB;
+            const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
+            const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
+            return fechaA - fechaB;
                 });
 
             setEventos(eventosProcesados);
@@ -216,8 +221,10 @@ export default function InicioPage() {
     return (
         <div className="inicio-container">
             
-            {/* ✅ AGREGAMOS EL NAVBAR */}
             <Navbar /> 
+
+            {/* ✅ Badge de pagos pendientes - solo visible si el usuario está logueado */}
+            {user && <AlertaPagosPendientes />}
 
             <header className="hero-section">
                 <div className="hero-content">
@@ -253,12 +260,8 @@ export default function InicioPage() {
                     </div>
                 </div>
 
-                {/* ============================================================================ */}
-                {/* ✅ FILTROS (MANTENIDOS IGUAL) */}
-                {/* ============================================================================ */}
                 {mostrarFiltros && (
                     <div className="filters-container-advanced" style={{ marginBottom: '30px' }}>
-                        {/* ... Mismo código de filtros que ya tenías, no cambia nada ... */}
                         <div className="filter-row">
                             <div className="filter-group-full">
                                 <label className="filter-label">🔍 Buscar por nombre del evento</label>

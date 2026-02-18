@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, field_serializer
 from datetime import date
 from typing import Optional
 from decimal import Decimal
@@ -67,6 +67,13 @@ class SolicitudPublicacionResponse(BaseModel):
     id_usuario: int
     usuario: Optional[UsuarioBasico] = None
     estado_solicitud: Optional[EstadoSolicitudInfo] = None
+    
+    # 👇 AGREGAR ESTO
+    @field_serializer('fecha_evento')
+    def serializar_fecha(self, valor: date) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
     
     class Config:
         from_attributes = True

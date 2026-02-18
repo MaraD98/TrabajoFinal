@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_serializer
 from typing import Optional
 from datetime import date, datetime
 from decimal import Decimal
@@ -68,5 +68,12 @@ class MiInscripcionResponse(BaseModel):
     hora_evento: Optional[str] = None # Opcional si lo tienes
     costo: Decimal
 
+# 👇 AGREGAR ESTO — convierte la fecha al mostrarla
+    @field_serializer('fecha_evento')
+    def serializar_fecha(self, valor: date) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
+    
     class Config:
         from_attributes = True

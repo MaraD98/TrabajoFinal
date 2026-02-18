@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, field_serializer
 from datetime import date
 
 class EventoEditar(BaseModel):
@@ -27,6 +27,12 @@ class EventoEditar(BaseModel):
     lat: Optional[float] = Field(None, ge=-90, le=90, description="Latitud del evento")
     lng: Optional[float] = Field(None, ge=-180, le=180, description="Longitud del evento")
     
+    @field_serializer('fecha_evento')
+    def serializar_fecha(self, valor) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
+
     # VALIDADORES
     @field_validator('fecha_evento')
     def validar_fecha_futura(cls, v):
