@@ -31,13 +31,34 @@ export default function EventsMapPage() {
     loadEventos();
   }, []);
 
+  // MODIFICAR LOAD EVENTOS (magia del ordenamiento)
   const loadEventos = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await getEventos();
       
-      setEventos(data);
+      // LÓGICA DE REORDENAMIENTO BASADA EN URL
+      const params = new URLSearchParams(location.search);
+      const idUrl = params.get('id');
+
+      let eventosOrdenados = [...data];
+
+      if (idUrl) {
+        const idBuscardo = Number(idUrl);
+        const index = eventosOrdenados.findIndex(e => e.id_evento === idBuscardo);
+        
+        if (index > -1) {
+          // Sacamos el evento de su posición original
+          const [eventoEncontrado] = eventosOrdenados.splice(index, 1);
+          // Lo ponemos al principio del array (índice 0)
+          eventosOrdenados.unshift(eventoEncontrado);
+          // También lo marcamos como seleccionado de una vez
+          setSelectedEvent(eventoEncontrado);
+        }
+      }
+
+      setEventos(eventosOrdenados);
     } catch (err) {
       console.error("Error cargando eventos:", err);
       setError("No se pudieron cargar los eventos");
@@ -82,6 +103,18 @@ export default function EventsMapPage() {
     }).addTo(map);
   };
 
+   function getMarkerColor(id_tipo: number | undefined): import("csstype").Property.BackgroundColor | undefined {
+    const colores: { [key: number]: string } = {
+      1: "#d3525d", // Ciclismo de Ruta
+      2: "#45c495", // Mountain Bike (MTB)
+      3: "#d19a76", // Rural Bike
+      4: "#7789d3", // Gravel
+      5: "#558ab9", // Cicloturismo
+      6: "#e5d055", // Entrenamiento / Social
+    };
+    return id_tipo ? colores[id_tipo] : undefined;
+  }
+  
   const addMarkers = () => {
     // Limpiar marcadores existentes
     markersRef.current.forEach((marker) => marker.remove());
@@ -90,40 +123,37 @@ export default function EventsMapPage() {
     if (!mapRef.current) return;
 
     const bounds: L.LatLngBoundsExpression = [];
+    
+    // 🔥 Leemos la URL
+    const params = new URLSearchParams(location.search);
+    const idUrl = params.get('id');
+    
+    // Variables para guardar el evento objetivo si viene por URL
+    let targetMarker: L.Marker | null = null;
+    let targetCoords: [number, number] | null = null;
 
     eventos.forEach((evento) => {
-      // 1. Convertimos a número para asegurar
       const lat = Number(evento.lat);
       const lng = Number(evento.lng);
       if (!lat || !lng || lat === 0 || lng === 0) return;
 
-      const getMarkerColor = (id_tipo?: number) => {
-      switch (id_tipo) {
-        case 1: return "#e63946"; // Running
-        case 2: return "#457b9d"; // Ciclismo
-        case 3: return "#2a9d8f"; // Triatlón
-        case 4: return "#f4a261"; // Natación
-        default: return "#999";   // Otros
-      }
-    };
 
-    const customIcon = L.divIcon({
-      className: "event-marker",
-      html: `
-        <div class="event-marker__pin" style="background:${getMarkerColor(evento.id_tipo)}">
-          <div class="event-marker__pulse"></div>
-        </div>
-      `,
-      iconSize: [40, 40],
-      iconAnchor: [20, 40],
-    });
+      const customIcon = L.divIcon({
+        className: "event-marker",
+        html: `
+          <div class="event-marker__pin" style="background:${getMarkerColor(evento.id_tipo)}">
+            <div class="event-marker__pulse"></div>
+          </div>
+        `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
+      });
 
-    const marker = L.marker([evento.lat, evento.lng], { icon: customIcon })
-        .addTo(mapRef.current!);
+      const marker = L.marker([lat, lng], { icon: customIcon }).addTo(mapRef.current!);
 
       marker.on("click", () => {
         setSelectedEvent(evento);
-        mapRef.current?.setView([evento.lat, evento.lng], 13, {
+        mapRef.current?.setView([lat, lng], 13, {
           animate: true,
           duration: 0.5,
         });
@@ -148,11 +178,24 @@ export default function EventsMapPage() {
       });
 
       markersRef.current.push(marker);
-      bounds.push([evento.lat, evento.lng]);
+      bounds.push([lat, lng]);
+
+      // 🔥 SI ESTE ES EL EVENTO DE LA URL, lo guardamos para luego
+      if (idUrl && evento.id_evento === Number(idUrl)) {
+        targetMarker = marker;
+        targetCoords = [lat, lng];
+      }
     });
 
-    // Ajustar vista para mostrar todos los marcadores
-    if (bounds.length > 0 && mapRef.current) {
+    // 🔥 LOGICA PARA CENTRAR EL MAPA AL FINALIZAR EL BUCLE
+    if (targetMarker && targetCoords && mapRef.current) {
+      // Si vinimos desde el calendario, vamos directo a ese evento y abrimos popup
+      mapRef.current.setView(targetCoords, 14, { animate: false });
+      // 🔥 Le decimos a TS: "Confía, esto es un marcador, abre el popup"
+      (targetMarker as L.Marker).openPopup();
+
+    } else if (bounds.length > 0 && mapRef.current) {
+      // Comportamiento original: ajustar la vista para ver todos
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
   };
@@ -166,11 +209,15 @@ export default function EventsMapPage() {
         duration: 0.5,
       });
       
-      // Abrir popup del marcador
-      const marker = markersRef.current.find(m => {
+      // 🔥 1. Forzamos a TypeScript a entender el tipo del arreglo con "as L.Marker[]"
+      const marcadores = markersRef.current as L.Marker[];
+
+      // 🔥 2. Ahora el find no dará problemas
+      const marker = marcadores.find((m) => {
         const pos = m.getLatLng();
         return pos.lat === evento.lat && pos.lng === evento.lng;
       });
+
       if (marker) {
         marker.openPopup();
       }
@@ -179,23 +226,26 @@ export default function EventsMapPage() {
 
   const getTipoEvento = (id?: number) => {
     const tipos: { [key: number]: string } = {
-      1: "Running",
-      2: "Ciclismo",
-      3: "Triatlón",
-      4: "Natación",
+      1: "Ciclismo de Ruta",
+      2: "Mountain Bike (MTB)",
+      3: "Rural Bike",
+      4: "Gravel",
+      5: "Cicloturismo",
+      6: "Entrenamiento / Social",
     };
     return id ? tipos[id] || "Evento" : "Evento";
   };
 
   const getDificultad = (id?: number) => {
     const dificultades: { [key: number]: string } = {
-      1: "Principiante",
+      1: "Basico",
       2: "Intermedio",
       3: "Avanzado",
-      4: "Profesional",
     };
     return id ? dificultades[id] || "-" : "-";
   };
+
+ 
 
   return (
     <div className="events-map-page">
@@ -255,7 +305,20 @@ export default function EventsMapPage() {
                 >
                   <div className="event-card__header">
                     <h3 className="event-card__title">{evento.nombre_evento}</h3>
-                    <span className="event-card__type">{getTipoEvento(evento.id_tipo)}</span>
+                    <span 
+                      className="event-card__type" 
+                      style={{ 
+                        backgroundColor: getMarkerColor(evento.id_tipo),
+                        color: "#333333", // 🔥 Cambiamos a oscuro para que contraste con el pastel
+                        padding: "4px 10px", 
+                        borderRadius: "12px", 
+                        fontSize: "0.8rem",
+                        fontWeight: "bold",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)" // Sombra más suave para combinar con lo pastel
+                      }}
+                    >
+                      {getTipoEvento(evento.id_tipo)}
+                    </span>
                   </div>
                   <div className="event-card__info">
                     <p className="event-card__date">

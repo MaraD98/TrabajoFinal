@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback} from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
@@ -534,7 +534,13 @@ export default function CalendarioPage() {
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`/mapa`} rel="noopener noreferrer" className="ver-mapa-link">Ver mapa</a>
+                                                    // 🔥 CAMBIO AQUÍ: Usamos Link y pasamos parámetros
+                                                    <Link 
+                                                        to={`/mapa?id=${e.id_evento}&lat=${e.lat}&lng=${e.lng}`} 
+                                                        className="ver-mapa-link"
+                                                    >
+                                                        Ver evento en el mapa
+                                                    </Link>
                                                 )}
                                             </div>
                                         )}
