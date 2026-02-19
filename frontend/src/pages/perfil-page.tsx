@@ -112,8 +112,12 @@ export default function PerfilPage() {
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
-        if (params.get('tab') === 'inscripciones') {
+        const tab = params.get('tab');
+
+        if (tab === 'inscripciones') {
             setActiveTab('inscripciones');
+        } else if (tab === 'datos') {
+            setActiveTab('datos');
         }
     }, [location]);
     
