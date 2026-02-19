@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react"; // 1. Agregamos useRef
-import { exportReporteCSV, getReporte } from "../services/eventos"; 
 import "../styles/reportes.css";
 import { Navbar } from "../components/navbar";
 import { Footer } from "../components/footer";
 import { useAuth } from "../context/auth-context";
+import { getReporteGeneral, exportReporteCSV } from "../services/eventos";
 
 // 2. Importamos las librerías para PDF
 import html2canvas from "html2canvas";
@@ -24,6 +24,17 @@ interface ReporteData {
   mis_inscripciones?: any[];
   mis_notificaciones?: any[];
   eventos_por_ubicacion?: { ubicacion: string; cantidad: number }[];
+  // NUEVOS CAMPOS ROL 3
+  lista_eventos_detallada?: {
+    id: number;
+    nombre: string;
+    fecha: string;
+    estado: number;
+    tipo: string;
+    reservas: number;
+  }[];
+  rendimiento_por_tipo?: { tipo: string; cantidad: number }[];
+  total_reservas_recibidas?: number;
 }
 
 export default function ReportesPage() {
@@ -73,12 +84,11 @@ export default function ReportesPage() {
 
       // ✅ CORRECCIÓN AQUÍ: Pasamos los filtros de forma que el backend no reciba strings vacíos
       // Usamos "" para el tipo (que es el primer parámetro en tu service actual)
-      const data = await getReporte(
-        "", 
-        token, 
-        anioFiltro || undefined, 
-        mesFiltro || undefined
-      );
+      const data = await getReporteGeneral(
+      token, 
+      anioFiltro ? parseInt(anioFiltro) : undefined, 
+      mesFiltro ? parseInt(mesFiltro) : undefined
+    );
       setReporteData(data);
     } catch (err: any) {
       console.error("Error en reportes:", err);
@@ -364,20 +374,119 @@ export default function ReportesPage() {
           </div>
         )}
 
-        <div className="reportes-resumen">
-          <div className="stat-card stat-card--primary">
-            <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
-            <div className="stat-card__label">Total Eventos Sistema</div>
-          </div>
-          <div className="stat-card stat-card--success">
-            <div className="stat-card__valor">{reporteData?.usuarios_total || 0}</div>
-            <div className="stat-card__label">Usuarios Registrados</div>
-          </div>
-          <div className="stat-card stat-card--info">
-            <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
-            <div className="stat-card__label">Mis Eventos Creados</div>
-          </div>
+        {/* Solo Admin y Supervisor ven el total global */}
+        {(usuarioRol === 1 || usuarioRol === 2) && (
+          <>
+            <div className="stat-card stat-card--primary">
+              <div className="stat-card__valor">{reporteData?.total_eventos || 0}</div>
+              <div className="stat-card__label">Total Eventos Sistema</div>
+            </div>
+            <div className="stat-card stat-card--success">
+              <div className="stat-card__valor">{reporteData?.usuarios_total || 0}</div>
+              <div className="stat-card__label">Usuarios Registrados</div>
+            </div>
+          </>
+        )}
+
+        {/* La Organización Externa solo ve sus totales */}
+        <div className="stat-card stat-card--info"
+        onClick={() => document.getElementById('lista_eventos_detallada')?.scrollIntoView({behavior: 'smooth'})}
+          style={{cursor: 'pointer'}}
+          >
+          <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
+          <div className="stat-card__label">Mis Eventos Creados</div>
         </div>
+         
+
+        {/* --- SECCIÓN ESPECÍFICA ROL 3: ORGANIZACIÓN EXTERNA --- */}
+        {usuarioRol === 3 && reporteData?.lista_eventos_detallada && (
+          <div className="reportes-rol3-container" style={{ marginTop: '20px' }}>
+            
+            <div className="reportes-graficos">
+              {/* Gráfico de Rendimiento por Tipo (Para el Rol 3) */}
+              <div className="grafico-card">
+                <div className="grafico-card__header">
+                  <h3>📈 Popularidad por Categoría</h3>
+                  <p style={{fontSize: '0.8rem', color: '#888'}}>Distribución de reservas según el tipo de deporte.</p>
+                  <button 
+                    data-html2canvas-ignore="true"
+                    onClick={() => handleExportarCSV("rendimiento_categorias")}
+                    className="btn-export"
+                  >
+                    📥 CSV
+                  </button>
+                </div>
+                <div className="grafico-card__body">
+                  {renderGraficoTorta(reporteData.rendimiento_por_tipo || [], "tipo", "cantidad")}
+                  <div className="insight-text">
+                    💡 Tu categoría más buscada es <strong>{reporteData.rendimiento_por_tipo?.[0]?.tipo || 'N/A'}</strong>.
+                  </div>
+                </div>
+              </div>
+
+              {/* Card de Total Reservas (Highlight) */}
+              <div className="grafico-card">
+                <div className="grafico-card__header">
+                  <h3>👥 Detalle de Inscripciones</h3>
+                </div>
+                <div className="grafico-card__body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <span style={{ fontSize: '4rem', fontWeight: 'bold', color: '#4ade80' }}>
+                        {reporteData.total_reservas_recibidas || 0}
+                    </span>
+                    <p style={{ color: 'var(--color-text-muted)' }}>Usuarios que han completado el formulario de inscripción para tus eventos publicados.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* GRILLA DETALLADA DE EVENTOS */}
+            <div className="grafico-card grafico-card--wide" style={{ marginTop: '20px' }}>
+              <div className="grafico-card__header">
+                <h3>📋 Gestión Detallada de Mis Eventos</h3>
+                <button 
+                  data-html2canvas-ignore="true"
+                  onClick={() => handleExportarCSV("lista_eventos_detallada")}
+                  className="btn-export"
+                >
+                  📥 Descargar Listado Detallado
+                </button>
+              </div>
+              <div className="grafico-card__body">
+                <div className="table-responsive" style={{ overflowX: 'auto' }}>
+                  <table className="tabla-reportes-custom">
+                    <thead>
+                      <tr>
+                        <th>Evento</th>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th style={{ textAlign: 'center' }}>Reservas</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reporteData.lista_eventos_detallada.map((evento) => (
+                        <tr key={evento.id}>
+                          <td style={{ fontWeight: 'bold' }}>{evento.nombre}</td>
+                          <td>{evento.fecha}</td>
+                          <td><span className="badge-tipo">{evento.tipo}</span></td>
+                          <td>
+                            <span className={`badge-estado estado-${evento.estado}`}>
+                                {getNombreEstado(evento.estado)}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="reservas-indicator">
+                              {evento.reservas}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
 
         {/* SECCIÓN DE GRÁFICOS */}

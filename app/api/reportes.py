@@ -28,7 +28,7 @@ def obtener_reportes(
     elif current_user.id_rol == 2:
         return ReporteService.reportes_supervisor(db, current_user.id_usuario, anio=anio, mes=mes) # Pasamos filtros
     elif current_user.id_rol == 3:
-        return ReporteService.reportes_operario(db, current_user.id_usuario)
+        return ReporteService.reportes_organizacion_externa(db, current_user.id_usuario)
     elif current_user.id_rol == 4:
         return ReporteService.reportes_cliente(db, current_user.id_usuario)
     else:
@@ -58,7 +58,8 @@ def export_reportes(
         "mis_eventos_por_estado": [2,3,4],
         "mis_inscripciones": [2,3,4],
         "mis_notificaciones": [2,3,4],
-        "eventos_por_ubicacion": [1,2] 
+        "eventos_por_ubicacion": [1,2],
+        "lista_eventos_detallada": [1,2,3] 
     }
 
     if tipo not in roles_permitidos:
@@ -157,6 +158,12 @@ def export_reportes(
 
         data = reporte.get("eventos_por_ubicacion", [])
         fieldnames = ["ubicacion", "cantidad"]
+
+    # Desde aca empiezo con los reportes para organizacion externa
+    elif tipo == "lista_eventos_detallada":
+        reporte = ReporteService.reportes_organizacion_externa(db, current_user.id_usuario)
+        data = reporte.get("lista_eventos_detallada", [])
+        fieldnames = ["id", "nombre", "fecha", "tipo", "reservas", "estado"]
 
 
     # Crear CSV en memoria
