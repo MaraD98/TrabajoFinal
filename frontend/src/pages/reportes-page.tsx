@@ -243,49 +243,75 @@ export default function ReportesPage() {
   };
 
   const renderGraficoTorta = (data: any[], labelKey: string, valueKey: string) => {
-    if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
+  if (!data || data.length === 0) return <p className="no-data">Sin datos disponibles</p>;
 
-    const total = data.reduce((sum, item) => sum + item[valueKey], 0);
-    let acumulado = 0;
-    const colores = ["#ff6b35", "#4ade80", "#60a5fa", "#fbbf24", "#a78bfa"];
+  const total = data.reduce((sum, item) => sum + item[valueKey], 0);
+  const colores = ["#ff6b35", "#4ade80", "#60a5fa", "#fbbf24", "#a78bfa", "#d63a3a"];
+  
+  const size = 180; 
+  const center = size / 2;
+  const radius = 80;
+  let currentAngle = -90; 
 
-    const conicParts = data.map((item, index) => {
-      const porcentaje = (item[valueKey] / (total || 1)) * 100;
-      const inicio = acumulado;
-      acumulado += porcentaje;
-      return `${colores[index % colores.length]} ${inicio}% ${acumulado}%`;
-    });
+  return (
+    <div className="grafico-pie-flex-container" style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
+      
+      {/* EL CÍRCULO CON NÚMEROS ADENTRO */}
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+        {data.map((item, index) => {
+          const valor = item[valueKey];
+          const angleRange = (valor / total) * 360;
+          const startAngle = currentAngle;
+          const endAngle = currentAngle + angleRange;
+          const middleAngle = startAngle + angleRange / 2;
 
-    return (
-      <div className="grafico-pie-container">
-        <div 
-          className="grafico-torta__circulo" 
-          style={{ background: `conic-gradient(${conicParts.join(", ")})` }}
-        ></div>
-        
-        <div className="grafico-pie__leyenda">
-          {data.map((item, index) => {
-            // Calculamos el porcentaje para este item específico
-            const porcentajeIndividual = ((item[valueKey] / (total || 1)) * 100).toFixed(1);
+          // Coordenadas del arco
+          const x1 = center + radius * Math.cos((Math.PI * startAngle) / 180);
+          const y1 = center + radius * Math.sin((Math.PI * startAngle) / 180);
+          const x2 = center + radius * Math.cos((Math.PI * endAngle) / 180);
+          const y2 = center + radius * Math.sin((Math.PI * endAngle) / 180);
+          
+          // Coordenada del texto (posicionado al 65% del radio para que esté ADENTRO)
+          const textRadius = radius * 0.65; 
+          const tx = center + textRadius * Math.cos((Math.PI * middleAngle) / 180);
+          const ty = center + textRadius * Math.sin((Math.PI * middleAngle) / 180);
 
-            return (
-              <div key={index} className="grafico-torta__leyenda-item">
-                <div 
-                  className="grafico-torta__color-box" 
-                  style={{ backgroundColor: colores[index % colores.length] }}
-                ></div>
-                <span className="grafico-torta__texto">
-                  {item[labelKey]}: <strong>{item[valueKey]}</strong> 
-                  <span style={{ color: 'var(--color-text-muted)', marginLeft: '8px', fontSize: '12px' }}>
-                    ({porcentajeIndividual}%)
-                  </span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
+          const largeArcFlag = angleRange > 180 ? 1 : 0;
+          const pathData = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+          currentAngle += angleRange;
+
+          return (
+            <g key={index}>
+              <path d={pathData} fill={colores[index % colores.length]} stroke="#1a1a1a" strokeWidth="1" />
+              <text x={tx} y={ty} fill="white" fontSize="14" fontWeight="bold" textAnchor="middle" alignmentBaseline="middle">
+                {valor}
+              </text>
+            </g>
+          );
+        })}
+        <circle cx={center} cy={center} r={radius * 0.35} fill="#1a1a1a" /> {/* Agujero central para estética */}
+      </svg>
+
+      {/* LA LEYENDA RECUPERADA (Con porcentaje y cantidad) */}
+      <div className="grafico-pie__leyenda" style={{ flexGrow: 1 }}>
+        {data.map((item, index) => {
+          const porcentajeIndividual = ((item[valueKey] / total) * 100).toFixed(1);
+          return (
+            <div key={index} className="grafico-torta__leyenda-item" style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+              <div 
+                className="grafico-torta__color-box" 
+                style={{ backgroundColor: colores[index % colores.length], width: '12px', height: '12px', borderRadius: '2px', marginRight: '10px' }}
+              ></div>
+              <span className="grafico-torta__texto" style={{ fontSize: '0.9rem', color: '#ccc' }}>
+                <strong style={{ color: '#fff' }}>{item[labelKey]}:</strong> {item[valueKey]} 
+                <span style={{ color: '#888', marginLeft: '5px' }}>({porcentajeIndividual}%)</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
-    );
+    </div>
+  );
 };
 
   // --- PROTECCIÓN DE RUTA ---
@@ -319,8 +345,6 @@ export default function ReportesPage() {
   return (
     <div className="reportes-page">
       <Navbar />
-
-      {/* 5. Agregamos la ref AQUÍ para que capture todo este contenedor */}
       <div className="reportes-page__container" ref={reporteRef}>
         
         {/* HEADER */}
@@ -385,59 +409,20 @@ export default function ReportesPage() {
               <div className="stat-card__valor">{reporteData?.usuarios_total || 0}</div>
               <div className="stat-card__label">Usuarios Registrados</div>
             </div>
+            <div className="stat-card stat-card--info"
+            onClick={() => document.getElementById('lista_eventos_detallada')?.scrollIntoView({behavior: 'smooth'})}
+              style={{cursor: 'pointer'}}
+              >
+              <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
+              <div className="stat-card__label">Mis Eventos Creados</div>
+            </div>
           </>
         )}
-
-        {/* La Organización Externa solo ve sus totales */}
-        <div className="stat-card stat-card--info"
-        onClick={() => document.getElementById('lista_eventos_detallada')?.scrollIntoView({behavior: 'smooth'})}
-          style={{cursor: 'pointer'}}
-          >
-          <div className="stat-card__valor">{reporteData?.mis_eventos_total || 0}</div>
-          <div className="stat-card__label">Mis Eventos Creados</div>
-        </div>
-         
 
         {/* --- SECCIÓN ESPECÍFICA ROL 3: ORGANIZACIÓN EXTERNA --- */}
         {usuarioRol === 3 && reporteData?.lista_eventos_detallada && (
           <div className="reportes-rol3-container" style={{ marginTop: '20px' }}>
             
-            <div className="reportes-graficos">
-              {/* Gráfico de Rendimiento por Tipo (Para el Rol 3) */}
-              <div className="grafico-card">
-                <div className="grafico-card__header">
-                  <h3>📈 Popularidad por Categoría</h3>
-                  <p style={{fontSize: '0.8rem', color: '#888'}}>Distribución de reservas según el tipo de deporte.</p>
-                  <button 
-                    data-html2canvas-ignore="true"
-                    onClick={() => handleExportarCSV("rendimiento_categorias")}
-                    className="btn-export"
-                  >
-                    📥 CSV
-                  </button>
-                </div>
-                <div className="grafico-card__body">
-                  {renderGraficoTorta(reporteData.rendimiento_por_tipo || [], "tipo", "cantidad")}
-                  <div className="insight-text">
-                    💡 Tu categoría más buscada es <strong>{reporteData.rendimiento_por_tipo?.[0]?.tipo || 'N/A'}</strong>.
-                  </div>
-                </div>
-              </div>
-
-              {/* Card de Total Reservas (Highlight) */}
-              <div className="grafico-card">
-                <div className="grafico-card__header">
-                  <h3>👥 Detalle de Inscripciones</h3>
-                </div>
-                <div className="grafico-card__body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <span style={{ fontSize: '4rem', fontWeight: 'bold', color: '#4ade80' }}>
-                        {reporteData.total_reservas_recibidas || 0}
-                    </span>
-                    <p style={{ color: 'var(--color-text-muted)' }}>Usuarios que han completado el formulario de inscripción para tus eventos publicados.</p>
-                </div>
-              </div>
-            </div>
-
             {/* GRILLA DETALLADA DE EVENTOS */}
             <div className="grafico-card grafico-card--wide" style={{ marginTop: '20px' }}>
               <div className="grafico-card__header">
@@ -459,7 +444,7 @@ export default function ReportesPage() {
                         <th>Fecha</th>
                         <th>Tipo</th>
                         <th>Estado</th>
-                        <th style={{ textAlign: 'center' }}>Reservas</th>
+                        <th>Reservas</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -485,6 +470,50 @@ export default function ReportesPage() {
                 </div>
               </div>
             </div>
+
+            <div className="reportes-graficos">
+              {/* Gráfico de Rendimiento por Tipo (Para el Rol 3) */}
+              <div className="grafico-card">
+                <div className="grafico-card__header">
+                  <h3>📈 Popularidad por Categoría</h3>
+                  <p style={{fontSize: '0.8rem', color: '#888'}}>Distribución de inscritos según el tipo de actividad.</p>
+                  <button 
+                    data-html2canvas-ignore="true"
+                    onClick={() => handleExportarCSV("rendimiento_categorias")}
+                    className="btn-export"
+                  >
+                    📥 CSV
+                  </button>
+                </div>
+                <div className="grafico-card__body">
+                  {renderGraficoTorta(reporteData.rendimiento_por_tipo || [], "tipo", "cantidad")}
+                  <div className="insight-text">
+                  {reporteData.rendimiento_por_tipo && reporteData.rendimiento_por_tipo.length > 0 ? (
+                    <>
+                      💡 Tu categoría más buscada es <strong>{ [...reporteData.rendimiento_por_tipo].sort((a, b) => b.cantidad - a.cantidad)[0].tipo }</strong>
+                    </>
+                  ) : (
+                    "💡 No hay datos suficientes para determinar una tendencia."
+                  )}
+                </div>
+                </div>
+              </div>
+
+              {/* Card de Total Reservas (Highlight) */}
+              <div className="grafico-card">
+                <div className="grafico-card__header">
+                  <h3>👥 Detalle de Inscripciones</h3>
+                </div>
+                <div className="grafico-card__body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <span style={{ fontSize: '4rem', fontWeight: 'bold', color: '#4ade80' }}>
+                        {reporteData.total_reservas_recibidas || 0}
+                    </span>
+                    <p style={{ color: 'var(--color-text-muted)' }}>Usuarios que han completado el formulario de inscripción para tus eventos publicados.</p>
+                </div>
+              </div>
+            </div>
+
+  
           </div>
         )}
 

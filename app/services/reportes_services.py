@@ -219,15 +219,20 @@ class ReporteService:
             } for e in eventos_query
         ]
 
-        # 3. Reporte de categorías (para saber qué modalidad le rinde más)
+        # 3. Reporte de categorías 
         resultados_tipo = (
-            db.query(TipoEvento.nombre, func.count(Evento.id_evento))
-            .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+            db.query(
+                TipoEvento.nombre, 
+                func.count(ReservaEvento.id_reserva) 
+            )
+            .join(Evento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
             .filter(Evento.id_usuario == id_usuario)
             .group_by(TipoEvento.nombre).all()
         )
-        rendimiento_tipo = [{"tipo": n, "cantidad": c} for n, c in resultados_tipo]
 
+        rendimiento_tipo = [{"tipo": n, "cantidad": c} for n, c in resultados_tipo if c > 0]
+        
         return {
             "mis_eventos_total": stats_base["mis_eventos_total"],
             "mis_eventos_por_estado": stats_base["mis_eventos_por_estado"],
