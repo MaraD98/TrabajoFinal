@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 from datetime import date
 from typing import Optional
 
@@ -23,6 +23,13 @@ class EventoCalendarioResponse(BaseModel):
     
     lat: Optional[float] = None
     lng: Optional[float] = None
+    
+    # 👇 AGREGAR ESTO
+    @field_serializer('fecha_evento')
+    def serializar_fecha(self, valor: date) -> str:
+        if valor is None:
+            return None
+        return valor.strftime('%d-%m-%Y')
 
     class Config:
         from_attributes = True

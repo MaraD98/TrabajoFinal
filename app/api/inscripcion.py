@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status, HTTPException # <--- AGREGAMOS H
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import date
 
 # DB y Auth
 from app.db.database import get_db
@@ -38,6 +39,50 @@ def listar_inscripciones(
     # Si pasa el filtro, llamamos al servicio
     return InscripcionService.listar_todas(db)
 
+@router.get(
+    "/mis-pagos-pendientes",
+    summary="Reservas con pago pendiente del usuario logueado"
+)
+def mis_pagos_pendientes(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Devuelve las reservas del usuario donde id_estado_reserva = 1 (Pendiente),
+    el evento no está cancelado (5) ni depurado (6), y la fecha es futura.
+    Se usa para mostrar el badge de alerta ⏰ en el frontend.
+
+    El valor 1 corresponde al primer INSERT de EstadoReserva en 02_postgres.sql:
+        INSERT INTO EstadoReserva (nombre) VALUES ('Pendiente'), ...
+    """
+    from app.models.inscripcion_models import ReservaEvento
+    from app.models.registro_models import Evento
+
+    hoy = date.today()
+
+    reservas = (
+        db.query(ReservaEvento, Evento)
+        .join(Evento, ReservaEvento.id_evento == Evento.id_evento)
+        .filter(
+            ReservaEvento.id_usuario == current_user.id_usuario,
+            ReservaEvento.id_estado_reserva == 1,  # Pendiente (ver EstadoReserva)
+            Evento.id_estado.notin_([5, 6]),        # excluir Cancelado y Depurado
+            Evento.fecha_evento >= hoy              # solo eventos futuros
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id_reserva":          r.id_reserva,
+            "id_evento":           e.id_evento,
+            "nombre_evento":       e.nombre_evento,
+            "fecha_evento":        str(e.fecha_evento),
+            "costo_participacion": float(e.costo_participacion or 0),
+            "ubicacion":           e.ubicacion,
+        }
+        for r, e in reservas
+    ]
 # ============ INSCRIBIRSE A UN EVENTO ============
 @router.post(
     "/{id_evento}",

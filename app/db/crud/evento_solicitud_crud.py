@@ -13,6 +13,23 @@ from app.models.eliminacion_models import EliminacionEvento
 
 class Solicitud_PublicacionCRUD:
     
+    @staticmethod
+    def existe_solicitud_activa(
+        db: Session,
+        id_usuario: int,
+        nombre_evento: str
+    ) -> bool:
+        """
+        Verifica si ya existe una solicitud activa (borrador o pendiente)
+        del mismo usuario con el mismo nombre de evento.
+        Estados activos: 1 (Borrador), 2 (Pendiente)
+        """
+        return db.query(SolicitudPublicacion).filter(
+            SolicitudPublicacion.id_usuario == id_usuario,
+            SolicitudPublicacion.nombre_evento == nombre_evento,
+            SolicitudPublicacion.id_estado_solicitud.in_([1, 2])
+        ).first() is not None
+        
     # --- CREACIÓN ---
     @staticmethod
     def crear_solicitud_publicacion(
