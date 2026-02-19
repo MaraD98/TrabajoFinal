@@ -35,12 +35,12 @@ const COLORES_DIFICULTAD: Record<number, string> = {
 interface Props {
   eventoId: number | null;
   onClose: () => void;
-  // Opcional: si ya tenés los datos básicos del evento en la card, 
-  // pasalos para mostrar algo mientras carga el detalle completo
   eventoPreview?: { nombre_evento: string; fecha_evento: string } | null;
+  // Opcional: si se pasa, oculta el botón "Ver en Calendario" para eventos no activos
+  idEstado?: number | null;
 }
 
-export default function EventoDetalleModal({ eventoId, onClose, eventoPreview }: Props) {
+export default function EventoDetalleModal({ eventoId, onClose, eventoPreview, idEstado }: Props) {
   const [evento, setEvento] = useState<EventoDetalle | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,11 +57,13 @@ export default function EventoDetalleModal({ eventoId, onClose, eventoPreview }:
     setEvento(null);
 
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    fetch(`${import.meta.env.VITE_API_URL}/eventos/${eventoId}/detalle`, {
+
+    // ✅ CORREGIDO: era /eventos/{id}/detalle (no existe), ahora es /eventos/{id}
+    fetch(`${import.meta.env.VITE_API_URL}/eventos/${eventoId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
       .then(r => {
-        if (!r.ok) throw new Error('No se pudo cargar el evento');
+        if (!r.ok) throw new Error(`Error ${r.status}`);
         return r.json();
       })
       .then(data => setEvento(data))
@@ -81,8 +83,14 @@ export default function EventoDetalleModal({ eventoId, onClose, eventoPreview }:
   if (!eventoId) return null;
 
   const formatFecha = (fecha: string) => {
+    if (!fecha) return '—';
     try {
-      return new Date(fecha).toLocaleDateString('es-AR', {
+      // Forzar parseo como fecha local (sin zona horaria)
+      // "2026-03-05" → [2026, 3, 5] → new Date(2026, 2, 5)
+      const partes = fecha.split('T')[0].split('-').map(Number);
+      const d = new Date(partes[0], partes[1] - 1, partes[2]);
+      if (isNaN(d.getTime())) return fecha;
+      return d.toLocaleDateString('es-AR', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
       });
     } catch { return fecha; }
@@ -226,7 +234,7 @@ export default function EventoDetalleModal({ eventoId, onClose, eventoPreview }:
                   label="Costo"
                   value={evento.costo_participacion === 0
                     ? 'Gratuito'
-                    : `$${evento.costo_participacion.toLocaleString('es-AR')}`}
+                    : `$${Number(evento.costo_participacion).toLocaleString('es-AR')}`}
                   highlight={evento.costo_participacion === 0}
                 />
                 <InfoCard icon="👥" label="Cupos" value={cupoLabel()} />
@@ -255,19 +263,23 @@ export default function EventoDetalleModal({ eventoId, onClose, eventoPreview }:
 
               {/* Acciones */}
               <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                <a
-                  href={`/calendario?fecha=${evento.fecha_evento.split('T')[0]}&id=${evento.id_evento}`}
-                  style={{
-                    flex: 1, textAlign: 'center',
-                    background: '#ccff00', color: '#000',
-                    padding: '12px 0', borderRadius: 10,
-                    fontWeight: 800, fontSize: '0.85rem',
-                    textDecoration: 'none', textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  Ver en Calendario
-                </a>
+                {/* Solo muestra "Ver en Calendario" si el evento está activo (estado 3)
+                    o si no se pasó id_estado (compatibilidad con admin dashboard) */}
+                {(idEstado === undefined || idEstado === null || idEstado === 3) && (
+                  <a
+                    href={`/calendario?fecha=${evento.fecha_evento.split('T')[0]}&id=${evento.id_evento}`}
+                    style={{
+                      flex: 1, textAlign: 'center',
+                      background: '#ccff00', color: '#000',
+                      padding: '12px 0', borderRadius: 10,
+                      fontWeight: 800, fontSize: '0.85rem',
+                      textDecoration: 'none', textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    Ver en Calendario
+                  </a>
+                )}
                 <button
                   onClick={onClose}
                   style={{

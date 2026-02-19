@@ -13,9 +13,7 @@ from fastapi import HTTPException
 class EventoSolicitudService:
     """
     Servicio para gestionar solicitudes de publicación de eventos.
-    
-    Ya NO incluye funciones de eliminación.
-    Para eliminación, usar: app/services/eliminacion_services.py
+   ✅ NUEVO: Auto-aprobación para Admin/Supervisor (rol 1 y 2)
     """
     
     # ========================================================================
@@ -56,63 +54,96 @@ class EventoSolicitudService:
         db: Session, 
         solicitud: SolicitudPublicacionCreate, 
         id_usuario: int,
-        id_estado_inicial: int = 2  # ✅ CAMBIO: Agregar parámetro (default 2)
+        id_rol: int  # ← NUEVO PARÁMETRO
     ):
         """
         Crea una nueva solicitud de publicación.
         
-        Args:
-            id_estado_inicial: 1=Borrador (autoguardado), 2=Pendiente (envío normal)
+        ✅ NUEVO COMPORTAMIENTO:
+        - Admin/Supervisor (rol 1, 2): Solicitud + auto-aprobación + Evento creado
+        - Externo (rol 3): Solicitud pendiente (espera aprobación manual)
         """
         EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
         EventoSolicitudService.validar_usuario(db, id_usuario)
         
-        # ✅ CAMBIO: Pasar el estado inicial al CRUD
-        return Solicitud_PublicacionCRUD.crear_solicitud_publicacion(
-            db, 
-            solicitud, 
-            id_usuario,
-            id_estado_inicial=id_estado_inicial  # ✅ NUEVO PARÁMETRO
-        )
-    # ========================================================================
-    # ✅ NUEVO MÉTODO: Actualizar solicitud existente
+        # ── Validación de duplicado ──────────────────────────────────────────
+        if Solicitud_PublicacionCRUD.existe_solicitud_activa(db, id_usuario, solicitud.nombre_evento):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Ya existe una solicitud activa con el nombre "
+                    f"'{solicitud.nombre_evento}'. "
+                    f"Revisá tus solicitudes pendientes o borradores antes de crear una nueva."
+                )
+            )
+        # ────────────────────────────────────────────────────────────────────
+        
+        # Determinar si es admin/supervisor
+        es_admin = id_rol in [1, 2]
+        
+        # Crear solicitud
+        nueva_solicitud = Solicitud_PublicacionCRUD.crear_solicitud_publicacion(
+            db=db,
+            solicitud=solicitud,
+            id_usuario=id_usuario
+        )   
+        
+        # ✅ AUTO-APROBACIÓN para Admin/Supervisor
+        if es_admin:
+            return EventoSolicitudService._auto_aprobar_solicitud(
+                db=db,
+                solicitud=nueva_solicitud,
+                id_admin=id_usuario,
+                id_estado_inicial=2   # siempre Pendiente al crear; borrador se maneja con PUT
+            )
+        
+        # Externos esperan aprobación manual
+        return nueva_solicitud
+   # ========================================================================
+    # ✅ NUEVO: AUTO-APROBACIÓN (interno)
     # ========================================================================
     @staticmethod
-    def actualizar_solicitud(
-        db: Session,
-        id_solicitud: int,
-        solicitud: SolicitudPublicacionCreate,
-        id_usuario: int,
-        enviar: bool = False
-    ):
+    def _auto_aprobar_solicitud(db: Session, solicitud: SolicitudPublicacion, id_admin: int):
         """
-        Actualiza una solicitud existente.
-        
-        Args:
-            id_solicitud: ID de la solicitud a actualizar
-            solicitud: Nuevos datos
-            id_usuario: ID del usuario que actualiza
-            enviar: Si True, cambia estado a 2 (Pendiente)
+        Auto-aprueba solicitud de admin/supervisor y crea el evento inmediatamente.
+        El registro en Solicitud_Publicacion queda igual → trazabilidad completa.
         """
-        # Buscar solicitud
-        solicitud_db = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
-        if not solicitud_db:
-            raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+        # Marcar solicitud como aprobada
+        solicitud.id_estado_solicitud = 3  # Aprobada
+        solicitud.observaciones_admin = f"[AUTO-APROBADA] Creado por Admin/Supervisor ID {id_admin}"
         
-        # Verificar que sea el dueño
-        if solicitud_db.id_usuario != id_usuario:
-            raise HTTPException(status_code=403, detail="No tienes permiso para editar esta solicitud")
-        
-        # Validar fecha
-        EventoSolicitudService.validar_fecha_evento(solicitud.fecha_evento)
-        
-        # Actualizar en BD
-        return Solicitud_PublicacionCRUD.actualizar_solicitud(
-            db,
-            id_solicitud,
-            solicitud,
-            enviar=enviar
+        # Crear el evento publicado
+        nuevo_evento = Evento(
+            id_usuario=solicitud.id_usuario,
+            nombre_evento=solicitud.nombre_evento,
+            fecha_evento=solicitud.fecha_evento,
+            ubicacion=solicitud.ubicacion,
+            id_tipo=solicitud.id_tipo,
+            id_dificultad=solicitud.id_dificultad,
+            descripcion=solicitud.descripcion,
+            costo_participacion=solicitud.costo_participacion,
+            lat=solicitud.lat,
+            lng=solicitud.lng,
+            cupo_maximo=solicitud.cupo_maximo,
+            id_estado=3  # PUBLICADO
         )
+        
+        try:
+            db.add(nuevo_evento)
+            db.commit()
+            db.refresh(solicitud)
+            db.refresh(nuevo_evento)
+            
+            # Agregar info del evento creado al response
+            solicitud.evento_creado_id = nuevo_evento.id_evento
+            
+            return solicitud
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error al auto-aprobar y publicar evento: {str(e)}"
+            )
     
     @staticmethod
     def obtener_mis_solicitudes(db: Session, id_usuario: int):

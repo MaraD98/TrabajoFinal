@@ -1,33 +1,55 @@
 /**
- * Convierte fecha DD-MM-YYYY a formato legible (ya viene formateada del backend)
- */
-export function formatearFecha(fechaISO: string | null | undefined): string {
-  if (!fechaISO) return '—';
-  
-  // Si ya está en DD-MM-YYYY, devolverla tal cual
-  if (/^\d{2}-\d{2}-\d{4}$/.test(fechaISO)) return fechaISO;
-  
-  // Convertir desde ISO: "2024-12-25" → "25-12-2024"
-  const [anio, mes, dia] = fechaISO.split('T')[0].split('-');
-  return `${dia}-${mes}-${anio}`;
-}
-
-/**
  * Parsea una fecha en formato DD-MM-YYYY a objeto Date
- * Necesario para comparar y ordenar fechas que vienen del backend
  */
 export function parsearFechaDD_MM_YYYY(fechaStr: string | null | undefined): Date | null {
   if (!fechaStr) return null;
   
-  // Parsear formato DD-MM-YYYY → Date
-  const partes = fechaStr.split('-');
-  if (partes.length === 3) {
+  // Limpiar espacios
+  const limpia = fechaStr.trim();
+  
+  // Parsear formato DD-MM-YYYY
+  const partes = limpia.split('-');
+  if (partes.length === 3 && partes[0].length === 2) {
+    // Formato DD-MM-YYYY
     const [dia, mes, anio] = partes;
-    // new Date(año, mes-1, día) - mes es 0-indexed en JavaScript
-    return new Date(parseInt(anio), parseInt(mes) - 1, parseInt(dia));
+    const d = parseInt(dia);
+    const m = parseInt(mes);
+    const a = parseInt(anio);
+    
+    if (!isNaN(d) && !isNaN(m) && !isNaN(a)) {
+      return new Date(a, m - 1, d); // mes es 0-indexed
+    }
   }
   
-  // Fallback: intentar parsear como ISO (por si viene en otro formato)
-  const fecha = new Date(fechaStr);
-  return isNaN(fecha.getTime()) ? null : fecha;
+  // Si viene en formato YYYY-MM-DD (por si acaso)
+  if (partes.length === 3 && partes[0].length === 4) {
+    const [anio, mes, dia] = partes;
+    const d = parseInt(dia);
+    const m = parseInt(mes);
+    const a = parseInt(anio);
+    
+    if (!isNaN(d) && !isNaN(m) && !isNaN(a)) {
+      return new Date(a, m - 1, d);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Formatea una fecha para mostrar (si ya viene en DD-MM-YYYY la devuelve tal cual)
+ */
+export function formatearFecha(fechaStr: string | null | undefined): string {
+  if (!fechaStr) return '—';
+  
+  // Si ya está en DD-MM-YYYY, devolverla tal cual
+  if (/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) return fechaStr;
+  
+  // Si viene en YYYY-MM-DD, convertir a DD-MM-YYYY
+  if (/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) {
+    const [anio, mes, dia] = fechaStr.split('T')[0].split('-');
+    return `${dia}-${mes}-${anio}`;
+  }
+  
+  return fechaStr;
 }

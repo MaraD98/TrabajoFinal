@@ -143,6 +143,19 @@ function useSortableTable<T>(data: T[], defaultKey: keyof T, defaultDir: 'asc' |
 }
 
 // ============================================================================
+// ✅ NUEVO: convierte el string de estado del historial → id_estado numérico
+// El EventoDetalleModal usa este número para mostrar/ocultar "Ver en Calendario"
+// Estado 3 = activo → muestra calendario | 4,5,6 = no activo → oculta calendario
+// ============================================================================
+const estadoStringToIdEstado = (estado: string): number => {
+  const s = estado.toLowerCase();
+  if (s.includes('depurado') || s.includes('hard delete')) return 6;
+  if (s.includes('cancelado') || s.includes('soft delete')) return 5;
+  if (s.includes('finalizado')) return 4;
+  return 3;
+};
+
+// ============================================================================
 // COMPONENTE PRINCIPAL
 // ============================================================================
 const AdminDashboard: React.FC = () => {
@@ -167,7 +180,10 @@ const AdminDashboard: React.FC = () => {
   const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
   const [detalleEdicionModal, setDetalleEdicionModal] = useState<{ show: boolean; solicitud: SolicitudEdicion | null }>({ show: false, solicitud: null });
   const [editModal, setEditModal] = useState<{ show: boolean; evento: Evento | null }>({ show: false, evento: null });
+
+  // ✅ CAMBIO 1: agregamos detalleEventoEstado para pasarle el id_estado al modal
   const [detalleEventoId, setDetalleEventoId] = useState<number | null>(null);
+  const [detalleEventoEstado, setDetalleEventoEstado] = useState<number | null>(null);
 
   // Hooks de ordenamiento
   const altaSort = useSortableTable(solicitudesAlta, 'nombre_evento');
@@ -357,7 +373,6 @@ const AdminDashboard: React.FC = () => {
     return 'badge-estado-default';
   };
 
-  // Helpers ediciones y formato
   const formatearCampo = (campo: string): string => {
     const mapeo: Record<string, string> = {
       nombre_evento: 'Nombre', fecha_evento: 'Fecha', ubicacion: 'Ubicación',
@@ -412,9 +427,7 @@ const AdminDashboard: React.FC = () => {
         <main className="admin-main-content">
           {loading && <div style={{ textAlign: 'center', padding: '10px', color: '#777' }}>Cargando datos...</div>}
 
-          {/* ================================================================
-              VISTA PENDIENTES
-          ================================================================ */}
+          {/* VISTA PENDIENTES */}
           {vistaActual === 'pendientes' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -432,7 +445,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── ALTAS ─────────────────────────────────────────────────── */}
+              {/* ALTAS */}
               <div className="seccion-solicitudes">
                 <h3>📝 Altas ({solicitudesAlta.length})</h3>
                 <table className="data-table-admin">
@@ -475,7 +488,7 @@ const AdminDashboard: React.FC = () => {
                 </table>
               </div>
 
-              {/* ── EDICIONES ──────────────────────────────────────────────── */}
+              {/* EDICIONES */}
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#4a9eff' }}>✏️ Ediciones ({solicitudesEdicion.length})</h3>
                 <table className="data-table-admin">
@@ -519,13 +532,12 @@ const AdminDashboard: React.FC = () => {
                 </table>
               </div>
 
-              {/* ── BAJAS ──────────────────────────────────────────────────── */}
+              {/* BAJAS */}
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#fc8181' }}>🗑️ Bajas ({solicitudesBaja.length})</h3>
                 <table className="data-table-admin">
                   <thead>
                     <tr>
-                      {/* ✅ ID Evento agregado */}
                       <th style={bajaSort.thStyle('id_evento')} onClick={() => bajaSort.toggle('id_evento')}>ID Evento{bajaSort.arrow('id_evento')}</th>
                       <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
                       <th style={bajaSort.thStyle('fecha_evento')} onClick={() => bajaSort.toggle('fecha_evento')}>Fecha Evento{bajaSort.arrow('fecha_evento')}</th>
@@ -541,7 +553,6 @@ const AdminDashboard: React.FC = () => {
                     ) : (
                       filtrarPorSearch(bajaSort.sorted, 'nombre_evento').map(s => (
                         <tr key={s.id_eliminacion}>
-                          {/* ✅ ID Evento visible */}
                           <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{s.id_evento}</small></td>
                           <td style={{ textAlign: 'left', fontWeight: 600 }}>{s.nombre_evento}</td>
                           <td style={{ textAlign: 'left' }}><small>{s.fecha_evento ? formatFecha(s.fecha_evento) : '—'}</small></td>
@@ -561,9 +572,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ================================================================
-              VISTA ACTIVOS
-          ================================================================ */}
+          {/* VISTA ACTIVOS */}
           {vistaActual === 'activos' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -601,7 +610,13 @@ const AdminDashboard: React.FC = () => {
                         <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
                         <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
                         <td style={{ textAlign: 'center' }}>
-                          <button className="btn-ver-detalle-admin" onClick={() => setDetalleEventoId(e.id_evento)} title="Ver detalles" style={{ marginRight: '8px' }}>👁️ Ver más</button>
+                          {/* ✅ CAMBIO 2: Activos son siempre estado 3 → calendario visible */}
+                          <button
+                            className="btn-ver-detalle-admin"
+                            onClick={() => { setDetalleEventoId(e.id_evento); setDetalleEventoEstado(3); }}
+                            title="Ver detalles"
+                            style={{ marginRight: '8px' }}
+                          >👁️ Ver más</button>
                           <button className="btn-editar-admin" onClick={() => setEditModal({ show: true, evento: e })} title="Editar" style={{ marginRight: '8px' }}>✏️ Editar</button>
                           <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>🗑️ Eliminar</button>
                         </td>
@@ -615,9 +630,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ================================================================
-              VISTA HISTORIAL
-          ================================================================ */}
+          {/* VISTA HISTORIAL */}
           {vistaActual === 'historial' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -660,7 +673,16 @@ const AdminDashboard: React.FC = () => {
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div className="action-buttons-inline">
-                          <button className="btn-ver-detalle-admin" onClick={() => setDetalleEventoId(item.id_evento)} title="Ver detalles" style={{ marginRight: '6px' }}>👁️</button>
+                          {/* ✅ CAMBIO 3: convertimos el string de estado → id_estado numérico */}
+                          <button
+                            className="btn-ver-detalle-admin"
+                            onClick={() => {
+                              setDetalleEventoId(item.id_evento);
+                              setDetalleEventoEstado(estadoStringToIdEstado(item.estado));
+                            }}
+                            title="Ver detalles"
+                            style={{ marginRight: '6px' }}
+                          >👁️</button>
                           {esRestaurable(item.estado) && (
                             <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>♻️</button>
                           )}
@@ -676,10 +698,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ================================================================
-              VISTA PAGOS
-              Columnas: Usuario · Evento · Fecha Evento · Monto · F. Inscripción · Estado · Acción
-          ================================================================ */}
+          {/* VISTA PAGOS */}
           {vistaActual === 'pagos' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -703,9 +722,7 @@ const AdminDashboard: React.FC = () => {
                     <th style={pagosSort.thStyle('nombre_evento')} onClick={() => pagosSort.toggle('nombre_evento')}>Evento{pagosSort.arrow('nombre_evento')}</th>
                     <th style={pagosSort.thStyle('fecha_evento')} onClick={() => pagosSort.toggle('fecha_evento')}>Fecha Evento{pagosSort.arrow('fecha_evento')}</th>
                     <th style={pagosSort.thStyle('monto', 'center')} onClick={() => pagosSort.toggle('monto')}>Monto{pagosSort.arrow('monto')}</th>
-                    {/* ✅ Fecha inscripción */}
                     <th style={pagosSort.thStyle('fecha_inscripcion')} onClick={() => pagosSort.toggle('fecha_inscripcion')}>F. Inscripción{pagosSort.arrow('fecha_inscripcion')}</th>
-                    {/* ✅ Estado reserva */}
                     <th style={pagosSort.thStyle('estado_reserva', 'center')} onClick={() => pagosSort.toggle('estado_reserva')}>Estado{pagosSort.arrow('estado_reserva')}</th>
                     <th style={{ textAlign: 'center', cursor: 'default' }}>Acción</th>
                   </tr>
@@ -735,10 +752,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           )}
 
-          {/* ================================================================
-              VISTA INSCRIPTOS
-              Columnas: Nombre · Email · Evento · Fecha Evento · F. Inscripción · Estado
-          ================================================================ */}
+          {/* VISTA INSCRIPTOS */}
           {vistaActual === 'inscriptos' && (
             <div className="admin-content-view">
               <div className="view-header">
@@ -759,11 +773,9 @@ const AdminDashboard: React.FC = () => {
                 <thead>
                   <tr>
                     <th style={inscriptosSort.thStyle('usuario_nombre')} onClick={() => inscriptosSort.toggle('usuario_nombre')}>Nombre{inscriptosSort.arrow('usuario_nombre')}</th>
-                    {/* ✅ Email */}
                     <th style={inscriptosSort.thStyle('usuario_email')} onClick={() => inscriptosSort.toggle('usuario_email')}>Email{inscriptosSort.arrow('usuario_email')}</th>
                     <th style={inscriptosSort.thStyle('nombre_evento')} onClick={() => inscriptosSort.toggle('nombre_evento')}>Evento{inscriptosSort.arrow('nombre_evento')}</th>
                     <th style={inscriptosSort.thStyle('fecha_evento')} onClick={() => inscriptosSort.toggle('fecha_evento')}>Fecha Evento{inscriptosSort.arrow('fecha_evento')}</th>
-                    {/* ✅ Fecha inscripción */}
                     <th style={inscriptosSort.thStyle('fecha_inscripcion')} onClick={() => inscriptosSort.toggle('fecha_inscripcion')}>F. Inscripción{inscriptosSort.arrow('fecha_inscripcion')}</th>
                     <th style={inscriptosSort.thStyle('estado_reserva', 'center')} onClick={() => inscriptosSort.toggle('estado_reserva')}>Estado{inscriptosSort.arrow('estado_reserva')}</th>
                   </tr>
@@ -831,9 +843,11 @@ const AdminDashboard: React.FC = () => {
         onSuccess={() => { showToast('Evento actualizado correctamente', 'success'); cargarDatos(); }}
       />
 
+      {/* ✅ CAMBIO 4: se pasa idEstado → el modal decide si muestra "Ver en Calendario" */}
       <EventoDetalleModal
         eventoId={detalleEventoId}
-        onClose={() => setDetalleEventoId(null)}
+        idEstado={detalleEventoEstado}
+        onClose={() => { setDetalleEventoId(null); setDetalleEventoEstado(null); }}
       />
 
       {pagoModal.show && pagoModal.reserva && (

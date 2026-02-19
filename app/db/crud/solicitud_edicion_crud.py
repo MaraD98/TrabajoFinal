@@ -17,11 +17,15 @@ def crear_solicitud_edicion(
     """
     Crea una nueva solicitud de edición.
     Los cambios se guardan como JSON string.
+
+    FIX: default=str en json.dumps para que los objetos Python `date`
+    (que Pydantic genera al parsear fecha_evento) se serialicen como
+    strings "YYYY-MM-DD" en vez de explotar con TypeError.
     """
     solicitud = SolicitudEdicionEvento(
         id_evento=id_evento,
         id_usuario=id_usuario,
-        cambios_propuestos=json.dumps(cambios_propuestos, ensure_ascii=False),
+        cambios_propuestos=json.dumps(cambios_propuestos, ensure_ascii=False, default=str),
         fecha_solicitud=datetime.now(),
         aprobada=None  # NULL = Pendiente
     )
