@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate} from 'react-router-dom';
+import { useNavigate, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { Footer } from "../components/footer";
 import { Navbar } from '../components/navbar';
@@ -81,6 +81,7 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
 
 export default function PerfilPage() {
     const { getToken } = useAuth();
+    const location = useLocation();
     
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [inscripciones, setInscripciones] = useState<Inscripcion[]>([]);
@@ -108,6 +109,13 @@ export default function PerfilPage() {
 
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('tab') === 'inscripciones') {
+            setActiveTab('inscripciones');
+        }
+    }, [location]);
     
 useEffect(() => {
     const cargarDatosIniciales = async () => {
