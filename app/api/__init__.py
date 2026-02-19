@@ -10,6 +10,7 @@ from .inscripcion import router as inscripcion_router
 from .eliminacion_evento import router as eliminacion_evento_router
 from .notificacion import router as notificacion_router
 from .suscripcion import router as suscripcion_router
+from .pagos import router as pagos_router
 
 
 routers = [ 
@@ -24,6 +25,7 @@ routers = [
            inscripcion_router,
            reportes_router,
            notificacion_router,
-           suscripcion_router
+           suscripcion_router,
+           pagos_router
            ]
 

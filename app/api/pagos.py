@@ -1,0 +1,59 @@
+from fastapi import APIRouter, HTTPException
+import mercadopago
+from pydantic import BaseModel
+
+router = APIRouter(prefix="/pagos", tags=["Pagos"])
+
+# Este es un Access Token de prueba (Sandbox). 
+# Después lo vas a cambiar por el tuyo real desde el panel de Mercado Pago.
+sdk = mercadopago.SDK("TEST-6214912886368099-021821-21850312aefd76e6522a5c59c0250506-433134750")
+
+# Definimos qué datos esperamos del Frontend
+class PagoRequest(BaseModel):
+    id_reserva: int
+    nombre_evento: str
+    precio: float
+
+@router.post("/crear_preferencia")
+async def crear_preferencia(datos: PagoRequest):
+    try:
+        # Mantenemos tus datos tal cual, pero aseguramos tipos
+        preference_data = {
+            "items": [
+                {
+                    "id": str(datos.id_reserva),
+                    "title": str(datos.nombre_evento),
+                    "quantity": 1,
+                    "unit_price": float(datos.precio),
+                    "currency_id": "ARS"
+                }
+            ],
+            "back_urls": {
+                "success": "http://localhost:5173/perfil",
+                "failure": "http://localhost:5173/perfil",
+                "pending": "http://localhost:5173/perfil"
+            },
+            # COMENTAMOS ESTO PARA QUE DEJE DE CHILLAR
+            # "auto_return": "approved", 
+            "external_reference": str(datos.id_reserva),
+            "binary_mode": True 
+        }
+
+        # Enviamos la info a Mercado Pago
+        preference_response = sdk.preference().create(preference_data)
+        
+        # SI FALLA, esto nos va a decir la posta en la consola
+        if preference_response["status"] >= 400:
+            print("--- DETALLE DEL ERROR QUE VE MP ---")
+            print(preference_response["response"])
+            raise HTTPException(status_code=400, detail="Error en la creación de preferencia")
+
+        preference = preference_response["response"]
+
+        return {
+            "preference_id": preference["id"],
+            "init_point": preference["init_point"]
+        }
+    except Exception as e:
+        print(f"Error de Mercado Pago: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
