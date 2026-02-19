@@ -21,38 +21,42 @@ def get_current_user(
     return AuthService.get_current_usuario_from_token(db, credentials.credentials)
 
 
+# ============================================================================
+# ✅ MODIFICADO: CREAR SOLICITUD CON AUTO-APROBACIÓN
+# ============================================================================
 @router.post(
     "/",
     response_model=SolicitudPublicacionResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Crear solicitud de evento externo",
-    description="Permite a un usuario autenticado enviar una solicitud para publicar un evento ciclista."
+    summary="Crear solicitud de evento",
+    description="""
+    Crea una solicitud de publicación de evento.
+    
+    ✅ NUEVO COMPORTAMIENTO:
+    - Admin/Supervisor (rol 1, 2): Auto-aprueba y crea el evento inmediatamente
+    - Externo (rol 3): Solicitud pendiente, espera aprobación manual
+    
+    En ambos casos queda registrada la solicitud → trazabilidad completa.
+    """
 )
 def crear_solicitud_evento(
     solicitud: SolicitudPublicacionCreate,
-    enviar: bool = Query(True, description="True: Enviar directamente (estado 2) | False: Guardar borrador (estado 1)"),  # ✅ NUEVO PARÁMETRO
+    enviar: bool = Query(True, description="True: Enviar directamente (estado 2) | False: Guardar borrador (estado 1)"),
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
     """
-    Crea una solicitud de publicación.
-    
-    **Parámetros:**
-    - `enviar=True` (default): Crea en estado 2 (Pendiente) → Botón "ENVIAR SOLICITUD"
-    - `enviar=False`: Crea en estado 1 (Borrador) → Autoguardado automático
-    
-    **Flujo normal:**
-    Usuario completa formulario → Click "ENVIAR SOLICITUD" → enviar=True → Estado 2
+    ✅ CAMBIO: Ahora se pasa id_rol al servicio para detectar admin y auto-aprobar
     """
-    # ✅ CAMBIO: Determinar estado según parámetro
     estado_inicial = 2 if enviar else 1
     
     nueva_solicitud = EventoSolicitudService.crear_solicitud(
-        db, 
-        solicitud, 
-        current_user.id_usuario,
-        id_estado_inicial=estado_inicial  # ✅ PASAR ESTADO AL SERVICIO
+        db=db,
+        solicitud=solicitud,
+        id_usuario=current_user.id_usuario,
+        id_rol=current_user.id_rol  # ← NUEVO: pasar el rol
     )
+    
     return nueva_solicitud
 # ============================================================================
 # ✅ NUEVO ENDPOINT: Actualizar solicitud (para autoguardado)

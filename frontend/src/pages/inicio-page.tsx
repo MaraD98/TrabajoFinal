@@ -126,13 +126,13 @@ export default function InicioPage() {
             const eventosProcesados = eventosFiltrados
                 .filter((evento: Evento) => {
                     const fechaEvento = parsearFechaDD_MM_YYYY(evento.fecha_evento);
-return fechaEvento && fechaEvento >= hoy;
+                return fechaEvento && fechaEvento >= hoy;
                 })
                 .sort((a: Evento, b: Evento) => {
-                const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
-                const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
-                return fechaA - fechaB;
-                });
+                    const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
+                    const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
+                    return fechaA - fechaB;
+                        });
 
             setEventos(eventosProcesados);
             setTotalEventos(resultado.total);
@@ -327,7 +327,7 @@ return fechaEvento && fechaEvento >= hoy;
 
                 <div className="grid-eventos">
                     {eventos.map((evento) => {
-                        const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
+                        const fechaLimpia = evento.fecha_evento;
                         const nombreTipo = evento.nombre_tipo || NOMBRES_TIPO[evento.id_tipo] || "Evento";
                         
                         return (
