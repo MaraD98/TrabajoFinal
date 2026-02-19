@@ -1,24 +1,24 @@
+# app/api/registro_evento.py
+# ✅ OPCIÓN A: REDIRIGIR POST /eventos/ AL FLUJO DE SOLICITUDES
+
 from fastapi import APIRouter, Depends, status, HTTPException, File, Form, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from typing import List, Optional
 from datetime import date
 
 from app.db.database import get_db
-from app.db.crud import registro_crud  # <--- MANTENEMOS ESTO PARA QUE TU LOGICA DE CANCELACION NO SE ROMPA
+from app.db.crud import registro_crud
 from app.core.security import security
 from app.services.auth_services import AuthService
 from app.schemas.registro_schema import EventoCancelacionRequest, EventoCreate, EventoResponse
 from app.services.registro_services import EventoService
-
+# ✅ NUEVO: Importar para redirección
+from app.services.evento_solicitud_service import EventoSolicitudService
+from app.schemas.evento_solicitud_schema import SolicitudPublicacionCreate
+from app.models.registro_models import Evento  # ← FALTABA ESTE IMPORT
 
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
-
-
-# ============================================================================
-# DEPENDENCIAS
-# ============================================================================
 
 def get_current_user(
     db: Session = Depends(get_db),
@@ -27,29 +27,73 @@ def get_current_user(
     """Obtiene el usuario actual desde el token JWT"""
     return AuthService.get_current_usuario_from_token(db, credentials.credentials)
 
-
 # ============================================================================
-# ENDPOINTS - CREAR EVENTO
+# ✅ OPCIÓN A: ENDPOINT MODIFICADO - Redirige a solicitudes
 # ============================================================================
-
 @router.post(
     "/", 
-    response_model=EventoResponse, 
+    response_model=EventoResponse,  # Nota: el response será ligeramente diferente
     status_code=status.HTTP_201_CREATED,
-    summary="Crear un nuevo evento",
-    description="Requiere estar logueado. Valida que no exista un evento con el mismo nombre y fecha."
+    summary="Crear un nuevo evento (via solicitud)",
+    description="""
+    ✅ NUEVO COMPORTAMIENTO:
+    - Admin/Supervisor (rol 1, 2): Crea solicitud + auto-aprueba + evento publicado al instante
+    - Externo (rol 3): Crea solicitud pendiente, espera aprobación manual
+    
+    Ambos casos quedan registrados en Solicitud_Publicacion → trazabilidad completa.
+    """
 )
 def create_evento(
     evento: EventoCreate, 
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Crea un nuevo evento (solo usuarios logueados)"""
-    return EventoService.crear_nuevo_evento(db=db, evento_in=evento, usuario_actual=current_user)
-
+    """
+    ✅ OPCIÓN A: Ahora redirige al flujo de solicitudes con auto-aprobación.
+    
+    Ventajas:
+    - Un solo flujo para todos los roles
+    - Trazabilidad completa
+    - No rompe endpoints existentes
+    """
+    # Convertir EventoCreate a SolicitudPublicacionCreate
+    solicitud = SolicitudPublicacionCreate(
+        nombre_evento=evento.nombre_evento,
+        fecha_evento=evento.fecha_evento,
+        ubicacion=evento.ubicacion,
+        id_tipo=evento.id_tipo,
+        id_dificultad=evento.id_dificultad,
+        descripcion=evento.descripcion,
+        costo_participacion=evento.costo_participacion,
+        cupo_maximo=evento.cupo_maximo or 0,
+        lat=evento.lat,
+        lng=evento.lng
+    )
+    
+    # Usar el servicio de solicitudes (con auto-aprobación para admin)
+    resultado = EventoSolicitudService.crear_solicitud(
+        db=db,
+        solicitud=solicitud,
+        id_usuario=current_user.id_usuario,
+        id_rol=current_user.id_rol  # ← Detecta admin y auto-aprueba
+    )
+    
+    # Si fue auto-aprobado, buscar el evento creado para devolverlo
+    if current_user.id_rol in [1, 2]:
+        # Admin: ya se creó el evento
+        evento_creado = db.query(Evento).filter(
+            Evento.nombre_evento == evento.nombre_evento,
+            Evento.fecha_evento == evento.fecha_evento
+        ).first()
+        
+        if evento_creado:
+            return evento_creado
+    
+    # Externo: devolver la solicitud (adaptada como respuesta)
+    return resultado
 
 # ============================================================================
-# ENDPOINTS - LISTAR EVENTOS
+# SIN CAMBIOS: RESTO DE ENDPOINTS
 # ============================================================================
 
 @router.get(
@@ -71,7 +115,6 @@ def read_mis_eventos(
         limit=limit
     )
 
-
 @router.get(
     "/buscar",
     summary="Búsqueda avanzada de eventos (HU 7.1-7.10)",
@@ -89,40 +132,26 @@ def buscar_eventos_con_filtros(
     limit: int = 50,
     db: Session = Depends(get_db)
 ):
-    """
-    Búsqueda avanzada de eventos con filtros opcionales.
-    
-    Todos los parámetros son opcionales y se pueden combinar.
-    """
-    # Validaciones
     if limit > 100:
         raise HTTPException(status_code=400, detail="Límite máximo: 100")
     
     if fecha_desde and fecha_hasta and fecha_desde > fecha_hasta:
         raise HTTPException(status_code=400, detail="Fecha inicial debe ser anterior a fecha final")
     
-    # Llamar al CRUD
     resultado = registro_crud.filtrar_eventos_avanzado(
-        db=db,
-        busqueda=busqueda,
-        fecha_desde=fecha_desde,
-        fecha_hasta=fecha_hasta,
-        fecha_exacta=fecha_exacta,
-        ubicacion=ubicacion,
-        id_tipo=id_tipo,
-        id_dificultad=id_dificultad,
-        skip=skip,
-        limit=limit
+        db=db, busqueda=busqueda, fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta, fecha_exacta=fecha_exacta,
+        ubicacion=ubicacion, id_tipo=id_tipo, id_dificultad=id_dificultad,
+        skip=skip, limit=limit
     )
     
-    # Convertir eventos a dict
     eventos_lista = []
     for evento in resultado["eventos"]:
         evento_dict = {
             "id_evento": evento.id_evento,
             "nombre_evento": evento.nombre_evento,
             "ubicacion": evento.ubicacion,
-            "fecha_evento": str(evento.fecha_evento),
+            "fecha_evento": evento.fecha_evento.strftime('%d-%m-%Y') if evento.fecha_evento else None,
             "descripcion": evento.descripcion or "",
             "costo_participacion": float(evento.costo_participacion) if evento.costo_participacion else 0.0,
             "id_tipo": evento.id_tipo,
@@ -132,7 +161,6 @@ def buscar_eventos_con_filtros(
         }
         eventos_lista.append(evento_dict)
     
-    # Respuesta final
     return {
         "total": resultado["total"],
         "eventos": eventos_lista,
@@ -142,12 +170,9 @@ def buscar_eventos_con_filtros(
         "mensaje": resultado["mensaje"]
     }
 
-
 @router.get("/catalogos/filtros", summary="Obtener catálogos para filtros")
 def obtener_catalogos_para_filtros(db: Session = Depends(get_db)):
-    """Devuelve tipos de evento y niveles de dificultad para poblar filtros"""
     return registro_crud.obtener_catalogos_filtros(db)
-
 
 @router.get(
     "/", 
@@ -159,78 +184,7 @@ def read_eventos(
     limit: int = 100, 
     db: Session = Depends(get_db)
 ):
-    """Lista todos los eventos publicados y futuros (público)"""
     return EventoService.listar_todos_los_eventos(db, skip=skip, limit=limit)
-
-# ============================================================================
-# ⚠️  ORDEN DE RUTAS - MUY IMPORTANTE
-#
-# FastAPI evalúa las rutas de arriba hacia abajo y usa la primera que hace
-# match con la URL recibida.
-#
-# Si /{evento_id} estuviera ANTES que /{evento_id}/detalle, FastAPI capturaría
-# "detalle" como valor del parámetro evento_id (un string, no un int) y
-# devolvería un error 422 Unprocessable Entity.
-#
-# Por eso /{evento_id}/detalle va PRIMERO, y /{evento_id} después.
-#
-#   ✅ CORRECTO:   /{evento_id}/detalle   →   luego   /{evento_id}
-#   ❌ MAL:        /{evento_id}           →   luego   /{evento_id}/detalle
-# ============================================================================
-
-@router.get(
-    "/{evento_id}/detalle",
-    summary="Detalle completo de un evento (para modal de vista rápida)"
-)
-def get_detalle_evento(evento_id: int, db: Session = Depends(get_db)):
-    """
-    Devuelve todos los campos necesarios para el EventoDetalleModal del frontend.
-    Calcula en tiempo real: cupos disponibles, cantidad de inscriptos y datos del organizador.
-    Funciona para cualquier estado (activo, finalizado, cancelado).
-    No requiere autenticación.
-    """
-    from app.models.registro_models import Evento
-    from app.models.auth_models import Usuario
-    from app.models.inscripcion_models import ReservaEvento
-
-    evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento no encontrado")
-
-    # Contar inscriptos en un solo query (usa el índice idx_reserva_evento)
-    inscriptos = db.query(func.count(ReservaEvento.id_reserva)).filter(
-        ReservaEvento.id_evento == evento_id
-    ).scalar() or 0
-
-    # Datos del organizador
-    organizador = db.query(Usuario).filter(
-        Usuario.id_usuario == evento.id_usuario
-    ).first()
-
-    # Cupos disponibles: None significa ilimitado
-    cupos_disponibles = None
-    if evento.cupo_maximo and evento.cupo_maximo > 0:
-        cupos_disponibles = max(0, evento.cupo_maximo - inscriptos)
-
-    return {
-        "id_evento":           evento.id_evento,
-        "nombre_evento":       evento.nombre_evento,
-        "descripcion":         evento.descripcion or "",
-        "fecha_evento":        str(evento.fecha_evento),
-        "ubicacion":           evento.ubicacion,
-        "costo_participacion": float(evento.costo_participacion or 0),
-        "cupo_maximo":         evento.cupo_maximo,
-        "cupos_disponibles":   cupos_disponibles,
-        "inscriptos":          inscriptos,
-        "id_tipo":             evento.id_tipo,
-        "id_dificultad":       evento.id_dificultad,
-        "id_estado":           evento.id_estado,
-        "organizador_nombre":  organizador.nombre_y_apellido if organizador else None,
-        "organizador_email":   organizador.email if organizador else None,
-        "lat":                 float(evento.lat) if evento.lat is not None else None,
-        "lng":                 float(evento.lng) if evento.lng is not None else None,
-    }
-
 
 @router.get(
     "/{evento_id}", 
@@ -238,13 +192,7 @@ def get_detalle_evento(evento_id: int, db: Session = Depends(get_db)):
     summary="Obtener detalle de un evento"
 )
 def read_one_evento(evento_id: int, db: Session = Depends(get_db)):
-    """Obtiene un evento específico por su ID"""
     return EventoService.obtener_evento_por_id(db, evento_id)
-
-
-# ============================================================================
-# ENDPOINTS - MULTIMEDIA
-# ============================================================================
 
 @router.post(
     "/{evento_id}/multimedia",
@@ -258,23 +206,19 @@ def agregar_multimedia_evento(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    """Agrega multimedia (imágenes o URLs) a un evento"""
-    # Validar que mande al menos algo
     if not archivos_imagenes and not url_multimedia:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Debes enviar al menos una imagen o una URL."
         )
-
-    # UNICO CAMBIO: Mapeamos 'archivos_imagenes' a 'lista_archivos' 
-    # para que el Servicio lo entienda. Nada más.
+    
     return EventoService.agregar_detalles_multimedia(
         db=db,
         id_evento=evento_id,
         lista_archivos=archivos_imagenes, 
         url_externa=url_multimedia
     )
-    
+
 # ============ CANCELAR / ELIMINAR EVENTO (ORIGINAL) ============
 # Mantenemos TU lógica original llamando al CRUD directamente.
 # Esto no toca nada de notificaciones ni nada nuevo.

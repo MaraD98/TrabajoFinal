@@ -1,9 +1,3 @@
-"""
-Servicio de Edición de Eventos - VERSIÓN DEFINITIVA
-Archivo: app/services/editar_services.py
-
-🔥 SOLUCIÓN DEFINITIVA AL ERROR 422
-"""
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models.registro_models import Evento
@@ -22,84 +16,103 @@ ID_ESTADO_PUBLICADO = 3
 class EditarEventoService:
     
     # ========================================================================
-    # MÉTODO PRINCIPAL: ACTUALIZAR EVENTO
+    # ✅ MODIFICADO: ACTUALIZAR EVENTO CON AUTO-APROBACIÓN
     # ========================================================================
-    
     @staticmethod
     def actualizar_evento(
-        db: Session, 
-        id_evento: int, 
-        evento_update: EventoEditar, 
+        db: Session,
+        id_evento: int,
+        evento_update: EventoEditar,
         id_usuario_actual: int,
         id_rol_actual: int
     ):
         """
-        Actualizar evento según el rol del usuario:
-        - Admin/Supervisor (rol 1 o 2): cambios directos
-        - Organizador (rol 3): crear solicitud de edición
+        Actualizar evento según el rol del usuario.
+        
+        ✅ NUEVO COMPORTAMIENTO:
+        - Admin/Supervisor (rol 1, 2): Solicitud + auto-aprobación + cambios aplicados
+        - Externo (rol 3): Solicitud pendiente (espera aprobación manual)
         """
         # Verificar que el evento existe
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
+                status_code=status.HTTP_404_NOT_FOUND,
                 detail="Evento no encontrado"
             )
-
+        
         es_admin = id_rol_actual in [1, 2]
         es_dueno = evento.id_usuario == id_usuario_actual
-
+        
         # Verificar permisos
         if not es_admin and not es_dueno:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, 
+                status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permiso para editar este evento"
             )
-
-        # Redirigir según rol
+        
+        # ✅ CAMBIO: Admin también crea solicitud, pero se auto-aprueba
         if es_admin:
-            return EditarEventoService._aplicar_cambios_directo(
-                db=db, 
-                evento=evento, 
-                evento_update=evento_update, 
+            return EditarEventoService._editar_con_autoaprobacion(
+                db=db,
+                evento=evento,
+                evento_update=evento_update,
                 id_usuario=id_usuario_actual
             )
         else:
             return EditarEventoService._crear_solicitud_edicion(
-                db=db, 
-                evento=evento, 
-                evento_update=evento_update, 
+                db=db,
+                evento=evento,
+                evento_update=evento_update,
                 id_usuario=id_usuario_actual
             )
 
     # ========================================================================
-    # MÉTODO PRIVADO: CAMBIOS DIRECTOS (ADMIN)
+    # ✅ NUEVO: EDITAR CON AUTO-APROBACIÓN (ADMIN)
     # ========================================================================
-    
     @staticmethod
-    def _aplicar_cambios_directo(
-        db: Session, 
-        evento: Evento, 
-        evento_update: EventoEditar, 
+    def _editar_con_autoaprobacion(
+        db: Session,
+        evento: Evento,
+        evento_update: EventoEditar,
         id_usuario: int
     ):
         """
-        Admin aplica cambios directamente al evento.
-        Registra en historial de ediciones.
+        Admin/Supervisor edita con auto-aprobación:
+        1. Crea solicitud
+        2. La marca como aprobada inmediatamente
+        3. Aplica los cambios
+        4. Registra en historial
+        
+        → Trazabilidad completa + sin burocracia
         """
         cambios = EditarEventoService._detectar_cambios(evento, evento_update)
-        
         if not cambios:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, 
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No se detectaron cambios"
             )
-
-        # Aplicar cambios al evento
+        
+        # 1. Crear solicitud
+        solicitud = solicitud_edicion_crud.crear_solicitud_edicion(
+            db=db,
+            id_evento=evento.id_evento,
+            id_usuario=id_usuario,
+            cambios_propuestos=cambios
+        )
+        
+        # 2. Auto-aprobar la solicitud inmediatamente
+        solicitud_edicion_crud.aprobar_solicitud(
+            db=db,
+            solicitud=solicitud,
+            id_admin=id_usuario
+        )
+        
+        # 3. Aplicar cambios al evento
         for campo, valores in cambios.items():
-            setattr(evento, campo, valores["nuevo"])
-
-        # Registrar en historial
+            setattr(evento, campo, valores["valor_real"])  # valor_real sigue siendo el objeto Python original aquí, antes de serializar
+        
+        # 4. Registrar en historial
         historial = HistorialEdicionEvento(
             id_evento=evento.id_evento,
             id_usuario=id_usuario,
@@ -107,8 +120,8 @@ class EditarEventoService:
         )
         db.add(historial)
         db.flush()
-
-        # Registrar detalles de cada cambio
+        
+        # 5. Registrar detalles de cada cambio
         for campo, valores in cambios.items():
             detalle = DetalleCambioEvento(
                 id_historial_edicion=historial.id_historial_edicion,
@@ -117,14 +130,20 @@ class EditarEventoService:
                 valor_nuevo=str(valores["nuevo"])
             )
             db.add(detalle)
-
+        
         db.commit()
         db.refresh(evento)
         
-        return evento
+        return {
+            "mensaje": "[AUTO-APROBADO] Cambios aplicados directamente por Admin/Supervisor",
+            "id_evento": evento.id_evento,
+            "id_solicitud": solicitud.id_solicitud_edicion,
+            "cambios_aplicados": list(cambios.keys()),
+            "trazabilidad": "Solicitud creada y auto-aprobada para mantener historial"
+        }
 
     # ========================================================================
-    # MÉTODO PRIVADO: CREAR SOLICITUD (ORGANIZADOR)
+    # MÉTODO PRIVADO: CREAR SOLICITUD (ORGANIZADOR EXTERNO)
     # ========================================================================
     
     @staticmethod
@@ -200,7 +219,8 @@ class EditarEventoService:
                 cambios[campo] = {
                     "anterior": str(valor_actual) if valor_actual is not None else "",
                     "nuevo": str(valor_nuevo),
-                    "valor_real": valor_nuevo  # Valor original para aplicar
+                    "valor_real": valor_nuevo  # ✅ FIX 1: se mantiene como objeto Python para _editar_con_autoaprobacion
+                                               # El CRUD lo serializa con default=str al hacer json.dumps
                 }
 
         return cambios
@@ -233,18 +253,23 @@ class EditarEventoService:
                 detail="Evento no encontrado"
             )
 
-        # Parsear cambios propuestos
-        try:
-            cambios = json.loads(solicitud.cambios_propuestos)
-        except json.JSONDecodeError:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al parsear cambios propuestos"
-            )
+        # ✅ FIX 2: cambios_propuestos es Text (string), manejar ambos casos por si acaso
+        cambios_raw = solicitud.cambios_propuestos
+        if isinstance(cambios_raw, str):
+            try:
+                cambios = json.loads(cambios_raw)
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error al parsear cambios propuestos"
+                )
+        else:
+            cambios = cambios_raw  # ya es dict (por si SQLAlchemy lo deserializó)
 
         # Aplicar cambios al evento
+        # Tras el round-trip JSON, valor_real viene como string → usar "nuevo"
         for campo, valores in cambios.items():
-            setattr(evento, campo, valores["valor_real"])
+            setattr(evento, campo, valores.get("valor_real") or valores.get("nuevo"))
 
         # Registrar en historial
         historial = HistorialEdicionEvento(
@@ -321,15 +346,18 @@ class EditarEventoService:
         }
 
     # ========================================================================
-    # ✅ OBTENER MIS SOLICITUDES (ORGANIZADOR)
+    # ✅ CORREGIDO: OBTENER MIS SOLICITUDES CON MULTIMEDIA
     # ========================================================================
     
     @staticmethod
     def obtener_mis_solicitudes_edicion(db: Session, id_usuario: int):
         """
         ✅ CORREGIDO: Obtiene las solicitudes de edición pendientes del usuario.
+        Incluye multimedia e imagen_url del evento para mostrar la imagen correcta.
         Retorna lista vacía si no hay solicitudes.
         """
+        from app.models.registro_models import EventoMultimedia  # ← IMPORTAR
+        
         # Obtener solicitudes pendientes del usuario
         solicitudes = db.query(SolicitudEdicionEvento).filter(
             SolicitudEdicionEvento.id_usuario == id_usuario,
@@ -350,11 +378,20 @@ class EditarEventoService:
             if not evento:
                 continue  # Saltar si el evento no existe
             
-            # Parsear cambios propuestos
-            try:
-                cambios = json.loads(solicitud.cambios_propuestos)
-            except:
-                cambios = {}
+            # ✅ NUEVO: Obtener multimedia del evento
+            multimedia = db.query(EventoMultimedia).filter(
+                EventoMultimedia.id_evento == evento.id_evento
+            ).all()
+            
+            # Parsear cambios propuestos — mismo fix: manejar str o dict
+            cambios_raw = solicitud.cambios_propuestos
+            if isinstance(cambios_raw, str):
+                try:
+                    cambios = json.loads(cambios_raw)
+                except:
+                    cambios = {}
+            else:
+                cambios = cambios_raw if cambios_raw else {}
 
             resultado.append({
                 "id_solicitud_edicion": solicitud.id_solicitud_edicion,
@@ -362,9 +399,12 @@ class EditarEventoService:
                 "nombre_evento": evento.nombre_evento,
                 "fecha_evento": evento.fecha_evento.isoformat() if evento.fecha_evento else None,
                 "ubicacion": evento.ubicacion,
+                "id_tipo": evento.id_tipo,
                 "cambios_propuestos": cambios,
                 "fecha_solicitud": solicitud.fecha_solicitud.isoformat() if solicitud.fecha_solicitud else None,
-                "estado": "Pendiente de aprobación"
+                "estado": "Pendiente de aprobación",
+                "multimedia": [{"url_archivo": m.url_archivo} for m in multimedia] if multimedia else None,
+                "imagen_url": None
             })
 
         return resultado
@@ -403,11 +443,15 @@ class EditarEventoService:
             if not evento or not usuario:
                 continue  # Saltar si faltan datos
             
-            # Parsear cambios propuestos
-            try:
-                cambios = json.loads(solicitud.cambios_propuestos)
-            except:
-                cambios = {}
+            # Parsear cambios propuestos — mismo fix: manejar str o dict
+            cambios_raw = solicitud.cambios_propuestos
+            if isinstance(cambios_raw, str):
+                try:
+                    cambios = json.loads(cambios_raw)
+                except:
+                    cambios = {}
+            else:
+                cambios = cambios_raw if cambios_raw else {}
 
             resultado.append({
                 "id_solicitud_edicion": solicitud.id_solicitud_edicion,
@@ -423,6 +467,7 @@ class EditarEventoService:
             })
 
         return resultado
+    
     @staticmethod
     def editar_evento_como_admin(
         db: Session,
