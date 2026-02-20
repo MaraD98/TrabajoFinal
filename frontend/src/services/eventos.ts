@@ -1,6 +1,5 @@
 import { api } from "./api";
 
-
 // Función para crear eventos
 export async function createEvento(eventoData: any, token: string) {
   const res = await api.post("/eventos", eventoData, {
@@ -152,20 +151,24 @@ export async function register(usuarioData: any) {
   return res.data; 
 }
 
-// REPORTES
 
-export async function getReporte(tipo: string, token: string, anio?: string, mes?: string) {
-  const res = await api.get(`/reportes/${tipo}`, {
-    params: { anio, mes }, // Axios se encarga de agregarlos a la URL si existen
-    headers: 
-    {
-      Authorization: `Bearer ${token}`,
-    },
+// ============================================================================
+// REPORTES
+// ============================================================================
+
+/**
+ * Obtiene el reporte general basado en el rol del usuario (token).
+ * Soporta filtros opcionales de año y mes para roles Admin/Supervisor.
+ */
+export async function getReporteGeneral(token: string, anio?: number, mes?: number) {
+  const res = await api.get('/reportes/', { 
+    params: { anio, mes }, 
+    headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
 }
 
-// Exportar un reporte en CSV (descargar archivo)
+ //Exporta un reporte específico en formato CSV.
 export async function exportReporteCSV(tipo: string, token: string) {
   const res = await api.get(`/reportes/export`, {
     params: { tipo },
@@ -175,20 +178,17 @@ export async function exportReporteCSV(tipo: string, token: string) {
     responseType: "blob",
   });
 
+  // Generación del archivo para descarga
   const url = window.URL.createObjectURL(new Blob([res.data]));
   const link = document.createElement("a");
   link.href = url;
-  link.setAttribute("download", `${tipo}.csv`);
+  link.setAttribute("download", `${tipo}_${new Date().toISOString().split('T')[0]}.csv`);
   document.body.appendChild(link);
   link.click();
+  
+  // Limpieza de memoria
   document.body.removeChild(link);
-}
-
-export async function getReporteGeneral(token: string) {
-  const res = await api.get('/reportes/', { 
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return res.data;
+  window.URL.revokeObjectURL(url);
 }
 
 // ============================================================================

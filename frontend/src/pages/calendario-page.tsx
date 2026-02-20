@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback} from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getEventosCalendario, inscribirseEvento } from '../services/eventos'; 
 import { useAuth } from '../context/auth-context'; 
 import '../styles/calendario.css';
@@ -197,7 +197,6 @@ export default function CalendarioPage() {
     return dias;
   };
 
-  // 2. CAMBIO: Comparación con formato DD-MM-AAAA
   const obtenerEventosDelDia = (dia: number) => {
     // Formato deseado: DD-MM-AAAA
     const fechaBuscada = `${String(dia).padStart(2, '0')}-${String(mes + 1).padStart(2, '0')}-${anio}`;
@@ -205,10 +204,17 @@ export default function CalendarioPage() {
     return (Array.isArray(eventos) ? eventos : []).filter(evento => {
         if (!evento.fecha_evento) return false;
         
-        // La API devuelve AAAA-MM-DD. La convertimos para comparar.
-        const fechaIso = String(evento.fecha_evento).substring(0, 10); // AAAA-MM-DD
-        const [y, m, d] = fechaIso.split('-');
-        const fechaEventoFormateada = `${d}-${m}-${y}`; // DD-MM-AAAA
+        // Limpiamos la fecha por si trae horas (nos quedamos con los primeros 10 caracteres)
+        const fechaStr = String(evento.fecha_evento).substring(0, 10); 
+        const partes = fechaStr.split('-');
+        
+        let fechaEventoFormateada = fechaStr; // Asumimos por defecto que ya viene bien
+        
+        // Si la primera parte tiene 4 caracteres, significa que viene como AAAA-MM-DD
+        if (partes[0].length === 4) {
+            // La damos vuelta a DD-MM-AAAA
+            fechaEventoFormateada = `${partes[2]}-${partes[1]}-${partes[0]}`;
+        }
         
         return fechaEventoFormateada === fechaBuscada;
     });
@@ -534,7 +540,13 @@ export default function CalendarioPage() {
                                             <div className="evento-ubicacion">
                                                 📍 {e.ubicacion}
                                                 {e.lat && e.lng && (
-                                                    <a href={`/mapa`} rel="noopener noreferrer" className="ver-mapa-link">Ver mapa</a>
+                                                    // 🔥 CAMBIO AQUÍ: Usamos Link y pasamos parámetros
+                                                    <Link 
+                                                        to={`/mapa?id=${e.id_evento}&lat=${e.lat}&lng=${e.lng}`} 
+                                                        className="ver-mapa-link"
+                                                    >
+                                                        Ver evento en el mapa
+                                                    </Link>
                                                 )}
                                             </div>
                                         )}
