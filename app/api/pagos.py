@@ -1,12 +1,15 @@
+import os
 from fastapi import APIRouter, HTTPException
-import mercadopago
 from pydantic import BaseModel
+from dotenv import load_dotenv 
+import mercadopago 
+
+load_dotenv()  # Carga las variables de entorno desde el archivo .env
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
-# Este es un Access Token de prueba (Sandbox). 
-# Después lo vas a cambiar por el tuyo real desde el panel de Mercado Pago.
-sdk = mercadopago.SDK("TEST-6214912886368099-021821-21850312aefd76e6522a5c59c0250506-433134750")
+# Ahora el SDK usa la variable del .env
+sdk = mercadopago.SDK(os.getenv("MERCADOPAGO_TOKEN"))
 
 # Definimos qué datos esperamos del Frontend
 class PagoRequest(BaseModel):
@@ -29,12 +32,12 @@ async def crear_preferencia(datos: PagoRequest):
                 }
             ],
             "back_urls": {
-                "success": "http://localhost:5173/perfil",
-                "failure": "http://localhost:5173/perfil",
-                "pending": "http://localhost:5173/perfil"
+                "success": "http://localhost:5173/perfil?tab=inscripciones",
+                "failure": "http://localhost:5173/perfil?tab=inscripciones",
+                "pending": "http://localhost:5173/perfil?tab=inscripciones"
             },
             # COMENTAMOS ESTO PARA QUE DEJE DE CHILLAR
-            # "auto_return": "approved", 
+            #"auto_return": "approved", 
             "external_reference": str(datos.id_reserva),
             "binary_mode": True 
         }
