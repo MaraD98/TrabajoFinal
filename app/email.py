@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+URL_LOGO = "https://i.ibb.co/5gpVx8Z5/WAKE-UP-LOGO.png"
+
 def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, fecha: str):
     REMITENTE = os.getenv("MAIL_REMITENTE")
     PASSWORD = os.getenv("MAIL_PASSWORD")
@@ -14,7 +16,6 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    # URLs para el backend con el prefijo correcto (agregado /api/v1/)
     url_alta = f"http://localhost:8000/api/v1/suscripcion/alta?email={email_destino}"
     url_baja = f"http://localhost:8000/api/v1/suscripcion/baja?email={email_destino}"
 
@@ -22,6 +23,9 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e; border-bottom: 1px solid #333;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
+                </div>
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">¡Reserva Confirmada!</h1>
                 </div>
@@ -79,6 +83,9 @@ def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, e
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Reserva Cancelada</h1>
                 </div>
@@ -127,13 +134,15 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     msg['To'] = email_destino
 
     url_baja = f"http://localhost:8000/api/v1/suscripcion/baja?email={email_destino}"
-    # 👇 Link modificado para pasar el ID del evento al frontend
     url_evento = f"http://localhost:5173/calendario?fecha={fecha_url}&evento_id={id_evento}"
 
     html_content = f"""
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
+                </div>
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">¡Nueva Ruta Disponible!</h1>
                 </div>
@@ -184,6 +193,9 @@ def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">Actualización de Evento</h1>
                 </div>
@@ -231,6 +243,9 @@ def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, mot
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Evento Cancelado</h1>
                 </div>
@@ -277,6 +292,9 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
                 <div style="background-color: #f4a261; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">Recordatorio de Pago</h1>
                 </div>
@@ -303,4 +321,48 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
         return True
     except Exception as e:
         print(f"⚠️ Error recordatorio: {e}")
+        return False
+
+def enviar_correo_pago_confirmado(email_destino: str, evento: str):
+    REMITENTE = os.getenv("MAIL_REMITENTE")
+    PASSWORD = os.getenv("MAIL_PASSWORD")
+
+    msg = EmailMessage()
+    msg['Subject'] = f'✅ Pago Confirmado: {evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
+                <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff;">¡Pago Acreditado!</h1>
+                </div>
+                <div style="padding: 30px; text-align: center;">
+                    <p style="font-size: 18px;">¡Todo listo!</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        Confirmamos que recibimos el pago para el evento <strong>{evento}</strong>. 
+                        Ya tenés tu lugar asegurado. ¡Nos vemos en la ruta!
+                    </p>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(REMITENTE, PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        print(f"⚠️ Error pago confirmado: {e}")
         return False
