@@ -13,7 +13,7 @@ from fastapi import HTTPException
 class EventoSolicitudService:
     """
     Servicio para gestionar solicitudes de publicación de eventos.
-   ✅ NUEVO: Auto-aprobación para Admin/Supervisor (rol 1 y 2)
+    ✅ NUEVO: Auto-aprobación para Admin/Supervisor (rol 1 y 2)
     """
     
     # ========================================================================
@@ -93,13 +93,13 @@ class EventoSolicitudService:
             return EventoSolicitudService._auto_aprobar_solicitud(
                 db=db,
                 solicitud=nueva_solicitud,
-                id_admin=id_usuario,
-                id_estado_inicial=2   # siempre Pendiente al crear; borrador se maneja con PUT
+                id_admin=id_usuario
             )
         
         # Externos esperan aprobación manual
         return nueva_solicitud
-   # ========================================================================
+    
+    # ========================================================================
     # ✅ NUEVO: AUTO-APROBACIÓN (interno)
     # ========================================================================
     @staticmethod
@@ -145,6 +145,10 @@ class EventoSolicitudService:
                 detail=f"Error al auto-aprobar y publicar evento: {str(e)}"
             )
     
+    # ========================================================================
+    # SIN CAMBIOS - RESTO DE MÉTODOS
+    # ========================================================================
+    
     @staticmethod
     def obtener_mis_solicitudes(db: Session, id_usuario: int):
         """Obtiene todas las solicitudes de un usuario específico"""
@@ -169,13 +173,14 @@ class EventoSolicitudService:
         return Solicitud_PublicacionCRUD.enviar_solicitud(db, id_solicitud)
 
     # ========================================================================
-    # GESTIÓN DE ALTAS (ADMIN)
+    # GESTIÓN DE ALTAS (ADMIN) - Sin cambios
     # ========================================================================
     
     @staticmethod
     def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int):
         """
-        Admin aprueba una solicitud de alta y publica el evento.
+        Admin aprueba una solicitud de alta MANUALMENTE.
+        (Usado cuando un externo envía solicitud)
         
         Flujo:
         1. Marcar solicitud como aprobada (estado 3)
