@@ -5,10 +5,12 @@ import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 import { Navbar } from "../components/navbar";
 import Toast from '../components/modals/Toast';
+import { useAuth } from "../context/auth-context";
 
 export default function SolicitudEventoPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const { user, getToken } = useAuth();
   
   // ========== Estados del Formulario ==========
   const [formData, setFormData] = useState({
@@ -58,7 +60,9 @@ export default function SolicitudEventoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    // ✅ Usamos tu helper en lugar de buscar a mano en el storage
+    const token = getToken(); 
+    
     if (!token) {
       showToast("Debes estar logueado para enviar una solicitud", "error");
       return;
@@ -72,12 +76,21 @@ export default function SolicitudEventoPage() {
       return;
     }
 
+    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
+    let nombreFinal = formData.nombre_evento;
+    if (user && (user.id_rol === 3 || user.id_rol === 4)) {
+      // Verificamos que no lo hayamos agregado previamente
+      if (!nombreFinal.includes("- By Wake Up Bikes!")) {
+        nombreFinal = `${nombreFinal.trim()} - By Wake Up Bikes!`;
+      }
+    }
+
     try {
       setLoading(true);
 
       // Preparar datos completos
       const datosAEnviar = {
-        nombre_evento: formData.nombre_evento,
+        nombre_evento: nombreFinal, // ✅ Usamos el nombre modificado
         ubicacion: formData.ubicacion,
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
@@ -125,7 +138,6 @@ export default function SolicitudEventoPage() {
 
   // ========== AUTOGUARDADO CORREGIDO ==========
   const autoGuardarBorrador = async () => {
-    // ✅ VALIDACIÓN ESTRICTA: Debe tener nombre, ubicación, fecha Y coordenadas
     const tieneDatosCompletos = 
       formData.nombre_evento.trim() !== "" &&
       formData.ubicacion.trim() !== "" &&
@@ -138,23 +150,33 @@ export default function SolicitudEventoPage() {
       return;
     }
 
+    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
+    let nombreFinal = formData.nombre_evento;
+    if (user && (user.id_rol === 3 || user.id_rol === 4)) {
+      // Verificamos que no lo hayamos agregado previamente
+      if (!nombreFinal.includes("- By Wake Up Bikes!")) {
+        nombreFinal = `${nombreFinal.trim()} - By Wake Up Bikes!`;
+      }
+    }
+
     try {
       setGuardandoBorrador(true);
-      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+      
+      // ✅ Usamos tu helper
+      const token = getToken();
 
       if (!token) {
         console.error('No hay token de autenticación');
         return;
       }
 
-      // ✅ Preparar datos asegurándose de que todo esté presente
       const datosAEnviar = {
-        nombre_evento: formData.nombre_evento,
+        nombre_evento: nombreFinal, // ✅ Usamos el nombre modificado
         ubicacion: formData.ubicacion,
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
         costo_participacion: formData.costo_participacion || 0,
-        cupo_maximo: formData.cupo_maximo || 10, // ✅ Default 10 si es 0
+        cupo_maximo: formData.cupo_maximo || 10,
         id_tipo: formData.id_tipo,
         id_dificultad: formData.id_dificultad,
         lat: formData.lat,
