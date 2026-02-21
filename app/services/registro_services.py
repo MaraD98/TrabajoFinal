@@ -205,36 +205,36 @@ class EventoService:
     # ========================================================================
     @staticmethod
     def actualizar_evento(db: Session, evento_id: int, evento_in: EventoCreate) -> EventoResponse:
-        """Actualiza un evento existente y notifica a los inscriptos."""
+        """Actualiza un evento existente y notifica a los que tienen reserva o están confirmados."""
         # 1. Validamos que el evento exista
         evento_existente = EventoService.obtener_evento_por_id(db, evento_id)
         
         # 2. Guardamos los cambios en la DB
         evento_actualizado = registro_crud.update_evento(db=db, evento_id=evento_id, evento_data=evento_in)
         
-        # 3. 📧 LÓGICA DE NOTIFICACIÓN: Solo a los que ya tienen reserva en este evento
+        # 3. 📧 NOTIFICACIÓN: Buscamos a usuarios con reserva Pendiente (1) o Confirmada (2)
         inscriptos = (
             db.query(Usuario)
             .join(ReservaEvento, Usuario.id_usuario == ReservaEvento.id_usuario)
-            .filter(ReservaEvento.id_evento == evento_id)
+            .filter(
+                ReservaEvento.id_evento == evento_id,
+                ReservaEvento.id_estado_reserva.in_([1, 2]) # <--- FILTRO CLAVE
+            )
             .all()
         )
 
         for i in inscriptos:
-            # Preparamos la fecha para la URL del calendario
             fecha_url = evento_actualizado.fecha_evento.strftime('%Y-%m-%d')
-            
-            enviar_correo_modificacion_evento(
-                email_destino=i.email,
-                nombre_evento=evento_actualizado.nombre_evento,
-                id_evento=evento_actualizado.id_evento,
-                fecha_url=fecha_url
-            )
+            if i.email:
+                enviar_correo_modificacion_evento(
+                    email_destino=i.email,
+                    nombre_evento=evento_actualizado.nombre_evento,
+                    id_evento=evento_actualizado.id_evento,
+                    fecha_url=fecha_url
+                )
             
         return evento_actualizado
-    # ========================================================================
-    # MULTIMEDIA
-    # ========================================================================
+    
     
     # ==========================================
     # LÓGICA DE NOTIFICACIÓN REAL POR CANCELACIÓN
@@ -242,21 +242,24 @@ class EventoService:
     @staticmethod
     def _procesar_notificaciones_cancelacion(db: Session, evento, motivo: str, id_eliminacion: int):
         """
-        Busca a los inscriptos y les envía el mail real de cancelación.
+        Busca a los usuarios (Pendientes y Confirmados) y envía el mail real de cancelación.
         """
-        # 1. Buscamos a los usuarios que tienen reserva en este evento
-        inscriptos = (
+        # 1. Buscamos a los usuarios con reserva activa (Pendiente=1 o Confirmada=2)
+        interesados = (
             db.query(Usuario)
             .join(ReservaEvento, Usuario.id_usuario == ReservaEvento.id_usuario)
-            .filter(ReservaEvento.id_evento == evento.id_evento)
+            .filter(
+                ReservaEvento.id_evento == evento.id_evento,
+                ReservaEvento.id_estado_reserva.in_([1, 2]) # <--- FILTRO CLAVE
+            )
             .all()
         )
         
-        if not inscriptos:
-            print(f"--- [INFO] El evento '{evento.nombre_evento}' no tenía reservas. ---")
+        if not interesados:
+            print(f"--- [INFO] El evento '{evento.nombre_evento}' no tenía reservas activas. ---")
         else:
             # 2. Enviamos el mail a cada uno
-            for participante in inscriptos:
+            for participante in interesados:
                 if participante.email:
                     enviar_correo_cancelacion_evento(
                         email_destino=participante.email,
