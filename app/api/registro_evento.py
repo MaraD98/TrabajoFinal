@@ -95,7 +95,61 @@ def create_evento(
 # ============================================================================
 # SIN CAMBIOS: RESTO DE ENDPOINTS
 # ============================================================================
+@router.get(
+    "/mis-eventos/resumen",
+    summary="Contadores rápidos para las tabs de Mis Eventos"
+)
+def resumen_mis_eventos(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    from datetime import date
+    from app.models.registro_models import Evento
+    from app.models.evento_solicitud_models import SolicitudPublicacion
+    from app.models.solicitud_edicion_models import SolicitudEdicionEvento
+    from app.models.eliminacion_models import EliminacionEvento
 
+    hoy = date.today()
+
+    # Eventos del usuario (excluye depurados)
+    eventos = db.query(Evento).filter(
+        Evento.id_usuario == current_user.id_usuario,
+        Evento.id_estado != 6
+    ).all()
+
+    activos = sum(1 for e in eventos 
+                  if e.id_estado == 3 and e.fecha_evento >= hoy)
+    historial = sum(1 for e in eventos 
+                    if e.id_estado in [4, 5] or (e.id_estado == 3 and e.fecha_evento < hoy))
+
+    # Solicitudes de publicación
+    solicitudes = db.query(SolicitudPublicacion).filter(
+        SolicitudPublicacion.id_usuario == current_user.id_usuario
+    ).all()
+
+    borradores = sum(1 for s in solicitudes if s.id_estado_solicitud == 1)
+    pendientes_aprobacion = sum(1 for s in solicitudes if s.id_estado_solicitud == 2)
+
+    # IDs de eventos del usuario para filtrar ediciones y eliminaciones
+    ids_eventos = [e.id_evento for e in eventos]
+
+    pendientes_edicion = db.query(SolicitudEdicionEvento).filter(
+        SolicitudEdicionEvento.id_evento.in_(ids_eventos),
+        SolicitudEdicionEvento.aprobada == None
+    ).count() if ids_eventos else 0
+
+    pendientes_eliminacion = db.query(EliminacionEvento).filter(
+        EliminacionEvento.id_evento.in_(ids_eventos),
+        EliminacionEvento.estado_solicitud == 'pendiente'
+    ).count() if ids_eventos else 0
+
+    return {
+        "activos": activos,
+        "historial": historial,
+        "borradores": borradores,
+        "pendientes": pendientes_aprobacion + pendientes_edicion + pendientes_eliminacion
+    }
+    
 @router.get(
     "/mis-eventos",
     response_model=List[EventoResponse],
