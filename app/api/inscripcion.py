@@ -80,6 +80,7 @@ def mis_pagos_pendientes(
             "fecha_evento":        str(e.fecha_evento),
             "costo_participacion": float(e.costo_participacion or 0),
             "ubicacion":           e.ubicacion,
+            "fecha_limite_pago":    r.fecha_expiracion.isoformat() if r.fecha_expiracion else None, 
         }
         for r, e in reservas
     ]
