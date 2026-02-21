@@ -121,6 +121,9 @@ export default function MisEventosPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // ── CONTADORES para las tabs (carga rápida desde /resumen)
+    const [contadores, setContadores] = useState({ activos: 0, pendientes: 0, historial: 0, borradores: 0 });
+
     const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
     const [modalEditar, setModalEditar] = useState(false);
     const [itemAEditar, setItemAEditar] = useState<Evento | Solicitud | null>(null);
@@ -138,6 +141,12 @@ export default function MisEventosPage() {
         onConfirm: (value: string) => void;
         type: 'warning' | 'danger' | 'info';
     }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
+
+    // ── Al montar: cargamos contadores + tab inicial (activos) ──
+    useEffect(() => {
+        cargarContadores();
+        cargarDatosPorVista('activos');
+    }, []);
 
     // ✅ NUEVO: Obtener rol del usuario
     const getUserRole = (): number => {
@@ -179,25 +188,51 @@ export default function MisEventosPage() {
         setDetalleEventoId(evento.id_evento);
     };
 
-    const cargarDatos = async () => {
+    // ── Carga rápida de contadores desde el nuevo endpoint ──
+    const cargarContadores = async () => {
         try {
-            setLoading(true);
-            setError(null);
-            const [eventosData, solicitudesData, eliminacionesData, edicionesData] = await Promise.all([
-                getMisEventos(),
-                getMisSolicitudes(),
-                getMisSolicitudesEliminacion(),
-                getMisSolicitudesEdicion()
-            ]);
-            setEventos(eventosData);
-            setSolicitudes(solicitudesData);
-            setSolicitudesEliminacion(eliminacionesData);
-            setSolicitudesEdicion(edicionesData);
+            const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/eventos/mis-eventos/resumen`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) setContadores(await res.json());
+        } catch {
+            // Silencioso: los contadores no son críticos
+        }
+    };
+
+    // ── Carga por demanda según la tab activa ──
+    const cargarDatosPorVista = async (vista: Vista) => {
+        setLoading(true);
+        setError(null);
+        try {
+            if (vista === 'activos' || vista === 'historial') {
+                const data = await getMisEventos();
+                setEventos(data);
+            } else if (vista === 'pendientes') {
+                const [solicitudesData, eliminacionesData, edicionesData] = await Promise.all([
+                    getMisSolicitudes(),
+                    getMisSolicitudesEliminacion(),
+                    getMisSolicitudesEdicion()
+                ]);
+                setSolicitudes(solicitudesData);
+                setSolicitudesEliminacion(eliminacionesData);
+                setSolicitudesEdicion(edicionesData);
+            } else if (vista === 'borradores') {
+                const data = await getMisSolicitudes();
+                setSolicitudes(data);
+            }
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Error al cargar eventos');
         } finally {
             setLoading(false);
         }
+    };
+
+    // ── cargarDatos: recarga la vista actual + contadores (usado después de acciones) ──
+    const cargarDatos = async () => {
+        await cargarDatosPorVista(vistaActiva);
+        await cargarContadores();
     };
 
     // ── FILTROS DE DATOS ────────────────────────────────────────
@@ -235,7 +270,6 @@ export default function MisEventosPage() {
     const pendientesAprobacion  = solicitudesPendientes;
     const pendientesEdicion     = solicitudesEdicion;
     const pendientesEliminacion = solicitudesEliminacion;
-    const totalPendientes = pendientesAprobacion.length + pendientesEdicion.length + pendientesEliminacion.length;
 
     // ── HELPERS ─────────────────────────────────────────────────
     const obtenerImagen = (item: ItemConImagen) => {
@@ -515,21 +549,19 @@ export default function MisEventosPage() {
                 <div className="mis-eventos-tabs">
                     <button className={`tab-btn ${vistaActiva === 'activos' ? 'active' : ''}`} onClick={() => setVistaActiva('activos')}>
                         Activos
-                        {eventosActivos.length > 0 && <span className="tab-count">{eventosActivos.length}</span>}
+                        {contadores.activos > 0 && <span className="tab-count">{contadores.activos}</span>}
                     </button>
                     <button className={`tab-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`} onClick={() => setVistaActiva('pendientes')}>
                         Pendientes
-                        {totalPendientes > 0 && <span className="tab-count tab-count--alert">{totalPendientes}</span>}
+                        {contadores.pendientes > 0 && <span className="tab-count tab-count--alert">{contadores.pendientes}</span>}
                     </button>
                     <button className={`tab-btn ${vistaActiva === 'historial' ? 'active' : ''}`} onClick={() => setVistaActiva('historial')}>
                         Historial
-                        {(eventosFinalizados.length + eventosCancelados.length) > 0 && (
-                            <span className="tab-count">{eventosFinalizados.length + eventosCancelados.length}</span>
-                        )}
+                        {contadores.historial > 0 && <span className="tab-count">{contadores.historial}</span>}
                     </button>
                     <button className={`tab-btn ${vistaActiva === 'borradores' ? 'active' : ''}`} onClick={() => setVistaActiva('borradores')}>
                         Borradores
-                        {solicitudesBorradores.length > 0 && <span className="tab-count">{solicitudesBorradores.length}</span>}
+                        {contadores.borradores > 0 && <span className="tab-count">{contadores.borradores}</span>}
                     </button>
                 </div>
 
@@ -653,6 +685,7 @@ export default function MisEventosPage() {
                 />
             )}
 
+            {/* Modal de detalle de evento */}
             <EventoDetalleModal
                 eventoId={detalleEventoId}
                 eventoPreview={detallePreview}
