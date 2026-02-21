@@ -1,13 +1,27 @@
-import { Phone, Mail, MapPin, Instagram, Facebook, Youtube } from 'lucide-react';
+import { useState } from 'react';
+import { Phone, Mail, MapPin, Instagram, Facebook, Youtube, Send } from 'lucide-react';
 import logoWakeUp from '../assets/wakeup-logo.png';
 import '../styles/footer.css';
 
+// Ajustá esta URL según tu backend (local o producción)
+const API_URL = 'http://localhost:8000';
+
 export const Footer = () => {
+  const [emailSuscripcion, setEmailSuscripcion] = useState("");
+
+  const handleSuscripcion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailSuscripcion) return;
+    
+    // Redirige a tu ruta de FastAPI para que el usuario vea el HTML de éxito/error
+    window.location.href = `${API_URL}/suscripcion/alta?email=${encodeURIComponent(emailSuscripcion)}`;
+  };
+
   return (
     <footer className="main-footer">
       <div className="footer-container">
         
-        {/* BRANDING */}
+        {/* BRANDING - Intacto */}
         <div className="footer-section brand">
           <a href="https://www.wakeupbikes.com/" target="_blank" rel="noopener noreferrer">
               <img src={logoWakeUp} alt="Wake Up" className="footer-logo" />
@@ -15,7 +29,7 @@ export const Footer = () => {
           <p>La comunidad más grande de ciclistas. Registra tus eventos, compite y pedalea con nosotros.</p>
         </div>
 
-        {/* CONTACTO */}
+        {/* CONTACTO - Intacto */}
         <div className="footer-section contact">
           <h4 className="footer-title">Contactanos</h4>
           <ul className="footer-contact-list">
@@ -32,7 +46,7 @@ export const Footer = () => {
           </ul>
         </div>
 
-        {/* REDES SOCIALES */}
+        {/* REDES SOCIALES Y NEWSLETTER - Agregamos el form abajo */}
         <div className="footer-section socials">
           <h4 className="footer-title">Redes Sociales</h4>
           <div className="social-container">
@@ -43,6 +57,22 @@ export const Footer = () => {
                <span style={{fontWeight: 'bold', fontSize: '10px'}}>Tk</span>
             </a>
           </div>
+
+          {/* PARTE NUEVA: Newsletter estilo profesional */}
+          <h4 className="footer-title" style={{ marginTop: '20px' }}>Newsletter</h4>
+          <form onSubmit={handleSuscripcion} className="newsletter-form">
+            <input 
+              type="email" 
+              placeholder="Email" 
+              className="newsletter-input"
+              value={emailSuscripcion}
+              onChange={(e) => setEmailSuscripcion(e.target.value)}
+              required 
+            />
+            <button type="submit" className="newsletter-button">
+              <Send size={18} color="black" />
+            </button>
+          </form>
         </div>
 
       </div>

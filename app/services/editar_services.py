@@ -8,6 +8,8 @@ from app.schemas.editar_schema import EventoEditar
 from app.db.crud import solicitud_edicion_crud
 from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_auditoria
 from datetime import datetime
+from app.email import enviar_correo_modificacion_evento
+from app.models.registro_models import ReservaEvento  
 import json
 
 ID_ESTADO_PUBLICADO = 3
@@ -81,7 +83,7 @@ class EditarEventoService:
         Admin/Supervisor edita con auto-aprobación:
         1. Crea solicitud
         2. La marca como aprobada inmediatamente
-        3. Aplica los cambios
+        3. Aplicar los cambios
         4. Registra en historial
         
         → Trazabilidad completa + sin burocracia
@@ -126,7 +128,7 @@ class EditarEventoService:
             detalle = DetalleCambioEvento(
                 id_historial_edicion=historial.id_historial_edicion,
                 campo_modificado=campo,
-                valor_anterior=str(valores["anterior"]),
+                valor_anterior=str(valor_actual) if (valor_actual := getattr(evento, campo, None)) is not None else "", # Mantenemos coherencia con anterior
                 valor_nuevo=str(valores["nuevo"])
             )
             db.add(detalle)
@@ -134,6 +136,23 @@ class EditarEventoService:
         db.commit()
         db.refresh(evento)
         
+        # 1. Buscamos a los inscriptos (Pendientes 1 y Confirmados 2)
+        inscriptos = db.query(ReservaEvento).filter(
+            ReservaEvento.id_evento == evento.id_evento,
+            ReservaEvento.id_estado_reserva.in_([1, 2])
+        ).all()
+
+        # 2. Notificamos a cada uno por mail
+        for reser in inscriptos:
+            if reser.usuario and reser.usuario.email:
+                enviar_correo_modificacion_evento(
+                    email_destino=reser.usuario.email,
+                    nombre_evento=evento.nombre_evento,
+                    id_evento=evento.id_evento,
+                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                )
+    
+        # 3. Devolvemos la respuesta detallada (la que venía de Main)
         return {
             "mensaje": "[AUTO-APROBADO] Cambios aplicados directamente por Admin/Supervisor",
             "id_evento": evento.id_evento,
@@ -299,14 +318,29 @@ class EditarEventoService:
 
         db.commit()
         db.refresh(evento)
+     
+        # 🚀 CORRECCIÓN AQUÍ: Filtramos por reservas Pendientes (1) y Confirmadas (2)
+        inscriptos = db.query(ReservaEvento).filter(
+            ReservaEvento.id_evento == evento.id_evento,
+            ReservaEvento.id_estado_reserva.in_([1, 2]) 
+        ).all()
 
+        for reser in inscriptos:
+            # Validamos que exista la relación con el usuario y tenga email
+            if reser.usuario and reser.usuario.email:
+                enviar_correo_modificacion_evento(
+                    email_destino=reser.usuario.email,
+                    nombre_evento=evento.nombre_evento,
+                    id_evento=evento.id_evento,
+                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                )
+        
         return {
             "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
             "id_evento": evento.id_evento,
             "nombre_evento": evento.nombre_evento,
             "cambios_aplicados": list(cambios.keys())
         }
-
     # ========================================================================
     # RECHAZAR SOLICITUD (ADMIN)
     # ========================================================================
@@ -544,6 +578,26 @@ class EditarEventoService:
         
         # 6. Guardar todo en auditoría
         guardar_cambios_auditoria(db, evento, historial, cambios_realizados)
+
+        # 👇 AGREGADO: Notificar a inscriptos (Pendientes 1 y Confirmados 2)
+        try:
+            from app.models.registro_models import ReservaEvento  # Aseguramos import local si es necesario
+            inscriptos = db.query(ReservaEvento).filter(
+                ReservaEvento.id_evento == evento.id_evento,
+                ReservaEvento.id_estado_reserva.in_([1, 2])
+            ).all()
+
+            for reser in inscriptos:
+                if reser.usuario and reser.usuario.email:
+                    enviar_correo_modificacion_evento(
+                        email_destino=reser.usuario.email,
+                        nombre_evento=evento.nombre_evento,
+                        id_evento=evento.id_evento,
+                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    )
+            print(f"✅ Notificaciones enviadas a {len(inscriptos)} usuarios desde edición directa.")
+        except Exception as e:
+            print(f"⚠️ Error al enviar correos en edición directa: {e}")
         
         return {
             "success": True,
