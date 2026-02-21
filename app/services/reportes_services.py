@@ -4,6 +4,7 @@ from sqlalchemy import func
 from app.models.auth_models import Usuario
 from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublicacion
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad 
+from app.models.inscripcion_models import ReservaEvento
 
 class ReporteService:
 
@@ -185,15 +186,59 @@ class ReporteService:
             "solicitudes_externas": solicitudes_externas
         }
 
-    # ---------------- OPERARIO (Rol 3) ----------------
+    # ---------------- ORGANIZACIÓN EXTERNA (Rol 3) ----------------
     @staticmethod
-    def reportes_operario(db: Session, id_usuario: int):
-        mis_eventos_total = db.query(func.count(Evento.id_evento)).filter(Evento.id_usuario == id_usuario).scalar()
-        resultados_estado = db.query(Evento.id_estado, func.count(Evento.id_evento)).filter(Evento.id_usuario == id_usuario).group_by(Evento.id_estado).all()
-        mis_eventos_por_estado = [{"estado": estado, "cantidad": cantidad} for estado, cantidad in resultados_estado]
+    def reportes_organizacion_externa(db: Session, id_usuario: int):
+        # 1. Estadísticas rápidas (Totales)
+        stats_base = ReporteService._get_mis_estadisticas(db, id_usuario)
+
+        # 2. LA GRILLA DETALLADA:
+        # Consultamos los eventos del usuario y contamos sus reservas
+        eventos_query = db.query(
+            Evento.id_evento,
+            Evento.nombre_evento,
+            Evento.fecha_evento,
+            Evento.id_estado,
+            TipoEvento.nombre.label("tipo_nombre"),
+            func.count(ReservaEvento.id_reserva).label("total_reservas")
+        ).join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)\
+         .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)\
+         .filter(Evento.id_usuario == id_usuario)\
+         .group_by(Evento.id_evento, TipoEvento.nombre)\
+         .order_by(Evento.fecha_evento.desc()).all()
+
+        # Formateamos para el Frontend
+        lista_eventos = [
+            {
+                "id": e.id_evento,
+                "nombre": e.nombre_evento,
+                "fecha": e.fecha_evento.strftime('%d/%m/%Y') if e.fecha_evento else "Sin fecha",
+                "estado": e.id_estado,
+                "tipo": e.tipo_nombre,
+                "reservas": e.total_reservas
+            } for e in eventos_query
+        ]
+
+        # 3. Reporte de categorías 
+        resultados_tipo = (
+            db.query(
+                TipoEvento.nombre, 
+                func.count(ReservaEvento.id_reserva) 
+            )
+            .join(Evento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+            .filter(Evento.id_usuario == id_usuario)
+            .group_by(TipoEvento.nombre).all()
+        )
+
+        rendimiento_tipo = [{"tipo": n, "cantidad": c} for n, c in resultados_tipo if c > 0]
+        
         return {
-            "mis_eventos_total": mis_eventos_total,
-            "mis_eventos_por_estado": mis_eventos_por_estado
+            "mis_eventos_total": stats_base["mis_eventos_total"],
+            "mis_eventos_por_estado": stats_base["mis_eventos_por_estado"],
+            "lista_eventos_detallada": lista_eventos,
+            "rendimiento_por_tipo": rendimiento_tipo,
+            "total_reservas_recibidas": sum(e["reservas"] for e in lista_eventos)
         }
 
     # ---------------- CLIENTE (Rol 4) ----------------

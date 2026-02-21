@@ -1254,11 +1254,20 @@ button:focus-visible,
 }
 
 .grafico-torta__color-box {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;      /* Bordes suavizados como tus tarjetas */
-  flex-shrink: 0;          /* Que no se deforme el cuadradito */
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.4);
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  margin-right: 10px;
+  /* Agregamos un borde para que si dos colores se ven iguales, se note la separación */
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.2);
+}
+
+.grafico-torta__leyenda-item {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03); /* Fondo sutil para agrupar nombre y color */
+  border-radius: 4px;
 }
 
 .grafico-torta__leyenda-item span {
@@ -1269,6 +1278,28 @@ button:focus-visible,
 .grafico-torta__leyenda-item strong {
   color: var(--color-text); /* El número resalta un poco más */
   margin-left: 4px;
+}
+
+.grafico-svg-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  width: 100%;
+}
+
+.leyenda-detallada {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.leyenda-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 /* ==========================================================================
@@ -1308,4 +1339,72 @@ button:focus-visible,
 .filter-select option {
   background-color: var(--color-bg-card);
   color: var(--color-text);
+}
+
+/* Estilos para la Tabla Detallada */
+.tabla-reportes-custom {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  color: #e0e0e0;
+}
+
+.tabla-reportes-custom th {
+  text-align: left;
+  padding: 12px;
+  background-color: #1a1a1a;
+  border-bottom: 2px solid #333;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.tabla-reportes-custom td {
+  padding: 15px 12px;
+  border-bottom: 1px solid #222;
+  font-size: 0.95rem;
+}
+
+.tabla-reportes-custom tr:hover {
+  background-color: #111;
+}
+
+/* Badges y Elementos visuales */
+.badge-tipo {
+  background: #333;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.reservas-indicator {
+  display: inline-block;
+  background: #4ade8022;
+  color: #4ade80;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #4ade8044;
+}
+
+.badge-estado {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.estado-3 { background: #4ade8022; color: #4ade80; } /* Publicado */
+.estado-2 { background: #fbbf2422; color: #fbbf24; } /* Pendiente */
+.estado-5 { background: #f8717122; color: #f87171; } /* Cancelado */
+
+.tabla-reportes-custom th, 
+.tabla-reportes-custom td {
+  text-align: center;
+}
+
+/* La primera columna siempre a la izquierda */
+.tabla-reportes-custom th:first-child,
+.tabla-reportes-custom td:first-child {
+  text-align: left;
 }
