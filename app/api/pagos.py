@@ -32,9 +32,9 @@ async def crear_preferencia(datos: PagoRequest):
                 }
             ],
             "back_urls": {
-                "success": "http://localhost:5173/perfil?tab=inscripciones",
-                "failure": "http://localhost:5173/perfil?tab=inscripciones",
-                "pending": "http://localhost:5173/perfil?tab=inscripciones"
+                "success": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones",
+                "failure": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones",
+                "pending": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones"
             },
             # COMENTAMOS ESTO PARA QUE DEJE DE CHILLAR
             #"auto_return": "approved", 
