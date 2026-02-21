@@ -15,7 +15,6 @@ import EventoDetalleModal from '../components/modals/EventoDetalleModal';
 import { Navbar } from '../components/navbar';
 import { Footer } from '../components/footer';
 
-
 const IMAGENES_TIPO: Record<number | string, string> = {
     1: "https://images.unsplash.com/photo-1615845522846-02f89af04c2e?q=80&w=1638&auto=format&fit=crop",
     2: "https://images.unsplash.com/photo-1629056528325-f328b5f27ae7?q=80&w=1170&auto=format&fit=crop",
@@ -25,18 +24,26 @@ const IMAGENES_TIPO: Record<number | string, string> = {
     6: "https://images.unsplash.com/photo-1757366225063-33e161f1a44c?q=80&w=1170&auto=format&fit=crop",
     default: "https://images.unsplash.com/photo-1517649763962-0c623066013b?q=80&w=800&auto=format&fit=crop"
 };
+
 const NOMBRES_TIPO: Record<number | string, string> = {
-    1: "Ciclismo de Ruta", 2: "Mountain Bike (MTB)", 3: "Rural Bike", 4: "Gravel", 5: "Cicloturismo", 6: "Entrenamiento / Social"
+    1: "Ciclismo de Ruta", 
+    2: "Mountain Bike (MTB)", 
+    3: "Rural Bike", 
+    4: "Gravel", 
+    5: "Cicloturismo", 
+    6: "Entrenamiento / Social"
 };
 
 type Vista = 'activos' | 'pendientes' | 'historial' | 'borradores';
 type FiltroHistorial = 'finalizados' | 'cancelados';
 type FiltroPendientes = 'aprobacion' | 'edicion' | 'eliminacion';
+
 type ItemConImagen = {
     id_tipo: number;
     multimedia?: { url_archivo: string }[];
     imagen_url?: string;
 };
+
 interface Evento {
     id_evento: number;
     nombre_evento: string;
@@ -141,12 +148,27 @@ export default function MisEventosPage() {
         cargarDatosPorVista('activos');
     }, []);
 
-    // ── Al cambiar de tab: cargamos solo lo necesario ──
-    useEffect(() => {
-        if (vistaActiva !== 'activos') {
-            cargarDatosPorVista(vistaActiva);
+    // ✅ NUEVO: Obtener rol del usuario
+    const getUserRole = (): number => {
+        const userDataStr = localStorage.getItem('user') || sessionStorage.getItem('user');
+        if (!userDataStr) return 3; // Por defecto externo
+        try {
+            const userData = JSON.parse(userDataStr);
+            return userData.id_rol || 3;
+        } catch {
+            return 3;
         }
-    }, [vistaActiva]);
+    };
+
+    // ✅ NUEVO: Determinar ruta de creación según rol
+    const getRutaCreacion = (): string => {
+        const rol = getUserRole();
+        // Admin (1) o Supervisor (2) usan /registro-evento
+        // Externos (3) usan /publicar-evento
+        return (rol === 1 || rol === 2) ? '/registro-evento' : '/publicar-evento';
+    };
+
+    useEffect(() => { cargarDatos(); }, []);
 
     const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') =>
         setToast({ mensaje, tipo });
@@ -427,8 +449,12 @@ export default function MisEventosPage() {
             <article key={solicitud.id_eliminacion} className="evento-card">
                 <div className="card-img-wrapper">
                     <span className="tipo-badge">{nombreTipo}</span>
-                    <img src={obtenerImagen(solicitud)} alt={solicitud.nombre_evento} className="card-img"
-                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGENES_TIPO.default; }} />
+                    <img 
+                        src={obtenerImagen(solicitud)} 
+                        alt={solicitud.nombre_evento} 
+                        className="card-img"
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGENES_TIPO.default; }} 
+                    />
                     <span className="estado-chip estado-chip--cancelado">🗑️ Baja solicitada</span>
                 </div>
                 <div className="card-content">
@@ -454,7 +480,12 @@ export default function MisEventosPage() {
             <article key={solicitud.id_solicitud_edicion} className="evento-card">
                 <div className="card-img-wrapper">
                     <span className="tipo-badge">{nombreTipo}</span>
-                    <img src={obtenerImagen(solicitud)} alt={solicitud.nombre_evento} className="card-img" onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGENES_TIPO.default; }}/>
+                    <img 
+                        src={obtenerImagen(solicitud)} 
+                        alt={solicitud.nombre_evento} 
+                        className="card-img" 
+                        onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = IMAGENES_TIPO.default; }}
+                    />
                     <span className="estado-chip estado-chip--pendiente">✏️ Edición pendiente</span>
                 </div>
                 <div className="card-content">
@@ -491,7 +522,7 @@ export default function MisEventosPage() {
             <h3>{title}</h3>
             {subtitle && <p>{subtitle}</p>}
             {showCreate && (
-                <Link to="/publicar-evento" className="btn-crear-empty">
+                <Link to={getRutaCreacion()} className="btn-crear-empty">
                     + Crear evento
                 </Link>
             )}
@@ -510,7 +541,7 @@ export default function MisEventosPage() {
                         <h1>Mis Eventos</h1>
                         <p>Gestioná todos tus eventos desde un solo lugar</p>
                     </div>
-                    <Link to="/publicar-evento" className="btn-crear-header">
+                    <Link to={getRutaCreacion()} className="btn-crear-header">
                         + Crear evento
                     </Link>
                 </div>
