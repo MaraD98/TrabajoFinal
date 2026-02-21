@@ -294,4 +294,42 @@ CREATE INDEX IF NOT EXISTS idx_solicitud_edicion_evento_id_evento
 CREATE INDEX IF NOT EXISTS idx_solicitud_edicion_pendientes
     ON Solicitud_Edicion_Evento(aprobada)
     WHERE aprobada IS NULL;
+-----------------------------------------------------------------------------------------------------------------------------------
+-- ÍNDICES DE RENDIMIENTO
+-- Agregados para optimizar las consultas más frecuentes del sistema.
+-- Se pueden ejecutar en DBeaver sobre la base existente sin afectar los datos.
+-- Con IF NOT EXISTS son seguros de re-ejecutar si ya existen.
+-----------------------------------------------------------------------------------------------------------------------------------
 
+-- ── Tabla Evento ────────────────────────────────────────────────────────────
+
+-- Acelera listar_eventos_por_usuario() llamado por /mis-eventos
+-- (filtra Evento.id_usuario = X, que sin índice hace full scan)
+CREATE INDEX IF NOT EXISTS idx_evento_usuario
+    ON Evento(id_usuario);
+
+-- Acelera todos los filtros por estado (activos, finalizados, cancelados)
+CREATE INDEX IF NOT EXISTS idx_evento_estado
+    ON Evento(id_estado);
+
+-- Índice combinado para la consulta más frecuente de mis-eventos-page.tsx:
+-- WHERE id_usuario = X AND id_estado != 6 ORDER BY fecha_evento DESC
+-- Cubre el filtro y el orden en un solo índice (más eficiente que dos separados)
+CREATE INDEX IF NOT EXISTS idx_evento_usuario_estado_fecha
+    ON Evento(id_usuario, id_estado, fecha_evento DESC);
+
+-- Acelera el calendario y la búsqueda avanzada (filtros por rango de fecha)
+CREATE INDEX IF NOT EXISTS idx_evento_fecha
+    ON Evento(fecha_evento DESC);
+
+-- ── Tabla Reserva_Evento ─────────────────────────────────────────────────────
+
+-- Acelera el COUNT de inscriptos en get_detalle_evento()
+-- (antes hacía full scan de Reserva_Evento para contar por id_evento)
+CREATE INDEX IF NOT EXISTS idx_reserva_evento
+    ON Reserva_Evento(id_evento);
+
+-- Acelera mis_pagos_pendientes(): filtra por id_usuario + id_estado_reserva
+-- El endpoint /inscripciones/mis-pagos-pendientes usa exactamente esta combinación
+CREATE INDEX IF NOT EXISTS idx_reserva_usuario_estado
+    ON Reserva_Evento(id_usuario, id_estado_reserva);

@@ -5,16 +5,16 @@ import "leaflet/dist/leaflet.css";
 import "../styles/registro-evento.css";
 import { useNavigate } from 'react-router-dom';
 import { Navbar } from "../components/navbar";
+import Toast from "../components/modals/Toast";
 
 export default function CreateEventPage() {
-  // 1. AQUI AGREGAMOS cupo_maximo AL ESTADO
   const [formData, setFormData] = useState({
     nombre_evento: "",
     ubicacion: "",
     fecha_evento: "",
     descripcion: "",
     costo_participacion: 0,
-    cupo_maximo: 0, // <--- NUEVO CAMPO AGREGADO
+    cupo_maximo: 0,
     id_tipo: 1,
     id_dificultad: 1,
     lat: null as number | null,
@@ -23,12 +23,17 @@ export default function CreateEventPage() {
 
   const [isSearching, setIsSearching] = useState(false);
   const [locationStatus, setLocationStatus] = useState<"idle" | "found" | "not-found">("idle");
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
 
   const token = localStorage.getItem("token");
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
   const navigate = useNavigate();
+
+  const showToast = (message: string, type: "success" | "error" | "info") => {
+    setToast({ message, type });
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -37,33 +42,32 @@ export default function CreateEventPage() {
     setFormData({ ...formData, [name]: value });
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!token) {
-    alert("Debes estar logueado para crear eventos");
-    return;
-  }
-  if (formData.lat === null || formData.lng === null) {
-    alert("Debes seleccionar una ubicación en el mapa o escribir una dirección válida");
-    return;
-  }
-  // Validación básica para cupo
-  if (formData.cupo_maximo <= 0) {
-    alert("El cupo máximo debe ser mayor a 0");
-    return;
-  }
-  try {
-    const evento = await createEvento(formData, token);
-    console.log("Evento creado:", evento);
-    alert("¡Evento creado exitosamente!");
-    navigate("/mis-eventos");
-  } catch (err) {
-    console.error("Error al crear evento:", err);
-    alert("Error al crear el evento. Por favor intenta nuevamente.");
-  }
-};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) {
+      showToast("Debes estar logueado para crear eventos", "error");
+      return;
+    }
+    if (formData.lat === null || formData.lng === null) {
+      showToast("Debes seleccionar una ubicación en el mapa o escribir una dirección válida", "error");
+      return;
+    }
+    if (formData.cupo_maximo <= 0) {
+      showToast("El cupo máximo debe ser mayor a 0", "error");
+      return;
+    }
+    try {
+      const evento = await createEvento(formData, token);
+      console.log("Evento creado:", evento);
+      showToast("¡Evento creado exitosamente!", "success");
+      setTimeout(() => navigate("/mis-eventos"), 2000);
+    } catch (err) {
+      console.error("Error al crear evento:", err);
+      showToast("Error al crear el evento. Por favor intenta nuevamente.", "error");
+    }
+  };
 
-const initMap = () => {
+  const initMap = () => {
     if (mapRef.current) {
       mapRef.current.remove();
     }
@@ -99,11 +103,7 @@ const initMap = () => {
       try {
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
-          {
-            headers: {
-              "User-Agent": "EventRegistrationApp/1.0",
-            },
-          }
+          { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
         );
         const data = await res.json();
         if (data && data.display_name) {
@@ -136,11 +136,7 @@ const initMap = () => {
           `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ar&q=${encodeURIComponent(
             formData.ubicacion
           )}&limit=1`,
-          {
-            headers: {
-              "User-Agent": "EventRegistrationApp/1.0",
-            },
-          }
+          { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
         );
         const data = await res.json();
 
@@ -195,6 +191,17 @@ const initMap = () => {
   return (
     <div className="event-registration">
       <Navbar /> 
+
+      {/* TOAST */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+          duration={toast.type === "success" ? 2000 : 4000}
+        />
+      )}
+
       <div className="event-registration__container">
         <div className="event-registration__header">
           <h1 className="event-registration__title">Crear Nuevo Evento</h1>
@@ -250,7 +257,6 @@ const initMap = () => {
                     className="event-form__select"
                     required
                   >
-                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Ciclismo de Ruta</option>
                     <option value={2}>Mountain Bike (MTB)</option>
                     <option value={3}>Rural Bike</option>
@@ -272,7 +278,6 @@ const initMap = () => {
                     className="event-form__select"
                     required
                   >
-                    {/* VALORES NUMÉRICOS CORRECTOS */}
                     <option value={1}>Básico</option>
                     <option value={2}>Intermedio</option>
                     <option value={3}>Avanzado</option>
@@ -333,7 +338,6 @@ const initMap = () => {
                   />
                 </div>
 
-                {/* 2. AQUÍ ESTÁ EL INPUT VISUAL PARA CUPO MÁXIMO */}
                 <div className="event-form__field">
                   <label htmlFor="cupo_maximo" className="event-form__label">
                     Cupo Máximo *
@@ -348,7 +352,7 @@ const initMap = () => {
                     min="1"
                     required
                   />
-                   <span className="event-form__hint">
+                  <span className="event-form__hint">
                     Límite de participantes
                   </span>
                 </div>
@@ -394,7 +398,6 @@ const initMap = () => {
           </div>
         </div>
       </div>
-      {/* <Footer />  */}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // src/components/AlertaPagosPendientes.tsx
-// Banner flotante de pagos pendientes - mismo estilo dark que el resto del proyecto
+// Banner flotante de pagos pendientes con cuenta regresiva individual
 
 import { useState, useEffect } from 'react';
 
@@ -10,6 +10,98 @@ interface PagoPendiente {
   fecha_evento: string;
   costo_participacion: number;
   ubicacion: string;
+  fecha_limite_pago: string; // ← NUEVO: debe venir del backend
+}
+
+// Hook para calcular tiempo restante de un deadline
+function useCuentaRegresiva(fechaLimite: string) {
+  const calcular = () => {
+    const diff = new Date(fechaLimite).getTime() - Date.now();
+    if (diff <= 0) return null; // vencido
+
+    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+    return { dias, horas, minutos, segundos, diff };
+  };
+
+  const [tiempo, setTiempo] = useState(calcular);
+
+  useEffect(() => {
+    const interval = setInterval(() => setTiempo(calcular()), 1000);
+    return () => clearInterval(interval);
+  }, [fechaLimite]);
+
+  return tiempo;
+}
+
+// Subcomponente: cuenta regresiva visual para un pago
+function CuentaRegresiva({ fechaLimite }: { fechaLimite: string }) {
+  const tiempo = useCuentaRegresiva(fechaLimite);
+
+  if (!tiempo) {
+    return (
+      <span style={{
+        display: 'inline-block',
+        background: 'rgba(239,68,68,0.15)',
+        color: '#ef4444',
+        border: '1px solid rgba(239,68,68,0.3)',
+        borderRadius: 6, padding: '2px 8px',
+        fontSize: '0.72rem', fontWeight: 700,
+        marginTop: 4
+      }}>
+        ❌ Plazo vencido
+      </span>
+    );
+  }
+
+  // Color según urgencia
+  const esUrgente = tiempo.diff < 1000 * 60 * 60 * 24; // menos de 1 día
+  const esCritico = tiempo.diff < 1000 * 60 * 60 * 3;  // menos de 3 horas
+  const color = esCritico ? '#ef4444' : esUrgente ? '#f97316' : '#f59e0b';
+
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <span style={{ color: '#666', fontSize: '0.7rem', display: 'block', marginBottom: 3 }}>
+        ⏳ Tiempo restante para pagar:
+      </span>
+      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        {tiempo.dias > 0 && (
+          <Bloque valor={tiempo.dias} etiqueta="d" color={color} />
+        )}
+        <Bloque valor={tiempo.horas} etiqueta="h" color={color} />
+        <Bloque valor={tiempo.minutos} etiqueta="m" color={color} />
+        <Bloque valor={tiempo.segundos} etiqueta="s" color={color} />
+        {esCritico && (
+          <span style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 800, animation: 'parpadeo 1s infinite' }}>
+            ⚠️
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Bloque({ valor, etiqueta, color }: { valor: number; etiqueta: string; color: string }) {
+  return (
+    <div style={{
+      background: 'rgba(0,0,0,0.4)',
+      border: `1px solid ${color}44`,
+      borderRadius: 5,
+      padding: '2px 5px',
+      textAlign: 'center',
+      minWidth: 32
+    }}>
+      <span style={{ color, fontWeight: 800, fontSize: '0.82rem', fontFamily: 'monospace' }}>
+        {String(valor).padStart(2, '0')}
+      </span>
+      <span style={{ color: '#555', fontSize: '0.6rem', display: 'block', lineHeight: 1 }}>
+        {etiqueta}
+      </span>
+    </div>
+  );
 }
 
 export default function AlertaPagosPendientes() {
@@ -58,7 +150,7 @@ export default function AlertaPagosPendientes() {
             overflow: 'hidden',
             animation: 'slideUpAlert 0.25s ease'
           }}>
-            {/* Header panel */}
+            {/* Header */}
             <div style={{
               padding: '14px 16px',
               background: 'rgba(245,158,11,0.1)',
@@ -79,7 +171,7 @@ export default function AlertaPagosPendientes() {
             </div>
 
             {/* Lista */}
-            <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
               {pendientes.map(p => (
                 <div key={p.id_reserva} style={{
                   padding: '12px 16px',
@@ -101,6 +193,11 @@ export default function AlertaPagosPendientes() {
                   }}>
                     ${p.costo_participacion.toLocaleString('es-AR')} pendiente
                   </span>
+
+                  {/* ← CUENTA REGRESIVA individual */}
+                  {p.fecha_limite_pago && (
+                    <CuentaRegresiva fechaLimite={p.fecha_limite_pago} />
+                  )}
                 </div>
               ))}
             </div>
@@ -178,6 +275,10 @@ export default function AlertaPagosPendientes() {
         @keyframes slideUpAlert {
           from { opacity: 0; transform: translateY(10px) }
           to   { opacity: 1; transform: translateY(0) }
+        }
+        @keyframes parpadeo {
+          0%, 100% { opacity: 1 }
+          50%       { opacity: 0.2 }
         }
       `}</style>
     </>

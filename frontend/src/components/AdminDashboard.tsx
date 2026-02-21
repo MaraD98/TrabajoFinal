@@ -449,42 +449,42 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes">
                 <h3>📝 Altas ({solicitudesAlta.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
-                      <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
-                      <th style={altaSort.thStyle('ubicacion')} onClick={() => altaSort.toggle('ubicacion')}>Ubicación{altaSort.arrow('ubicacion')}</th>
-                      <th style={altaSort.thStyle('costo_participacion', 'center')} onClick={() => altaSort.toggle('costo_participacion')}>Costo{altaSort.arrow('costo_participacion')}</th>
-                      <th style={{ textAlign: 'left', cursor: 'default' }}>Tipo / Dificultad</th>
-                      <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Usuario ID{altaSort.arrow('id_usuario')}</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrarPorSearch(altaSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(altaSort.sorted, 'nombre_evento').map(s => (
-                        <tr key={s.id_solicitud}>
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>{s.nombre_evento}</td>
-                          <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
-                          <td style={{ textAlign: 'left' }}><small>{s.ubicacion || '—'}</small></td>
-                          <td style={{ textAlign: 'center' }}>{formatCosto(s.costo_participacion)}</td>
-                          <td style={{ textAlign: 'left' }}>
-                            <small style={{ color: '#a8a8a8' }}>
-                              {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
-                              {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
-                            </small>
-                          </td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{s.id_usuario}</small></td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
-                            <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
+                        <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
+                        <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Solicitante{altaSort.arrow('id_usuario')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Fecha Solicitud</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Tipo / Dificultad</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrarPorSearch(altaSort.sorted, 'nombre_evento').length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(altaSort.sorted, 'nombre_evento').map(s => (
+                          <tr key={s.id_solicitud}>
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{s.id_usuario}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>—</small></td>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#a8a8a8' }}>
+                                {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
+                                {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
+                              </small>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
+                              <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
 
@@ -492,43 +492,47 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#4a9eff' }}>✏️ Ediciones ({solicitudesEdicion.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={edicionSort.thStyle('nombre_evento')} onClick={() => edicionSort.toggle('nombre_evento')}>Evento{edicionSort.arrow('nombre_evento')}</th>
-                      <th style={{ textAlign: 'left', cursor: 'default', width: '22%' }}>Cambios</th>
-                      <th style={edicionSort.thStyle('usuario_solicitante')} onClick={() => edicionSort.toggle('usuario_solicitante')}>Usuario{edicionSort.arrow('usuario_solicitante')}</th>
-                      <th style={edicionSort.thStyle('fecha_solicitud')} onClick={() => edicionSort.toggle('fecha_solicitud')}>Fecha Solicitud{edicionSort.arrow('fecha_solicitud')}</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrarPorSearch(edicionSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(edicionSort.sorted, 'nombre_evento').map(s => (
-                        <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
-                          onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
-                          title="Click para ver detalles"
-                        >
-                          <td style={{ textAlign: 'left' }}><strong>{s.nombre_evento}</strong></td>
-                          <td style={{ textAlign: 'left' }}>
-                            <small style={{ color: '#a8a8a8' }}>{obtenerResumenCambios(s.cambios_propuestos || {})}</small>
-                            <br />
-                            <span style={{ fontSize: '0.75rem', color: '#ccff00', fontWeight: 'bold' }}>
-                              {Object.keys(s.cambios_propuestos || {}).length} cambio{Object.keys(s.cambios_propuestos || {}).length !== 1 ? 's' : ''}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFechaHora(s.fecha_solicitud)}</small></td>
-                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn-ver-detalle-admin" onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })} title="Ver detalles" style={{ marginRight: '8px' }}>👁️</button>
-                            <button className="btn-aprobar-admin" onClick={e => { e.stopPropagation(); handleAprobarEdicion(s.id_evento, s.nombre_evento); }} title="Aprobar">✓</button>
-                            <button className="btn-rechazar-admin" onClick={e => { e.stopPropagation(); handleRechazarEdicion(s.id_evento, s.nombre_evento); }} title="Rechazar">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={edicionSort.thStyle('nombre_evento')} onClick={() => edicionSort.toggle('nombre_evento')}>Evento{edicionSort.arrow('nombre_evento')}</th>
+                        <th style={edicionSort.thStyle('fecha_evento')} onClick={() => edicionSort.toggle('fecha_evento')}>Fecha Evento{edicionSort.arrow('fecha_evento')}</th>
+                        <th style={edicionSort.thStyle('usuario_solicitante')} onClick={() => edicionSort.toggle('usuario_solicitante')}>Solicitante{edicionSort.arrow('usuario_solicitante')}</th>
+                        <th style={edicionSort.thStyle('fecha_solicitud')} onClick={() => edicionSort.toggle('fecha_solicitud')}>Fecha Solicitud{edicionSort.arrow('fecha_solicitud')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default', width: '22%' }}>Cambios</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrarPorSearch(edicionSort.sorted, 'nombre_evento').length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(edicionSort.sorted, 'nombre_evento').map(s => (
+                          <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
+                            onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
+                            title="Click para ver detalles"
+                          >
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFechaHora(s.fecha_solicitud)}</small></td>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#a8a8a8' }}>{obtenerResumenCambios(s.cambios_propuestos || {})}</small>
+                              <br />
+                              <span style={{ fontSize: '0.75rem', color: '#ccff00', fontWeight: 'bold' }}>
+                                {Object.keys(s.cambios_propuestos || {}).length} cambio{Object.keys(s.cambios_propuestos || {}).length !== 1 ? 's' : ''}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })} title="Ver detalles" style={{ marginRight: '8px' }}>👁️</button>
+                              <button className="btn-aprobar-admin" onClick={e => { e.stopPropagation(); handleAprobarEdicion(s.id_evento, s.nombre_evento); }} title="Aprobar">✓</button>
+                              <button className="btn-rechazar-admin" onClick={e => { e.stopPropagation(); handleRechazarEdicion(s.id_evento, s.nombre_evento); }} title="Rechazar">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
 
@@ -536,37 +540,37 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#fc8181' }}>🗑️ Bajas ({solicitudesBaja.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={bajaSort.thStyle('id_evento')} onClick={() => bajaSort.toggle('id_evento')}>ID Evento{bajaSort.arrow('id_evento')}</th>
-                      <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
-                      <th style={bajaSort.thStyle('fecha_evento')} onClick={() => bajaSort.toggle('fecha_evento')}>Fecha Evento{bajaSort.arrow('fecha_evento')}</th>
-                      <th style={bajaSort.thStyle('motivo')} onClick={() => bajaSort.toggle('motivo')}>Motivo{bajaSort.arrow('motivo')}</th>
-                      <th style={bajaSort.thStyle('usuario_solicitante')} onClick={() => bajaSort.toggle('usuario_solicitante')}>Solicitante{bajaSort.arrow('usuario_solicitante')}</th>
-                      <th style={bajaSort.thStyle('fecha_solicitud')} onClick={() => bajaSort.toggle('fecha_solicitud')}>Fecha Solicitud{bajaSort.arrow('fecha_solicitud')}</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtrarPorSearch(bajaSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(bajaSort.sorted, 'nombre_evento').map(s => (
-                        <tr key={s.id_eliminacion}>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{s.id_evento}</small></td>
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>{s.nombre_evento}</td>
-                          <td style={{ textAlign: 'left' }}><small>{s.fecha_evento ? formatFecha(s.fecha_evento) : '—'}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#fc8181' }}>{s.motivo}</small></td>
-                          <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)} title="Aprobar baja">✓</button>
-                            <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)} title="Rechazar baja">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
+                        <th style={bajaSort.thStyle('fecha_evento')} onClick={() => bajaSort.toggle('fecha_evento')}>Fecha Evento{bajaSort.arrow('fecha_evento')}</th>
+                        <th style={bajaSort.thStyle('usuario_solicitante')} onClick={() => bajaSort.toggle('usuario_solicitante')}>Solicitante{bajaSort.arrow('usuario_solicitante')}</th>
+                        <th style={bajaSort.thStyle('fecha_solicitud')} onClick={() => bajaSort.toggle('fecha_solicitud')}>Fecha Solicitud{bajaSort.arrow('fecha_solicitud')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Motivo</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtrarPorSearch(bajaSort.sorted, 'nombre_evento').length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(bajaSort.sorted, 'nombre_evento').map(s => (
+                          <tr key={s.id_eliminacion}>
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}>{s.fecha_evento ? formatFecha(s.fecha_evento) : '—'}</td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#fc8181' }}>{s.motivo}</small></td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)} title="Aprobar baja">✓</button>
+                              <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)} title="Rechazar baja">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
             </div>
@@ -718,7 +722,8 @@ const AdminDashboard: React.FC = () => {
               <table className="data-table-admin">
                 <thead>
                   <tr>
-                    <th style={pagosSort.thStyle('usuario_email')} onClick={() => pagosSort.toggle('usuario_email')}>Usuario{pagosSort.arrow('usuario_email')}</th>
+                    <th style={pagosSort.thStyle('usuario_nombre')} onClick={() => pagosSort.toggle('usuario_nombre')}>Cliente{pagosSort.arrow('usuario_nombre')}</th>
+                    <th style={pagosSort.thStyle('usuario_email')} onClick={() => pagosSort.toggle('usuario_email')}>Email{pagosSort.arrow('usuario_email')}</th>
                     <th style={pagosSort.thStyle('nombre_evento')} onClick={() => pagosSort.toggle('nombre_evento')}>Evento{pagosSort.arrow('nombre_evento')}</th>
                     <th style={pagosSort.thStyle('fecha_evento')} onClick={() => pagosSort.toggle('fecha_evento')}>Fecha Evento{pagosSort.arrow('fecha_evento')}</th>
                     <th style={pagosSort.thStyle('monto', 'center')} onClick={() => pagosSort.toggle('monto')}>Monto{pagosSort.arrow('monto')}</th>
@@ -733,6 +738,7 @@ const AdminDashboard: React.FC = () => {
                   ) : (
                     filtrarPorSearch(pagosSort.sorted, 'usuario_email').map(r => (
                       <tr key={r.id_reserva}>
+                        <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}>{r.usuario_email}</td>
                         <td style={{ textAlign: 'left' }}>{r.nombre_evento}</td>
                         <td style={{ textAlign: 'left' }}><small>{formatFecha(r.fecha_evento)}</small></td>
@@ -772,7 +778,7 @@ const AdminDashboard: React.FC = () => {
               <table className="data-table-admin">
                 <thead>
                   <tr>
-                    <th style={inscriptosSort.thStyle('usuario_nombre')} onClick={() => inscriptosSort.toggle('usuario_nombre')}>Nombre{inscriptosSort.arrow('usuario_nombre')}</th>
+                    <th style={inscriptosSort.thStyle('usuario_nombre')} onClick={() => inscriptosSort.toggle('usuario_nombre')}>Cliente{inscriptosSort.arrow('usuario_nombre')}</th>
                     <th style={inscriptosSort.thStyle('usuario_email')} onClick={() => inscriptosSort.toggle('usuario_email')}>Email{inscriptosSort.arrow('usuario_email')}</th>
                     <th style={inscriptosSort.thStyle('nombre_evento')} onClick={() => inscriptosSort.toggle('nombre_evento')}>Evento{inscriptosSort.arrow('nombre_evento')}</th>
                     <th style={inscriptosSort.thStyle('fecha_evento')} onClick={() => inscriptosSort.toggle('fecha_evento')}>Fecha Evento{inscriptosSort.arrow('fecha_evento')}</th>
