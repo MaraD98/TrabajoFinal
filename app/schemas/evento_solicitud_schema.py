@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, field_serializer
 from datetime import date
-from typing import Optional
+from typing import Optional, Any
 from decimal import Decimal
 
 # ============== SCHEMAS PARA HU-2.1 (Crear solicitud) ==============
@@ -8,14 +8,17 @@ from decimal import Decimal
 class SolicitudPublicacionCreate(BaseModel):
     nombre_evento: str = Field(..., min_length=3, max_length=100, description="Nombre del evento")
     fecha_evento: date = Field(..., description="Fecha del evento")
-    ubicacion: str = Field(..., min_length=3, max_length=150, description="Ubicación del evento")
-    id_tipo: int = Field(..., gt=0, description="ID del tipo de evento (1=Carrera, 2=Paseo, 3=Entrenamiento, 4=Cicloturismo)")
+    ubicacion: str = Field(..., min_length=3, max_length=300, description="Ubicación del evento")
+    id_tipo: int = Field(..., gt=0, description="ID del tipo de evento (1='Ciclismo de Ruta, 2=Mountain Bike (MTB), 3=Rural Bike, 4=Gravel, 5=Cicloturismo, 6=Entrenamiento / Social')")
     id_dificultad: int = Field(..., gt=0, description="ID de dificultad (1=Básico, 2=Intermedio, 3=Avanzado)")
     descripcion: Optional[str] = Field(None, max_length=1000, description="Descripción del evento")
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de participación")
     lat: Optional[Decimal] = None
     lng: Optional[Decimal] = None
     cupo_maximo: int = Field(..., gt=0, description="Cupo máximo de participantes")
+    distancia_km: Optional[Decimal] = Field(None, description="Distancia total de la ruta en kilómetros")
+    ruta_coordenadas: Optional[list[dict[str, Any]]] = Field(None, description="Array de coordenadas [ {lat, lng}, ... ]")
+
     
     @field_validator('fecha_evento')
     @classmethod
@@ -67,8 +70,12 @@ class SolicitudPublicacionResponse(BaseModel):
     id_usuario: int
     usuario: Optional[UsuarioBasico] = None
     estado_solicitud: Optional[EstadoSolicitudInfo] = None
+    lat: Optional[Decimal] = None
+    lng: Optional[Decimal] = None
+    distancia_km: Optional[Decimal] = None
+    ruta_coordenadas: Optional[list] = None
+
     
-    # 👇 AGREGAR ESTO
     @field_serializer('fecha_evento')
     def serializar_fecha(self, valor: date) -> str:
         if valor is None:

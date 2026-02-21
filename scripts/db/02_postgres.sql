@@ -120,7 +120,7 @@ CREATE TABLE Solicitud_Publicacion (
     id_solicitud SERIAL PRIMARY KEY,
     nombre_evento VARCHAR(100) NOT NULL,
     fecha_evento DATE NOT NULL,
-    ubicacion VARCHAR(150) NOT NULL, -- Ajustado a 150 según tu HU 1.2
+    ubicacion VARCHAR(300) NOT NULL, -- se amplió a 300 para permitir direcciones más largas
     id_tipo INT NOT NULL,       
     id_dificultad INT NOT NULL,     
     descripcion TEXT,
@@ -132,8 +132,9 @@ CREATE TABLE Solicitud_Publicacion (
     id_usuario INT NOT NULL,
     lat DECIMAL(9,6),
     lng DECIMAL(9,6),
-
     cupo_maximo INT,
+    distancia_km DECIMAL(6,2),
+    ruta_coordenadas JSONB, -- Almacena la ruta como un array de objetos con latitud y longitud
     
     CONSTRAINT FK_Solicitud_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
     CONSTRAINT FK_Solicitud_Dificultad FOREIGN KEY (id_dificultad) REFERENCES NivelDificultad(id_dificultad),
