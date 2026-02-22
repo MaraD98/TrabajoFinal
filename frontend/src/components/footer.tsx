@@ -4,7 +4,7 @@ import logoWakeUp from '../assets/wakeup-logo.png';
 import '../styles/footer.css';
 
 // Ajustá esta URL según tu backend (local o producción)
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const Footer = () => {
   const [emailSuscripcion, setEmailSuscripcion] = useState("");

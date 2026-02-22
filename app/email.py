@@ -7,6 +7,9 @@ load_dotenv()
 
 URL_LOGO = "https://i.ibb.co/5gpVx8Z5/WAKE-UP-LOGO.png"
 
+# Constante de URL
+API_URL = os.getenv("VITE_API_URL")
+
 def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, fecha: str):
     REMITENTE = os.getenv("MAIL_REMITENTE")
     PASSWORD = os.getenv("MAIL_PASSWORD")
@@ -16,8 +19,8 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    url_alta = f"http://localhost:8000/api/v1/suscripcion/alta?email={email_destino}"
-    url_baja = f"http://localhost:8000/api/v1/suscripcion/baja?email={email_destino}"
+    url_alta = f"{API_URL}/suscripcion/alta?email={email_destino}"
+    url_baja = f"{API_URL}/suscripcion/baja?email={email_destino}"
 
     html_content = f"""
     <html>
@@ -133,8 +136,8 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    url_baja = f"http://localhost:8000/api/v1/suscripcion/baja?email={email_destino}"
-    url_evento = f"http://localhost:5173/calendario?fecha={fecha_url}&evento_id={id_evento}"
+    url_baja = f"{API_URL}/suscripcion/baja?email={email_destino}"
+    url_evento = f"{API_URL}/calendario?fecha={fecha_url}&evento_id={id_evento}"
 
     html_content = f"""
     <html>
@@ -187,8 +190,8 @@ def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    url_evento = f"http://localhost:5173/calendario?fecha={fecha_url}&evento_id={id_evento}"
-
+    url_evento = f"{API_URL}/calendario?fecha={fecha_url}&evento_id={id_evento}"
+    
     html_content = f"""
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
@@ -305,7 +308,7 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
                         Para que no pierdas tu cupo, por favor realizá el pago y cargá el comprobante en la plataforma.
                     </p>
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href="http://localhost:5173/mis-reservas" style="background-color: #f4a261; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Subir Comprobante</a>
+                        <a href="f"{API_URL}/mis-reservas" style="background-color: #f4a261; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Subir Comprobante</a>
                     </div>
                 </div>
             </div>
