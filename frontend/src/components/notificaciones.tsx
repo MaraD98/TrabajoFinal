@@ -6,6 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { Navbar } from './navbar';
 import { Footer } from './footer';
 
+// Parsea "dd-mm-yyyy HH:MM" → Date
+const parsearFechaBackend = (fechaStr: string): Date => {
+  const [fecha, hora] = fechaStr.split(' ');
+  const [dia, mes, anio] = fecha.split('-');
+  const [hh, mm] = (hora || '00:00').split(':');
+  return new Date(Number(anio), Number(mes) - 1, Number(dia), Number(hh), Number(mm));
+};
+
 export default function NotificacionesPage() {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,35 +21,27 @@ export default function NotificacionesPage() {
   const [selectedNotif, setSelectedNotif] = useState<number | null>(null);
   const navigate = useNavigate();
 
-  // 📡 Cargar notificaciones al montar el componente
   useEffect(() => {
     cargarNotificaciones(); 
-    console.log("NOTIFICACIONES FRONTEND notificaciones:", notificaciones);
-    // Configurar intervalo para refrescar cada 30 seg (30000 ms)
     const intervalo = setInterval(() => {
-      // Solo refrescamos si no está cargando ya para evitar parpadeos
       if (!loading) {
-         // Hacemos una versión silenciosa de cargarNotificaciones
-         // para no activar el spinner grande cada vez
          getMisNotificaciones()
            .then(data => setNotificaciones(data))
            .catch(err => console.error("Error polling", err));
       }
     }, 30000);
 
-    // Limpiar intervalo al salir de la página
     return () => clearInterval(intervalo);
-  }, [navigate]); // Agregamos dependencias
+  }, [navigate]);
 
   const cargarNotificaciones = async () => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     if (!token) {
-              navigate("/login");
-              return;
-        }
+      navigate("/login");
+      return;
+    }
     try {
       setLoading(true);
-      // Usamos el servicio
       const data = await getMisNotificaciones(); 
       setNotificaciones(data);
     } catch (error) {
@@ -51,12 +51,9 @@ export default function NotificacionesPage() {
     }
   };
 
-  // 📌 Marcar como leída
   const marcarComoLeida = async (id: number) => {
     try {
-      // Usamos el servicio
       await marcarNotificacionLeida(id);
-      
       setNotificaciones(prev =>
         prev.map(notif =>
           notif.id_notificacion === id ? { ...notif, leida: true } : notif
@@ -67,19 +64,16 @@ export default function NotificacionesPage() {
     }
   };
 
-  // 🔄 Filtrar notificaciones
   const notificacionesFiltradas = notificaciones.filter(notif => {
     if (filter === 'leidas') return notif.leida;
     if (filter === 'no-leidas') return !notif.leida;
     return true;
   });
 
-  // 📊 Contador de no leídas
   const noLeidas = notificaciones.filter(n => !n.leida).length;
 
-  // 📅 Formatear fecha
-  const formatearFecha = (fecha: string) => {
-    const date = new Date(fecha);
+  const formatearFecha = (fechaStr: string) => {
+    const date = parsearFechaBackend(fechaStr);
     const ahora = new Date();
     const diff = ahora.getTime() - date.getTime();
     
@@ -99,9 +93,7 @@ export default function NotificacionesPage() {
     });
   };
 
-  // 🎨 Obtener icono según el estado
   const obtenerIcono = (notif: Notificacion) => {
-    // Aquí puedes personalizar según id_estado_solicitud
     if (notif.mensaje.toLowerCase().includes('aprobad')) return '✅';
     if (notif.mensaje.toLowerCase().includes('rechazad')) return '❌';
     if (notif.mensaje.toLowerCase().includes('pendiente')) return '⏳';
@@ -112,7 +104,6 @@ export default function NotificacionesPage() {
   return (
     <div className="notificaciones-page-layout">
       <Navbar /> 
-      {/* 🎯 Header */}
       <main className="notificaciones-content-wrapper">
       <div className="notif-header">
         <div className="notif-title-section">
@@ -141,7 +132,6 @@ export default function NotificacionesPage() {
         </button>
       </div>
 
-      {/* 🎛️ Filtros */}
       <div className="notif-filters">
         <button 
           className={`filter-btn ${filter === 'todas' ? 'active' : ''}`}
@@ -163,7 +153,6 @@ export default function NotificacionesPage() {
         </button>
       </div>
 
-      {/* 📋 Lista de notificaciones */}
       <div className="notif-list">
         {loading ? (
           <div className="notif-loading">
@@ -197,15 +186,12 @@ export default function NotificacionesPage() {
                 }
               }}
             >
-              {/* Indicador de no leída */}
               {!notif.leida && <div className="unread-indicator"></div>}
 
-              {/* Icono */}
               <div className="notif-icon">
                 {obtenerIcono(notif)}
               </div>
 
-              {/* Contenido */}
               <div className="notif-content">
                 <p className="notif-mensaje">{notif.mensaje}</p>
                 <div className="notif-meta">
@@ -218,7 +204,6 @@ export default function NotificacionesPage() {
                 </div>
               </div>
 
-              {/* Acción */}
               {!notif.leida && (
                 <button
                   className="notif-mark-read"

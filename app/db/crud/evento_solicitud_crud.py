@@ -34,25 +34,28 @@ class Solicitud_PublicacionCRUD:
     @staticmethod
     def crear_solicitud_publicacion(
         db: Session, 
-        solicitud: SolicitudPublicacionCreate, 
+        solicitud,  # Acepta SolicitudPublicacionCreate (envío) o SolicitudBorradorCreate (borrador)
         id_usuario: int,
         id_estado_inicial: int = 2  # ✅ CAMBIO: DEFAULT 2 (Pendiente), antes era 1
     ) -> SolicitudPublicacion:
+        # ✅ CAMBIO: Usar getattr con default None para aceptar campos opcionales del borrador
+        # El schema SolicitudBorradorCreate tiene todos los campos opcionales (como Gmail),
+        # por eso no podemos acceder directamente a solicitud.campo sin riesgo de AttributeError.
         db_solicitud = SolicitudPublicacion(
-            nombre_evento=solicitud.nombre_evento,
-            fecha_evento=solicitud.fecha_evento,
-            ubicacion=solicitud.ubicacion,
-            id_tipo=solicitud.id_tipo,
-            id_dificultad=solicitud.id_dificultad,
-            descripcion=solicitud.descripcion,
-            costo_participacion=solicitud.costo_participacion,
-            cupo_maximo=solicitud.cupo_maximo,  # ✅ AGREGAR
-            lat=solicitud.lat,  # ✅ AGREGAR
-            lng=solicitud.lng,  # ✅ AGREGAR
-            id_usuario=id_usuario,
-            fecha_solicitud=date.today(),
-            id_estado=1,
-            id_estado_solicitud=id_estado_inicial  # ✅ CAMBIO: Usar parámetro en vez de hardcoded 1
+            nombre_evento       = getattr(solicitud, 'nombre_evento', None),
+            fecha_evento        = getattr(solicitud, 'fecha_evento', None),
+            ubicacion           = getattr(solicitud, 'ubicacion', None),
+            id_tipo             = getattr(solicitud, 'id_tipo', 1),
+            id_dificultad       = getattr(solicitud, 'id_dificultad', 1),
+            descripcion         = getattr(solicitud, 'descripcion', None),
+            costo_participacion = getattr(solicitud, 'costo_participacion', 0),
+            cupo_maximo         = getattr(solicitud, 'cupo_maximo', 0) or 0,  # ✅ CAMBIO: agregar
+            lat                 = getattr(solicitud, 'lat', None),             # ✅ CAMBIO: agregar
+            lng                 = getattr(solicitud, 'lng', None),             # ✅ CAMBIO: agregar
+            id_usuario          = id_usuario,
+            fecha_solicitud     = date.today(),
+            id_estado           = 1,
+            id_estado_solicitud = id_estado_inicial  # ✅ CAMBIO: Usar parámetro en vez de hardcoded 1
         )
         db.add(db_solicitud)
         db.commit()
@@ -63,7 +66,7 @@ class Solicitud_PublicacionCRUD:
     def actualizar_solicitud(
         db: Session,
         id_solicitud: int,
-        solicitud: SolicitudPublicacionCreate,
+        solicitud,  # Acepta SolicitudPublicacionCreate o SolicitudBorradorCreate
         enviar: bool = False
     ) -> SolicitudPublicacion:
         """
@@ -73,6 +76,9 @@ class Solicitud_PublicacionCRUD:
             id_solicitud: ID de la solicitud
             solicitud: Nuevos datos
             enviar: Si True, cambia estado a 2 (Pendiente)
+        
+        ✅ CAMBIO: Solo sobreescribe campos que vienen con valor (no None),
+        preservando los datos ya guardados — igual que Gmail con los borradores.
         """
         solicitud_db = db.query(SolicitudPublicacion).filter(
             SolicitudPublicacion.id_solicitud == id_solicitud
@@ -81,17 +87,17 @@ class Solicitud_PublicacionCRUD:
         if not solicitud_db:
             return None
         
-        # Actualizar campos
-        solicitud_db.nombre_evento = solicitud.nombre_evento
-        solicitud_db.fecha_evento = solicitud.fecha_evento
-        solicitud_db.ubicacion = solicitud.ubicacion
-        solicitud_db.id_tipo = solicitud.id_tipo
-        solicitud_db.id_dificultad = solicitud.id_dificultad
-        solicitud_db.descripcion = solicitud.descripcion
-        solicitud_db.costo_participacion = solicitud.costo_participacion
-        solicitud_db.cupo_maximo = solicitud.cupo_maximo
-        solicitud_db.lat = solicitud.lat
-        solicitud_db.lng = solicitud.lng
+        # ✅ CAMBIO: Actualizar solo los campos que tienen valor, preservar el resto
+        # Esto permite autoguardado parcial sin borrar datos ya completados
+        campos = [
+            'nombre_evento', 'fecha_evento', 'ubicacion', 'id_tipo',
+            'id_dificultad', 'descripcion', 'costo_participacion',
+            'cupo_maximo', 'lat', 'lng'
+        ]
+        for campo in campos:
+            valor = getattr(solicitud, campo, None)
+            if valor is not None:
+                setattr(solicitud_db, campo, valor)
         
         # Si se está enviando, cambiar estado
         if enviar:

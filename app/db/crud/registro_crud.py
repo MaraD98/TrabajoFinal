@@ -86,6 +86,7 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
     ✅ Actualiza automáticamente eventos pasados a FINALIZADO antes de consultar.
     """
+    from app.models.auth_models import Usuario
     # 1. Actualizar eventos pasados a FINALIZADO
     actualizar_eventos_finalizados(db)
     

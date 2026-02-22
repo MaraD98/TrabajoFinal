@@ -1,4 +1,4 @@
-import { useEffect, useState} from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../styles/mis-eventos.css';
 import { 
@@ -13,6 +13,8 @@ import InputModal from '../components/modals/InputModal';
 import EditEventModal from '../components/EditEventModal';
 import EventoDetalleModal from '../components/modals/EventoDetalleModal';
 import { Navbar } from '../components/navbar';
+import BuscadorEventos from '../components/BuscadorEventos';
+import type { FiltroActivo } from '../components/BuscadorEventos';
 import { Footer } from '../components/footer';
 
 const IMAGENES_TIPO: Record<number | string, string> = {
@@ -59,6 +61,8 @@ interface Evento {
     id_usuario: number;
     multimedia?: { url_archivo: string }[];
     imagen_url?: string;
+    lat?: number | null;
+    lng?: number | null;
 }
 
 interface Solicitud {
@@ -77,6 +81,8 @@ interface Solicitud {
     id_usuario: number;
     multimedia?: { url_archivo: string }[];
     imagen_url?: string;
+    lat?: number | null;
+    lng?: number | null;
 }
 
 interface SolicitudEliminacion {
@@ -109,6 +115,7 @@ interface SolicitudEdicion {
     imagen_url?: string;                     
 }
 
+
 export default function MisEventosPage() {
     const [vistaActiva, setVistaActiva] = useState<Vista>('activos');
     const [filtroHistorial, setFiltroHistorial] = useState<FiltroHistorial>('finalizados');
@@ -121,13 +128,19 @@ export default function MisEventosPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // ── CONTADORES para las tabs (carga rápida desde /resumen)
+    // ── CONTADORES para las tabs
     const [contadores, setContadores] = useState({ activos: 0, pendientes: 0, historial: 0, borradores: 0 });
+
+    // ── Filtro de búsqueda: inputs (lo que se escribe) + filtro activo (lo que se aplica al buscar) ──
+    // filtroActivo se actualiza solo al presionar Buscar — igual que el panel admin
+    const [filtroActivo, setFiltroActivo] = useState<FiltroActivo>({ nombre: '', dia: '', mes: '', anio: '', modoFecha: 'mes' });
 
     const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
     const [modalEditar, setModalEditar] = useState(false);
     const [itemAEditar, setItemAEditar] = useState<Evento | Solicitud | null>(null);
     const [tipoEdicion, setTipoEdicion] = useState<'evento' | 'solicitud'>('evento');
+    // ✅ NUEVO: si el item a editar es un borrador, el modal cambia comportamiento
+    const [editandoBorrador, setEditandoBorrador] = useState(false);
 
     const [detalleEventoId, setDetalleEventoId] = useState<number | null>(null);
     const [detallePreview, setDetallePreview] = useState<{ nombre_evento: string; fecha_evento: string } | null>(null);
@@ -142,16 +155,21 @@ export default function MisEventosPage() {
         type: 'warning' | 'danger' | 'info';
     }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
 
-    // ── Al montar: cargamos contadores + tab inicial (activos) ──
+    // ── FIX 2: Leer tab inicial desde URL o state (para redirigir a 'pendientes' tras crear solicitud) ──
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const tabParam = params.get('tab') as Vista | null;
+        const vistaInicial: Vista = (tabParam && ['activos','pendientes','historial','borradores'].includes(tabParam))
+            ? tabParam
+            : 'activos';
+        setVistaActiva(vistaInicial);
         cargarContadores();
-        cargarDatosPorVista('activos');
+        cargarDatosPorVista(vistaInicial);
     }, []);
 
-    // ✅ NUEVO: Obtener rol del usuario
     const getUserRole = (): number => {
         const userDataStr = localStorage.getItem('user') || sessionStorage.getItem('user');
-        if (!userDataStr) return 3; // Por defecto externo
+        if (!userDataStr) return 3;
         try {
             const userData = JSON.parse(userDataStr);
             return userData.id_rol || 3;
@@ -160,15 +178,10 @@ export default function MisEventosPage() {
         }
     };
 
-    // ✅ NUEVO: Determinar ruta de creación según rol
     const getRutaCreacion = (): string => {
         const rol = getUserRole();
-        // Admin (1) o Supervisor (2) usan /registro-evento
-        // Externos (3) usan /publicar-evento
         return (rol === 1 || rol === 2) ? '/registro-evento' : '/publicar-evento';
     };
-
-    useEffect(() => { cargarDatos(); }, []);
 
     const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') =>
         setToast({ mensaje, tipo });
@@ -188,7 +201,6 @@ export default function MisEventosPage() {
         setDetalleEventoId(evento.id_evento);
     };
 
-    // ── Carga rápida de contadores desde el nuevo endpoint ──
     const cargarContadores = async () => {
         try {
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -197,11 +209,10 @@ export default function MisEventosPage() {
             });
             if (res.ok) setContadores(await res.json());
         } catch {
-            // Silencioso: los contadores no son críticos
+            // Silencioso
         }
     };
 
-    // ── Carga por demanda según la tab activa ──
     const cargarDatosPorVista = async (vista: Vista) => {
         setLoading(true);
         setError(null);
@@ -219,6 +230,8 @@ export default function MisEventosPage() {
                 setSolicitudesEliminacion(eliminacionesData);
                 setSolicitudesEdicion(edicionesData);
             } else if (vista === 'borradores') {
+                // FIX 1: Cargar borradores correctamente — getMisSolicitudes trae todo,
+                // después filtramos por id_estado_solicitud === 1
                 const data = await getMisSolicitudes();
                 setSolicitudes(data);
             }
@@ -229,10 +242,16 @@ export default function MisEventosPage() {
         }
     };
 
-    // ── cargarDatos: recarga la vista actual + contadores (usado después de acciones) ──
     const cargarDatos = async () => {
         await cargarDatosPorVista(vistaActiva);
         await cargarContadores();
+    };
+
+    // ── Cambio de tab: también resetea filtros de búsqueda ──
+    const handleCambiarVista = (vista: Vista) => {
+        setVistaActiva(vista);
+        setFiltroActivo({ nombre: '', dia: '', mes: '', anio: '', modoFecha: 'mes' });
+        cargarDatosPorVista(vista);
     };
 
     // ── FILTROS DE DATOS ────────────────────────────────────────
@@ -242,6 +261,7 @@ export default function MisEventosPage() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
 
+    // FIX 3: Helper de parseo de fecha
     const parseFecha = (fechaStr: string): Date => {
         if (!fechaStr) return new Date(0);
         if (/^\d{2}-\d{2}-\d{4}$/.test(fechaStr)) {
@@ -250,39 +270,74 @@ export default function MisEventosPage() {
         }
         return new Date(fechaStr);
     };
+
+    // FIX 3: Helper de ordenamiento ascendente (más próximo primero)
+    const ordenarPorFechaAsc = <T extends { fecha_evento: string }>(arr: T[]): T[] =>
+        [...arr].sort((a, b) => parseFecha(a.fecha_evento).getTime() - parseFecha(b.fecha_evento).getTime());
+
+    // Aplica el filtro activo — cada parte de fecha es independiente y opcional
+    const aplicarFiltros = <T extends { nombre_evento: string; fecha_evento: string }>(arr: T[]): T[] => {
+        return arr.filter(item => {
+            const coincideNombre = filtroActivo.nombre.trim() === '' ||
+                item.nombre_evento.toLowerCase().includes(filtroActivo.nombre.toLowerCase().trim());
+
+            const hayFiltroFecha = filtroActivo.dia || filtroActivo.mes || filtroActivo.anio;
+            if (!hayFiltroFecha) return coincideNombre;
+
+            const fechaItem = parseFecha(item.fecha_evento);
+            const yyyyItem = String(fechaItem.getFullYear());
+            const mmItem   = String(fechaItem.getMonth() + 1).padStart(2, '0');
+            const ddItem   = String(fechaItem.getDate()).padStart(2, '0');
+
+            // Cada parte seleccionada debe coincidir; las vacías se ignoran
+            const coincideAnio = !filtroActivo.anio || yyyyItem === filtroActivo.anio;
+            const coincideMes  = !filtroActivo.mes  || mmItem   === filtroActivo.mes;
+            const coincideDia  = !filtroActivo.dia  || ddItem   === filtroActivo.dia;
+
+            return coincideNombre && coincideAnio && coincideMes && coincideDia;
+        });
+    };
+
+    
+
+    const ejecutarBusqueda = (filtro: FiltroActivo) => {
+        setFiltroActivo(filtro);
+    };
+
+    const limpiarBusqueda = () => {
+        setFiltroActivo({ nombre: '', dia: '', mes: '', anio: '', modoFecha: 'mes' });
+    };
     
     const idsConSolicitudEdicion     = solicitudesEdicion.map(s => s.id_evento);
     const idsConSolicitudEliminacion = solicitudesEliminacion.map(s => s.id_evento);
     
-    const eventosActivos = eventos.filter(e => 
+    const eventosActivos = ordenarPorFechaAsc(aplicarFiltros(eventos.filter(e => 
         e.id_estado === 3 && 
         parseFecha(e.fecha_evento) >= hoy &&
         !idsConSolicitudEdicion.includes(e.id_evento) &&
         !idsConSolicitudEliminacion.includes(e.id_evento)
-    );
+    )));
     
-    const eventosFinalizados = eventos.filter(e => 
+    const eventosFinalizados = ordenarPorFechaAsc(aplicarFiltros(eventos.filter(e => 
         (e.id_estado === 3 && parseFecha(e.fecha_evento) < hoy) || e.id_estado === 4
-    );
+    )));
     
-    const eventosCancelados = eventos.filter(e => e.id_estado === 5);
+    const eventosCancelados = ordenarPorFechaAsc(aplicarFiltros(eventos.filter(e => e.id_estado === 5)));
 
-    const pendientesAprobacion  = solicitudesPendientes;
-    const pendientesEdicion     = solicitudesEdicion;
-    const pendientesEliminacion = solicitudesEliminacion;
+    const pendientesAprobacion  = aplicarFiltros(solicitudesPendientes);
+    const pendientesEdicion     = aplicarFiltros(solicitudesEdicion);
+    const pendientesEliminacion = aplicarFiltros(solicitudesEliminacion);
+    const borradores            = aplicarFiltros(solicitudesBorradores);
 
     // ── HELPERS ─────────────────────────────────────────────────
     const obtenerImagen = (item: ItemConImagen) => {
         if ('multimedia' in item && item.multimedia && item.multimedia.length > 0) {
             let mediaUrl = item.multimedia[0].url_archivo.replace(/\\/g, "/");
             if (mediaUrl.startsWith('http')) return mediaUrl;
-            
             const cleanPath = mediaUrl.startsWith("/") ? mediaUrl.substring(1) : mediaUrl;
-            
             const baseUrl = import.meta.env.VITE_API_URL 
                 ? import.meta.env.VITE_API_URL.split('/api')[0] 
                 : 'http://localhost:8000';
-
             return `${baseUrl}/${cleanPath}`;
         }
         const url = 'imagen_url' in item ? item.imagen_url : undefined;
@@ -290,9 +345,28 @@ export default function MisEventosPage() {
         return IMAGENES_TIPO[item.id_tipo] || IMAGENES_TIPO.default;
     };
 
+    // FIX 5: Normalizar fecha al editar para que el input type="date" la reciba correctamente
+    const normalizarFechaParaEdicion = (item: Evento | Solicitud): Evento | Solicitud => {
+        let fechaNormalizada = item.fecha_evento || '';
+        // Si viene como "DD-MM-YYYY" convertir a "YYYY-MM-DD"
+        if (/^\d{2}-\d{2}-\d{4}$/.test(fechaNormalizada)) {
+            const [dd, mm, yyyy] = fechaNormalizada.split('-');
+            fechaNormalizada = `${yyyy}-${mm}-${dd}`;
+        }
+        // Si viene con hora ("YYYY-MM-DDTHH:mm:ss") recortar
+        if (fechaNormalizada.includes('T')) {
+            fechaNormalizada = fechaNormalizada.split('T')[0];
+        }
+        return { ...item, fecha_evento: fechaNormalizada };
+    };
+
     const handleEditar = (item: Evento | Solicitud, tipo: 'evento' | 'solicitud') => {
-        setItemAEditar(item);
+        setItemAEditar(normalizarFechaParaEdicion(item)); // FIX 5
         setTipoEdicion(tipo);
+        // ✅ NUEVO: detectar si es borrador para pasarlo al modal
+        const esBorrador = tipo === 'solicitud' && 'id_solicitud' in item
+            && (item as Solicitud).id_estado_solicitud === 1;
+        setEditandoBorrador(esBorrador);
         setModalEditar(true);
     };
 
@@ -322,6 +396,8 @@ export default function MisEventosPage() {
                 headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
             });
             if (response.ok) {
+                // ✅ Limpiar borrador del localStorage para que no reaparezca al crear uno nuevo
+                localStorage.removeItem('borrador_solicitud');
                 showToast('Solicitud enviada para revisión', 'success');
                 cargarDatos();
             } else {
@@ -333,8 +409,9 @@ export default function MisEventosPage() {
         }
     };
 
-    // ── RENDERS DE CARDS ────────────────────────────────────────
 
+
+    // ── RENDERS DE CARDS ────────────────────────────────────────
     const renderEventoCard = (evento: Evento, mostrarAcciones = false) => {
         const fechaLimpia = evento.fecha_evento.toString().split('T')[0];
         const nombreTipo = NOMBRES_TIPO[evento.id_tipo] || "Evento";
@@ -547,19 +624,19 @@ export default function MisEventosPage() {
                 </div>
 
                 <div className="mis-eventos-tabs">
-                    <button className={`tab-btn ${vistaActiva === 'activos' ? 'active' : ''}`} onClick={() => setVistaActiva('activos')}>
+                    <button className={`tab-btn ${vistaActiva === 'activos' ? 'active' : ''}`} onClick={() => handleCambiarVista('activos')}>
                         Activos
                         {contadores.activos > 0 && <span className="tab-count">{contadores.activos}</span>}
                     </button>
-                    <button className={`tab-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`} onClick={() => setVistaActiva('pendientes')}>
+                    <button className={`tab-btn ${vistaActiva === 'pendientes' ? 'active' : ''}`} onClick={() => handleCambiarVista('pendientes')}>
                         Pendientes
                         {contadores.pendientes > 0 && <span className="tab-count tab-count--alert">{contadores.pendientes}</span>}
                     </button>
-                    <button className={`tab-btn ${vistaActiva === 'historial' ? 'active' : ''}`} onClick={() => setVistaActiva('historial')}>
+                    <button className={`tab-btn ${vistaActiva === 'historial' ? 'active' : ''}`} onClick={() => handleCambiarVista('historial')}>
                         Historial
                         {contadores.historial > 0 && <span className="tab-count">{contadores.historial}</span>}
                     </button>
-                    <button className={`tab-btn ${vistaActiva === 'borradores' ? 'active' : ''}`} onClick={() => setVistaActiva('borradores')}>
+                    <button className={`tab-btn ${vistaActiva === 'borradores' ? 'active' : ''}`} onClick={() => handleCambiarVista('borradores')}>
                         Borradores
                         {contadores.borradores > 0 && <span className="tab-count">{contadores.borradores}</span>}
                     </button>
@@ -571,10 +648,18 @@ export default function MisEventosPage() {
                     {/* ACTIVOS */}
                     {vistaActiva === 'activos' && (
                         loading ? <div className="loading-state">Cargando...</div>
-                        : eventosActivos.length === 0
-                            ? <EmptyState icon="🚴" title="No tenés eventos activos"
-                                subtitle="¡Creá tu primer evento y compartilo con la comunidad!" showCreate />
-                            : <div className="grid-eventos">{eventosActivos.map(e => renderEventoCard(e, true))}</div>
+                        : <>
+                            <BuscadorEventos
+                            onBuscar={ejecutarBusqueda}
+                            onLimpiar={limpiarBusqueda}
+                            hayFiltroActivo={!!(filtroActivo.nombre || filtroActivo.dia || filtroActivo.mes || filtroActivo.anio)}
+                        />
+                            {eventosActivos.length === 0
+                                ? <EmptyState icon="🚴" title="No tenés eventos activos"
+                                    subtitle="¡Creá tu primer evento y compartilo con la comunidad!" showCreate />
+                                : <div className="grid-eventos">{eventosActivos.map(e => renderEventoCard(e, true))}</div>
+                            }
+                        </>
                     )}
 
                     {/* PENDIENTES */}
@@ -594,6 +679,12 @@ export default function MisEventosPage() {
                                     {pendientesEliminacion.length > 0 && <span className="filtro-count">{pendientesEliminacion.length}</span>}
                                 </button>
                             </div>
+
+                            <BuscadorEventos
+                            onBuscar={ejecutarBusqueda}
+                            onLimpiar={limpiarBusqueda}
+                            hayFiltroActivo={!!(filtroActivo.nombre || filtroActivo.dia || filtroActivo.mes || filtroActivo.anio)}
+                        />
 
                             {loading ? <div className="loading-state">Cargando...</div> : (
                                 <>
@@ -631,6 +722,12 @@ export default function MisEventosPage() {
                                 </button>
                             </div>
 
+                            <BuscadorEventos
+                            onBuscar={ejecutarBusqueda}
+                            onLimpiar={limpiarBusqueda}
+                            hayFiltroActivo={!!(filtroActivo.nombre || filtroActivo.dia || filtroActivo.mes || filtroActivo.anio)}
+                        />
+
                             {loading ? <div className="loading-state">Cargando...</div> : (
                                 <>
                                     {filtroHistorial === 'finalizados' && (
@@ -652,10 +749,18 @@ export default function MisEventosPage() {
                     {/* BORRADORES */}
                     {vistaActiva === 'borradores' && (
                         loading ? <div className="loading-state">Cargando...</div>
-                        : solicitudesBorradores.length === 0
-                            ? <EmptyState icon="📝" title="No tenés borradores guardados"
-                                subtitle="Cuando guardes un evento sin enviar, va a aparecer acá." />
-                            : <div className="grid-eventos">{solicitudesBorradores.map(renderSolicitudCard)}</div>
+                        : <>
+                            <BuscadorEventos
+                            onBuscar={ejecutarBusqueda}
+                            onLimpiar={limpiarBusqueda}
+                            hayFiltroActivo={!!(filtroActivo.nombre || filtroActivo.dia || filtroActivo.mes || filtroActivo.anio)}
+                        />
+                            {borradores.length === 0
+                                ? <EmptyState icon="📝" title="No tenés borradores guardados"
+                                    subtitle="Cuando guardes un evento sin enviar, va a aparecer acá." />
+                                : <div className="grid-eventos">{borradores.map(renderSolicitudCard)}</div>
+                            }
+                        </>
                     )}
                 </div>
             </div>
@@ -677,15 +782,16 @@ export default function MisEventosPage() {
             {modalEditar && itemAEditar && (
                 <EditEventModal
                     isOpen={modalEditar}
-                    onClose={() => { setModalEditar(false); setItemAEditar(null); }}
+                    onClose={() => { setModalEditar(false); setItemAEditar(null); setEditandoBorrador(false); }}
                     item={itemAEditar}
                     tipo={tipoEdicion}
                     onSuccess={() => { showToast('Cambios guardados correctamente', 'success'); cargarDatos(); }}
                     onShowToast={showToast}
+                    esBorrador={editandoBorrador}
+                    esAdmin={getUserRole() === 1 || getUserRole() === 2}
                 />
             )}
 
-            {/* Modal de detalle de evento */}
             <EventoDetalleModal
                 eventoId={detalleEventoId}
                 eventoPreview={detallePreview}

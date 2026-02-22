@@ -30,6 +30,7 @@ export default function SolicitudEventoPage() {
   const [idBorrador, setIdBorrador] = useState<number | null>(null);
   const [ultimoAutoguardado, setUltimoAutoguardado] = useState<Date | null>(null);
   const [guardandoBorrador, setGuardandoBorrador] = useState(false);
+  const [yaEnviado, setYaEnviado] = useState(false); // ✅ bloquea autoguardado después de enviar
   const autoGuardadoRef = useRef<number | null>(null);
 
   const AUTOGUARDADO_INTERVALO = 30000; // 30 segundos
@@ -48,6 +49,21 @@ export default function SolicitudEventoPage() {
     setToast({ mensaje, tipo });
   };
 
+  // ✅ FIX: Parsea errores de FastAPI correctamente
+  // Pydantic devuelve detail como array: [{loc, msg, type, input, ctx}]
+  // Si se pasa directo al Toast crashea React porque no es un string
+  const parsearError = (errorBody: any): string => {
+    if (!errorBody) return 'Error desconocido';
+    if (typeof errorBody.detail === 'string') return errorBody.detail;
+    if (Array.isArray(errorBody.detail)) {
+      // Errores de validación Pydantic: tomar el primer mensaje
+      return errorBody.detail.map((e: any) => e.msg || String(e)).join(', ');
+    }
+    if (typeof errorBody.detail === 'object') return JSON.stringify(errorBody.detail);
+    return 'Error al procesar la solicitud';
+  };
+
+
   // ========== Handlers ==========
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -60,7 +76,6 @@ export default function SolicitudEventoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ✅ Usamos tu helper en lugar de buscar a mano en el storage
     const token = getToken(); 
     
     if (!token) {
@@ -76,10 +91,8 @@ export default function SolicitudEventoPage() {
       return;
     }
 
-    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
     let nombreFinal = formData.nombre_evento;
     if (user && (user.id_rol === 3 || user.id_rol === 4)) {
-      // Verificamos que no lo hayamos agregado previamente
       if (!nombreFinal.includes("- By Wake Up Bikes!")) {
         nombreFinal = `${nombreFinal.trim()} - By Wake Up Bikes!`;
       }
@@ -88,9 +101,8 @@ export default function SolicitudEventoPage() {
     try {
       setLoading(true);
 
-      // Preparar datos completos
       const datosAEnviar = {
-        nombre_evento: nombreFinal, // ✅ Usamos el nombre modificado
+        nombre_evento: nombreFinal,
         ubicacion: formData.ubicacion,
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
@@ -115,18 +127,18 @@ export default function SolicitudEventoPage() {
       );
 
       if (response.ok) {
-        // Limpiar borrador guardado
         localStorage.removeItem('borrador_solicitud');
         setIdBorrador(null);
-        
+        setYaEnviado(true); // ✅ bloquear autoguardado para que no regenere el borrador
         showToast("✅ Solicitud enviada para revisión", "success");
         
+        // FIX 2: Redirigir a la tab "pendientes" en vez de "activos"
         setTimeout(() => {
-          navigate("/mis-eventos");
+          navigate("/mis-eventos?tab=pendientes");
         }, 1500);
       } else {
         const error = await response.json();
-        showToast(error.detail || "Error al enviar solicitud", "error");
+        showToast(parsearError(error), "error");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -136,7 +148,7 @@ export default function SolicitudEventoPage() {
     }
   };
 
-  // ========== AUTOGUARDADO CORREGIDO ==========
+  // ========== AUTOGUARDADO ==========
   const autoGuardarBorrador = async () => {
     const tieneDatosCompletos = 
       formData.nombre_evento.trim() !== "" &&
@@ -145,15 +157,12 @@ export default function SolicitudEventoPage() {
       formData.lat !== null &&
       formData.lng !== null;
 
-    if (!tieneDatosCompletos || guardandoBorrador) {
-      console.log('⏸️ Autoguardado pausado: faltan datos mínimos');
+    if (!tieneDatosCompletos || guardandoBorrador || yaEnviado) {
       return;
     }
 
-    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
     let nombreFinal = formData.nombre_evento;
     if (user && (user.id_rol === 3 || user.id_rol === 4)) {
-      // Verificamos que no lo hayamos agregado previamente
       if (!nombreFinal.includes("- By Wake Up Bikes!")) {
         nombreFinal = `${nombreFinal.trim()} - By Wake Up Bikes!`;
       }
@@ -162,7 +171,6 @@ export default function SolicitudEventoPage() {
     try {
       setGuardandoBorrador(true);
       
-      // ✅ Usamos tu helper
       const token = getToken();
 
       if (!token) {
@@ -171,7 +179,7 @@ export default function SolicitudEventoPage() {
       }
 
       const datosAEnviar = {
-        nombre_evento: nombreFinal, // ✅ Usamos el nombre modificado
+        nombre_evento: nombreFinal,
         ubicacion: formData.ubicacion,
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
@@ -188,8 +196,6 @@ export default function SolicitudEventoPage() {
         : `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=false`;
 
       const method = idBorrador ? "PUT" : "POST";
-
-      console.log('📤 Autoguardando...', { url, method, datos: datosAEnviar });
 
       const response = await fetch(url, {
         method,
@@ -209,16 +215,17 @@ export default function SolicitudEventoPage() {
 
         setUltimoAutoguardado(new Date());
         
-        // Guardar en localStorage
         localStorage.setItem('borrador_solicitud', JSON.stringify({
           formData: datosAEnviar,
-          idBorrador: data.id_solicitud || idBorrador
+          idBorrador: data.id_solicitud || idBorrador,
+          id_usuario: user?.id_usuario  // ✅ para detectar cambio de usuario al recuperar
         }));
-
-        console.log('✅ Borrador guardado automáticamente', data);
       } else {
-        const error = await response.json();
-        console.error('❌ Error en autoguardado:', error);
+        const errorBody = await response.json();
+        console.error('❌ Error en autoguardado:', errorBody);
+        // No mostramos toast para errores de autoguardado silencioso,
+        // pero logueamos el mensaje parseado para debug
+        console.error('Mensaje:', parsearError(errorBody));
       }
     } catch (error) {
       console.error('❌ Error en autoguardado:', error);
@@ -227,13 +234,10 @@ export default function SolicitudEventoPage() {
     }
   };
 
-  // ========== FORMATEAR TIEMPO ==========
   const formatearUltimoAutoguardado = () => {
     if (!ultimoAutoguardado) return '';
-    
     const ahora = new Date();
     const diff = Math.floor((ahora.getTime() - ultimoAutoguardado.getTime()) / 1000);
-    
     if (diff < 60) return 'hace unos segundos';
     if (diff < 3600) return `hace ${Math.floor(diff / 60)} minutos`;
     return ultimoAutoguardado.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -291,41 +295,37 @@ export default function SolicitudEventoPage() {
 
   // ========== EFECTOS ==========
 
-  // Efecto 1: Inicializar y recuperar borrador
   useEffect(() => {
     initMap();
     
-    // Recuperar borrador guardado
     const borradorGuardado = localStorage.getItem('borrador_solicitud');
     if (borradorGuardado) {
       try {
         const datos = JSON.parse(borradorGuardado);
-        setFormData(datos.formData);
-        setIdBorrador(datos.idBorrador);
-        showToast('Se recuperó un borrador guardado', 'info');
+        // ✅ Si el borrador no tiene id_usuario (dato viejo) o pertenece a otro usuario, descartarlo para evitar 403
+        if (!datos.id_usuario || (user?.id_usuario && datos.id_usuario !== user.id_usuario)) {
+          console.warn('Borrador descartado: sin id_usuario o pertenece a otro usuario');
+          localStorage.removeItem('borrador_solicitud');
+        } else {
+          setFormData(datos.formData);
+          setIdBorrador(datos.idBorrador);
+          showToast('Se recuperó un borrador guardado', 'info');
+        }
       } catch (error) {
         console.error('Error al recuperar borrador:', error);
+        localStorage.removeItem('borrador_solicitud');
       }
     }
 
     return () => {
-      if (autoGuardadoRef.current) {
-        clearTimeout(autoGuardadoRef.current);
-      }
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, []);
 
-  // Efecto 2: Autoguardado automático CORREGIDO
   useEffect(() => {
-    // Limpiar timeout anterior
-    if (autoGuardadoRef.current) {
-      clearTimeout(autoGuardadoRef.current);
-    }
+    if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);
 
-    // ✅ VALIDACIÓN MEJORADA: Verificar que todos los campos mínimos tengan valor
     const tieneDatosMinimos = 
       formData.nombre_evento.trim() !== "" &&
       formData.ubicacion.trim() !== "" &&
@@ -333,29 +333,19 @@ export default function SolicitudEventoPage() {
       formData.lat !== null &&
       formData.lng !== null;
 
-    if (!tieneDatosMinimos) {
-      console.log('⏸️ Esperando datos mínimos para autoguardar...');
-      return; // No hay nada que guardar aún
-    }
+    if (!tieneDatosMinimos || yaEnviado) return;
 
-    // Programar autoguardado en 30 segundos
     autoGuardadoRef.current = setTimeout(() => {
-      console.log('⏰ Ejecutando autoguardado programado...');
       autoGuardarBorrador();
     }, AUTOGUARDADO_INTERVALO) as unknown as number;
 
     return () => {
-      if (autoGuardadoRef.current) {
-        clearTimeout(autoGuardadoRef.current);
-      }
+      if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);
     };
   }, [formData]);
 
-  // Efecto 3: Búsqueda de ubicación
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
     if (formData.ubicacion.trim() === "") {
       setLocationStatus("idle");
@@ -379,14 +369,12 @@ export default function SolicitudEventoPage() {
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
-
           setFormData((prev) => ({ ...prev, lat, lng }));
           setLocationStatus("found");
 
           if (mapRef.current) {
             mapRef.current.setView([lat, lng], 16);
             if (markerRef.current) markerRef.current.remove();
-            
             const customIcon = L.divIcon({
               className: "custom-marker",
               html: '<div class="marker-pin"></div>',
@@ -412,9 +400,7 @@ export default function SolicitudEventoPage() {
     }, 800) as unknown as number;
 
     return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     };
   }, [formData.ubicacion]);
 
@@ -429,7 +415,6 @@ export default function SolicitudEventoPage() {
             <h1 className="event-registration__title">Solicitud de Publicación</h1>
           </div>
           
-          {/* Indicador de Autoguardado */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {guardandoBorrador && (
               <span style={{ color: '#4a9eff', fontSize: '0.85rem', fontWeight: '500' }}>
@@ -633,7 +618,6 @@ export default function SolicitudEventoPage() {
           </div>
         </div>
       </div>
-      {/* <Footer/>  */}
     </div>
   );
 }
