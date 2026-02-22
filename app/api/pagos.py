@@ -1,8 +1,9 @@
 import os
-from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv 
 import mercadopago 
+from fastapi import APIRouter, HTTPException, Request # Agregamos Request
+from fastapi.responses import RedirectResponse # Agregamos RedirectResponse
 
 load_dotenv()  # Carga las variables de entorno desde el archivo .env
 
@@ -32,12 +33,12 @@ async def crear_preferencia(datos: PagoRequest):
                 }
             ],
             "back_urls": {
-                "success": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones",
-                "failure": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones",
-                "pending": "https://trabajofinal-1-5r4j.onrender.com/perfil?tab=inscripciones"
+                "success": "https://trabajofinal-1bm4.onrender.com/api/v1/pagos/confirmar_pago",
+                "failure": "https://trabajofinal-1bm4.onrender.com/api/v1/pagos/confirmar_pago",
+                "pending": "https://trabajofinal-1bm4.onrender.com/api/v1/pagos/confirmar_pago"
             },
             # COMENTAMOS ESTO PARA QUE DEJE DE CHILLAR
-            #"auto_return": "approved", 
+            "auto_return": "approved", 
             "external_reference": str(datos.id_reserva),
             "binary_mode": True 
         }
@@ -60,3 +61,27 @@ async def crear_preferencia(datos: PagoRequest):
     except Exception as e:
         print(f"Error de Mercado Pago: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+# ==========================================
+# 🚀 EL RECIBIDOR (ENDPOINT PARA EL RETORNO)
+# ==========================================
+@router.get("/confirmar_pago")
+async def confirmar_pago(
+    request: Request,
+    status: str = None,
+    external_reference: str = None, # Aquí viene tu id_reserva
+    payment_id: str = None
+):
+    """
+    Este endpoint recibe al usuario cuando vuelve de Mercado Pago.
+    """
+    # 1. URL de tu FRONTEND real (ajustala si es otra)
+    URL_FRONT = "https://trabajofinal-1-5r4j.onrender.com" 
+
+    # 2. Lógica para actualizar tu base de datos (opcional por ahora, pero recomendada)
+    if status == "approved":
+        print(f"Reserva {external_reference} pagada con éxito. ID Pago: {payment_id}")
+        # Aquí llamarías a tu CRUD: db_actualizar_reserva(id=external_reference, estado="Pagado")
+
+    # 3. Redirigimos al usuario a la pestaña de inscripciones del FRONT
+    return RedirectResponse(url=f"{URL_FRONT}/perfil?tab=inscripciones&status={status}")
