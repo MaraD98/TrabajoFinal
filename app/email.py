@@ -19,8 +19,8 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    url_alta = f"{API_URL}/api/v1/suscripcion/alta?email={email_destino}"
-    url_baja = f"{API_URL}/api/v1/suscripcion/baja?email={email_destino}"
+    url_alta = f"{API_URL}/suscripcion/alta?email={email_destino}"
+    url_baja = f"{API_URL}/suscripcion/baja?email={email_destino}"
 
     html_content = f"""
     <html>
@@ -136,7 +136,7 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
     msg['To'] = email_destino
 
-    url_baja = f"{API_URL}/api/v1/suscripcion/baja?email={email_destino}"
+    url_baja = f"{API_URL}/suscripcion/baja?email={email_destino}"
     url_evento = f"{API_URL}/calendario?fecha={fecha_url}&evento_id={id_evento}"
 
     html_content = f"""
