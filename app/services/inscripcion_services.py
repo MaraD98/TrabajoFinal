@@ -167,6 +167,23 @@ class InscripcionService:
             "nuevo_estado": "Confirmada"
         }
     
+    # En app/services/inscripcion_services.py
+
+    @staticmethod
+    def confirmar_pago_automatico(db: Session, id_reserva: int):
+        # 1. Buscamos la reserva
+        reserva = db.query(ReservaEvento).filter(ReservaEvento.id_reserva == id_reserva).first()
+        if not reserva:
+            return None
+        
+        # 2. Cambiamos el estado a 2 (que suele ser 'Pagado' o 'Confirmado')
+        # Fijate en tu tabla EstadoReserva qué ID tiene 'Pagado'
+        reserva.id_estado_reserva = 2 
+        
+        db.commit()
+        db.refresh(reserva)
+        return reserva
+
     @staticmethod
     def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual):
         # 1. Buscamos la inscripción
