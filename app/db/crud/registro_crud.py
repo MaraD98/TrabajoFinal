@@ -71,6 +71,8 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
         id_usuario = user_id,
         lat = evento.lat, 
         lng = evento.lng,
+        distancia_km=evento.distancia_km,
+        ruta_coordenadas=evento.ruta_coordenadas,
         cupo_maximo = evento.cupo_maximo or 0
     )
     db.add(db_evento)
@@ -145,6 +147,9 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
         db_evento.cupo_maximo = evento_data.cupo_maximo
         db_evento.lat = evento_data.lat
         db_evento.lng = evento_data.lng
+        db_evento.distancia_km = evento_data.distancia_km
+        db_evento.ruta_coordenadas = evento_data.ruta_coordenadas
+        
         db.commit()
         db.refresh(db_evento)
     return db_evento

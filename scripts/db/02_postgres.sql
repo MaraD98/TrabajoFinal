@@ -84,7 +84,7 @@ CREATE TABLE Evento (
     id_usuario INT NOT NULL,
     nombre_evento VARCHAR(255) NOT NULL,
     fecha_evento DATE NOT NULL,
-    ubicacion VARCHAR(255) NOT NULL,
+    ubicacion VARCHAR(300) NOT NULL, -- se amplió a 300 para permitir direcciones más largas
     id_tipo INT NOT NULL,       
     id_dificultad INT NOT NULL,     
     descripcion TEXT,
@@ -94,6 +94,8 @@ CREATE TABLE Evento (
     lat DECIMAL(9,6),
     lng DECIMAL(9,6),
     cupo_maximo INT,
+    distancia_km DECIMAL(6,2),
+    ruta_coordenadas JSONB, -- Almacena la ruta como un array de objetos con latitud y longitud
 
     CONSTRAINT FK_Evento_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
     CONSTRAINT FK_Evento_Tipo FOREIGN KEY (id_tipo) REFERENCES TipoEvento(id_tipo),
