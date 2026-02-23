@@ -224,6 +224,9 @@ const AdminDashboard: React.FC = () => {
   const pagosSort = useSortableTable(reservas.filter(r => r.estado_reserva === 'Pendiente'), 'nombre_evento');
   const inscriptosSort = useSortableTable(reservas.filter(r => r.estado_reserva === 'Confirmada'), 'nombre_evento');
 
+  // CONSTANTE URL
+  const API_URL = import.meta.env.VITE_API_URL;
+
   // Helpers modales
   const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') => setToast({ mensaje, tipo });
   const showConfirm = (title: string, message: string, onConfirm: () => void, type: 'warning' | 'danger' | 'info' = 'warning') =>
@@ -245,21 +248,21 @@ const AdminDashboard: React.FC = () => {
     try {
       if (vistaActual === 'pendientes') {
         const [resAlta, resBaja, resEdicion] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/admin/solicitudes/pendientes`, config),
-          axios.get(`${import.meta.env.VITE_API_URL}/admin/bajas/pendientes`, config),
-          axios.get(`${import.meta.env.VITE_API_URL}/edicion-eventos/solicitudes-edicion-pendientes`, config)
+          axios.get(`${API_URL}/admin/solicitudes/pendientes`, config),
+          axios.get(`${API_URL}/admin/bajas/pendientes`, config),
+          axios.get(`${API_URL}/edicion-eventos/solicitudes-edicion-pendientes`, config)
         ]);
         setSolicitudesAlta(Array.isArray(resAlta.data) ? resAlta.data.map((s: any) => ({ ...s, tipo: 'alta' })) : []);
         setSolicitudesBaja(Array.isArray(resBaja.data) ? resBaja.data.map((s: any) => ({ ...s, tipo: 'baja' })) : []);
         setSolicitudesEdicion(Array.isArray(resEdicion.data) ? resEdicion.data.map((s: any) => ({ ...s, tipo: 'edicion' })) : []);
       } else if (vistaActual === 'activos') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/eventos/`, config);
+        const res = await axios.get(`${API_URL}/eventos/`, config);
         setEventosActivos(Array.isArray(res.data) ? res.data.filter((e: Evento) => e.id_estado === 3) : []);
       } else if (vistaActual === 'historial') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/historial-eliminaciones`, config);
+        const res = await axios.get(`${API_URL}/admin/historial-eliminaciones`, config);
         setHistorialEventos(Array.isArray(res.data) ? res.data : []);
       } else if (vistaActual === 'pagos' || vistaActual === 'inscriptos') {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/inscripciones`, config);
+        const res = await axios.get(`${API_URL}/inscripciones`, config);
         setReservas(Array.isArray(res.data) ? res.data : []);
       }
     } catch (error) {
@@ -287,7 +290,7 @@ const AdminDashboard: React.FC = () => {
   const handleAprobarAlta = (id: number) =>
     showConfirm('Aprobar Solicitud', '¿Estás seguro de aprobar esta solicitud y publicar el evento?', async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 3 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 3 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud aprobada correctamente', 'success'); cargarDatos();
       } catch { showToast('Error al aprobar solicitud', 'error'); }
       hideConfirm();
@@ -296,7 +299,7 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarAlta = (id: number) =>
     showConfirm('Rechazar Solicitud', '¿Estás seguro de rechazar esta solicitud?', async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 4 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 4 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud rechazada', 'info'); cargarDatos();
       } catch { showToast('Error al rechazar solicitud', 'error'); }
       hideConfirm();
@@ -306,7 +309,7 @@ const AdminDashboard: React.FC = () => {
   const handleAprobarBaja = (id: number) =>
     showConfirm('Aprobar Eliminación', '¿Estás seguro de eliminar este evento?', async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/bajas/${id}/aprobar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/admin/bajas/${id}/aprobar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento eliminado correctamente', 'success'); cargarDatos();
       } catch { showToast('Error al aprobar baja', 'error'); }
       hideConfirm();
@@ -315,7 +318,7 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarBaja = (id: number) =>
     showConfirm('Rechazar Eliminación', '¿Rechazar esta solicitud y mantener el evento activo?', async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/bajas/${id}/rechazar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/admin/bajas/${id}/rechazar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud rechazada. Evento continúa publicado', 'success'); cargarDatos();
       } catch { showToast('Error al rechazar baja', 'error'); }
       hideConfirm();
@@ -325,7 +328,7 @@ const AdminDashboard: React.FC = () => {
   const handleAprobarEdicion = (idEvento: number, nombreEvento: string) =>
     showConfirm('Aprobar Edición', `¿Aprobar los cambios propuestos para "${nombreEvento}"?`, async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/edicion-eventos/${idEvento}/aprobar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/edicion-eventos/${idEvento}/aprobar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Cambios aprobados y aplicados al evento', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al aprobar edición', 'error'); }
       hideConfirm();
@@ -334,7 +337,7 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarEdicion = (idEvento: number, nombreEvento: string) =>
     showConfirm('Rechazar Edición', `¿Rechazar los cambios propuestos para "${nombreEvento}"? El evento mantendrá su versión anterior.`, async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Cambios rechazados. Evento sin modificar', 'info'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al rechazar edición', 'error'); }
       hideConfirm();
@@ -343,7 +346,7 @@ const AdminDashboard: React.FC = () => {
   const handleEliminarEvento = (id: number, nombre: string) =>
     showInputModal('🗑️ Cancelar Evento', `Estás a punto de cancelar el evento "${nombre}". Ingresa el motivo:`, async (motivo) => {
       try {
-        await axios.post(`${import.meta.env.VITE_API_URL}/eliminacion/admin/eliminar/${id}`, { motivo }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.post(`${API_URL}/eliminacion/admin/eliminar/${id}`, { motivo }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento cancelado correctamente', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al cancelar evento', 'error'); }
       hideInputModal();
@@ -352,7 +355,7 @@ const AdminDashboard: React.FC = () => {
   const handleDepurarEvento = (id: number, nombre: string) =>
     showInputModal('⚠️ Eliminar Evento Definitivamente', `Esta acción eliminará PERMANENTEMENTE el evento "${nombre}" de la base de datos. Ingresa el motivo:`, async (motivo) => {
       try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
+        await axios.delete(`${API_URL}eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
         showToast('Evento depurado definitivamente', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al depurar evento', 'error'); }
       hideInputModal();
@@ -361,7 +364,7 @@ const AdminDashboard: React.FC = () => {
   const handleRestaurarEvento = (id: number, nombre: string) =>
     showConfirm('♻️ Restaurar Evento', `¿Estás seguro de restaurar "${nombre}"? Volverá a estar publicado y activo.`, async () => {
       try {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/eliminacion/admin/restaurar/${id}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/eliminacion/admin/restaurar/${id}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento restaurado y publicado', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al restaurar evento', 'error'); }
       hideConfirm();
@@ -370,7 +373,7 @@ const AdminDashboard: React.FC = () => {
   const handleConfirmarPago = async () => {
     if (!pagoModal.reserva) return;
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/inscripciones/confirmar-pago/${pagoModal.reserva.id_reserva}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      await axios.post(`${API_URL}/inscripciones/confirmar-pago/${pagoModal.reserva.id_reserva}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
       showToast('Pago confirmado correctamente', 'success');
       setPagoModal({ show: false, reserva: null }); cargarDatos();
     } catch { showToast('Error al confirmar pago', 'error'); }

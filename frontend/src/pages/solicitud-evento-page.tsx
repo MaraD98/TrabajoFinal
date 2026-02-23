@@ -2,10 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate} from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet-routing-machine";
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 import "../styles/registro-evento.css";
 import { Navbar } from "../components/navbar";
 import Toast from '../components/modals/Toast';
 import { useAuth } from "../context/auth-context";
+import gifDemostracion from '../assets/gifDemostracion.gif';
 
 export default function SolicitudEventoPage() {
   const navigate = useNavigate();
@@ -24,6 +27,9 @@ export default function SolicitudEventoPage() {
     id_dificultad: 1,
     lat: null as number | null,
     lng: null as number | null,
+    distancia_km: null as number | null,
+    ruta_coordenadas: null as { lat: number; lng: number }[] | null,
+    tiempo_estimado: "",
   });
 
   // ========== Estados de Autoguardado ==========
@@ -39,8 +45,10 @@ export default function SolicitudEventoPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [locationStatus, setLocationStatus] = useState<"idle" | "found" | "not-found">("idle");
   const mapRef = useRef<L.Map | null>(null);
-  const markerRef = useRef<L.Marker | null>(null);
   const searchTimeoutRef = useRef<number | null>(null);
+  const routingControlRef = useRef<any>(null);
+  const [mostrarAyudaMapa, setMostrarAyudaMapa] = useState(false);
+
 
   // ========== Estados del Toast ==========
   const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
@@ -68,7 +76,23 @@ export default function SolicitudEventoPage() {
     setFormData({ ...formData, [name]: value });
   };
 
-  // ========== SUBMIT - ENVIAR DIRECTAMENTE (estado 2) ==========
+  // ✅ NUEVO: Función para limpiar el mapa y arrancar de cero
+  const limpiarMapa = () => {
+    if (routingControlRef.current) {
+      routingControlRef.current.setWaypoints([]);
+    }
+    setFormData(prev => ({
+      ...prev,
+      lat: null,
+      lng: null,
+      distancia_km: null,
+      ruta_coordenadas: null,
+      ubicacion: ""
+    }));
+    setLocationStatus("idle");
+  };
+
+  // ========== SUBMIT ==========
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -94,6 +118,12 @@ export default function SolicitudEventoPage() {
       }
     }
 
+    // ✅ LÓGICA NUEVA: Agregar el tiempo a la descripción sin duplicarlo
+    let descripcionFinal = formData.descripcion || "";
+    if (formData.tiempo_estimado && !descripcionFinal.includes("Tiempo Estimado")) {
+      descripcionFinal = `${descripcionFinal}\n\n⏱️ Tiempo Estimado de recorrido: ${formData.tiempo_estimado}\n🚴‍♂️ Distancia Total: ${formData.distancia_km} km`;
+    }
+
     try {
       setLoading(true);
 
@@ -101,13 +131,15 @@ export default function SolicitudEventoPage() {
         nombre_evento: nombreFinal,
         ubicacion: formData.ubicacion.substring(0, 150),
         fecha_evento: formData.fecha_evento,
-        descripcion: formData.descripcion || "",
+        descripcion: descripcionFinal.trim(), // ✅ Usamos la nueva variable        
         costo_participacion: formData.costo_participacion || 0,
         cupo_maximo: formData.cupo_maximo,
         id_tipo: formData.id_tipo,
         id_dificultad: formData.id_dificultad,
         lat: formData.lat,
-        lng: formData.lng
+        lng: formData.lng,
+        distancia_km: formData.distancia_km,
+        ruta_coordenadas: formData.ruta_coordenadas
       };
 
       const response = await fetch(
@@ -162,9 +194,14 @@ export default function SolicitudEventoPage() {
       }
     }
 
+    // ✅ LÓGICA NUEVA: Agregar el tiempo a la descripción sin duplicarlo
+    let descripcionFinal = formData.descripcion || "";
+    if (formData.tiempo_estimado && !descripcionFinal.includes("Tiempo Estimado")) {
+      descripcionFinal = `${descripcionFinal}\n\n⏱️ Tiempo Estimado de recorrido: ${formData.tiempo_estimado}`;
+    }
+
     try {
       setGuardandoBorrador(true);
-      
       const token = getToken();
 
       if (!token) {
@@ -174,15 +211,17 @@ export default function SolicitudEventoPage() {
 
       const datosAEnviar = {
         nombre_evento: nombreFinal,
-        ubicacion: formData.ubicacion.substring(0, 150),
+        ubicacion: formData.ubicacion, //.substring(0, 150),
         fecha_evento: formData.fecha_evento,
-        descripcion: formData.descripcion || "",
+        descripcion: descripcionFinal.trim(), // ✅ Usamos la nueva variable
         costo_participacion: formData.costo_participacion || 0,
         cupo_maximo: formData.cupo_maximo || 10,
         id_tipo: formData.id_tipo,
         id_dificultad: formData.id_dificultad,
         lat: formData.lat,
-        lng: formData.lng
+        lng: formData.lng,
+        distancia_km: formData.distancia_km,
+        ruta_coordenadas: formData.ruta_coordenadas
       };
 
       const url = idBorrador
@@ -202,23 +241,14 @@ export default function SolicitudEventoPage() {
 
       if (response.ok) {
         const data = await response.json();
-        
-        if (!idBorrador && data.id_solicitud) {
-          setIdBorrador(data.id_solicitud);
-        }
-
+        if (!idBorrador && data.id_solicitud) setIdBorrador(data.id_solicitud);
         setUltimoAutoguardado(new Date());
-        
         localStorage.setItem('borrador_solicitud', JSON.stringify({
           formData: datosAEnviar,
           idBorrador: data.id_solicitud || idBorrador,
           id_usuario: user?.id_usuario
         }));
-      } else {
-        const errorBody = await response.json();
-        console.error('❌ Error en autoguardado:', errorBody);
-        console.error('Mensaje:', parsearError(errorBody));
-      }
+      } 
     } catch (error) {
       console.error('❌ Error en autoguardado:', error);
     } finally {
@@ -254,35 +284,97 @@ export default function SolicitudEventoPage() {
       maxZoom: 19,
     }).addTo(map);
 
+    // ✅ Inicialización blindada del Routing
+    const routingControl = (L as any).Routing.control({
+      waypoints: [], // Arranca vacío
+      routeWhileDragging: true,
+      show: false, // Sigue ocultando el panel de texto
+      fitSelectedRoutes: false, // Evita que el mapa salte bruscamente al trazar
+      lineOptions: {
+        styles: [{ color: '#2563eb', opacity: 0.8, weight: 6 }] // Azul fuerte para que se vea bien
+      },
+      // Forzamos la conexión segura al servidor público
+      router: (L as any).Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1'
+      }),
+      createMarker: function(_i: number, waypoint: any) {
+        const customIcon = L.divIcon({
+          className: "custom-marker",
+          html: '<div class="marker-pin"></div>',
+          iconSize: [30, 42],
+          iconAnchor: [15, 42],
+        });
+        return L.marker(waypoint.latLng, { icon: customIcon, draggable: true });
+      }
+    }).addTo(map);
+
+    routingControlRef.current = routingControl;
+
+    // ✅ Evento: Ruta calculada con éxito
+    routingControl.on('routesfound', (e: any) => {
+      const routes = e.routes;
+      const summary = routes[0].summary;
+
+      // 1. Distancia
+      const distanceKm = parseFloat((summary.totalDistance / 1000).toFixed(2));
+
+      // 2. Tiempo (viene en segundos, lo pasamos a formato legible)
+      const totalSeconds = summary.totalTime;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const tiempoFormateado = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+
+      const coords = routes[0].coordinates;
+
+      // 3. Guardamos todo en el estado
+      setFormData(prev => ({
+        ...prev,
+        distancia_km: distanceKm,
+        tiempo_estimado: tiempoFormateado,
+        ruta_coordenadas: coords
+      }));
+    });
+
+    // ✅ Evento: Error al calcular ruta (Para que no nos deje a ciegas)
+    routingControl.on('routingerror', (e: any) => {
+      console.error("Error calculando ruta:", e);
+      showToast("No se pudo calcular la ruta por las calles. Intenta acercar los puntos.", "error");
+    });
+
+    // ✅ Lógica de clics en el mapa corregida
     map.on("click", async (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng;
-      setFormData((prev) => ({ ...prev, lat, lng }));
-
-      if (markerRef.current) markerRef.current.remove();
       
-      const customIcon = L.divIcon({
-        className: "custom-marker",
-        html: '<div class="marker-pin"></div>',
-        iconSize: [30, 42],
-        iconAnchor: [15, 42],
-      });
-      
-      markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+      // Obtenemos los puntos que ya están marcados
+      const currentWaypoints = routingControlRef.current
+        .getWaypoints()
+        .filter((wp: any) => wp && wp.latLng)
+        .map((wp: any) => wp.latLng);
 
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
-          { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
-        );
-        const data = await res.json();
-        if (data && data.display_name) {
-          // ✅ Truncar a 150 chars para evitar error 422
-          setFormData((prev) => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
-          setLocationStatus("found");
+      // Si es el primer clic, seteamos el inicio y buscamos la dirección
+      if (currentWaypoints.length === 0) {
+        setFormData((prev) => ({ ...prev, lat, lng }));
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+            { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
+          );
+          const data = await res.json();
+          if (data && data.display_name) {
+            setFormData((prev) => ({ ...prev, ubicacion: data.display_name }));
+            setLocationStatus("found");
+          }
+        } catch (err) {
+          console.error("Error obteniendo dirección:", err);
         }
-      } catch (err) {
-        console.error("Error obteniendo dirección:", err);
       }
+
+      // Agregamos el nuevo clic a la lista de puntos
+      currentWaypoints.push(L.latLng(lat, lng));
+      
+      // Le mandamos la lista entera al plugin para que trace la línea entre todos
+      routingControlRef.current.setWaypoints(currentWaypoints);
     });
   };
 
@@ -323,6 +415,12 @@ export default function SolicitudEventoPage() {
               // Sigue siendo borrador → cargar normalmente
               setFormData(datos.formData);
               setIdBorrador(datos.idBorrador);
+              // ✅ NUEVO: Si había ruta guardada, la dibujamos
+                if (datos.formData.lat && datos.formData.lng && routingControlRef.current) {
+                  // Nota: para simplificar, en el borrador iniciamos solo con el punto 0. 
+                  // Reconstruir la ruta completa requiere guardar los waypoints originales.
+                  routingControlRef.current.setWaypoints([L.latLng(datos.formData.lat, datos.formData.lng)]);
+                }
               showToast('Se recuperó un borrador guardado', 'info');
             } else {
               // Ya fue enviado, aprobado o no existe → limpiar localStorage silenciosamente
@@ -378,6 +476,11 @@ export default function SolicitudEventoPage() {
       return;
     }
 
+    const currentWps = routingControlRef.current?.getWaypoints().filter((w:any) => w.latLng);
+    if (currentWps && currentWps.length > 0) {
+      return;
+    }
+
     setIsSearching(true);
     setLocationStatus("idle");
 
@@ -399,22 +502,13 @@ export default function SolicitudEventoPage() {
 
           if (mapRef.current) {
             mapRef.current.setView([lat, lng], 16);
-            if (markerRef.current) markerRef.current.remove();
-            const customIcon = L.divIcon({
-              className: "custom-marker",
-              html: '<div class="marker-pin"></div>',
-              iconSize: [30, 42],
-              iconAnchor: [15, 42],
-            });
-            markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(mapRef.current);
+            // ✅ NUEVO: Si busca por dirección, seteamos ese lugar como inicio de la ruta
+            if (routingControlRef.current) {
+               routingControlRef.current.setWaypoints([L.latLng(lat, lng)]);
+            }
           }
         } else {
-          setFormData((prev) => ({ ...prev, lat: null, lng: null }));
           setLocationStatus("not-found");
-          if (markerRef.current) {
-            markerRef.current.remove();
-            markerRef.current = null;
-          }
         }
       } catch (err) {
         console.error("Error buscando ubicación:", err);
@@ -561,7 +655,7 @@ export default function SolicitudEventoPage() {
                     )}
                   </div>
                   <span className="event-form__hint">
-                    Escribe la dirección completa o haz clic en el mapa
+                    Escribe la dirección o haz clic en el mapa para marcar el inicio
                   </span>
                 </div>
               </div>
@@ -632,17 +726,91 @@ export default function SolicitudEventoPage() {
 
           <div className="event-registration__map-wrapper">
             <div className="map-card">
+              {/* ✅ MODIFICADO: Agregamos info de distancia y botón de limpiar */}
               <div className="map-card__header">
-                <h3 className="map-card__title">Ubicación en el Mapa</h3>
+                <h3 className="map-card__title">Ubicación y Ruta
+                    {/* ✅ Botón sutil de ayuda */}
+                  <button 
+                    type="button" 
+                    onClick={() => setMostrarAyudaMapa(true)}
+                    style={{ background: '#c30404', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    💡 Ver ejemplo
+                  </button>
+                </h3>
                 <p className="map-card__subtitle">
-                  Haz clic en el mapa para marcar el punto exacto
+                  Haz clic para marcar el inicio. Sigue haciendo clic para trazar la ruta.
                 </p>
+                
+                {/* ✅ Cartelito de Distancia y Tiempo */}
+                {formData.distancia_km !== null && (
+                  <div style={{ marginTop: '12px', padding: '10px', backgroundColor: '#e8f4fd', borderRadius: '8px', borderLeft: '4px solid #4a9eff', color: '#333', fontWeight: 'bold' }}>
+                    🚴‍♂️ Distancia Total: {formData.distancia_km} km - 
+                    ⏱️ Tiempo Estimado: {formData.tiempo_estimado}
+                  </div>
+                )}
+
+                <button 
+                  type="button" 
+                  onClick={limpiarMapa} 
+                  style={{ 
+                    marginTop: '12px', 
+                    padding: '8px 16px', 
+                    cursor: 'pointer', 
+                    background: 'rgb(195 4 4)', 
+                    color: 'white', 
+                    border: 'none', 
+                    borderRadius: '6px',
+                    fontWeight: '600',
+                    width: '100%'
+                  }}
+                >
+                  🗑️ Limpiar Mapa y Ruta
+                </button>
+
               </div>
               <div id="map" className="map-card__map"></div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* ✅ MODAL DE AYUDA DEL MAPA */}
+      {mostrarAyudaMapa && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+          <div style={{ backgroundColor: '#1a1a1a', padding: '30px', borderRadius: '12px', maxWidth: '500px', width: '100%', position: 'relative', border: '1px solid #333' }}>
+            <button 
+              onClick={() => setMostrarAyudaMapa(false)} 
+              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' }}
+            >
+              ✖
+            </button>
+            <h3 style={{ marginTop: 0, color: '#ccff00', fontSize: '1.5rem', marginBottom: '15px' }}>¿Cómo trazar tu ruta?</h3>
+            <ul style={{ color: '#ddd', fontSize: '1rem', lineHeight: '1.6', paddingLeft: '20px', marginBottom: '20px' }}>
+              <li>Haz un <strong>primer clic</strong> en el mapa para marcar el punto de salida (se autocompletará la calle).</li>
+              <li>Sigue haciendo <strong>más clics</strong> por las calles donde pasará la carrera. La ruta se dibujará sola.</li>
+              <li>Puedes <strong>arrastrar la línea azul</strong> con el mouse si quieres forzarla a pasar por otra calle.</li>
+            </ul>
+            
+            {/* Espacio reservado para tu GIF */}
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: '20px' }}>
+               <img 
+                 src={gifDemostracion}
+                 alt="Ejemplo de cómo trazar la ruta" 
+                 style={{ maxWidth: '100%', borderRadius: '8px', border: '2px solid #555' }} 
+               />
+            </div>
+
+            <button 
+              onClick={() => setMostrarAyudaMapa(false)}
+              style={{ width: '100%', padding: '12px', marginTop: '20px', backgroundColor: '#ccff00', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem' }}
+            >
+              ¡Entendido!
+            </button>
+          </div>
+        </div>
+      )}
+      {/* <Footer/>  */}
     </div>
   );
 }

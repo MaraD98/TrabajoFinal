@@ -304,11 +304,14 @@ export default function MisEventosPage() {
             let mediaUrl = item.multimedia[0].url_archivo.replace(/\\/g, "/");
             if (mediaUrl.startsWith('http')) return mediaUrl;
             const cleanPath = mediaUrl.startsWith("/") ? mediaUrl.substring(1) : mediaUrl;
-            const baseUrl = import.meta.env.VITE_API_URL 
-                ? import.meta.env.VITE_API_URL.split('/api')[0] 
-                : 'http://localhost:8000';
-            return `${baseUrl}/${cleanPath}`;
+            
+        const apiUrl = import.meta.env.VITE_API_URL;
+        
+        const baseUrl = apiUrl ? apiUrl.split('/api')[0] : "";
+
+        return `${baseUrl}/${cleanPath}`;
         }
+
         const url = 'imagen_url' in item ? item.imagen_url : undefined;
         if (url && url.startsWith("http")) return url;
         return IMAGENES_TIPO[item.id_tipo] || IMAGENES_TIPO.default;

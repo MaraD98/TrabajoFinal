@@ -52,6 +52,8 @@ class Solicitud_PublicacionCRUD:
             cupo_maximo         = getattr(solicitud, 'cupo_maximo', 0) or 0,  # ✅ CAMBIO: agregar
             lat                 = getattr(solicitud, 'lat', None),             # ✅ CAMBIO: agregar
             lng                 = getattr(solicitud, 'lng', None),             # ✅ CAMBIO: agregar
+            distancia_km=solicitud.distancia_km,
+            ruta_coordenadas=solicitud.ruta_coordenadas,
             id_usuario          = id_usuario,
             fecha_solicitud     = date.today(),
             id_estado           = 1,
@@ -92,7 +94,7 @@ class Solicitud_PublicacionCRUD:
         campos = [
             'nombre_evento', 'fecha_evento', 'ubicacion', 'id_tipo',
             'id_dificultad', 'descripcion', 'costo_participacion',
-            'cupo_maximo', 'lat', 'lng'
+            'cupo_maximo', 'lat', 'lng', 'distancia_km', 'ruta_coordenadas'
         ]
         for campo in campos:
             valor = getattr(solicitud, campo, None)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict, field_serializer
 from datetime import date, datetime 
-from typing import Optional
+from typing import Optional, Any
 from decimal import Decimal
 
 
@@ -11,7 +11,7 @@ from decimal import Decimal
 class EventoBase(BaseModel):
     """Campos comunes para eventos"""
     nombre_evento: str = Field(..., max_length=255, min_length=1, description="Nombre del evento")
-    ubicacion: str = Field(..., max_length=255)
+    ubicacion: str = Field(..., max_length=300)
     fecha_evento: date
     descripcion: Optional[str] = Field(None, max_length=500)
     costo_participacion: Decimal = Field(..., ge=0, description="Costo de inscripción")
@@ -20,6 +20,8 @@ class EventoBase(BaseModel):
     lat: Optional[Decimal] = None
     lng: Optional[Decimal] = None
     cupo_maximo: Optional[int] = Field(default=0, ge=0, description="Cupo máximo de participantes")
+    distancia_km: Optional[Decimal] = Field(None, description="Distancia total de la ruta en kilómetros")
+    ruta_coordenadas: Optional[list[dict[str, Any]]] = Field(None, description="Array de coordenadas [ {lat, lng}, ... ]")
 
 class EventoCreate(EventoBase):
     """Schema para crear eventos con validaciones"""
@@ -62,7 +64,7 @@ class EventoResponse(EventoBase):
 
     model_config = ConfigDict(from_attributes=True)
 
-# 👇 AGREGAR ESTO — formatea la fecha en TODAS las respuestas
+# 👇 Formatea la fecha en TODAS las respuestas
     @field_serializer('fecha_evento')
     def serializar_fecha(self, valor) -> str:
         if valor is None:
@@ -103,6 +105,10 @@ class ReservaResponseSchema(BaseModel):
     fecha_reserva: datetime
     fecha_expiracion: Optional[datetime] #Para mostrar cuándo vence
     id_estado_reserva: int
+    lat: Optional[Decimal] = None
+    lng: Optional[Decimal] = None
+    distancia_km: Optional[Decimal] = None
+    ruta_coordenadas: Optional[list] = None
 
     model_config = ConfigDict(from_attributes=True)
     
