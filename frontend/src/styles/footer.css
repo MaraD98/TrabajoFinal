@@ -141,3 +141,55 @@
         justify-content: center;
     }
 }
+
+/* Contenedor de la sección para quitar espacios sobrantes */
+.footer-section.socials {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Alinea todo a la izquierda */
+}
+
+/* El título NEWSLETTER pegado al input */
+.newsletter-title {
+  margin-top: 15px !important; /* Espacio con las redes sociales */
+  margin-bottom: 5px !important;  /* Casi pegado al recuadro de abajo */
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* El recuadro que une todo */
+.newsletter-form {
+  display: flex;
+  border: 1px solid white; 
+  width: 100%;
+  max-width: 280px;
+  background-color: black;
+  height: 40px; /* Altura fija para que sea prolijo */
+}
+
+.newsletter-input {
+  background-color: transparent;
+  color: white;
+  border: none;
+  padding: 0 10px;
+  flex: 1;
+  outline: none;
+  font-size: 13px;
+}
+
+/* El botón: Sin bordes redondeados y pegado al borde derecho */
+.newsletter-button {
+  background-color: white; 
+  border: none;
+  border-radius: 0; /* ESTO QUITA LAS PUNTAS REDONDEADAS */
+  width: 45px;      /* Ancho fijo para el cuadrado del icono */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.newsletter-button:hover {
+  background-color: #f0f0f0;
+}

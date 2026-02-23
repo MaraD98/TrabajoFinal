@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import '../styles/inscripciones.css';
 import { useAuth } from "../context/auth-context"; // 1. Importamos el hook de auth
+import { useLocation } from "react-router-dom";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const ENDPOINT_INSCRIPCIONES = `${API_URL}/inscripciones`;
@@ -26,6 +27,7 @@ interface Reserva {
 
 const PanelInscriptos: React.FC = () => {
   const { getToken, user } = useAuth(); // 2. Usamos el token y el usuario del contexto
+  const location = useLocation();
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,49 @@ const PanelInscriptos: React.FC = () => {
     busqueda: "", fechaInicio: "", fechaFin: ""
   });
 
+  // --- FUNCIÓN PARA AVISAR AL BACKEND ---
+  const confirmarPagoAutomatico = async (idReserva: string) => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      // Usamos exactamente el mismo endpoint que en Gestión de Pagos
+      const response = await fetch(`${API_URL}/inscripciones/confirmar-pago/${idReserva}`, {
+        method: 'POST', // Tu backend usa POST según el archivo de Gestión
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+
+      if (response.ok) {
+        console.log("¡Pago confirmado automáticamente por Mercado Pago! ✅");
+        // Opcional: podrías mostrar un alert o notificación de éxito
+        cargarReservas(); // Refrescamos la tabla
+      } else {
+        const errorData = await response.json();
+        console.error("Error del servidor:", errorData.detail);
+      }
+    } catch (error) {
+      console.error("Error de conexión al confirmar automáticamente:", error);
+    }
+  };
+
+  // --- NUEVO: Capturar el éxito de Mercado Pago ---
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const status = params.get('status');
+    const idReserva = params.get('external_reference');
+
+    if (status === 'approved' && idReserva) {
+      confirmarPagoAutomatico(idReserva);
+
+      // DETALLE DE LIMPIEZA: Borra los parámetros de la URL sin recargar la página
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+  }, [location]);
+  
   useEffect(() => {
     cargarReservas();
   }, []);
@@ -88,7 +133,6 @@ const PanelInscriptos: React.FC = () => {
     }
   };
 
-  // ... (el resto de las funciones handleBuscar, handleLimpiar, handleExportarCSV quedan igual)
   const handleBuscar = () => {
     setFiltrosAplicados({ busqueda: inputBusqueda, fechaInicio: inputFechaInicio, fechaFin: inputFechaFin });
   };

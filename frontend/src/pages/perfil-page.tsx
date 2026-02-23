@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate} from 'react-router-dom';
+import { useNavigate, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { Footer } from "../components/footer";
 import { Navbar } from '../components/navbar';
@@ -81,6 +81,7 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
 
 export default function PerfilPage() {
     const { getToken } = useAuth();
+    const location = useLocation();
     
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [inscripciones, setInscripciones] = useState<Inscripcion[]>([]);
@@ -108,7 +109,53 @@ export default function PerfilPage() {
 
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const tab = params.get('tab');
+
+        if (tab === 'inscripciones') {
+            setActiveTab('inscripciones');
+        } else if (tab === 'datos') {
+            setActiveTab('datos');
+        }
+    }, [location]);
     
+useEffect(() => {
+    const cargarDatosIniciales = async () => {
+        const token = getToken();
+        if (!token) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            // 1. Cargamos datos del perfil del usuario logueado
+            const resPerfil = await axios.get(`${apiUrl}/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setPerfil(resPerfil.data);
+            
+            // Llenamos el formulario de edición con lo que trajo el server
+            setEditForm({
+                nombre_y_apellido: resPerfil.data.nombre_y_apellido || '',
+                email: resPerfil.data.email || '',
+                telefono: resPerfil.data.telefono || '',
+                direccion: resPerfil.data.direccion || '',
+                enlace_redes: resPerfil.data.enlace_redes || ''
+            });
+
+            // 2. Cargamos sus inscripciones
+            await fetchInscripciones();
+
+        } catch (err: any) {
+            console.error("Error al cargar datos iniciales:", err);
+            setError("No se pudo cargar la información del perfil.");
+        }
+    };
+
+    cargarDatosIniciales();
+}, [apiUrl, getToken, navigate]);
 
     const fetchInscripciones = async () => {
         const token = getToken();
@@ -212,6 +259,28 @@ export default function PerfilPage() {
             setTimeout(() => setError(null), 4000);
         }
     };
+
+    const handlePagar = async (ins: Inscripcion) => {
+    const token = getToken();
+    try {
+        // Llamamos al backend para crear la preferencia de Mercado Pago
+        const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, {
+            id_reserva: ins.id_reserva,
+            nombre_evento: ins.nombre_evento,
+            precio: ins.costo
+        }, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Mercado Pago nos devuelve una URL (init_point) para pagar
+        if (response.data.init_point) {
+            window.location.href = response.data.init_point;
+        }
+    } catch (err: any) {
+        console.error("Error al iniciar el pago:", err);
+        setError("No se pudo iniciar el proceso de pago. Intenta más tarde.");
+    }
+};
 
     const getEstadoColor = (estado: string) => {
         switch(estado) {
@@ -448,34 +517,35 @@ export default function PerfilPage() {
                                     </div>
                                     
                                     {ins.estado_reserva === 'Pendiente de Pago' && (
-                                        <div>
+                                        <div style={{ marginBottom: '10px' }}>
                                             <ContadorPago fechaReserva={ins.fecha_reserva} />
                                         </div>
                                     )}
 
                                     <div style={{ fontSize: '0.9rem', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                        <div>📅 {ins.fecha_evento} {ins.hora_evento ? `- ${ins.hora_evento}` : ''}</div>
+                                        <div>📅 {ins.fecha_evento}</div>
                                         <div>📍 {ins.ubicacion}</div>
                                         <div style={{ color: '#ccff00', fontWeight: 'bold' }}>💲 ${ins.costo}</div>
                                     </div>
 
-                                    <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+                                    <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                         {ins.estado_reserva === 'Pendiente de Pago' && (
-                                            <button 
-                                                onClick={() => handleCancelarReserva(ins.id_reserva)}
-                                                style={{ 
-                                                    background: '#ff4444', 
-                                                    color: 'white', 
-                                                    border: 'none', 
-                                                    padding: '6px 12px', 
-                                                    borderRadius: '4px', 
-                                                    fontSize: '0.8rem', 
-                                                    cursor: 'pointer',
-                                                    fontWeight: 'bold'
-                                                }}
-                                            >
-                                                ✕ CANCELAR RESERVA
-                                            </button>
+                                            <>
+                                                {ins.costo > 0 && (
+                                                    <button 
+                                                        onClick={() => handlePagar(ins)}
+                                                        style={{ background: '#009ee3', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                    >
+                                                        💳 PAGAR AHORA
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => handleCancelarReserva(ins.id_reserva)}
+                                                    style={{ background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', padding: '6px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                >
+                                                    ✕ CANCELAR RESERVA
+                                                </button>
+                                            </>
                                         )}
                                     </div>
                                 </div>
@@ -483,10 +553,11 @@ export default function PerfilPage() {
                         )}
                     </div>
                 )}
-            </div>
-            
-        </div>
-        <Footer />
-        </div>
+            </div> {/* Cierre del contenedor blanco/gris principal */}
+            <Footer />
+        </div> 
+       </div> 
     );
+
+    
 }

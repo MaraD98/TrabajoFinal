@@ -133,7 +133,7 @@ export const Navbar = () => {
                             <div className="user-dropdown">
                                 {/* SECCIÓN 1: MI PERFIL (Corredor) */}
                                 <div className="dropdown-header">MI CUENTA</div>
-                                <Link to="/perfil" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>👤 Mi Perfil</Link>
+                                <Link to="/perfil?tab=datos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>👤 Mi Perfil</Link>
                                 <Link to="/perfil?tab=inscripciones" className="dropdown-item"> 🎫 Mis Inscripciones</Link>
 
                                 {/* SECCIÓN 2: GESTIÓN (Organizador) */}
