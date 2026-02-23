@@ -10,14 +10,23 @@ interface PagoPendiente {
   fecha_evento: string;
   costo_participacion: number;
   ubicacion: string;
-  fecha_limite_pago: string; // ← NUEVO: debe venir del backend
+  fecha_limite_pago: string;
 }
 
-// Hook para calcular tiempo restante de un deadline
+// ✅ FIX: parsear fecha como UTC para evitar offset de timezone
+// El backend envía ISO string - si no tiene Z lo agregamos para que
+// el browser lo trate como UTC y no sume/reste horas de timezone local
+function parsearFechaUTC(fechaStr: string): Date {
+  if (!fechaStr) return new Date(0);
+  // Si ya tiene Z o +XX:XX, respetar. Si no, asumir UTC agregando Z
+  const yaTimezone = /[Z+]/.test(fechaStr.slice(-6));
+  return new Date(yaTimezone ? fechaStr : fechaStr + 'Z');
+}
+
 function useCuentaRegresiva(fechaLimite: string) {
   const calcular = () => {
-    const diff = new Date(fechaLimite).getTime() - Date.now();
-    if (diff <= 0) return null; // vencido
+    const diff = parsearFechaUTC(fechaLimite).getTime() - Date.now();
+    if (diff <= 0) return null;
 
     const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
     const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -36,7 +45,6 @@ function useCuentaRegresiva(fechaLimite: string) {
   return tiempo;
 }
 
-// Subcomponente: cuenta regresiva visual para un pago
 function CuentaRegresiva({ fechaLimite }: { fechaLimite: string }) {
   const tiempo = useCuentaRegresiva(fechaLimite);
 
@@ -56,11 +64,9 @@ function CuentaRegresiva({ fechaLimite }: { fechaLimite: string }) {
     );
   }
 
-  // Color según urgencia
-  const esUrgente = tiempo.diff < 1000 * 60 * 60 * 24; // menos de 1 día
-  const esCritico = tiempo.diff < 1000 * 60 * 60 * 3;  // menos de 3 horas
+  const esUrgente = tiempo.diff < 1000 * 60 * 60 * 24;
+  const esCritico = tiempo.diff < 1000 * 60 * 60 * 3;
   const color = esCritico ? '#ef4444' : esUrgente ? '#f97316' : '#f59e0b';
-
 
   return (
     <div style={{ marginTop: 6 }}>
@@ -125,7 +131,7 @@ export default function AlertaPagosPendientes() {
 
   const formatFecha = (f: string) => {
     try {
-      return new Date(f).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+      return parsearFechaUTC(f).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
     } catch { return f; }
   };
 
@@ -139,7 +145,6 @@ export default function AlertaPagosPendientes() {
         fontFamily: 'Montserrat, sans-serif',
         maxWidth: 340
       }}>
-        {/* Panel expandido */}
         {expandido && (
           <div style={{
             marginBottom: 10,
@@ -150,7 +155,6 @@ export default function AlertaPagosPendientes() {
             overflow: 'hidden',
             animation: 'slideUpAlert 0.25s ease'
           }}>
-            {/* Header */}
             <div style={{
               padding: '14px 16px',
               background: 'rgba(245,158,11,0.1)',
@@ -170,7 +174,6 @@ export default function AlertaPagosPendientes() {
               </button>
             </div>
 
-            {/* Lista */}
             <div style={{ maxHeight: 320, overflowY: 'auto' }}>
               {pendientes.map(p => (
                 <div key={p.id_reserva} style={{
@@ -194,7 +197,6 @@ export default function AlertaPagosPendientes() {
                     ${p.costo_participacion.toLocaleString('es-AR')} pendiente
                   </span>
 
-                  {/* ← CUENTA REGRESIVA individual */}
                   {p.fecha_limite_pago && (
                     <CuentaRegresiva fechaLimite={p.fecha_limite_pago} />
                   )}
@@ -202,7 +204,6 @@ export default function AlertaPagosPendientes() {
               ))}
             </div>
 
-            {/* Footer */}
             <div style={{
               padding: '12px 16px',
               background: '#0f0f0f',
@@ -234,7 +235,6 @@ export default function AlertaPagosPendientes() {
           </div>
         )}
 
-        {/* Badge compacto */}
         <button
           onClick={() => setExpandido(e => !e)}
           style={{

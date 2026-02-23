@@ -88,15 +88,17 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
     ✅ Actualiza automáticamente eventos pasados a FINALIZADO antes de consultar.
     """
+    from app.models.auth_models import Usuario
     # 1. Actualizar eventos pasados a FINALIZADO
     actualizar_eventos_finalizados(db)
     
     # 2. Obtener fecha actual
     hoy = date.today()
     
-    # 3. Consultar solo eventos publicados y futuros
-    return (
-        db.query(Evento)
+   # 3. Consultar eventos con JOIN a Usuario para obtener email
+    resultados = (
+        db.query(Evento, Usuario.email)
+        .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
         .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)
         .filter(Evento.fecha_evento >= hoy)
         .order_by(Evento.fecha_evento.asc())
@@ -104,6 +106,14 @@ def get_eventos(db: Session, skip: int = 0, limit: int = 100):
         .limit(limit)
         .all()
     )
+    
+    # 4. Agregar email_usuario a cada evento
+    eventos = []
+    for evento, email in resultados:
+        evento.email_usuario = email
+        eventos.append(evento)
+    
+    return eventos
 
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
     """

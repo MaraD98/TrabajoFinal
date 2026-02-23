@@ -2,19 +2,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_serializer
 from datetime import datetime, date
 
 
-# ============================================================================
-# INPUT SCHEMAS (Request)
-# ============================================================================
-
 class EliminacionRequest(BaseModel):
-    """
-    Schema para solicitar cancelación/eliminación de un evento.
-    
-    Usado en:
-    - HU 4.1: Cancelar evento propio
-    - HU 4.2: Solicitar baja (externo)
-    - HU 4.3: Eliminar como admin
-    """
     motivo: str = Field(
         ..., 
         min_length=5, 
@@ -24,9 +12,6 @@ class EliminacionRequest(BaseModel):
 
 
 class AprobarRechazoRequest(BaseModel):
-    """
-    Schema para que el admin apruebe/rechace solicitudes de baja.
-    """
     observaciones: str | None = Field(
         None,
         max_length=500,
@@ -34,14 +19,7 @@ class AprobarRechazoRequest(BaseModel):
     )
 
 
-# ============================================================================
-# OUTPUT SCHEMAS (Response)
-# ============================================================================
-
 class EliminacionResponse(BaseModel):
-    """
-    Respuesta estándar después de cancelar/eliminar un evento.
-    """
     mensaje: str
     id_evento: int
     estado_nuevo: str
@@ -51,11 +29,6 @@ class EliminacionResponse(BaseModel):
 
 
 class SolicitudBajaResponse(BaseModel):
-    """
-    Schema para mostrar solicitudes de baja pendientes (Admin).
-    
-    Usado en: GET /eliminacion/admin/bajas-pendientes
-    """
     id_eliminacion: int
     id_evento: int
     nombre_evento: str
@@ -68,32 +41,24 @@ class SolicitudBajaResponse(BaseModel):
     def serializar_fecha(self, valor) -> str:
         if valor is None:
             return None
-        return valor.strftime('%d-%m-%Y %H:%M')
+        return valor.strftime('%d-%m-%Y')  # ✅ FIX: sin hora
     
     model_config = ConfigDict(from_attributes=True)
 
 
 class HistorialEliminacionResponse(BaseModel):
-    """
-    Schema para el historial completo de eliminaciones.
-    
-    Usado en: GET /eliminacion/admin/historial
-    """
     id_evento: int
     nombre_evento: str
     fecha_eliminacion: str
     motivo: str
     eliminado_por: str
     estado: str
-    tipo_eliminacion: str  # "soft_delete" | "hard_delete"
-    
+    tipo_eliminacion: str
+
     model_config = ConfigDict(from_attributes=True)
 
 
 class NotificacionEliminacionInfo(BaseModel):
-    """
-    Información sobre el estado de notificaciones enviadas.
-    """
     id_eliminacion: int
     notificacion_enviada: bool
     total_notificados: int

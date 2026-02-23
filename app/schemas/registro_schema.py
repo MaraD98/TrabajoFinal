@@ -34,6 +34,27 @@ class EventoCreate(EventoBase):
         return v
 
 
+# ✅ NUEVO: Schema permisivo para borradores de admin/supervisor
+# Todos los campos opcionales — igual que SolicitudBorradorCreate para externos
+# Se usa cuando enviar=False en el endpoint POST /eventos/
+class EventoBorradorCreate(BaseModel):
+    """
+    Schema para guardar borradores de eventos (admin/supervisor).
+    Todos los campos son opcionales para permitir autoguardado parcial,
+    igual que Gmail guarda borradores sin validar que estén completos.
+    """
+    nombre_evento:       Optional[str]     = Field(None, max_length=255)
+    ubicacion:           Optional[str]     = Field(None, max_length=255)
+    fecha_evento:        Optional[date]    = None
+    descripcion:         Optional[str]     = Field(None, max_length=500)
+    costo_participacion: Optional[Decimal] = Field(None, ge=0)
+    id_tipo:             Optional[int]     = Field(None, gt=0)
+    id_dificultad:       Optional[int]     = Field(None, gt=0)
+    lat:                 Optional[Decimal] = None
+    lng:                 Optional[Decimal] = None
+    cupo_maximo:         Optional[int]     = Field(None, ge=0)
+
+
 class EventoResponse(EventoBase):
     """Schema para respuestas con IDs"""
     id_evento: int

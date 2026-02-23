@@ -36,6 +36,7 @@ export default function SolicitudEventoPage() {
   const [idBorrador, setIdBorrador] = useState<number | null>(null);
   const [ultimoAutoguardado, setUltimoAutoguardado] = useState<Date | null>(null);
   const [guardandoBorrador, setGuardandoBorrador] = useState(false);
+  const [yaEnviado, setYaEnviado] = useState(false); // ✅ bloquea autoguardado después de enviar
   const autoGuardadoRef = useRef<number | null>(null);
 
   const AUTOGUARDADO_INTERVALO = 30000; // 30 segundos
@@ -54,6 +55,17 @@ export default function SolicitudEventoPage() {
 
   const showToast = (mensaje: string, tipo: 'success' | 'error' | 'info') => {
     setToast({ mensaje, tipo });
+  };
+
+  // ✅ FIX: Parsea errores de FastAPI correctamente
+  const parsearError = (errorBody: any): string => {
+    if (!errorBody) return 'Error desconocido';
+    if (typeof errorBody.detail === 'string') return errorBody.detail;
+    if (Array.isArray(errorBody.detail)) {
+      return errorBody.detail.map((e: any) => e.msg || String(e)).join(', ');
+    }
+    if (typeof errorBody.detail === 'object') return JSON.stringify(errorBody.detail);
+    return 'Error al procesar la solicitud';
   };
 
   // ========== Handlers ==========
@@ -84,7 +96,6 @@ export default function SolicitudEventoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // ✅ Usamos tu helper en lugar de buscar a mano en el storage
     const token = getToken(); 
     
     if (!token) {
@@ -100,10 +111,8 @@ export default function SolicitudEventoPage() {
       return;
     }
 
-    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
     let nombreFinal = formData.nombre_evento;
     if (user && (user.id_rol === 3 || user.id_rol === 4)) {
-      // Verificamos que no lo hayamos agregado previamente
       if (!nombreFinal.includes("- By Wake Up Bikes!")) {
         nombreFinal = `${nombreFinal.trim()} - By Wake Up Bikes!`;
       }
@@ -118,10 +127,9 @@ export default function SolicitudEventoPage() {
     try {
       setLoading(true);
 
-      // Preparar datos completos
       const datosAEnviar = {
-        nombre_evento: nombreFinal, // ✅ Usamos el nombre modificado
-        ubicacion: formData.ubicacion,
+        nombre_evento: nombreFinal,
+        ubicacion: formData.ubicacion.substring(0, 150),
         fecha_evento: formData.fecha_evento,
         descripcion: descripcionFinal.trim(), // ✅ Usamos la nueva variable        
         costo_participacion: formData.costo_participacion || 0,
@@ -147,15 +155,16 @@ export default function SolicitudEventoPage() {
       );
 
       if (response.ok) {
-        // Limpiar borrador guardado
         localStorage.removeItem('borrador_solicitud');
         setIdBorrador(null);
+        setYaEnviado(true); // ✅ bloquear autoguardado
         showToast("✅ Solicitud enviada para revisión", "success");
-        
-        setTimeout(() => navigate("/mis-eventos"), 1500);
+        setTimeout(() => {
+          navigate("/mis-eventos?tab=pendientes");
+        }, 1500);
       } else {
         const error = await response.json();
-        showToast(error.detail || "Error al enviar solicitud", "error");
+        showToast(parsearError(error), "error");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -174,9 +183,10 @@ export default function SolicitudEventoPage() {
       formData.lat !== null &&
       formData.lng !== null;
 
-    if (!tieneDatosCompletos || guardandoBorrador) return;
+    if (!tieneDatosCompletos || guardandoBorrador || yaEnviado) {
+      return;
+    }
 
-    // ✅ LÓGICA NUEVA: Agregar "By Wake Up Bikes!"
     let nombreFinal = formData.nombre_evento;
     if (user && (user.id_rol === 3 || user.id_rol === 4)) {
       if (!nombreFinal.includes("- By Wake Up Bikes!")) {
@@ -201,7 +211,7 @@ export default function SolicitudEventoPage() {
 
       const datosAEnviar = {
         nombre_evento: nombreFinal,
-        ubicacion: formData.ubicacion,
+        ubicacion: formData.ubicacion, //.substring(0, 150),
         fecha_evento: formData.fecha_evento,
         descripcion: descripcionFinal.trim(), // ✅ Usamos la nueva variable
         costo_participacion: formData.costo_participacion || 0,
@@ -235,9 +245,10 @@ export default function SolicitudEventoPage() {
         setUltimoAutoguardado(new Date());
         localStorage.setItem('borrador_solicitud', JSON.stringify({
           formData: datosAEnviar,
-          idBorrador: data.id_solicitud || idBorrador
+          idBorrador: data.id_solicitud || idBorrador,
+          id_usuario: user?.id_usuario
         }));
-      }
+      } 
     } catch (error) {
       console.error('❌ Error en autoguardado:', error);
     } finally {
@@ -245,7 +256,6 @@ export default function SolicitudEventoPage() {
     }
   };
 
-  // ========== FORMATEAR TIEMPO ==========
   const formatearUltimoAutoguardado = () => {
     if (!ultimoAutoguardado) return '';
     const ahora = new Date();
@@ -370,30 +380,65 @@ export default function SolicitudEventoPage() {
 
   // ========== EFECTOS ==========
 
-  // Efecto 1: Inicializar y recuperar borrador
   useEffect(() => {
     initMap();
-    
-    // Recuperar borrador guardado
-    const borradorGuardado = localStorage.getItem('borrador_solicitud');
-    if (borradorGuardado) {
+
+    // ✅ FIX: verificar contra el backend si el borrador sigue siendo válido (estado_solicitud === 1)
+    const verificarBorrador = async () => {
+      const borradorGuardado = localStorage.getItem('borrador_solicitud');
+      if (!borradorGuardado) return;
+
       try {
         const datos = JSON.parse(borradorGuardado);
-        setFormData(datos.formData);
-        setIdBorrador(datos.idBorrador);
-        
-        // ✅ NUEVO: Si había ruta guardada, la dibujamos
-        if (datos.formData.lat && datos.formData.lng && routingControlRef.current) {
-           // Nota: para simplificar, en el borrador iniciamos solo con el punto 0. 
-           // Reconstruir la ruta completa requiere guardar los waypoints originales.
-           routingControlRef.current.setWaypoints([L.latLng(datos.formData.lat, datos.formData.lng)]);
+
+        // Descartar si pertenece a otro usuario
+        if (!datos.id_usuario || (user?.id_usuario && datos.id_usuario !== user.id_usuario)) {
+          console.warn('Borrador descartado: pertenece a otro usuario');
+          localStorage.removeItem('borrador_solicitud');
+          return;
         }
 
-        showToast('Se recuperó un borrador guardado', 'info');
+        // Verificar en el backend que el borrador sigue en estado 1 (borrador)
+        if (datos.idBorrador) {
+          const token = getToken();
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/solicitudes-eventos/mis-solicitudes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (res.ok) {
+            const solicitudes = await res.json();
+            const borradorValido = solicitudes.find(
+              (s: any) => s.id_solicitud === datos.idBorrador && s.id_estado_solicitud === 1
+            );
+
+            if (borradorValido) {
+              // Sigue siendo borrador → cargar normalmente
+              setFormData(datos.formData);
+              setIdBorrador(datos.idBorrador);
+              // ✅ NUEVO: Si había ruta guardada, la dibujamos
+                if (datos.formData.lat && datos.formData.lng && routingControlRef.current) {
+                  // Nota: para simplificar, en el borrador iniciamos solo con el punto 0. 
+                  // Reconstruir la ruta completa requiere guardar los waypoints originales.
+                  routingControlRef.current.setWaypoints([L.latLng(datos.formData.lat, datos.formData.lng)]);
+                }
+              showToast('Se recuperó un borrador guardado', 'info');
+            } else {
+              // Ya fue enviado, aprobado o no existe → limpiar localStorage silenciosamente
+              console.warn('Borrador descartado: ya no está en estado borrador en el backend');
+              localStorage.removeItem('borrador_solicitud');
+            }
+          } else {
+            // No se pudo consultar el backend → limpiar por las dudas
+            localStorage.removeItem('borrador_solicitud');
+          }
+        }
       } catch (error) {
         console.error('Error al recuperar borrador:', error);
+        localStorage.removeItem('borrador_solicitud');
       }
-    }
+    };
+
+    verificarBorrador();
 
     return () => {
       if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);
@@ -411,9 +456,8 @@ export default function SolicitudEventoPage() {
       formData.lat !== null &&
       formData.lng !== null;
 
-    if (!tieneDatosMinimos) return;
+    if (!tieneDatosMinimos || yaEnviado) return;
 
-    // Programar autoguardado en 30 segundos
     autoGuardadoRef.current = setTimeout(() => {
       autoGuardarBorrador();
     }, AUTOGUARDADO_INTERVALO) as unknown as number;
@@ -423,7 +467,6 @@ export default function SolicitudEventoPage() {
     };
   }, [formData]);
 
-  // Efecto 3: Búsqueda de ubicación
   useEffect(() => {
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
@@ -454,7 +497,6 @@ export default function SolicitudEventoPage() {
         if (data && data.length > 0) {
           const lat = parseFloat(data[0].lat);
           const lng = parseFloat(data[0].lon);
-
           setFormData((prev) => ({ ...prev, lat, lng }));
           setLocationStatus("found");
 
@@ -492,7 +534,6 @@ export default function SolicitudEventoPage() {
             <h1 className="event-registration__title">Solicitud de Publicación</h1>
           </div>
           
-          {/* Indicador de Autoguardado */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {guardandoBorrador && (
               <span style={{ color: '#4a9eff', fontSize: '0.85rem', fontWeight: '500' }}>

@@ -1,17 +1,19 @@
 # app/api/registro_evento.py
 # ✅ OPCIÓN A: REDIRIGIR POST /eventos/ AL FLUJO DE SOLICITUDES
 
-from fastapi import APIRouter, Depends, status, HTTPException, File, Form, UploadFile
+from fastapi import APIRouter, Depends, status, HTTPException, File, Form, UploadFile, Request, Query
 from fastapi.security import HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
+from pydantic import ValidationError
 
 from app.db.database import get_db
 from app.db.crud import registro_crud
 from app.core.security import security
 from app.services.auth_services import AuthService
-from app.schemas.registro_schema import EventoCancelacionRequest, EventoCreate, EventoResponse
+from app.schemas.registro_schema import EventoCancelacionRequest, EventoCreate, EventoResponse, EventoBorradorCreate
 from app.services.registro_services import EventoService
 # ✅ NUEVO: Importar para redirección
 from app.services.evento_solicitud_service import EventoSolicitudService
@@ -29,10 +31,21 @@ def get_current_user(
 
 # ============================================================================
 # ✅ OPCIÓN A: ENDPOINT MODIFICADO - Redirige a solicitudes
+#
+# ✅ NUEVO BORRADOR: Acepta enviar=False para guardar sin validar campos
+#    igual que el flujo de solicitudes para externos.
+#    enviar=False → EventoBorradorCreate (todos opcionales, guarda lo que haya)
+#    enviar=True  → EventoCreate (validación estricta, como antes)
 # ============================================================================
 @router.post(
     "/", 
-    response_model=EventoResponse,  # Nota: el response será ligeramente diferente
+    # ✅ FIX Bug 1: response_model=None porque la respuesta es polimórfica:
+    # - enviar=True  + admin → devuelve Evento (tiene id_evento)
+    # - enviar=True  + externo → devuelve SolicitudPublicacion (tiene id_solicitud)
+    # - enviar=False → devuelve SolicitudPublicacion como borrador (tiene id_solicitud)
+    # Usar EventoResponse como response_model crasheaba porque exige id_evento
+    # y SolicitudPublicacion no lo tiene.
+    response_model=None,
     status_code=status.HTTP_201_CREATED,
     summary="Crear un nuevo evento (via solicitud)",
     description="""
@@ -41,59 +54,149 @@ def get_current_user(
     - Externo (rol 3): Crea solicitud pendiente, espera aprobación manual
     
     Ambos casos quedan registrados en Solicitud_Publicacion → trazabilidad completa.
+    
+    - **enviar=False**: Guarda borrador. Acepta campos incompletos (igual que Gmail).
+    - **enviar=True** (default): Publica o envía para revisión con validación completa.
     """
 )
-def create_evento(
-    evento: EventoCreate, 
+async def create_evento(
+    request: Request,
+    enviar: bool = Query(True, description="True: Publicar | False: Guardar borrador"),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
     """
     ✅ OPCIÓN A: Ahora redirige al flujo de solicitudes con auto-aprobación.
-    
-    Ventajas:
-    - Un solo flujo para todos los roles
-    - Trazabilidad completa
-    - No rompe endpoints existentes
+    ✅ BORRADOR: enviar=False guarda sin validar campos obligatorios.
     """
-    # Convertir EventoCreate a SolicitudPublicacionCreate
+    body = await request.json()
+
+    if enviar:
+        # Validación estricta — igual que antes
+        try:
+            evento = EventoCreate(**body)
+        except ValidationError as e:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": [{"msg": err["msg"], "field": " → ".join(str(x) for x in err["loc"])} for err in e.errors()]}
+            )
+    else:
+        # Borrador — acepta campos incompletos, sin validaciones de negocio
+        try:
+            evento = EventoBorradorCreate(**body)
+        except ValidationError as e:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": [{"msg": err["msg"], "field": " → ".join(str(x) for x in err["loc"])} for err in e.errors()]}
+            )
+
+    # Convertir a SolicitudPublicacionCreate para pasar al servicio de solicitudes
+    # getattr con None para campos opcionales del borrador
     solicitud = SolicitudPublicacionCreate(
-        nombre_evento=evento.nombre_evento,
-        fecha_evento=evento.fecha_evento,
-        ubicacion=evento.ubicacion,
-        id_tipo=evento.id_tipo,
-        id_dificultad=evento.id_dificultad,
-        descripcion=evento.descripcion,
-        costo_participacion=evento.costo_participacion,
-        cupo_maximo=evento.cupo_maximo or 0,
-        lat=evento.lat,
-        lng=evento.lng
-    )
-    
+        nombre_evento       = getattr(evento, 'nombre_evento', None) or "Sin título",
+        fecha_evento        = getattr(evento, 'fecha_evento', None) or date.today(),
+        ubicacion           = getattr(evento, 'ubicacion', None) or "",
+        id_tipo             = getattr(evento, 'id_tipo', None) or 1,
+        id_dificultad       = getattr(evento, 'id_dificultad', None) or 1,
+        descripcion         = getattr(evento, 'descripcion', None),
+        costo_participacion = getattr(evento, 'costo_participacion', None) or 0,
+        cupo_maximo         = getattr(evento, 'cupo_maximo', None) or 0,
+        lat                 = getattr(evento, 'lat', None),
+        lng                 = getattr(evento, 'lng', None),
+    ) if enviar else evento  # Si es borrador, pasar directo sin convertir
+
     # Usar el servicio de solicitudes (con auto-aprobación para admin)
     resultado = EventoSolicitudService.crear_solicitud(
         db=db,
         solicitud=solicitud,
         id_usuario=current_user.id_usuario,
-        id_rol=current_user.id_rol  # ← Detecta admin y auto-aprueba
+        id_rol=current_user.id_rol,
+        enviar=enviar
     )
     
-    # Si fue auto-aprobado, buscar el evento creado para devolverlo
-    if current_user.id_rol in [1, 2]:
-        # Admin: ya se creó el evento
+    # Si fue auto-aprobado (admin/supervisor enviando), buscar el evento creado
+    if enviar and current_user.id_rol in [1, 2]:
         evento_creado = db.query(Evento).filter(
-            Evento.nombre_evento == evento.nombre_evento,
-            Evento.fecha_evento == evento.fecha_evento
+            Evento.nombre_evento == getattr(evento, 'nombre_evento', None),
+            Evento.fecha_evento  == getattr(evento, 'fecha_evento', None)
         ).first()
         
         if evento_creado:
             return evento_creado
     
-    # Externo: devolver la solicitud (adaptada como respuesta)
+    # Externo o borrador: devolver la solicitud
     return resultado
 
+
 # ============================================================================
-# SIN CAMBIOS: RESTO DE ENDPOINTS
+# ✅ NUEVO: PUT /eventos/borradores/{id_evento}
+# Actualiza un borrador de evento existente (autoguardado cada 30s)
+# Solo para admin/supervisor — misma lógica que el PUT de solicitudes para externos
+# ============================================================================
+@router.put(
+    "/borradores/{id_solicitud}",
+    summary="Actualizar borrador de evento (admin/supervisor)",
+    description="""
+    Actualiza un borrador guardado. Acepta campos incompletos.
+    
+    - **enviar=False** (default): Actualiza sin cambiar estado (sigue como borrador).
+    - **enviar=True**: Actualiza y publica/envía para revisión.
+    
+    Usado por el autoguardado del formulario de registro-evento.
+    """
+)
+async def actualizar_borrador_evento(
+    id_solicitud: int,
+    request: Request,
+    enviar: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    body = await request.json()
+
+    if enviar:
+        try:
+            evento = EventoCreate(**body)
+        except ValidationError as e:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": [{"msg": err["msg"], "field": " → ".join(str(x) for x in err["loc"])} for err in e.errors()]}
+            )
+    else:
+        try:
+            evento = EventoBorradorCreate(**body)
+        except ValidationError as e:
+            return JSONResponse(
+                status_code=422,
+                content={"detail": [{"msg": err["msg"], "field": " → ".join(str(x) for x in err["loc"])} for err in e.errors()]}
+            )
+
+    resultado = EventoSolicitudService.actualizar_solicitud(
+        db=db,
+        id_solicitud=id_solicitud,
+        solicitud=evento,
+        id_usuario=current_user.id_usuario,
+        enviar=enviar
+    )
+
+    # ✅ FIX Bug 2: si admin/supervisor envía el borrador (enviar=True),
+    # actualizar_solicitud solo lo pone en Pendiente (estado 2).
+    # Hay que auto-aprobar igual que cuando crean uno nuevo.
+    if enviar and current_user.id_rol in [1, 2]:
+        from app.db.crud.evento_solicitud_crud import Solicitud_PublicacionCRUD
+        solicitud_db = Solicitud_PublicacionCRUD.obtener_solicitud_por_id(db, id_solicitud)
+        if solicitud_db:
+            resultado = EventoSolicitudService._auto_aprobar_solicitud(
+                db=db,
+                solicitud=solicitud_db,
+                id_admin=current_user.id_usuario
+            )
+
+    return resultado
+
+
+# ============================================================================
+# SIN CAMBIOS: RESTO DE ENDPOINTS (código original de tus compañeros)
 # ============================================================================
 @router.get(
     "/mis-eventos/resumen",
@@ -230,7 +333,7 @@ def obtener_catalogos_para_filtros(db: Session = Depends(get_db)):
 
 @router.get(
     "/", 
-    response_model=List[EventoResponse],
+    response_model=None,  # ✅ None para que email_usuario no sea descartado por Pydantic
     summary="Listar todos los eventos públicos"
 )
 def read_eventos(
@@ -238,7 +341,22 @@ def read_eventos(
     limit: int = 100, 
     db: Session = Depends(get_db)
 ):
-    return EventoService.listar_todos_los_eventos(db, skip=skip, limit=limit)
+    from app.models.auth_models import Usuario
+    # ✅ JOIN con Usuario para incluir nombre_usuario (necesario para panel admin)
+    resultados = (
+        db.query(Evento, Usuario.nombre_y_apellido)
+        .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
+        .filter(Evento.id_estado == 3)
+        .order_by(Evento.id_evento.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    eventos = []
+    for evento, nombre in resultados:
+        evento.email_usuario = nombre  # reutilizamos el campo, ahora trae nombre
+        eventos.append(evento)
+    return eventos
 
 @router.get(
     "/{evento_id}", 

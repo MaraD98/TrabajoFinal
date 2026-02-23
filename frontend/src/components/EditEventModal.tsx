@@ -38,6 +38,8 @@ interface EditEventModalProps {
     tipo: 'evento' | 'solicitud';
     onSuccess: () => void;
     onShowToast: (message: string, type: 'success' | 'error') => void;
+    esBorrador?: boolean;
+    esAdmin?: boolean;
 }
 
 interface Catalogo {
@@ -46,7 +48,7 @@ interface Catalogo {
     nombre: string;
 }
 
-export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess, onShowToast }: EditEventModalProps) {
+export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess, onShowToast, esBorrador = false, esAdmin = false }: EditEventModalProps) {
     const [formData, setFormData] = useState({
         nombre_evento: '',
         fecha_evento: '',
@@ -107,12 +109,26 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         }
     };
 
+    // ✅ FIX: normaliza la fecha al formato yyyy-mm-dd que espera el input type="date"
     const cargarDatosItem = () => {
         if (!item) return;
 
+        const normalizarFecha = (fecha: string): string => {
+            if (!fecha) return '';
+            // Si viene como ISO: "2026-03-15T00:00:00" → "2026-03-15"
+            if (fecha.includes('T')) return fecha.split('T')[0];
+            // Si viene como "dd-mm-yyyy" → convertir a "yyyy-mm-dd"
+            if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) {
+                const [dd, mm, yyyy] = fecha.split('-');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            // Ya está en "yyyy-mm-dd"
+            return fecha;
+        };
+
         setFormData({
             nombre_evento: item.nombre_evento || '',
-            fecha_evento: item.fecha_evento?.split('T')[0] || '',
+            fecha_evento: normalizarFecha(item.fecha_evento),
             ubicacion: item.ubicacion || '',
             id_tipo: item.id_tipo || 1,
             id_dificultad: item.id_dificultad || 1,
@@ -179,7 +195,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 );
                 const data = await res.json();
                 if (data && data.display_name) {
-                    setFormData((prev) => ({ ...prev, ubicacion: data.display_name }));
+                    setFormData((prev) => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
                     setLocationStatus("found");
                 }
             } catch (err) {
@@ -275,14 +291,25 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             return;
         }
 
+        if (esBorrador && (!formData.cupo_maximo || formData.cupo_maximo <= 0)) {
+            onShowToast('El cupo máximo debe ser mayor a 0 para enviar', 'error');
+            return;
+        }
+
         try {
             setLoading(true);
             const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
             const isEvento = 'id_evento' in item;
-            const endpoint = isEvento 
-                ? `/edicion-eventos/actualizar/${(item as Evento).id_evento}`
-                : `/solicitudes-eventos/${(item as Solicitud).id_solicitud}`;
+
+            let endpoint: string;
+            if (esBorrador) {
+                endpoint = `/solicitudes-eventos/${(item as Solicitud).id_solicitud}?enviar=true`;
+            } else if (isEvento) {
+                endpoint = `/edicion-eventos/actualizar/${(item as Evento).id_evento}`;
+            } else {
+                endpoint = `/solicitudes-eventos/${(item as Solicitud).id_solicitud}?enviar=false`;
+            }
 
             const response = await fetch(`${import.meta.env.VITE_API_URL}${endpoint}`, {
                 method: 'PUT',
@@ -290,24 +317,27 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    ubicacion: formData.ubicacion.substring(0, 150)
+                })
             });
 
             if (response.ok) {
                 const data = await response.json();
                 
-                // ✅ CORRECCIÓN: Detectar tipo de respuesta
-                // Si tiene "id_solicitud" → Es solicitud de organizador
-                // Si tiene "id_evento" pero NO "id_solicitud" → Es edición directa de admin
-                
-                if (data.id_solicitud) {
-                    // Solicitud de edición creada
+                if (esBorrador) {
+                    if (esAdmin) {
+                        onShowToast('✅ Evento publicado exitosamente', 'success');
+                    } else {
+                        onShowToast('📤 Solicitud enviada para revisión', 'success');
+                    }
+                } else if (data.id_solicitud) {
                     onShowToast(
                         data.mensaje || 'Solicitud de edición enviada. Quedará pendiente de aprobación.', 
                         'success'
                     );
                 } else {
-                    // Edición directa aplicada
                     onShowToast('Cambios guardados exitosamente', 'success');
                 }
                 
@@ -315,7 +345,12 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 onClose();
             } else {
                 const error = await response.json();
-                onShowToast(error.detail || 'Error al guardar cambios', 'error');
+                const mensaje = typeof error.detail === 'string'
+                    ? error.detail
+                    : Array.isArray(error.detail)
+                        ? error.detail.map((e: any) => e.msg || String(e)).join(', ')
+                        : 'Error al guardar cambios';
+                onShowToast(mensaje, 'error');
             }
         } catch (error) {
             console.error('Error:', error);
@@ -326,6 +361,20 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
     };
 
     if (!isOpen) return null;
+
+    const tituloModal = esBorrador
+        ? `📤 Completar y Enviar Borrador`
+        : `✏️ Editar ${tipo === 'evento' ? 'Evento' : 'Solicitud'}`;
+
+    const textoBtnSubmit = loading
+        ? '⏳ ENVIANDO...'
+        : esBorrador
+            ? esAdmin
+                ? '🚀 PUBLICAR EVENTO'
+                : '📤 ENVIAR PARA REVISIÓN'
+            : '💾 GUARDAR CAMBIOS';
+
+    const colorBtnSubmit = loading ? '#2a2a2a' : esBorrador ? '#c8ff00' : '#ccff00';
 
     return (
         <>
@@ -353,7 +402,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 width: '95%',
                 maxHeight: '90vh',
                 overflow: 'auto',
-                border: '1px solid #2a2a2a',
+                border: `1px solid ${esBorrador ? '#c8ff0044' : '#2a2a2a'}`,
                 zIndex: 9999,
                 fontFamily: 'Montserrat, sans-serif'
             }}>
@@ -362,22 +411,31 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '24px',
-                    borderBottom: '1px solid #2a2a2a',
+                    borderBottom: `1px solid ${esBorrador ? '#c8ff0033' : '#2a2a2a'}`,
                     background: '#0f0f0f',
                     position: 'sticky',
                     top: 0,
                     zIndex: 10
                 }}>
-                    <h2 style={{ 
-                        margin: 0, 
-                        fontSize: '1.5rem', 
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                    }}>
-                        ✏️ Editar {tipo === 'evento' ? 'Evento' : 'Solicitud'}
-                    </h2>
+                    <div>
+                        <h2 style={{ 
+                            margin: 0, 
+                            fontSize: '1.5rem', 
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px'
+                        }}>
+                            {tituloModal}
+                        </h2>
+                        {esBorrador && (
+                            <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: '#aaa' }}>
+                                {esAdmin
+                                    ? 'Al guardar, el evento se publicará directamente.'
+                                    : 'Al guardar, la solicitud quedará pendiente de aprobación por un administrador.'}
+                            </p>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         style={{
@@ -629,7 +687,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                     fontSize: '0.8rem',
                                     textTransform: 'uppercase'
                                 }}>
-                                    Cupo Máximo
+                                    Cupo Máximo {esBorrador && '*'}
                                 </label>
                                 <input
                                     type="number"
@@ -641,13 +699,18 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                         width: '100%',
                                         padding: '12px',
                                         background: '#0f0f0f',
-                                        border: '1px solid #2a2a2a',
+                                        border: `1px solid ${esBorrador && (!formData.cupo_maximo || formData.cupo_maximo <= 0) ? '#ef444466' : '#2a2a2a'}`,
                                         borderRadius: '8px',
                                         color: '#fff',
                                         fontSize: '0.95rem',
                                         outline: 'none'
                                     }}
                                 />
+                                {esBorrador && (!formData.cupo_maximo || formData.cupo_maximo <= 0) && (
+                                    <span style={{ fontSize: '0.72rem', color: '#ef4444', display: 'block', marginTop: '4px' }}>
+                                        Requerido para enviar
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -705,7 +768,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                 disabled={loading}
                                 style={{
                                     padding: '12px 24px',
-                                    background: loading ? '#2a2a2a' : '#ccff00',
+                                    background: loading ? '#2a2a2a' : colorBtnSubmit,
                                     border: 'none',
                                     borderRadius: '8px',
                                     color: loading ? '#666' : '#000',
@@ -716,7 +779,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                     opacity: loading ? 0.6 : 1
                                 }}
                             >
-                                {loading ? '⏳ GUARDANDO...' : '💾 GUARDAR CAMBIOS'}
+                                {textoBtnSubmit}
                             </button>
                         </div>
                     </form>

@@ -6,8 +6,10 @@ import Toast from './modals/Toast';
 import ConfirmModal from './modals/ConfirmModal';
 import InputModal from './modals/InputModal';
 import DetalleEdicionModal from './DetalleEdicionModal';
-import EditEventModal from './modals/EditEventModal';
+// ✅ Ahora usa el mismo modal con mapa que mis-eventos
+import EditEventModal from './EditEventModal';
 import EventoDetalleModal from './modals/EventoDetalleModal';
+import SolicitudBajaModal from './modals/SolicitudBajaModal';
 import '../styles/admin-dashboard.css';
 
 // ============================================================================
@@ -17,8 +19,10 @@ interface SolicitudAlta {
   id_solicitud: number;
   nombre_evento: string;
   fecha_evento: string;
+  fecha_solicitud: string;
   ubicacion: string;
   id_usuario: number;
+  usuario?: { email: string; id_usuario: number; nombre_y_apellido: string };
   tipo: 'alta';
   id_tipo?: number;
   nombre_tipo?: string;
@@ -26,6 +30,7 @@ interface SolicitudAlta {
   nombre_dificultad?: string;
   costo_participacion?: number;
   cupo_maximo?: number;
+  id_evento?: number;
 }
 
 interface SolicitudBaja {
@@ -69,8 +74,8 @@ interface Evento {
   id_tipo?: number;
   id_dificultad?: number;
   cupo_maximo?: number;
-  lat?: number;
-  lng?: number;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 interface HistorialItem {
@@ -143,9 +148,7 @@ function useSortableTable<T>(data: T[], defaultKey: keyof T, defaultDir: 'asc' |
 }
 
 // ============================================================================
-// ✅ NUEVO: convierte el string de estado del historial → id_estado numérico
-// El EventoDetalleModal usa este número para mostrar/ocultar "Ver en Calendario"
-// Estado 3 = activo → muestra calendario | 4,5,6 = no activo → oculta calendario
+// Convierte el string de estado del historial → id_estado numérico
 // ============================================================================
 const estadoStringToIdEstado = (estado: string): number => {
   const s = estado.toLowerCase();
@@ -153,6 +156,24 @@ const estadoStringToIdEstado = (estado: string): number => {
   if (s.includes('cancelado') || s.includes('soft delete')) return 5;
   if (s.includes('finalizado')) return 4;
   return 3;
+};
+
+// ============================================================================
+// Helper: normaliza la fecha del evento al formato YYYY-MM-DD
+// que necesita el input[type=date] del modal de edición
+// ============================================================================
+const normalizarFechaEvento = (evento: Evento): Evento => {
+  let fecha = evento.fecha_evento || '';
+  // "DD-MM-YYYY" → "YYYY-MM-DD"
+  if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) {
+    const [dd, mm, yyyy] = fecha.split('-');
+    fecha = `${yyyy}-${mm}-${dd}`;
+  }
+  // "YYYY-MM-DDTHH:mm:ss" → "YYYY-MM-DD"
+  if (fecha.includes('T')) {
+    fecha = fecha.split('T')[0];
+  }
+  return { ...evento, fecha_evento: fecha };
 };
 
 // ============================================================================
@@ -179,11 +200,20 @@ const AdminDashboard: React.FC = () => {
   }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
   const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
   const [detalleEdicionModal, setDetalleEdicionModal] = useState<{ show: boolean; solicitud: SolicitudEdicion | null }>({ show: false, solicitud: null });
-  const [editModal, setEditModal] = useState<{ show: boolean; evento: Evento | null }>({ show: false, evento: null });
 
-  // ✅ CAMBIO 1: agregamos detalleEventoEstado para pasarle el id_estado al modal
+  // ✅ Estado del modal de edición adaptado al nuevo modal (isOpen + item)
+  const [editModal, setEditModal] = useState<{ isOpen: boolean; evento: Evento | null }>({ isOpen: false, evento: null });
+
   const [detalleEventoId, setDetalleEventoId] = useState<number | null>(null);
   const [detalleEventoEstado, setDetalleEventoEstado] = useState<number | null>(null);
+
+  // 👇 NUEVO: modal de detalle para solicitud de alta (reutiliza EventoDetalleModal)
+  const [detalleAltaId, setDetalleAltaId] = useState<number | null>(null);
+
+  // 👇 NUEVO: modal de detalle para solicitud de baja
+  const [detalleBajaModal, setDetalleBajaModal] = useState<{ show: boolean; solicitud: SolicitudBaja | null }>({
+    show: false, solicitud: null
+  });
 
   // Hooks de ordenamiento
   const altaSort = useSortableTable(solicitudesAlta, 'nombre_evento');
@@ -356,13 +386,24 @@ const AdminDashboard: React.FC = () => {
     let res = historialSort.sorted;
     if (filterType === 'finalizados') res = res.filter(h => normalize(h.estado) === 'finalizado');
     if (filterType === 'eliminados') res = res.filter(h => normalize(h.estado).includes('cancelado') || normalize(h.estado).includes('depurado'));
-    if (searchTerm) res = res.filter(h => h.nombre_evento.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      res = res.filter(h =>
+        (h.nombre_evento || '').toLowerCase().includes(q) ||
+        (h.eliminado_por || '').toLowerCase().includes(q) ||
+        (h.fecha_eliminacion || '').toLowerCase().includes(q) ||
+        (h.estado || '').toLowerCase().includes(q)
+      );
+    }
     return res;
   };
 
-  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], campo: string): T[] => {
+  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], ...campos: string[]): T[] => {
     if (!searchTerm) return lista;
-    return lista.filter(item => String(item[campo]).toLowerCase().includes(searchTerm.toLowerCase()));
+    const q = searchTerm.toLowerCase();
+    return lista.filter(item =>
+      campos.some(campo => String(item[campo] ?? '').toLowerCase().includes(q))
+    );
   };
 
   const esRestaurable = (estado: string) => normalize(estado).includes('cancelado') && normalize(estado).includes('soft delete');
@@ -393,17 +434,24 @@ const AdminDashboard: React.FC = () => {
 
   const formatFecha = (fecha: string): string => {
     if (!fecha) return '—';
-    const d = new Date(fecha);
+    // Ya está en DD-MM-YYYY, devolver tal cual
+    if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) return fecha;
+    // Cortar hora: "YYYY-MM-DD HH:mm:ss" o "YYYY-MM-DDTHH:mm:ss"
+    const soloFecha = fecha.split('T')[0].split(' ')[0];
+    // Convertir YYYY-MM-DD → DD-MM-YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+      const [anio, mes, dia] = soloFecha.split('-');
+      return `${dia}-${mes}-${anio}`;
+    }
+    // Fallback: parsear con Date
+    const d = new Date(soloFecha);
     if (isNaN(d.getTime())) return fecha;
-    return d.toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: 'numeric' });
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const anio = d.getFullYear();
+    return `${dia}-${mes}-${anio}`;
   };
 
-  const formatFechaHora = (fecha: string): string => {
-    if (!fecha) return '—';
-    const d = new Date(fecha);
-    if (isNaN(d.getTime())) return fecha;
-    return d.toLocaleDateString('es-AR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
 
   const formatCosto = (costo?: number) =>
     costo != null ? `$${Number(costo).toLocaleString('es-AR')}` : '—';
@@ -421,15 +469,13 @@ const AdminDashboard: React.FC = () => {
           <nav className="admin-nav">
             <button className={vistaActual === 'pendientes' ? 'active' : ''} onClick={() => setVistaActual('pendientes')}>📋 Pendientes</button>
             <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => setVistaActual('activos')}>✅ Activos</button>
-            <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial</button>
+            <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial Eliminados/Finalizados</button>
             <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos</button>
             <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Inscriptos</button>
           </nav>
         </aside>
 
         <main className="admin-main-content">
-          {loading && <div style={{ textAlign: 'center', padding: '10px', color: '#777' }}>Cargando datos...</div>}
-
           {/* VISTA PENDIENTES */}
           {vistaActual === 'pendientes' && (
             <div className="admin-content-view">
@@ -437,7 +483,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>📋 Solicitudes Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -463,17 +509,19 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtrarPorSearch(altaSort.sorted, 'nombre_evento').length === 0 ? (
+                      {loading ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(altaSort.sorted, 'nombre_evento').map(s => (
+                        filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').map(s => (
                           <tr key={s.id_solicitud}>
                             <td style={{ textAlign: 'left', fontWeight: 600 }}>
                               <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
                             </td>
                             <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
-                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{s.id_usuario}</small></td>
-                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>—</small></td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario?.email || `#${s.id_usuario}`}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud || '') || '—'}</small></td>
                             <td style={{ textAlign: 'left' }}>
                               <small style={{ color: '#a8a8a8' }}>
                                 {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
@@ -481,6 +529,7 @@ const AdminDashboard: React.FC = () => {
                               </small>
                             </td>
                             <td style={{ textAlign: 'center' }}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleAltaId(s.id_solicitud)} title="Ver detalles del evento" style={{ marginRight: '6px' }}>👁️</button>
                               <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
                               <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
                             </td>
@@ -506,10 +555,12 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtrarPorSearch(edicionSort.sorted, 'nombre_evento').length === 0 ? (
+                      {loading ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(edicionSort.sorted, 'nombre_evento').map(s => (
+                        filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').map(s => (
                           <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
                             onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
                             title="Click para ver detalles"
@@ -519,7 +570,7 @@ const AdminDashboard: React.FC = () => {
                             </td>
                             <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
                             <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
-                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFechaHora(s.fecha_solicitud)}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
                             <td style={{ textAlign: 'left' }}>
                               <small style={{ color: '#a8a8a8' }}>{obtenerResumenCambios(s.cambios_propuestos || {})}</small>
                               <br />
@@ -546,7 +597,6 @@ const AdminDashboard: React.FC = () => {
                     <thead>
                       <tr>
                         <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
-                        <th style={bajaSort.thStyle('fecha_evento')} onClick={() => bajaSort.toggle('fecha_evento')}>Fecha Evento{bajaSort.arrow('fecha_evento')}</th>
                         <th style={bajaSort.thStyle('usuario_solicitante')} onClick={() => bajaSort.toggle('usuario_solicitante')}>Solicitante{bajaSort.arrow('usuario_solicitante')}</th>
                         <th style={bajaSort.thStyle('fecha_solicitud')} onClick={() => bajaSort.toggle('fecha_solicitud')}>Fecha Solicitud{bajaSort.arrow('fecha_solicitud')}</th>
                         <th style={{ textAlign: 'left', cursor: 'default' }}>Motivo</th>
@@ -554,19 +604,25 @@ const AdminDashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtrarPorSearch(bajaSort.sorted, 'nombre_evento').length === 0 ? (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
+                      {loading ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').length === 0 ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(bajaSort.sorted, 'nombre_evento').map(s => (
-                          <tr key={s.id_eliminacion}>
+                        filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').map(s => (
+                          <tr key={s.id_eliminacion} style={{ cursor: 'pointer' }} onClick={() => setDetalleBajaModal({ show: true, solicitud: s })} title="Click para ver detalles">
                             <td style={{ textAlign: 'left', fontWeight: 600 }}>
                               <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
                             </td>
-                            <td style={{ textAlign: 'left' }}>{s.fecha_evento ? formatFecha(s.fecha_evento) : '—'}</td>
                             <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
                             <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
-                            <td style={{ textAlign: 'left' }}><small style={{ color: '#fc8181' }}>{s.motivo}</small></td>
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#fc8181' }}>
+                                {s.motivo && s.motivo.length > 60 ? s.motivo.substring(0, 60) + '...' : s.motivo}
+                              </small>
+                            </td>
+                            <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleBajaModal({ show: true, solicitud: s })} title="Ver motivo completo" style={{ marginRight: '6px' }}>👁️</button>
                               <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)} title="Aprobar baja">✓</button>
                               <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)} title="Rechazar baja">✕</button>
                             </td>
@@ -586,7 +642,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>✅ Eventos Activos ({eventosActivos.length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre..."
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, creador o fecha (DD-MM-YYYY)..."
                       value={searchActivos} onChange={e => setSearchActivos(e.target.value)} />
                   </div>
                   <div className="action-buttons-inline">
@@ -604,32 +660,55 @@ const AdminDashboard: React.FC = () => {
                   <tr>
                     <th style={activosSort.thStyle('id_evento')} onClick={() => activosSort.toggle('id_evento')}>ID{activosSort.arrow('id_evento')}</th>
                     <th style={activosSort.thStyle('nombre_evento')} onClick={() => activosSort.toggle('nombre_evento')}>Evento{activosSort.arrow('nombre_evento')}</th>
+                    <th style={activosSort.thStyle('id_usuario')} onClick={() => activosSort.toggle('id_usuario')}>Creador{activosSort.arrow('id_usuario')}</th>
                     <th style={activosSort.thStyle('fecha_evento')} onClick={() => activosSort.toggle('fecha_evento')}>Fecha{activosSort.arrow('fecha_evento')}</th>
                     <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activosSort.sorted
-                    .filter(e => !searchActivos || e.nombre_evento.toLowerCase().includes(searchActivos.toLowerCase()))
+                    .filter(e => {
+                      if (!searchActivos) return true;
+                      const q = searchActivos.toLowerCase();
+                      const nombre = e.nombre_evento?.toLowerCase() || '';
+                      const creador = ((e as any).email_usuario || '').toLowerCase();
+                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
+                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
+                    })
                     .map(e => (
                       <tr key={e.id_evento}>
                         <td style={{ textAlign: 'left', color: '#888' }}>#{e.id_evento}</td>
                         <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
+                        <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{(e as any).email_usuario || `#${e.id_usuario}`}</small></td>
                         <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
                         <td style={{ textAlign: 'center' }}>
-                          {/* ✅ CAMBIO 2: Activos son siempre estado 3 → calendario visible */}
                           <button
                             className="btn-ver-detalle-admin"
                             onClick={() => { setDetalleEventoId(e.id_evento); setDetalleEventoEstado(3); }}
                             title="Ver detalles"
                             style={{ marginRight: '8px' }}
                           >👁️ Ver más</button>
-                          <button className="btn-editar-admin" onClick={() => setEditModal({ show: true, evento: e })} title="Editar" style={{ marginRight: '8px' }}>✏️ Editar</button>
+                          {/* ✅ Abre el nuevo modal con mapa: normaliza fecha y pasa como 'evento' */}
+                          <button
+                            className="btn-editar-admin"
+                            onClick={() => setEditModal({ isOpen: true, evento: normalizarFechaEvento(e) })}
+                            title="Editar"
+                            style={{ marginRight: '8px' }}
+                          >✏️ Editar</button>
                           <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>🗑️ Eliminar</button>
                         </td>
                       </tr>
                     ))}
-                  {activosSort.sorted.filter(e => !searchActivos || e.nombre_evento.toLowerCase().includes(searchActivos.toLowerCase())).length === 0 && (
+                  {loading ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : activosSort.sorted.filter(e => {
+                      if (!searchActivos) return true;
+                      const q = searchActivos.toLowerCase();
+                      const nombre = e.nombre_evento?.toLowerCase() || '';
+                      const creador = ((e as any).email_usuario || '').toLowerCase();
+                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
+                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
+                    }).length === 0 && (
                     <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos activos.</td></tr>
                   )}
                 </tbody>
@@ -641,10 +720,10 @@ const AdminDashboard: React.FC = () => {
           {vistaActual === 'historial' && (
             <div className="admin-content-view">
               <div className="view-header">
-                <h2>📖 Historial ({filtrarHistorial().length})</h2>
+                <h2>📖 Historial Eliminados/Finalizados ({filtrarHistorial().length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="filter-buttons-admin">
@@ -680,7 +759,6 @@ const AdminDashboard: React.FC = () => {
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div className="action-buttons-inline">
-                          {/* ✅ CAMBIO 3: convertimos el string de estado → id_estado numérico */}
                           <button
                             className="btn-ver-detalle-admin"
                             onClick={() => {
@@ -712,7 +790,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>💳 Pagos Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -736,10 +814,12 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrarPorSearch(pagosSort.sorted, 'usuario_email').length === 0 ? (
+                  {loading ? (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
                     <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay pagos pendientes</td></tr>
                   ) : (
-                    filtrarPorSearch(pagosSort.sorted, 'usuario_email').map(r => (
+                    filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}>{r.usuario_email}</td>
@@ -768,7 +848,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>👥 Inscriptos</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -790,10 +870,12 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre').length === 0 ? (
+                  {loading ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay inscriptos confirmados</td></tr>
                   ) : (
-                    filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre').map(r => (
+                    filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}><small>{r.usuario_email}</small></td>
@@ -845,18 +927,43 @@ const AdminDashboard: React.FC = () => {
         onRechazar={handleRechazarEdicion}
       />
 
-      <EditEventModal
-        show={editModal.show}
-        evento={editModal.evento}
-        onClose={() => setEditModal({ show: false, evento: null })}
-        onSuccess={() => { showToast('Evento actualizado correctamente', 'success'); cargarDatos(); }}
+      {/* ✅ Nuevo modal unificado con mapa — props: isOpen, item, tipo, onClose, onSuccess, onShowToast */}
+      {editModal.isOpen && editModal.evento && (
+        <EditEventModal
+          isOpen={editModal.isOpen}
+          item={{
+            ...editModal.evento,
+            costo_participacion: editModal.evento.costo_participacion ?? 0,
+            id_tipo: editModal.evento.id_tipo ?? 1,
+            id_dificultad: editModal.evento.id_dificultad ?? 1,
+            cupo_maximo: editModal.evento.cupo_maximo ?? 0,
+            descripcion: editModal.evento.descripcion ?? '',
+          }}
+          tipo="evento"
+          onClose={() => setEditModal({ isOpen: false, evento: null })}
+          onSuccess={() => { showToast('Evento actualizado correctamente', 'success'); cargarDatos(); }}
+          onShowToast={showToast}
+        />
+      )}
+
+      {/* Modal detalle evento (activos, historial y también altas) */}
+      <EventoDetalleModal
+        eventoId={detalleEventoId ?? detalleAltaId}
+        idEstado={detalleEventoEstado ?? 2}
+        onClose={() => {
+          setDetalleEventoId(null);
+          setDetalleEventoEstado(null);
+          setDetalleAltaId(null);
+        }}
       />
 
-      {/* ✅ CAMBIO 4: se pasa idEstado → el modal decide si muestra "Ver en Calendario" */}
-      <EventoDetalleModal
-        eventoId={detalleEventoId}
-        idEstado={detalleEventoEstado}
-        onClose={() => { setDetalleEventoId(null); setDetalleEventoEstado(null); }}
+      {/* Modal detalle solicitud de baja */}
+      <SolicitudBajaModal
+        show={detalleBajaModal.show}
+        solicitud={detalleBajaModal.solicitud}
+        onClose={() => setDetalleBajaModal({ show: false, solicitud: null })}
+        onAprobar={handleAprobarBaja}
+        onRechazar={handleRechazarBaja}
       />
 
       {pagoModal.show && pagoModal.reserva && (

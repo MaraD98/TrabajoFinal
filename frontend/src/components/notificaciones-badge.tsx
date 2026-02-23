@@ -7,28 +7,29 @@ import {
 } from '../services/notificacion-service';
 import type { Notificacion } from '../services/notificacion-service';
 
+// Parsea "dd-mm-yyyy HH:MM" → Date
+const parsearFechaBackend = (fechaStr: string): Date => {
+  const [fecha, hora] = fechaStr.split(' ');
+  const [dia, mes, anio] = fecha.split('-');
+  const [hh, mm] = (hora || '00:00').split(':');
+  return new Date(Number(anio), Number(mes) - 1, Number(dia), Number(hh), Number(mm));
+};
+
 export const NotificacionesBadge = () => {
   const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   
-  // Ref para cerrar el menú si clicamos fuera
   const badgeRef = useRef<HTMLDivElement>(null);
 
-  // 📡 Cargar notificaciones
   const cargarNotificaciones = async () => {
     try {
-      // Como es polling, a veces no queremos mostrar el spinner si ya hay datos
-      // setLoading(true); <--- Opcional: quitarlo para que sea silencioso
-      
       const data = await getMisNotificaciones();
       console.log("NOTIFICACIONES FRONTEND:", data);
       
-      // Ordenar por fecha descendente y tomar las últimas 5
-      // Nota: data.fecha_creacion viene como string del back
       const ultimas = data
-        .sort((a, b) => new Date(b.fecha_creacion).getTime() - new Date(a.fecha_creacion).getTime())
+        .sort((a, b) => parsearFechaBackend(b.fecha_creacion).getTime() - parsearFechaBackend(a.fecha_creacion).getTime())
         .slice(0, 5);
         
       setNotificaciones(ultimas);
@@ -41,10 +42,8 @@ export const NotificacionesBadge = () => {
 
   useEffect(() => {
     cargarNotificaciones();
-    // Polling cada 30 segundos
     const interval = setInterval(cargarNotificaciones, 30000);
     
-    // Listener para cerrar dropdown al clicar fuera
     const handleClickOutside = (event: MouseEvent) => {
       if (badgeRef.current && !badgeRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
@@ -62,7 +61,7 @@ export const NotificacionesBadge = () => {
     try {
       await marcarNotificacionLeida(id);
       setShowDropdown(false);
-      navigate('/notificaciones'); // Te lleva a la página completa
+      navigate('/notificaciones');
     } catch (error) {
       console.error('Error', error);
     }
@@ -71,7 +70,7 @@ export const NotificacionesBadge = () => {
   const noLeidas = notificaciones.filter(n => !n.leida).length;
 
   const formatearFechaCorta = (fechaStr: string) => {
-    const date = new Date(fechaStr);
+    const date = parsearFechaBackend(fechaStr);
     const ahora = new Date();
     const diffMin = Math.floor((ahora.getTime() - date.getTime()) / 60000);
     
