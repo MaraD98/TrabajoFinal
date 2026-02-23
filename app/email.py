@@ -5,15 +5,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-URL_LOGO = "https://i.ibb.co/5gpVx8Z5/WAKE-UP-LOGO.png"
-
-# Constante de URL
-API_URL = os.getenv("VITE_API_URL")
+# --- CONFIGURACIÓN GLOBAL (Carga una sola vez al iniciar) ---
+REMITENTE = os.getenv("MAIL_REMITENTE")
+PASSWORD = os.getenv("MAIL_PASSWORD")
+API_URL = os.getenv("BACKEND_URL")
+URL_LOGO = os.getenv("URL_LOGO")
 
 def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, fecha: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'🚲 Confirmación de Reserva: {evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -63,20 +61,9 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
 
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"Error: {e}")
-        return False
-    
 def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, evento: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'❌ Cancelación de Reserva: {evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -117,20 +104,9 @@ def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, e
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"⚠️ Error al enviar mail de cancelación: {e}")
-        return False
+    return _ejecutar_envio(msg)
 
 def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_evento: str, id_evento: int, fecha_url: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'🚲 ¡Nueva Salida Publicada: {nombre_evento}!'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -170,21 +146,9 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"⚠️ Error al enviar mail de novedad: {e}")
-        return False
-    
+    return _ejecutar_envio(msg)
 
 def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id_evento: int, fecha_url: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'📝 Cambio en tu evento: {nombre_evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -222,17 +186,7 @@ def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"⚠️ Error al enviar mail de modificación: {e}")
-        return False
-    
- 
+    return _ejecutar_envio(msg)
 def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, motivo: str):
     REMITENTE = os.getenv("MAIL_REMITENTE")
     PASSWORD = os.getenv("MAIL_PASSWORD")
@@ -272,20 +226,8 @@ def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, mot
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"⚠️ Error al enviar mail de cancelación: {e}")
-        return False
-    
+    return _ejecutar_envio(msg)
 def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'⏰ ¡Últimas 24hs! Asegurá tu lugar en {nombre_evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -316,20 +258,9 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"⚠️ Error recordatorio: {e}")
-        return False
+    return _ejecutar_envio(msg)
 
 def enviar_correo_pago_confirmado(email_destino: str, evento: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
-
     msg = EmailMessage()
     msg['Subject'] = f'✅ Pago Confirmado: {evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -360,12 +291,15 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
     </html>
     """
     msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
 
+# --- FUNCIÓN INTERNA DE ENVÍO ---
+def _ejecutar_envio(msg):
     try:
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(REMITENTE, PASSWORD)
             server.send_message(msg)
         return True
     except Exception as e:
-        print(f"⚠️ Error pago confirmado: {e}")
+        print(f"⚠️ Error SMTP: {e}")
         return False

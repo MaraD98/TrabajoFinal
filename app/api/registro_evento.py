@@ -103,6 +103,8 @@ async def create_evento(
         cupo_maximo         = getattr(evento, 'cupo_maximo', None) or 0,
         lat                 = getattr(evento, 'lat', None),
         lng                 = getattr(evento, 'lng', None),
+        distancia_km        = getattr(evento, 'distancia_km', None),
+        ruta_coordenadas    = getattr(evento, 'ruta_coordenadas', None),
     ) if enviar else evento  # Si es borrador, pasar directo sin convertir
 
     # Usar el servicio de solicitudes (con auto-aprobación para admin)
