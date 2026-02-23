@@ -287,7 +287,7 @@ export default function SolicitudEventoPage() {
       router: (L as any).Routing.osrmv1({
         serviceUrl: 'https://router.project-osrm.org/route/v1'
       }),
-      createMarker: function(i: number, waypoint: any, n: number) {
+      createMarker: function(_i: number, waypoint: any) {
         const customIcon = L.divIcon({
           className: "custom-marker",
           html: '<div class="marker-pin"></div>',
