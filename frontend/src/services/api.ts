@@ -8,7 +8,7 @@ if (!baseURL) {
 
 export const api = axios.create({
   baseURL: baseURL,
-  timeout: 30000,
+  timeout: 60000,
 });
 
 // Interceptor para agregar el token de autenticación
