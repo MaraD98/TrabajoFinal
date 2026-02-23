@@ -49,11 +49,11 @@ class Solicitud_PublicacionCRUD:
             id_dificultad       = getattr(solicitud, 'id_dificultad', 1),
             descripcion         = getattr(solicitud, 'descripcion', None),
             costo_participacion = getattr(solicitud, 'costo_participacion', 0),
-            cupo_maximo         = getattr(solicitud, 'cupo_maximo', 0) or 0,  # ✅ CAMBIO: agregar
-            lat                 = getattr(solicitud, 'lat', None),             # ✅ CAMBIO: agregar
-            lng                 = getattr(solicitud, 'lng', None),             # ✅ CAMBIO: agregar
-            distancia_km=solicitud.distancia_km,
-            ruta_coordenadas=solicitud.ruta_coordenadas,
+            cupo_maximo         = getattr(solicitud, 'cupo_maximo', 0) or 0,  
+            lat                 = getattr(solicitud, 'lat', None),             
+            lng                 = getattr(solicitud, 'lng', None),             
+            distancia_km        = getattr(solicitud, 'distancia_km', None),
+            ruta_coordenadas    = getattr(solicitud, 'ruta_coordenadas', None),
             id_usuario          = id_usuario,
             fecha_solicitud     = date.today(),
             id_estado           = 1,

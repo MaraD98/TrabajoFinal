@@ -53,6 +53,8 @@ class EventoBorradorCreate(BaseModel):
     lat:                 Optional[Decimal] = None
     lng:                 Optional[Decimal] = None
     cupo_maximo:         Optional[int]     = Field(None, ge=0)
+    distancia_km:        Optional[Decimal] = Field(None, description="Distancia en km")
+    ruta_coordenadas:    Optional[list[dict[str, Any]]] = Field(None, description="Array de coordenadas")
 
 
 class EventoResponse(EventoBase):

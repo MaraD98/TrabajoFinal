@@ -16,6 +16,7 @@ interface Evento {
   lng: number;
   id_tipo?: number;
   id_dificultad?: number;
+  ruta_coordenadas?: [number, number][] | string;
 }
 
 export default function EventsMapPage() {
@@ -26,6 +27,7 @@ export default function EventsMapPage() {
 
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
+  const routeLayerRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     loadEventos();
@@ -82,6 +84,48 @@ export default function EventsMapPage() {
       addMarkers();
     }
   }, [eventos]);
+
+  // 🔥 EFFECT: Escucha cuando cambia el evento seleccionado para dibujar/borrar la ruta
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // A. Borramos la ruta anterior si existe
+    if (routeLayerRef.current) {
+      routeLayerRef.current.remove();
+      routeLayerRef.current = null;
+    }
+
+    // B. Verificamos si el evento actual tiene ruta_coordenadas
+    if (selectedEvent && selectedEvent.ruta_coordenadas) {
+      
+      let coordenadas: [number, number][] = [];
+      
+      // 🛡️ Red de seguridad: si viene como string (ej. "[[-38,-63],...]") lo transformamos a array.
+      // Si ya viene como array, lo usamos directo.
+      try {
+        coordenadas = typeof selectedEvent.ruta_coordenadas === 'string'
+          ? JSON.parse(selectedEvent.ruta_coordenadas)
+          : selectedEvent.ruta_coordenadas;
+      } catch (error) {
+        console.error("Error al leer las coordenadas de la ruta:", error);
+        return; // Cortamos acá si la data está corrupta
+      }
+
+      // Si después de leerlo tenemos coordenadas válidas, dibujamos
+      if (coordenadas.length > 0) {
+        const polyline = L.polyline(coordenadas, {
+          color: "#0cb7f2",
+          weight: 5,
+          opacity: 0.8,
+        });
+
+        polyline.addTo(mapRef.current);
+        routeLayerRef.current = polyline;
+
+        mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+      }
+    }
+  }, [selectedEvent]);
 
   const initMap = () => {
     if (mapRef.current) return; // 👈 evita recrear el mapa
@@ -180,7 +224,6 @@ export default function EventsMapPage() {
       markersRef.current.push(marker);
       bounds.push([lat, lng]);
 
-      // 🔥 SI ESTE ES EL EVENTO DE LA URL, lo guardamos para luego
       if (idUrl && evento.id_evento === Number(idUrl)) {
         targetMarker = marker;
         targetCoords = [lat, lng];
@@ -191,15 +234,11 @@ export default function EventsMapPage() {
     if (targetMarker && targetCoords && mapRef.current) {
       // Si vinimos desde el calendario, vamos directo a ese evento y abrimos popup
       mapRef.current.setView(targetCoords, 14, { animate: false });
-      // 🔥 Le decimos a TS: "Confía, esto es un marcador, abre el popup"
       (targetMarker as L.Marker).openPopup();
-
     } else if (bounds.length > 0 && mapRef.current) {
-      // Comportamiento original: ajustar la vista para ver todos
       mapRef.current.fitBounds(bounds, { padding: [50, 50] });
     }
   };
-  
 
   const handleEventClick = (evento: Evento) => {
     setSelectedEvent(evento);
@@ -209,10 +248,8 @@ export default function EventsMapPage() {
         duration: 0.5,
       });
       
-      // 🔥 1. Forzamos a TypeScript a entender el tipo del arreglo con "as L.Marker[]"
       const marcadores = markersRef.current as L.Marker[];
 
-      // 🔥 2. Ahora el find no dará problemas
       const marker = marcadores.find((m) => {
         const pos = m.getLatLng();
         return pos.lat === evento.lat && pos.lng === evento.lng;
