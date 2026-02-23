@@ -72,7 +72,7 @@ export default function EditEventModal({ show, evento, onClose, onSuccess }: Edi
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(
-        `http://localhost:8000/api/v1/admin/eventos/${evento.id_evento}/editar-directo`,
+        `${import.meta.env.VITE_API_URL}/admin/eventos/${evento.id_evento}/editar-directo`,
         {
           method: 'PATCH',
           headers: {
