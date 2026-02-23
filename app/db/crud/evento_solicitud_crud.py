@@ -46,13 +46,15 @@ class Solicitud_PublicacionCRUD:
             id_dificultad=solicitud.id_dificultad,
             descripcion=solicitud.descripcion,
             costo_participacion=solicitud.costo_participacion,
-            cupo_maximo=solicitud.cupo_maximo,  # ✅ AGREGAR
-            lat=solicitud.lat,  # ✅ AGREGAR
-            lng=solicitud.lng,  # ✅ AGREGAR
+            cupo_maximo=solicitud.cupo_maximo,  
+            lat=solicitud.lat, 
+            lng=solicitud.lng,  
+            distancia_km=solicitud.distancia_km,
+            ruta_coordenadas=solicitud.ruta_coordenadas,
             id_usuario=id_usuario,
             fecha_solicitud=date.today(),
             id_estado=1,
-            id_estado_solicitud=id_estado_inicial  # ✅ CAMBIO: Usar parámetro en vez de hardcoded 1
+            id_estado_solicitud=id_estado_inicial,  # Se puede especificar al crear, pero por defecto es 2 (Pendiente)
         )
         db.add(db_solicitud)
         db.commit()
@@ -92,6 +94,8 @@ class Solicitud_PublicacionCRUD:
         solicitud_db.cupo_maximo = solicitud.cupo_maximo
         solicitud_db.lat = solicitud.lat
         solicitud_db.lng = solicitud.lng
+        solicitud_db.distancia_km = solicitud.distancia_km
+        solicitud_db.ruta_coordenadas = solicitud.ruta_coordenadas
         
         # Si se está enviando, cambiar estado
         if enviar:

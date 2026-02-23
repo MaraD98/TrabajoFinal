@@ -471,6 +471,23 @@ export default function ReportesPage() {
               </div>
             </div>
 
+            {reporteData?.mis_eventos_por_estado && (
+            <div className="grafico-card">
+              <div className="grafico-card__header">
+                <h3>📊 Mi Actividad (Estados)</h3>
+                <button 
+                  data-html2canvas-ignore="true"
+                  disabled={exportando === "mis_eventos_por_estado"}
+                  onClick={() => handleExportarCSV("mis_eventos_por_estado")}
+                  className="btn-export"
+                >
+                  {exportando === "mis_eventos_por_estado" ? "..." : "📥 CSV"}
+                </button>
+              </div>
+              <div className="grafico-card__body">{renderGraficoBarras(reporteData.mis_eventos_por_estado, "estado", "cantidad", getNombreEstado)}</div>
+            </div>
+          )}
+
             <div className="reportes-graficos">
               {/* Gráfico de Rendimiento por Tipo (Para el Rol 3) */}
               <div className="grafico-card">
@@ -616,22 +633,7 @@ export default function ReportesPage() {
             </div>
           )}
 
-          {reporteData?.mis_eventos_por_estado && (
-            <div className="grafico-card">
-              <div className="grafico-card__header">
-                <h3>📊 Mi Actividad (Estados)</h3>
-                <button 
-                  data-html2canvas-ignore="true"
-                  disabled={exportando === "mis_eventos_por_estado"}
-                  onClick={() => handleExportarCSV("mis_eventos_por_estado")}
-                  className="btn-export"
-                >
-                  {exportando === "mis_eventos_por_estado" ? "..." : "📥 CSV"}
-                </button>
-              </div>
-              <div className="grafico-card__body">{renderGraficoBarras(reporteData.mis_eventos_por_estado, "estado", "cantidad", getNombreEstado)}</div>
-            </div>
-          )}
+          
 
           {/* 5. Auditoría */}
           {(usuarioRol <= 2) && (

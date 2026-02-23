@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Text, DECIMAL, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, Text, DECIMAL, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.models.auth_models import Usuario
 from app.models.registro_models import TipoEvento, NivelDificultad, EstadoEvento
@@ -13,29 +13,26 @@ class EstadoSolicitud(Base):
     
     
     # Modelo principal de solicitud de publicación de eventos
-    # Representa una solicitud que pasa por flujo de aprobación. Estados del evento: Borrador, Pendiente, Aprobada, Rechazada
 class SolicitudPublicacion(Base):
     
     __tablename__ = "solicitud_publicacion"
     
-    # Primary Key
     id_solicitud = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    
-    # Datos del evento
     nombre_evento = Column(String(100), nullable=False, unique=True)
     fecha_evento = Column(Date, nullable=False)
-    ubicacion = Column(String(150), nullable=False)
+    ubicacion = Column(String(300), nullable=False) # se amplió a 300 para permitir direcciones más largas
     descripcion = Column(Text, nullable=True)
     costo_participacion = Column(DECIMAL(10, 2), nullable=False)
     cupo_maximo = Column(Integer, nullable=False, default=0) 
-
-     # Auditoría
     fecha_solicitud = Column(Date, nullable=False)
     observaciones_admin = Column(Text, nullable=True) # Comentarios del admin al revisar la solicitud
-    # Coordenadas para mapa
     lat = Column(DECIMAL(9, 6), nullable=True)
     lng = Column(DECIMAL(9, 6), nullable=True)
+    # ✅ NUEVO: Campos para guardar el ruteo y la distancia
+    distancia_km = Column(DECIMAL(6, 2), nullable=True)
+    ruta_coordenadas = Column(JSON, nullable=True)
     
+
     # Foreign Keys
     id_tipo = Column(Integer, ForeignKey('tipoevento.id_tipo'), nullable=False)
     id_dificultad = Column(Integer, ForeignKey('niveldificultad.id_dificultad'), nullable=False)
@@ -44,7 +41,7 @@ class SolicitudPublicacion(Base):
     id_usuario = Column(Integer, ForeignKey('usuario.id_usuario'), nullable=False)
     
     
-   # RELACIONES (ESTO ES LO QUE FALTABA)
+   # RELACIONES
     # Esto permite usar joinedload y acceder a .usuario, .tipo_evento, etc.
     # ===================================================================
     tipo_evento = relationship("TipoEvento")

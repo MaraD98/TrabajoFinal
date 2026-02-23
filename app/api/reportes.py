@@ -120,7 +120,7 @@ def export_reportes(
         data = [{"tipo": tipo_evento, "cantidad": cantidad} for tipo_evento, cantidad in resultados]
         fieldnames = ["tipo", "cantidad"]
 
-    if tipo == "solicitudes_externas": 
+    elif tipo == "solicitudes_externas": 
         data = ReporteService.reportes_supervisor(db, current_user.id_usuario)["solicitudes_externas"]
         fieldnames = ["estado", "cantidad"]
 
