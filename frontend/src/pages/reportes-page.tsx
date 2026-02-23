@@ -42,6 +42,7 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exportando, setExportando] = useState<string | null>(null);
+  const [estadoAbierto, setEstadoAbierto] = useState<number | null>(null);
 
   // Filtros para la consulta
   const [anioFiltro, setAnioFiltro] = useState<string>("");
@@ -419,58 +420,80 @@ export default function ReportesPage() {
           </>
         )}
 
-        {/* --- SECCIÓN ESPECÍFICA ROL 3: ORGANIZACIÓN EXTERNA --- */}
+        {/* --- SECCIÓN ESPECÍFICA ROL 3: ORGANIZACIÓN EXTERNA CON ACORDEÓN --- */}
         {usuarioRol === 3 && reporteData?.lista_eventos_detallada && (
           <div className="reportes-rol3-container" style={{ marginTop: '20px' }}>
             
-            {/* GRILLA DETALLADA DE EVENTOS */}
-            <div className="grafico-card grafico-card--wide" style={{ marginTop: '20px' }}>
+            <div className="grafico-card grafico-card--wide">
               <div className="grafico-card__header">
-                <h3>📋 Gestión Detallada de Mis Eventos</h3>
-                <button 
-                  data-html2canvas-ignore="true"
-                  onClick={() => handleExportarCSV("lista_eventos_detallada")}
-                  className="btn-export"
-                >
-                  📥 Descargar Listado Detallado
-                </button>
+                <h3>📋 Detalle de Mis Solicitudes por Estado</h3>
               </div>
+              
               <div className="grafico-card__body">
-                <div className="table-responsive" style={{ overflowX: 'auto' }}>
-                  <table className="tabla-reportes-custom">
-                    <thead>
-                      <tr>
-                        <th>Evento</th>
-                        <th>Fecha</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Reservas</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reporteData.lista_eventos_detallada.map((evento) => (
-                        <tr key={evento.id}>
-                          <td style={{ fontWeight: 'bold' }}>{evento.nombre}</td>
-                          <td>{evento.fecha}</td>
-                          <td><span className="badge-tipo">{evento.tipo}</span></td>
-                          <td>
-                            <span className={`badge-estado estado-${evento.estado}`}>
-                                {getNombreEstado(evento.estado)}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            <div className="reservas-indicator">
-                              {evento.reservas}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {[2, 3, 4, 5, 6].map((idEstado) => {
+                  const eventosEnEstado = reporteData.lista_eventos_detallada?.filter(e => e.estado === idEstado) || [];
+                  if (eventosEnEstado.length === 0) return null; // No mostrar si no hay eventos en ese estado
+
+                  const isOpen = estadoAbierto === idEstado;
+
+                  return (
+                    <div key={idEstado} className="accordion-section" style={{ marginBottom: '10px', border: '1px solid #333', borderRadius: '8px', overflow: 'hidden' }}>
+                      {/* CABECERA DEL ACORDEÓN */}
+                      <div 
+                        onClick={() => setEstadoAbierto(isOpen ? null : idEstado)}
+                        style={{ 
+                          padding: '15px', 
+                          backgroundColor: '#252525', 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          cursor: 'pointer',
+                          borderLeft: `4px solid ${idEstado === 3 ? '#4ade80' : idEstado === 2 ? '#fbbf24' : '#e74c3c'}`
+                        }}
+                      >
+                        <span style={{ fontWeight: 'bold', fontSize: '1rem' }}>
+                          {getNombreEstado(idEstado).toUpperCase()} ({eventosEnEstado.length})
+                        </span>
+                        <span style={{ transition: 'transform 0.3s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                          ▼
+                        </span>
+                      </div>
+
+                      {/* CONTENIDO DESPLEGABLE */}
+                      {isOpen && (
+                        <div style={{ padding: '10px', backgroundColor: '#1a1a1a' }}>
+                          <div className="table-responsive">
+                            <table className="tabla-reportes-custom">
+                              <thead>
+                                <tr>
+                                  <th>Evento</th>
+                                  <th>Fecha</th>
+                                  <th>Tipo</th>
+                                  <th style={{ textAlign: 'center' }}>Reservas</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {eventosEnEstado.map((evento) => (
+                                  <tr key={evento.id}>
+                                    <td style={{ fontWeight: 'bold' }}>{evento.nombre}</td>
+                                    <td>{evento.fecha}</td>
+                                    <td><span className="badge-tipo">{evento.tipo}</span></td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <div className="reservas-indicator">{evento.reservas}</div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-
+            
             {reporteData?.mis_eventos_por_estado && (
             <div className="grafico-card">
               <div className="grafico-card__header">
