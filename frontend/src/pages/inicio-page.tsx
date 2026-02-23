@@ -359,7 +359,7 @@ export default function InicioPage() {
                                             {evento.cupo_maximo ? `Cupos: ${evento.cupo_maximo}` : 'Cupo Libre'}
                                         </span>
                                     </div>
-                                    <p className="card-desc">
+                                    <p className="card-desc"style={{ whiteSpace: 'pre-wrap' }}>
                                         {evento.descripcion ? (evento.descripcion.length > 80 ? evento.descripcion.substring(0, 80) + '...' : evento.descripcion) : "Detalles próximamente."}
                                     </p>
                                     <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.9rem', color: '#cccccc', borderTop: '1px solid #333', paddingTop: '10px' }}>
