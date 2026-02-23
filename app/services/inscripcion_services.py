@@ -96,7 +96,7 @@ class InscripcionService:
         return datos_formateados
 
     @staticmethod
-    def crear_inscripcion(db: Session, id_evento: int, usuario_actual):
+    def crear_inscripcion(db: Session, id_evento: int, usuario_actual, background_tasks):
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
@@ -132,17 +132,14 @@ class InscripcionService:
             id_estado=id_estado_inicial
         )
 
-        try:
-            # 👇 CAMBIO AQUÍ: Pasamos el id_evento para que el mail tenga el link correcto
-            enviar_correo_reserva(
-                email_destino=usuario_actual.email,
-                nombre_usuario=usuario_actual.nombre_y_apellido,
-                evento=evento.nombre_evento,
-                fecha=f"{evento.fecha_evento}. {mensaje}"
-                # Nota: Si actualizaste enviar_correo_reserva para recibir id_evento, agregalo acá
-            )
-        except Exception as e:
-            print(f"⚠️ Error al enviar email: {e}")
+        # ✅ MANDAMOS EL MAIL EN SEGUNDO PLANO
+        background_tasks.add_task(
+            enviar_correo_reserva,
+            email_destino=usuario_actual.email,
+            nombre_usuario=usuario_actual.nombre_y_apellido,
+            evento=evento.nombre_evento,
+            fecha=f"{evento.fecha_evento}. {mensaje}"
+        )
 
         return {
             "mensaje": mensaje,

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException # <--- AGREGAMOS HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import List
@@ -92,13 +92,15 @@ def mis_pagos_pendientes(
 )
 def inscribirse_evento(
     id_evento: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
     return InscripcionService.crear_inscripcion(
         db=db, 
         id_evento=id_evento, 
-        usuario_actual=current_user
+        usuario_actual=current_user,
+        background_tasks=background_tasks
     )
 
 # ============ CONFIRMAR PAGO (ADMIN) ============
