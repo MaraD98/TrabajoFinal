@@ -50,19 +50,15 @@ export default function SolicitudEventoPage() {
   };
 
   // ✅ FIX: Parsea errores de FastAPI correctamente
-  // Pydantic devuelve detail como array: [{loc, msg, type, input, ctx}]
-  // Si se pasa directo al Toast crashea React porque no es un string
   const parsearError = (errorBody: any): string => {
     if (!errorBody) return 'Error desconocido';
     if (typeof errorBody.detail === 'string') return errorBody.detail;
     if (Array.isArray(errorBody.detail)) {
-      // Errores de validación Pydantic: tomar el primer mensaje
       return errorBody.detail.map((e: any) => e.msg || String(e)).join(', ');
     }
     if (typeof errorBody.detail === 'object') return JSON.stringify(errorBody.detail);
     return 'Error al procesar la solicitud';
   };
-
 
   // ========== Handlers ==========
   const handleChange = (
@@ -103,7 +99,7 @@ export default function SolicitudEventoPage() {
 
       const datosAEnviar = {
         nombre_evento: nombreFinal,
-        ubicacion: formData.ubicacion,
+        ubicacion: formData.ubicacion.substring(0, 150),
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
         costo_participacion: formData.costo_participacion || 0,
@@ -129,10 +125,8 @@ export default function SolicitudEventoPage() {
       if (response.ok) {
         localStorage.removeItem('borrador_solicitud');
         setIdBorrador(null);
-        setYaEnviado(true); // ✅ bloquear autoguardado para que no regenere el borrador
+        setYaEnviado(true); // ✅ bloquear autoguardado
         showToast("✅ Solicitud enviada para revisión", "success");
-        
-        // FIX 2: Redirigir a la tab "pendientes" en vez de "activos"
         setTimeout(() => {
           navigate("/mis-eventos?tab=pendientes");
         }, 1500);
@@ -180,7 +174,7 @@ export default function SolicitudEventoPage() {
 
       const datosAEnviar = {
         nombre_evento: nombreFinal,
-        ubicacion: formData.ubicacion,
+        ubicacion: formData.ubicacion.substring(0, 150),
         fecha_evento: formData.fecha_evento,
         descripcion: formData.descripcion || "",
         costo_participacion: formData.costo_participacion || 0,
@@ -218,13 +212,11 @@ export default function SolicitudEventoPage() {
         localStorage.setItem('borrador_solicitud', JSON.stringify({
           formData: datosAEnviar,
           idBorrador: data.id_solicitud || idBorrador,
-          id_usuario: user?.id_usuario  // ✅ para detectar cambio de usuario al recuperar
+          id_usuario: user?.id_usuario
         }));
       } else {
         const errorBody = await response.json();
         console.error('❌ Error en autoguardado:', errorBody);
-        // No mostramos toast para errores de autoguardado silencioso,
-        // pero logueamos el mensaje parseado para debug
         console.error('Mensaje:', parsearError(errorBody));
       }
     } catch (error) {
@@ -284,7 +276,8 @@ export default function SolicitudEventoPage() {
         );
         const data = await res.json();
         if (data && data.display_name) {
-          setFormData((prev) => ({ ...prev, ubicacion: data.display_name }));
+          // ✅ Truncar a 150 chars para evitar error 422
+          setFormData((prev) => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
           setLocationStatus("found");
         }
       } catch (err) {
@@ -297,25 +290,57 @@ export default function SolicitudEventoPage() {
 
   useEffect(() => {
     initMap();
-    
-    const borradorGuardado = localStorage.getItem('borrador_solicitud');
-    if (borradorGuardado) {
+
+    // ✅ FIX: verificar contra el backend si el borrador sigue siendo válido (estado_solicitud === 1)
+    const verificarBorrador = async () => {
+      const borradorGuardado = localStorage.getItem('borrador_solicitud');
+      if (!borradorGuardado) return;
+
       try {
         const datos = JSON.parse(borradorGuardado);
-        // ✅ Si el borrador no tiene id_usuario (dato viejo) o pertenece a otro usuario, descartarlo para evitar 403
+
+        // Descartar si pertenece a otro usuario
         if (!datos.id_usuario || (user?.id_usuario && datos.id_usuario !== user.id_usuario)) {
-          console.warn('Borrador descartado: sin id_usuario o pertenece a otro usuario');
+          console.warn('Borrador descartado: pertenece a otro usuario');
           localStorage.removeItem('borrador_solicitud');
-        } else {
-          setFormData(datos.formData);
-          setIdBorrador(datos.idBorrador);
-          showToast('Se recuperó un borrador guardado', 'info');
+          return;
+        }
+
+        // Verificar en el backend que el borrador sigue en estado 1 (borrador)
+        if (datos.idBorrador) {
+          const token = getToken();
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/solicitudes-eventos/mis-solicitudes`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (res.ok) {
+            const solicitudes = await res.json();
+            const borradorValido = solicitudes.find(
+              (s: any) => s.id_solicitud === datos.idBorrador && s.id_estado_solicitud === 1
+            );
+
+            if (borradorValido) {
+              // Sigue siendo borrador → cargar normalmente
+              setFormData(datos.formData);
+              setIdBorrador(datos.idBorrador);
+              showToast('Se recuperó un borrador guardado', 'info');
+            } else {
+              // Ya fue enviado, aprobado o no existe → limpiar localStorage silenciosamente
+              console.warn('Borrador descartado: ya no está en estado borrador en el backend');
+              localStorage.removeItem('borrador_solicitud');
+            }
+          } else {
+            // No se pudo consultar el backend → limpiar por las dudas
+            localStorage.removeItem('borrador_solicitud');
+          }
         }
       } catch (error) {
         console.error('Error al recuperar borrador:', error);
         localStorage.removeItem('borrador_solicitud');
       }
-    }
+    };
+
+    verificarBorrador();
 
     return () => {
       if (autoGuardadoRef.current) clearTimeout(autoGuardadoRef.current);

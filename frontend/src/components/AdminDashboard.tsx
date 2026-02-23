@@ -6,9 +6,10 @@ import Toast from './modals/Toast';
 import ConfirmModal from './modals/ConfirmModal';
 import InputModal from './modals/InputModal';
 import DetalleEdicionModal from './DetalleEdicionModal';
+// ✅ Ahora usa el mismo modal con mapa que mis-eventos
 import EditEventModal from './EditEventModal';
 import EventoDetalleModal from './modals/EventoDetalleModal';
-import SolicitudBajaModal from './modals/SolicitudBajaModal';  // 👈 NUEVO
+import SolicitudBajaModal from './modals/SolicitudBajaModal';
 import '../styles/admin-dashboard.css';
 
 // ============================================================================
@@ -147,7 +148,7 @@ function useSortableTable<T>(data: T[], defaultKey: keyof T, defaultDir: 'asc' |
 }
 
 // ============================================================================
-// HELPERS
+// Convierte el string de estado del historial → id_estado numérico
 // ============================================================================
 const estadoStringToIdEstado = (estado: string): number => {
   const s = estado.toLowerCase();
@@ -157,12 +158,18 @@ const estadoStringToIdEstado = (estado: string): number => {
   return 3;
 };
 
+// ============================================================================
+// Helper: normaliza la fecha del evento al formato YYYY-MM-DD
+// que necesita el input[type=date] del modal de edición
+// ============================================================================
 const normalizarFechaEvento = (evento: Evento): Evento => {
   let fecha = evento.fecha_evento || '';
+  // "DD-MM-YYYY" → "YYYY-MM-DD"
   if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) {
     const [dd, mm, yyyy] = fecha.split('-');
     fecha = `${yyyy}-${mm}-${dd}`;
   }
+  // "YYYY-MM-DDTHH:mm:ss" → "YYYY-MM-DD"
   if (fecha.includes('T')) {
     fecha = fecha.split('T')[0];
   }
@@ -193,7 +200,10 @@ const AdminDashboard: React.FC = () => {
   }>({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
   const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
   const [detalleEdicionModal, setDetalleEdicionModal] = useState<{ show: boolean; solicitud: SolicitudEdicion | null }>({ show: false, solicitud: null });
+
+  // ✅ Estado del modal de edición adaptado al nuevo modal (isOpen + item)
   const [editModal, setEditModal] = useState<{ isOpen: boolean; evento: Evento | null }>({ isOpen: false, evento: null });
+
   const [detalleEventoId, setDetalleEventoId] = useState<number | null>(null);
   const [detalleEventoEstado, setDetalleEventoEstado] = useState<number | null>(null);
 
@@ -235,21 +245,21 @@ const AdminDashboard: React.FC = () => {
     try {
       if (vistaActual === 'pendientes') {
         const [resAlta, resBaja, resEdicion] = await Promise.all([
-          axios.get('http://localhost:8000/api/v1/admin/solicitudes/pendientes', config),
-          axios.get('http://localhost:8000/api/v1/admin/bajas/pendientes', config),
-          axios.get('http://localhost:8000/api/v1/edicion-eventos/solicitudes-edicion-pendientes', config)
+          axios.get(`${import.meta.env.VITE_API_URL}/admin/solicitudes/pendientes`, config),
+          axios.get(`${import.meta.env.VITE_API_URL}/admin/bajas/pendientes`, config),
+          axios.get(`${import.meta.env.VITE_API_URL}/edicion-eventos/solicitudes-edicion-pendientes`, config)
         ]);
         setSolicitudesAlta(Array.isArray(resAlta.data) ? resAlta.data.map((s: any) => ({ ...s, tipo: 'alta' })) : []);
         setSolicitudesBaja(Array.isArray(resBaja.data) ? resBaja.data.map((s: any) => ({ ...s, tipo: 'baja' })) : []);
         setSolicitudesEdicion(Array.isArray(resEdicion.data) ? resEdicion.data.map((s: any) => ({ ...s, tipo: 'edicion' })) : []);
       } else if (vistaActual === 'activos') {
-        const res = await axios.get('http://localhost:8000/api/v1/eventos/', config);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/eventos/`, config);
         setEventosActivos(Array.isArray(res.data) ? res.data.filter((e: Evento) => e.id_estado === 3) : []);
       } else if (vistaActual === 'historial') {
-        const res = await axios.get('http://localhost:8000/api/v1/admin/historial-eliminaciones', config);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/historial-eliminaciones`, config);
         setHistorialEventos(Array.isArray(res.data) ? res.data : []);
       } else if (vistaActual === 'pagos' || vistaActual === 'inscriptos') {
-        const res = await axios.get('http://localhost:8000/api/v1/inscripciones', config);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/inscripciones`, config);
         setReservas(Array.isArray(res.data) ? res.data : []);
       }
     } catch (error) {
@@ -273,11 +283,11 @@ const AdminDashboard: React.FC = () => {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  // Handlers
+  // Handlers altas
   const handleAprobarAlta = (id: number) =>
     showConfirm('Aprobar Solicitud', '¿Estás seguro de aprobar esta solicitud y publicar el evento?', async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 3 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 3 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud aprobada correctamente', 'success'); cargarDatos();
       } catch { showToast('Error al aprobar solicitud', 'error'); }
       hideConfirm();
@@ -286,16 +296,17 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarAlta = (id: number) =>
     showConfirm('Rechazar Solicitud', '¿Estás seguro de rechazar esta solicitud?', async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 4 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/solicitudes/${id}/revisar`, { id_estado_solicitud: 4 }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud rechazada', 'info'); cargarDatos();
       } catch { showToast('Error al rechazar solicitud', 'error'); }
       hideConfirm();
     }, 'warning');
 
+  // Handlers bajas
   const handleAprobarBaja = (id: number) =>
     showConfirm('Aprobar Eliminación', '¿Estás seguro de eliminar este evento?', async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/admin/bajas/${id}/aprobar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/bajas/${id}/aprobar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento eliminado correctamente', 'success'); cargarDatos();
       } catch { showToast('Error al aprobar baja', 'error'); }
       hideConfirm();
@@ -304,16 +315,17 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarBaja = (id: number) =>
     showConfirm('Rechazar Eliminación', '¿Rechazar esta solicitud y mantener el evento activo?', async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/admin/bajas/${id}/rechazar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/bajas/${id}/rechazar`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Solicitud rechazada. Evento continúa publicado', 'success'); cargarDatos();
       } catch { showToast('Error al rechazar baja', 'error'); }
       hideConfirm();
     }, 'info');
 
+  // Handlers ediciones
   const handleAprobarEdicion = (idEvento: number, nombreEvento: string) =>
     showConfirm('Aprobar Edición', `¿Aprobar los cambios propuestos para "${nombreEvento}"?`, async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/edicion-eventos/${idEvento}/aprobar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/edicion-eventos/${idEvento}/aprobar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Cambios aprobados y aplicados al evento', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al aprobar edición', 'error'); }
       hideConfirm();
@@ -322,7 +334,7 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarEdicion = (idEvento: number, nombreEvento: string) =>
     showConfirm('Rechazar Edición', `¿Rechazar los cambios propuestos para "${nombreEvento}"? El evento mantendrá su versión anterior.`, async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Cambios rechazados. Evento sin modificar', 'info'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al rechazar edición', 'error'); }
       hideConfirm();
@@ -331,7 +343,7 @@ const AdminDashboard: React.FC = () => {
   const handleEliminarEvento = (id: number, nombre: string) =>
     showInputModal('🗑️ Cancelar Evento', `Estás a punto de cancelar el evento "${nombre}". Ingresa el motivo:`, async (motivo) => {
       try {
-        await axios.post(`http://localhost:8000/api/v1/eliminacion/admin/eliminar/${id}`, { motivo }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.post(`${import.meta.env.VITE_API_URL}/eliminacion/admin/eliminar/${id}`, { motivo }, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento cancelado correctamente', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al cancelar evento', 'error'); }
       hideInputModal();
@@ -340,7 +352,7 @@ const AdminDashboard: React.FC = () => {
   const handleDepurarEvento = (id: number, nombre: string) =>
     showInputModal('⚠️ Eliminar Evento Definitivamente', `Esta acción eliminará PERMANENTEMENTE el evento "${nombre}" de la base de datos. Ingresa el motivo:`, async (motivo) => {
       try {
-        await axios.delete(`http://localhost:8000/api/v1/eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
+        await axios.delete(`${import.meta.env.VITE_API_URL}/eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
         showToast('Evento depurado definitivamente', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al depurar evento', 'error'); }
       hideInputModal();
@@ -349,7 +361,7 @@ const AdminDashboard: React.FC = () => {
   const handleRestaurarEvento = (id: number, nombre: string) =>
     showConfirm('♻️ Restaurar Evento', `¿Estás seguro de restaurar "${nombre}"? Volverá a estar publicado y activo.`, async () => {
       try {
-        await axios.patch(`http://localhost:8000/api/v1/eliminacion/admin/restaurar/${id}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${import.meta.env.VITE_API_URL}/eliminacion/admin/restaurar/${id}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Evento restaurado y publicado', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al restaurar evento', 'error'); }
       hideConfirm();
@@ -358,7 +370,7 @@ const AdminDashboard: React.FC = () => {
   const handleConfirmarPago = async () => {
     if (!pagoModal.reserva) return;
     try {
-      await axios.post(`http://localhost:8000/api/v1/inscripciones/confirmar-pago/${pagoModal.reserva.id_reserva}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      await axios.post(`${import.meta.env.VITE_API_URL}/inscripciones/confirmar-pago/${pagoModal.reserva.id_reserva}`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
       showToast('Pago confirmado correctamente', 'success');
       setPagoModal({ show: false, reserva: null }); cargarDatos();
     } catch { showToast('Error al confirmar pago', 'error'); }
@@ -371,13 +383,24 @@ const AdminDashboard: React.FC = () => {
     let res = historialSort.sorted;
     if (filterType === 'finalizados') res = res.filter(h => normalize(h.estado) === 'finalizado');
     if (filterType === 'eliminados') res = res.filter(h => normalize(h.estado).includes('cancelado') || normalize(h.estado).includes('depurado'));
-    if (searchTerm) res = res.filter(h => h.nombre_evento.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      res = res.filter(h =>
+        (h.nombre_evento || '').toLowerCase().includes(q) ||
+        (h.eliminado_por || '').toLowerCase().includes(q) ||
+        (h.fecha_eliminacion || '').toLowerCase().includes(q) ||
+        (h.estado || '').toLowerCase().includes(q)
+      );
+    }
     return res;
   };
 
-  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], campo: string): T[] => {
+  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], ...campos: string[]): T[] => {
     if (!searchTerm) return lista;
-    return lista.filter(item => String(item[campo]).toLowerCase().includes(searchTerm.toLowerCase()));
+    const q = searchTerm.toLowerCase();
+    return lista.filter(item =>
+      campos.some(campo => String(item[campo] ?? '').toLowerCase().includes(q))
+    );
   };
 
   const esRestaurable = (estado: string) => normalize(estado).includes('cancelado') && normalize(estado).includes('soft delete');
@@ -408,8 +431,17 @@ const AdminDashboard: React.FC = () => {
 
   const formatFecha = (fecha: string): string => {
     if (!fecha) return '—';
+    // Ya está en DD-MM-YYYY, devolver tal cual
     if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) return fecha;
-    const d = new Date(fecha);
+    // Cortar hora: "YYYY-MM-DD HH:mm:ss" o "YYYY-MM-DDTHH:mm:ss"
+    const soloFecha = fecha.split('T')[0].split(' ')[0];
+    // Convertir YYYY-MM-DD → DD-MM-YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+      const [anio, mes, dia] = soloFecha.split('-');
+      return `${dia}-${mes}-${anio}`;
+    }
+    // Fallback: parsear con Date
+    const d = new Date(soloFecha);
     if (isNaN(d.getTime())) return fecha;
     const dia = String(d.getDate()).padStart(2, '0');
     const mes = String(d.getMonth() + 1).padStart(2, '0');
@@ -417,17 +449,6 @@ const AdminDashboard: React.FC = () => {
     return `${dia}-${mes}-${anio}`;
   };
 
-  const formatFechaHora = (fecha: string): string => {
-    if (!fecha) return '—';
-    const d = new Date(fecha);
-    if (isNaN(d.getTime())) return fecha;
-    const dia = String(d.getDate()).padStart(2, '0');
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const anio = d.getFullYear();
-    const hora = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${dia}-${mes}-${anio} ${hora}:${min}`;
-  };
 
   const formatCosto = (costo?: number) =>
     costo != null ? `$${Number(costo).toLocaleString('es-AR')}` : '—';
@@ -445,14 +466,13 @@ const AdminDashboard: React.FC = () => {
           <nav className="admin-nav">
             <button className={vistaActual === 'pendientes' ? 'active' : ''} onClick={() => setVistaActual('pendientes')}>📋 Pendientes</button>
             <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => setVistaActual('activos')}>✅ Activos</button>
-            <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial</button>
+            <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial Eliminados/Finalizados</button>
             <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos</button>
             <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Inscriptos</button>
           </nav>
         </aside>
 
         <main className="admin-main-content">
-
           {/* VISTA PENDIENTES */}
           {vistaActual === 'pendientes' && (
             <div className="admin-content-view">
@@ -460,7 +480,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>📋 Solicitudes Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -475,51 +495,45 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes">
                 <h3>📝 Altas ({solicitudesAlta.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
-                      <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
-                      <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Solicitante{altaSort.arrow('id_usuario')}</th>
-                      <th style={{ textAlign: 'left', cursor: 'default' }}>Fecha Solicitud</th>
-                      <th style={{ textAlign: 'left', cursor: 'default' }}>Tipo / Dificultad</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
-                    ) : filtrarPorSearch(altaSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(altaSort.sorted, 'nombre_evento').map(s => (
-                        <tr key={s.id_solicitud}>
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>
-                            <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
-                          </td>
-                          <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
-                          <td style={{ textAlign: 'left' }}><small>{s.usuario?.email || `#${s.id_usuario}`}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud) || '—'}</small></td>
-                          <td style={{ textAlign: 'left' }}>
-                            <small style={{ color: '#a8a8a8' }}>
-                              {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
-                              {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
-                            </small>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {/* 👁️ NUEVO: botón Ver detalle del evento */}
-                            <button
-                              className="btn-ver-detalle-admin"
-                              onClick={() => setDetalleAltaId(s.id_solicitud)}
-                              title="Ver detalles del evento"
-                              style={{ marginRight: '6px' }}
-                            >👁️</button>
-                            <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
-                            <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
+                        <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
+                        <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Solicitante{altaSort.arrow('id_usuario')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Fecha Solicitud</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Tipo / Dificultad</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').map(s => (
+                          <tr key={s.id_solicitud}>
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario?.email || `#${s.id_usuario}`}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud || '') || '—'}</small></td>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#a8a8a8' }}>
+                                {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
+                                {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
+                              </small>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleAltaId(s.id_solicitud)} title="Ver detalles del evento" style={{ marginRight: '6px' }}>👁️</button>
+                              <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
+                              <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
 
@@ -527,49 +541,49 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#4a9eff' }}>✏️ Ediciones ({solicitudesEdicion.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={edicionSort.thStyle('nombre_evento')} onClick={() => edicionSort.toggle('nombre_evento')}>Evento{edicionSort.arrow('nombre_evento')}</th>
-                      <th style={edicionSort.thStyle('fecha_evento')} onClick={() => edicionSort.toggle('fecha_evento')}>Fecha Evento{edicionSort.arrow('fecha_evento')}</th>
-                      <th style={edicionSort.thStyle('usuario_solicitante')} onClick={() => edicionSort.toggle('usuario_solicitante')}>Solicitante{edicionSort.arrow('usuario_solicitante')}</th>
-                      <th style={edicionSort.thStyle('fecha_solicitud')} onClick={() => edicionSort.toggle('fecha_solicitud')}>Fecha Solicitud{edicionSort.arrow('fecha_solicitud')}</th>
-                      <th style={{ textAlign: 'left', cursor: 'default', width: '22%' }}>Cambios</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes de edición...</td></tr>
-                    ) : filtrarPorSearch(edicionSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(edicionSort.sorted, 'nombre_evento').map(s => (
-                        <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
-                          onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
-                          title="Click para ver detalles"
-                        >
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>
-                            <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
-                          </td>
-                          <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
-                          <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFechaHora(s.fecha_solicitud)}</small></td>
-                          <td style={{ textAlign: 'left' }}>
-                            <small style={{ color: '#a8a8a8' }}>{obtenerResumenCambios(s.cambios_propuestos || {})}</small>
-                            <br />
-                            <span style={{ fontSize: '0.75rem', color: '#ccff00', fontWeight: 'bold' }}>
-                              {Object.keys(s.cambios_propuestos || {}).length} cambio{Object.keys(s.cambios_propuestos || {}).length !== 1 ? 's' : ''}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                            <button className="btn-ver-detalle-admin" onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })} title="Ver detalles" style={{ marginRight: '8px' }}>👁️</button>
-                            <button className="btn-aprobar-admin" onClick={e => { e.stopPropagation(); handleAprobarEdicion(s.id_evento, s.nombre_evento); }} title="Aprobar">✓</button>
-                            <button className="btn-rechazar-admin" onClick={e => { e.stopPropagation(); handleRechazarEdicion(s.id_evento, s.nombre_evento); }} title="Rechazar">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={edicionSort.thStyle('nombre_evento')} onClick={() => edicionSort.toggle('nombre_evento')}>Evento{edicionSort.arrow('nombre_evento')}</th>
+                        <th style={edicionSort.thStyle('fecha_evento')} onClick={() => edicionSort.toggle('fecha_evento')}>Fecha Evento{edicionSort.arrow('fecha_evento')}</th>
+                        <th style={edicionSort.thStyle('usuario_solicitante')} onClick={() => edicionSort.toggle('usuario_solicitante')}>Solicitante{edicionSort.arrow('usuario_solicitante')}</th>
+                        <th style={edicionSort.thStyle('fecha_solicitud')} onClick={() => edicionSort.toggle('fecha_solicitud')}>Fecha Solicitud{edicionSort.arrow('fecha_solicitud')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default', width: '22%' }}>Cambios</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
+                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').map(s => (
+                          <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
+                            onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
+                            title="Click para ver detalles"
+                          >
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#a8a8a8' }}>{obtenerResumenCambios(s.cambios_propuestos || {})}</small>
+                              <br />
+                              <span style={{ fontSize: '0.75rem', color: '#ccff00', fontWeight: 'bold' }}>
+                                {Object.keys(s.cambios_propuestos || {}).length} cambio{Object.keys(s.cambios_propuestos || {}).length !== 1 ? 's' : ''}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })} title="Ver detalles" style={{ marginRight: '8px' }}>👁️</button>
+                              <button className="btn-aprobar-admin" onClick={e => { e.stopPropagation(); handleAprobarEdicion(s.id_evento, s.nombre_evento); }} title="Aprobar">✓</button>
+                              <button className="btn-rechazar-admin" onClick={e => { e.stopPropagation(); handleRechazarEdicion(s.id_evento, s.nombre_evento); }} title="Rechazar">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
 
@@ -577,54 +591,42 @@ const AdminDashboard: React.FC = () => {
               <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
                 <h3 style={{ color: '#fc8181' }}>🗑️ Bajas ({solicitudesBaja.length})</h3>
                 <table className="data-table-admin">
-                  <thead>
-                    <tr>
-                      <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
-                      <th style={bajaSort.thStyle('usuario_solicitante')} onClick={() => bajaSort.toggle('usuario_solicitante')}>Solicitante{bajaSort.arrow('usuario_solicitante')}</th>
-                      <th style={bajaSort.thStyle('fecha_solicitud')} onClick={() => bajaSort.toggle('fecha_solicitud')}>Fecha Solicitud{bajaSort.arrow('fecha_solicitud')}</th>
-                      <th style={{ textAlign: 'left', cursor: 'default' }}>Motivo</th>
-                      <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes de baja...</td></tr>
-                    ) : filtrarPorSearch(bajaSort.sorted, 'nombre_evento').length === 0 ? (
-                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
-                    ) : (
-                      filtrarPorSearch(bajaSort.sorted, 'nombre_evento').map(s => (
-                        <tr
-                          key={s.id_eliminacion}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => setDetalleBajaModal({ show: true, solicitud: s })}
-                          title="Click para ver detalles"
-                        >
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>
-                            <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
-                          </td>
-                          <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
-                          <td style={{ textAlign: 'left' }}>
-                            {/* Motivo truncado en la tabla, el modal muestra completo */}
-                            <small style={{ color: '#fc8181' }}>
-                              {s.motivo && s.motivo.length > 60 ? s.motivo.substring(0, 60) + '...' : s.motivo}
-                            </small>
-                          </td>
-                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                            {/* 👁️ NUEVO: botón Ver detalle de la baja */}
-                            <button
-                              className="btn-ver-detalle-admin"
-                              onClick={() => setDetalleBajaModal({ show: true, solicitud: s })}
-                              title="Ver motivo completo"
-                              style={{ marginRight: '6px' }}
-                            >👁️</button>
-                            <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)} title="Aprobar baja">✓</button>
-                            <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)} title="Rechazar baja">✕</button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+                    <thead>
+                      <tr>
+                        <th style={bajaSort.thStyle('nombre_evento')} onClick={() => bajaSort.toggle('nombre_evento')}>Evento{bajaSort.arrow('nombre_evento')}</th>
+                        <th style={bajaSort.thStyle('usuario_solicitante')} onClick={() => bajaSort.toggle('usuario_solicitante')}>Solicitante{bajaSort.arrow('usuario_solicitante')}</th>
+                        <th style={bajaSort.thStyle('fecha_solicitud')} onClick={() => bajaSort.toggle('fecha_solicitud')}>Fecha Solicitud{bajaSort.arrow('fecha_solicitud')}</th>
+                        <th style={{ textAlign: 'left', cursor: 'default' }}>Motivo</th>
+                        <th style={{ textAlign: 'center', cursor: 'default' }}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loading ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                      ) : filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').length === 0 ? (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
+                      ) : (
+                        filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').map(s => (
+                          <tr key={s.id_eliminacion} style={{ cursor: 'pointer' }} onClick={() => setDetalleBajaModal({ show: true, solicitud: s })} title="Click para ver detalles">
+                            <td style={{ textAlign: 'left', fontWeight: 600 }}>
+                              <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
+                            </td>
+                            <td style={{ textAlign: 'left' }}><small>{s.usuario_solicitante}</small></td>
+                            <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud)}</small></td>
+                            <td style={{ textAlign: 'left' }}>
+                              <small style={{ color: '#fc8181' }}>
+                                {s.motivo && s.motivo.length > 60 ? s.motivo.substring(0, 60) + '...' : s.motivo}
+                              </small>
+                            </td>
+                            <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleBajaModal({ show: true, solicitud: s })} title="Ver motivo completo" style={{ marginRight: '6px' }}>👁️</button>
+                              <button className="btn-aprobar-admin" onClick={() => handleAprobarBaja(s.id_evento)} title="Aprobar baja">✓</button>
+                              <button className="btn-rechazar-admin" onClick={() => handleRechazarBaja(s.id_evento)} title="Rechazar baja">✕</button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
                 </table>
               </div>
             </div>
@@ -637,7 +639,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>✅ Eventos Activos ({eventosActivos.length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre..."
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, creador o fecha (DD-MM-YYYY)..."
                       value={searchActivos} onChange={e => setSearchActivos(e.target.value)} />
                   </div>
                   <div className="action-buttons-inline">
@@ -661,36 +663,50 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {activosSort.sorted
+                    .filter(e => {
+                      if (!searchActivos) return true;
+                      const q = searchActivos.toLowerCase();
+                      const nombre = e.nombre_evento?.toLowerCase() || '';
+                      const creador = ((e as any).email_usuario || '').toLowerCase();
+                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
+                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
+                    })
+                    .map(e => (
+                      <tr key={e.id_evento}>
+                        <td style={{ textAlign: 'left', color: '#888' }}>#{e.id_evento}</td>
+                        <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
+                        <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{(e as any).email_usuario || `#${e.id_usuario}`}</small></td>
+                        <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            className="btn-ver-detalle-admin"
+                            onClick={() => { setDetalleEventoId(e.id_evento); setDetalleEventoEstado(3); }}
+                            title="Ver detalles"
+                            style={{ marginRight: '8px' }}
+                          >👁️ Ver más</button>
+                          {/* ✅ Abre el nuevo modal con mapa: normaliza fecha y pasa como 'evento' */}
+                          <button
+                            className="btn-editar-admin"
+                            onClick={() => setEditModal({ isOpen: true, evento: normalizarFechaEvento(e) })}
+                            title="Editar"
+                            style={{ marginRight: '8px' }}
+                          >✏️ Editar</button>
+                          <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>🗑️ Eliminar</button>
+                        </td>
+                      </tr>
+                    ))}
                   {loading ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando eventos activos...</td></tr>
-                  ) : activosSort.sorted.filter(e => !searchActivos || e.nombre_evento.toLowerCase().includes(searchActivos.toLowerCase())).length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos activos.</td></tr>
-                  ) : (
-                    activosSort.sorted
-                      .filter(e => !searchActivos || e.nombre_evento.toLowerCase().includes(searchActivos.toLowerCase()))
-                      .map(e => (
-                        <tr key={e.id_evento}>
-                          <td style={{ textAlign: 'left', color: '#888' }}>#{e.id_evento}</td>
-                          <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
-                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>#{e.id_usuario}</small></td>
-                          <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            <button
-                              className="btn-ver-detalle-admin"
-                              onClick={() => { setDetalleEventoId(e.id_evento); setDetalleEventoEstado(3); }}
-                              title="Ver detalles"
-                              style={{ marginRight: '8px' }}
-                            >👁️ Ver más</button>
-                            <button
-                              className="btn-editar-admin"
-                              onClick={() => setEditModal({ isOpen: true, evento: normalizarFechaEvento(e) })}
-                              title="Editar"
-                              style={{ marginRight: '8px' }}
-                            >✏️ Editar</button>
-                            <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>🗑️ Eliminar</button>
-                          </td>
-                        </tr>
-                      ))
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : activosSort.sorted.filter(e => {
+                      if (!searchActivos) return true;
+                      const q = searchActivos.toLowerCase();
+                      const nombre = e.nombre_evento?.toLowerCase() || '';
+                      const creador = ((e as any).email_usuario || '').toLowerCase();
+                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
+                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
+                    }).length === 0 && (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos activos.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -701,10 +717,10 @@ const AdminDashboard: React.FC = () => {
           {vistaActual === 'historial' && (
             <div className="admin-content-view">
               <div className="view-header">
-                <h2>📖 Historial ({filtrarHistorial().length})</h2>
+                <h2>📖 Historial Eliminados/Finalizados ({filtrarHistorial().length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="filter-buttons-admin">
@@ -730,41 +746,35 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando historial...</td></tr>
-                  ) : filtrarHistorial().length === 0 ? (
-                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos en el historial</td></tr>
-                  ) : (
-                    filtrarHistorial().map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ textAlign: 'left' }}><strong>{item.nombre_evento}</strong></td>
-                        <td style={{ textAlign: 'left' }}>{item.motivo}</td>
-                        <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(item.fecha_eliminacion)}</small></td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span className={`badge-estado-small ${getBadgeClass(item.estado)}`}>{item.estado}</span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div className="action-buttons-inline">
-                            <button
-                              className="btn-ver-detalle-admin"
-                              onClick={() => {
-                                setDetalleEventoId(item.id_evento);
-                                setDetalleEventoEstado(estadoStringToIdEstado(item.estado));
-                              }}
-                              title="Ver detalles"
-                              style={{ marginRight: '6px' }}
-                            >👁️</button>
-                            {esRestaurable(item.estado) && (
-                              <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>♻️</button>
-                            )}
-                            {esDepurable(item.estado) && (
-                              <button className="btn-depurar-admin" title="Eliminar Definitivamente" onClick={() => handleDepurarEvento(item.id_evento, item.nombre_evento)}>🧹</button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  {filtrarHistorial().map((item, idx) => (
+                    <tr key={idx}>
+                      <td style={{ textAlign: 'left' }}><strong>{item.nombre_evento}</strong></td>
+                      <td style={{ textAlign: 'left' }}>{item.motivo}</td>
+                      <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(item.fecha_eliminacion)}</small></td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className={`badge-estado-small ${getBadgeClass(item.estado)}`}>{item.estado}</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div className="action-buttons-inline">
+                          <button
+                            className="btn-ver-detalle-admin"
+                            onClick={() => {
+                              setDetalleEventoId(item.id_evento);
+                              setDetalleEventoEstado(estadoStringToIdEstado(item.estado));
+                            }}
+                            title="Ver detalles"
+                            style={{ marginRight: '6px' }}
+                          >👁️</button>
+                          {esRestaurable(item.estado) && (
+                            <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>♻️</button>
+                          )}
+                          {esDepurable(item.estado) && (
+                            <button className="btn-depurar-admin" title="Eliminar Definitivamente" onClick={() => handleDepurarEvento(item.id_evento, item.nombre_evento)}>🧹</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -777,7 +787,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>💳 Pagos Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -802,11 +812,11 @@ const AdminDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando pagos pendientes...</td></tr>
-                  ) : filtrarPorSearch(pagosSort.sorted, 'usuario_email').length === 0 ? (
-                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay pagos pendientes</td></tr>
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay pagos pendientes</td></tr>
                   ) : (
-                    filtrarPorSearch(pagosSort.sorted, 'usuario_email').map(r => (
+                    filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}>{r.usuario_email}</td>
@@ -835,7 +845,7 @@ const AdminDashboard: React.FC = () => {
                 <h2>👥 Inscriptos</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -858,11 +868,11 @@ const AdminDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando inscriptos...</td></tr>
-                  ) : filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre').length === 0 ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay inscriptos confirmados</td></tr>
                   ) : (
-                    filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre').map(r => (
+                    filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}><small>{r.usuario_email}</small></td>
@@ -883,9 +893,7 @@ const AdminDashboard: React.FC = () => {
       </div>
       <Footer />
 
-      {/* ================================================================ */}
-      {/* MODALES                                                           */}
-      {/* ================================================================ */}
+      {/* MODALES */}
       {toast && <Toast message={toast.mensaje} type={toast.tipo} onClose={() => setToast(null)} />}
 
       <ConfirmModal
@@ -916,6 +924,7 @@ const AdminDashboard: React.FC = () => {
         onRechazar={handleRechazarEdicion}
       />
 
+      {/* ✅ Nuevo modal unificado con mapa — props: isOpen, item, tipo, onClose, onSuccess, onShowToast */}
       {editModal.isOpen && editModal.evento && (
         <EditEventModal
           isOpen={editModal.isOpen}
@@ -934,10 +943,10 @@ const AdminDashboard: React.FC = () => {
         />
       )}
 
-      {/* Modal detalle evento (activos, historial y ahora también altas) */}
+      {/* Modal detalle evento (activos, historial y también altas) */}
       <EventoDetalleModal
         eventoId={detalleEventoId ?? detalleAltaId}
-        idEstado={detalleEventoEstado ?? 2}  // estado 2 = pendiente de aprobación
+        idEstado={detalleEventoEstado ?? 2}
         onClose={() => {
           setDetalleEventoId(null);
           setDetalleEventoEstado(null);
@@ -945,7 +954,7 @@ const AdminDashboard: React.FC = () => {
         }}
       />
 
-      {/* 👇 NUEVO: Modal detalle solicitud de baja */}
+      {/* Modal detalle solicitud de baja */}
       <SolicitudBajaModal
         show={detalleBajaModal.show}
         solicitud={detalleBajaModal.solicitud}

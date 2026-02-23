@@ -38,11 +38,7 @@ interface EditEventModalProps {
     tipo: 'evento' | 'solicitud';
     onSuccess: () => void;
     onShowToast: (message: string, type: 'success' | 'error') => void;
-    // ✅ NUEVO: indica si la solicitud es un borrador (estado 1)
-    // Cuando es true, el submit envía con enviar=true → pasa a pendiente o auto-aprueba
     esBorrador?: boolean;
-    // ✅ NUEVO: indica si el usuario es admin/supervisor (rol 1 o 2)
-    // Cuando es true + esBorrador, el submit auto-aprueba y publica directamente
     esAdmin?: boolean;
 }
 
@@ -113,12 +109,26 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         }
     };
 
+    // ✅ FIX: normaliza la fecha al formato yyyy-mm-dd que espera el input type="date"
     const cargarDatosItem = () => {
         if (!item) return;
 
+        const normalizarFecha = (fecha: string): string => {
+            if (!fecha) return '';
+            // Si viene como ISO: "2026-03-15T00:00:00" → "2026-03-15"
+            if (fecha.includes('T')) return fecha.split('T')[0];
+            // Si viene como "dd-mm-yyyy" → convertir a "yyyy-mm-dd"
+            if (/^\d{2}-\d{2}-\d{4}$/.test(fecha)) {
+                const [dd, mm, yyyy] = fecha.split('-');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+            // Ya está en "yyyy-mm-dd"
+            return fecha;
+        };
+
         setFormData({
             nombre_evento: item.nombre_evento || '',
-            fecha_evento: item.fecha_evento?.split('T')[0] || '',
+            fecha_evento: normalizarFecha(item.fecha_evento),
             ubicacion: item.ubicacion || '',
             id_tipo: item.id_tipo || 1,
             id_dificultad: item.id_dificultad || 1,
@@ -185,7 +195,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 );
                 const data = await res.json();
                 if (data && data.display_name) {
-                    setFormData((prev) => ({ ...prev, ubicacion: data.display_name }));
+                    setFormData((prev) => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
                     setLocationStatus("found");
                 }
             } catch (err) {
@@ -281,7 +291,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             return;
         }
 
-        // ✅ NUEVO: validación extra solo cuando se envía un borrador
         if (esBorrador && (!formData.cupo_maximo || formData.cupo_maximo <= 0)) {
             onShowToast('El cupo máximo debe ser mayor a 0 para enviar', 'error');
             return;
@@ -293,21 +302,12 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
 
             const isEvento = 'id_evento' in item;
 
-            // ✅ CAMBIO PRINCIPAL: si es borrador, el PUT va con enviar=true
-            // para que el backend lo pase a pendiente (externo) o lo auto-apruebe (admin)
-            // Si no es borrador, se comporta igual que antes
             let endpoint: string;
             if (esBorrador) {
-                // Borrador de solicitud → PUT /solicitudes-eventos/{id}?enviar=true
-                // El backend detecta el rol:
-                //   - Admin/Supervisor → auto-aprueba y publica
-                //   - Externo → pasa a Pendiente (espera aprobación manual)
                 endpoint = `/solicitudes-eventos/${(item as Solicitud).id_solicitud}?enviar=true`;
             } else if (isEvento) {
-                // Edición de evento publicado → flujo de edición normal (sin cambios)
                 endpoint = `/edicion-eventos/actualizar/${(item as Evento).id_evento}`;
             } else {
-                // Edición de solicitud pendiente → sin cambiar estado
                 endpoint = `/solicitudes-eventos/${(item as Solicitud).id_solicitud}?enviar=false`;
             }
 
@@ -317,27 +317,27 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify({
+                    ...formData,
+                    ubicacion: formData.ubicacion.substring(0, 150)
+                })
             });
 
             if (response.ok) {
                 const data = await response.json();
                 
                 if (esBorrador) {
-                    // ✅ NUEVO: mensaje diferenciado según el resultado del envío
                     if (esAdmin) {
                         onShowToast('✅ Evento publicado exitosamente', 'success');
                     } else {
                         onShowToast('📤 Solicitud enviada para revisión', 'success');
                     }
                 } else if (data.id_solicitud) {
-                    // Solicitud de edición creada (flujo original de tus compañeros)
                     onShowToast(
                         data.mensaje || 'Solicitud de edición enviada. Quedará pendiente de aprobación.', 
                         'success'
                     );
                 } else {
-                    // Edición directa aplicada (flujo original de tus compañeros)
                     onShowToast('Cambios guardados exitosamente', 'success');
                 }
                 
@@ -345,7 +345,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                 onClose();
             } else {
                 const error = await response.json();
-                // Parsear errores Pydantic (pueden venir como array)
                 const mensaje = typeof error.detail === 'string'
                     ? error.detail
                     : Array.isArray(error.detail)
@@ -363,7 +362,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
 
     if (!isOpen) return null;
 
-    // ✅ NUEVO: textos dinámicos según contexto
     const tituloModal = esBorrador
         ? `📤 Completar y Enviar Borrador`
         : `✏️ Editar ${tipo === 'evento' ? 'Evento' : 'Solicitud'}`;
@@ -430,7 +428,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                         }}>
                             {tituloModal}
                         </h2>
-                        {/* ✅ NUEVO: aviso contextual debajo del título */}
                         {esBorrador && (
                             <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: '#aaa' }}>
                                 {esAdmin
@@ -690,7 +687,6 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                     fontSize: '0.8rem',
                                     textTransform: 'uppercase'
                                 }}>
-                                    {/* ✅ NUEVO: asterisco cuando es borrador porque es requerido para enviar */}
                                     Cupo Máximo {esBorrador && '*'}
                                 </label>
                                 <input

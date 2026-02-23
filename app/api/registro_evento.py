@@ -333,7 +333,7 @@ def obtener_catalogos_para_filtros(db: Session = Depends(get_db)):
 
 @router.get(
     "/", 
-    response_model=List[EventoResponse],
+    response_model=None,  # ✅ None para que email_usuario no sea descartado por Pydantic
     summary="Listar todos los eventos públicos"
 )
 def read_eventos(
@@ -341,7 +341,22 @@ def read_eventos(
     limit: int = 100, 
     db: Session = Depends(get_db)
 ):
-    return EventoService.listar_todos_los_eventos(db, skip=skip, limit=limit)
+    from app.models.auth_models import Usuario
+    # ✅ JOIN con Usuario para incluir nombre_usuario (necesario para panel admin)
+    resultados = (
+        db.query(Evento, Usuario.nombre_y_apellido)
+        .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
+        .filter(Evento.id_estado == 3)
+        .order_by(Evento.id_evento.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+    eventos = []
+    for evento, nombre in resultados:
+        evento.email_usuario = nombre  # reutilizamos el campo, ahora trae nombre
+        eventos.append(evento)
+    return eventos
 
 @router.get(
     "/{evento_id}", 

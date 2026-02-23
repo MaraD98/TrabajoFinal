@@ -84,7 +84,6 @@ def restaurar_evento(db: Session, id_evento: int) -> Evento:
 def obtener_bajas_pendientes(db: Session) -> List[dict]:
     """
     Obtiene todas las solicitudes de baja pendientes.
-    Busca eventos PUBLICADOS (estado 3) que tienen registro en eliminacion_evento.
     """
     query = (
         db.query(EliminacionEvento, Evento, Usuario)
@@ -120,7 +119,6 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     - Estado 5: Cancelados (Soft Delete)
     - Estado 6: Depurados (Hard Delete Lógico)
     """
-    # Primero obtenemos eventos con registro de eliminación (estados 5 y 6)
     query_con_eliminacion = (
         db.query(EliminacionEvento, Evento, Usuario)
         .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
@@ -130,14 +128,13 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
         .all()
     )
     
-    # Luego obtenemos eventos finalizados (estado 4) SIN registro de eliminación
     from datetime import date
     eventos_finalizados = (
         db.query(Evento)
         .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
         .filter(
             Evento.id_estado == ID_ESTADO_FINALIZADO,
-            EliminacionEvento.id_eliminacion == None  # Solo finalizados SIN registro de eliminación
+            EliminacionEvento.id_eliminacion == None
         )
         .order_by(desc(Evento.fecha_evento))
         .all()
@@ -145,7 +142,7 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     
     resultados = []
     
-    # Procesar eventos con registro de eliminación
+    # ✅ FIX: strftime solo con fecha, sin hora
     for elim, evento, usuario in query_con_eliminacion:
         if evento.id_estado == ID_ESTADO_CANCELADO:
             tipo_elim = "soft_delete"
@@ -160,21 +157,20 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
         resultados.append({
             'id_evento': evento.id_evento,
             'nombre_evento': evento.nombre_evento,
-            'fecha_eliminacion': elim.fecha_eliminacion.strftime("%d/%m/%Y %H:%M:%S"),
+            'fecha_eliminacion': elim.fecha_eliminacion.strftime("%d-%m-%Y"),  # ✅ sin hora
             'motivo': elim.motivo_eliminacion,
             'estado': estado_texto,
             'eliminado_por': usuario.email if usuario else "Sistema",
             'tipo_eliminacion': tipo_elim
         })
     
-    # Procesar eventos finalizados (estado 4)
     for evento in eventos_finalizados:
         usuario_evento = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
         
         resultados.append({
             'id_evento': evento.id_evento,
             'nombre_evento': evento.nombre_evento,
-            'fecha_eliminacion': evento.fecha_evento.strftime("%d/%m/%Y"),
+            'fecha_eliminacion': evento.fecha_evento.strftime("%d-%m-%Y"),  # ✅ sin hora
             'motivo': 'Evento finalizado automáticamente (fecha pasada)',
             'estado': 'Finalizado',
             'eliminado_por': usuario_evento.email if usuario_evento else "Sistema",
@@ -187,9 +183,6 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
 # NOTIFICACIONES
 # ============================================================================
 def marcar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
-    """
-    Marca que ya se enviaron las notificaciones a los inscritos.
-    """
     eliminacion = db.query(EliminacionEvento).filter(
         EliminacionEvento.id_eliminacion == id_eliminacion
     ).first()
@@ -202,7 +195,6 @@ def marcar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
     return False
 
 def verificar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
-    """Verifica si ya se enviaron las notificaciones."""
     eliminacion = db.query(EliminacionEvento).filter(
         EliminacionEvento.id_eliminacion == id_eliminacion
     ).first()
@@ -213,17 +205,17 @@ def verificar_notificacion_enviada(db: Session, id_eliminacion: int) -> bool:
 # ELIMINAR REGISTROS (Para rechazos)
 # ============================================================================
 def eliminar_registro_eliminacion(db: Session, id_evento: int) -> bool:
-    """
-    Elimina el registro de eliminación cuando el admin rechaza una solicitud.
-    """
     eliminacion = db.query(EliminacionEvento).filter(
         EliminacionEvento.id_evento == id_evento, 
         EliminacionEvento.estado_solicitud == 'pendiente'
     ).first()
     
     if eliminacion:
-        eliminacion.estado_solicitud = 'rechazada'  # ← Mantiene historial
+        eliminacion.estado_solicitud = 'rechazada'
         db.flush()
         return True
     
     return False
+
+# Alias para compatibilidad
+rechazar_registro_eliminacion = eliminar_registro_eliminacion

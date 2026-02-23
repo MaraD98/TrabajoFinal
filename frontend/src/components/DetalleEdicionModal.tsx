@@ -108,65 +108,127 @@ export default function DetalleEdicionModal({
 
   return (
     <>
-      <div className="modal-overlay" onClick={onClose} />
-      
-      <div className="detalle-edicion-modal">
-        <div className="modal-header">
+      {/* Overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          zIndex: 9998,
+        }}
+      />
+
+      {/* Modal centrado con transform desde el primer render */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 9999,
+          width: '90%',
+          maxWidth: '700px',
+          maxHeight: '85vh',
+          overflowY: 'auto',
+          background: '#1a1a1a',
+          borderRadius: '12px',
+          border: '1px solid #2a2a2a',
+          fontFamily: 'Montserrat, sans-serif',
+        }}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          padding: '24px',
+          borderBottom: '1px solid #2a2a2a',
+          background: '#0f0f0f',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+          borderRadius: '12px 12px 0 0',
+        }}>
           <div>
-            <h2>✏️ Solicitud de Edición</h2>
-            <p className="modal-subtitle">{solicitud.nombre_evento}</p>
+            <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#fff' }}>✏️ Solicitud de Edición</h2>
+            <p style={{ margin: '4px 0 0 0', color: '#ccff00', fontSize: '0.9rem' }}>{solicitud.nombre_evento}</p>
           </div>
-          <button className="btn-close" onClick={onClose}>✕</button>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#a8a8a8',
+              fontSize: '1.4rem',
+              cursor: 'pointer',
+              lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
         </div>
 
-        <div className="modal-body">
-          <div className="info-section">
-            <div className="info-row">
-              <span className="info-label">📅 Solicitado:</span>
-              <span className="info-value">{fechaSolicitud}</span>
+        {/* Body */}
+        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+          {/* Info general */}
+          <div style={{
+            background: '#0f0f0f',
+            borderRadius: '8px',
+            padding: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            border: '1px solid #2a2a2a',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#888', fontSize: '0.85rem' }}>📅 Solicitado:</span>
+              <span style={{ color: '#fff', fontSize: '0.85rem' }}>{fechaSolicitud}</span>
             </div>
-            <div className="info-row">
-              <span className="info-label">👤 Usuario:</span>
-              <span className="info-value">{solicitud.usuario_solicitante}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#888', fontSize: '0.85rem' }}>👤 Usuario:</span>
+              <span style={{ color: '#fff', fontSize: '0.85rem' }}>{solicitud.usuario_solicitante}</span>
             </div>
-            <div className="info-row">
-              <span className="info-label">🔢 Cambios:</span>
-              <span className="info-value">{cambiosArray.length} campo{cambiosArray.length !== 1 ? 's' : ''}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#888', fontSize: '0.85rem' }}>🔢 Cambios:</span>
+              <span style={{ color: '#fff', fontSize: '0.85rem' }}>{cambiosArray.length} campo{cambiosArray.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
 
-          <div className="cambios-section">
-            <h3>Cambios Propuestos:</h3>
-            
+          {/* Cambios propuestos */}
+          <div>
+            <h3 style={{ margin: '0 0 16px 0', color: '#ccff00', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Cambios Propuestos:
+            </h3>
+
             {cambiosArray.length === 0 ? (
-              <div className="empty-state">
-                <p>No hay cambios registrados</p>
-              </div>
+              <p style={{ color: '#666', textAlign: 'center' }}>No hay cambios registrados</p>
             ) : (
-              <div className="cambios-lista">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {cambiosArray.map(([campo, cambio]) => (
-                  <div key={campo} className="cambio-item">
-                    <div className="cambio-header">
-                      <span className="campo-nombre">
-                        {NOMBRES_CAMPOS[campo] || campo}
-                      </span>
-                    </div>
-                    
-                    <div className="cambio-valores">
-                      <div className="valor-anterior">
-                        <span className="valor-label">Anterior:</span>
-                        <span className="valor-texto">
+                  <div key={campo} style={{
+                    background: '#0f0f0f',
+                    border: '1px solid #2a2a2a',
+                    borderRadius: '8px',
+                    padding: '16px',
+                  }}>
+                    <p style={{ margin: '0 0 12px 0', color: '#ccff00', fontWeight: '700', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                      {NOMBRES_CAMPOS[campo] || campo}
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ background: '#3a1a1a', border: '1px solid #ef444433', borderRadius: '6px', padding: '10px' }}>
+                        <p style={{ margin: '0 0 4px 0', color: '#ef4444', fontSize: '0.72rem', fontWeight: '600' }}>ANTERIOR:</p>
+                        <p style={{ margin: 0, color: '#fca5a5', fontSize: '0.9rem', wordBreak: 'break-word' }}>
                           {formatearValor(campo, cambio.anterior)}
-                        </span>
+                        </p>
                       </div>
-                      
-                      <div className="arrow">→</div>
-                      
-                      <div className="valor-nuevo">
-                        <span className="valor-label">Nuevo:</span>
-                        <span className="valor-texto">
+                      <span style={{ color: '#666', fontSize: '1.2rem' }}>→</span>
+                      <div style={{ background: '#0f2a1a', border: '1px solid #10b98133', borderRadius: '6px', padding: '10px' }}>
+                        <p style={{ margin: '0 0 4px 0', color: '#10b981', fontSize: '0.72rem', fontWeight: '600' }}>NUEVO:</p>
+                        <p style={{ margin: 0, color: '#6ee7b7', fontSize: '0.9rem', wordBreak: 'break-word' }}>
                           {formatearValor(campo, cambio.nuevo)}
-                        </span>
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -176,22 +238,44 @@ export default function DetalleEdicionModal({
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button 
-            className="btn-rechazar-modal"
-            onClick={() => {
-              onRechazar(solicitud.id_evento, solicitud.nombre_evento);
-              onClose();
+        {/* Footer */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          gap: '12px',
+          padding: '16px 24px',
+          borderTop: '1px solid #2a2a2a',
+          background: '#0f0f0f',
+          borderRadius: '0 0 12px 12px',
+          position: 'sticky',
+          bottom: 0,
+        }}>
+          <button
+            onClick={() => { onRechazar(solicitud.id_evento, solicitud.nombre_evento); onClose(); }}
+            style={{
+              padding: '10px 24px',
+              background: 'transparent',
+              border: '1px solid #ef4444',
+              borderRadius: '8px',
+              color: '#ef4444',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
             }}
           >
             ✕ Rechazar
           </button>
-          
-          <button 
-            className="btn-aprobar-modal"
-            onClick={() => {
-              onAprobar(solicitud.id_evento, solicitud.nombre_evento);
-              onClose();
+          <button
+            onClick={() => { onAprobar(solicitud.id_evento, solicitud.nombre_evento); onClose(); }}
+            style={{
+              padding: '10px 24px',
+              background: '#ccff00',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#000',
+              fontWeight: '700',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
             }}
           >
             ✓ Aprobar Cambios
