@@ -308,7 +308,7 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
                         Para que no pierdas tu cupo, por favor realizá el pago y cargá el comprobante en la plataforma.
                     </p>
                     <div style="text-align: center; margin-top: 30px;">
-                        <a href={API_URL}/mis-reservas" style="background-color: #f4a261; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Subir Comprobante</a>
+                        <a href="{API_URL}/mis-reservas" style="background-color: #f4a261; color: #121212; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Subir Comprobante</a>
                     </div>
                 </div>
             </div>
