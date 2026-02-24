@@ -159,6 +159,8 @@ class EventoSolicitudService:
             lat=solicitud.lat,
             lng=solicitud.lng,
             cupo_maximo=solicitud.cupo_maximo,
+            distancia_km=solicitud.distancia_km,
+            ruta_coordenadas=solicitud.ruta_coordenadas,
             id_estado=3
         )
 
@@ -222,7 +224,9 @@ class EventoSolicitudService:
             lat=solicitud.lat,
             lng=solicitud.lng,
             cupo_maximo=solicitud.cupo_maximo,
-            id_estado=3
+            id_estado=3,
+            distancia_km=solicitud.distancia_km,
+            ruta_coordenadas=solicitud.ruta_coordenadas,
         )
 
         try:
