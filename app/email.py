@@ -295,21 +295,32 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
 
 # --- FUNCIÓN INTERNA DE ENVÍO ---
 def _ejecutar_envio(msg):
-    # 1. Traemos las variables acá adentro para testear
     test_user = os.getenv("MAIL_REMITENTE")
     test_pass = os.getenv("MAIL_PASSWORD")
     
-    print(f"DEBUG - User: {test_user}")
-    print(f"DEBUG - Pass: {test_pass[:3]}***") # Solo mostramos el inicio por seguridad
+    # 1. Log de inicio de intento
+    print(f"DEBUG - Intentando conexión con Gmail para: {msg['To']}...")
 
     try:
-        # Probá cambiar solo esta línea a 587 y usá SMTP común
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.starttls() # Esto es clave para el puerto 587
+        # 2. Agregamos un timeout explícito de 15 segundos para que no se quede colgado
+        # Si a los 15 seg no conectó, saltará al 'except' y veremos el error.
+        with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as server:
+            print("DEBUG - Conectado al servidor, negociando TLS...")
+            server.starttls()
+            
+            print("DEBUG - Haciendo login...")
             server.login(test_user, test_pass)
+            
             server.send_message(msg)
-        print("✅ ¡ENVIADO!")
-        return True
+            print("✅ ¡ENVIADO CORRECTAMENTE!")
+            return True
+            
+    except smtplib.SMTPConnectError:
+        print("❌ Error: No se pudo conectar al servidor de Gmail (Posible bloqueo de puerto en Render).")
+    except smtplib.SMTPAuthenticationError:
+        print("❌ Error: Gmail rechazó el User/Pass. Revisá la App Password.")
     except Exception as e:
-        print(f"❌ Error real en Render: {e}")
-        return False
+        # 3. Imprimimos el tipo de error exacto para saber qué pasa
+        print(f"❌ Error inesperado ({type(e).__name__}): {e}")
+    
+    return False
