@@ -152,8 +152,8 @@ function useSortableTable<T>(data: T[], defaultKey: keyof T, defaultDir: 'asc' |
 // ============================================================================
 const estadoStringToIdEstado = (estado: string): number => {
   const s = estado.toLowerCase();
-  if (s.includes('depurado') || s.includes('hard delete')) return 6;
-  if (s.includes('cancelado') || s.includes('soft delete')) return 5;
+  if (s.includes('definitivo')) return 6;
+  if (s.includes('eliminado')) return 5;
   if (s.includes('finalizado')) return 4;
   return 3;
 };
@@ -355,7 +355,7 @@ const AdminDashboard: React.FC = () => {
   const handleDepurarEvento = (id: number, nombre: string) =>
     showInputModal('⚠️ Eliminar Evento Definitivamente', `Esta acción eliminará PERMANENTEMENTE el evento "${nombre}" de la base de datos. Ingresa el motivo:`, async (motivo) => {
       try {
-        await axios.delete(`${API_URL}eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
+        await axios.delete(`${API_URL}/eliminacion/admin/depurar/${id}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }, data: { motivo } });
         showToast('Evento depurado definitivamente', 'success'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al depurar evento', 'error'); }
       hideInputModal();
@@ -385,7 +385,7 @@ const AdminDashboard: React.FC = () => {
   const filtrarHistorial = () => {
     let res = historialSort.sorted;
     if (filterType === 'finalizados') res = res.filter(h => normalize(h.estado) === 'finalizado');
-    if (filterType === 'eliminados') res = res.filter(h => normalize(h.estado).includes('cancelado') || normalize(h.estado).includes('depurado'));
+    if (filterType === 'eliminados') res = res.filter(h => normalize(h.estado).includes('eliminado'));
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       res = res.filter(h =>
@@ -406,13 +406,13 @@ const AdminDashboard: React.FC = () => {
     );
   };
 
-  const esRestaurable = (estado: string) => normalize(estado).includes('cancelado') && normalize(estado).includes('soft delete');
-  const esDepurable = (estado: string) => !normalize(estado).includes('depurado') && !normalize(estado).includes('hard delete');
+  const esRestaurable = (estado: string) => normalize(estado)=== 'eliminado';
+  const esDepurable = (estado: string) => !normalize(estado).includes('definitivo');
 
   const getBadgeClass = (estado: string) => {
     const s = normalize(estado);
-    if (s.includes('depurado') || s.includes('hard delete')) return 'badge-estado-depurado';
-    if (s.includes('cancelado') || s.includes('soft delete')) return 'badge-estado-eliminado';
+    if (s.includes('definitivo')) return 'badge-estado-depurado';
+    if (s.includes('eliminado')) return 'badge-estado-eliminado';
     if (['finalizado', 'confirmada'].includes(s)) return 'badge-estado-finalizado';
     return 'badge-estado-default';
   };
@@ -470,8 +470,8 @@ const AdminDashboard: React.FC = () => {
             <button className={vistaActual === 'pendientes' ? 'active' : ''} onClick={() => setVistaActual('pendientes')}>📋 Pendientes</button>
             <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => setVistaActual('activos')}>✅ Activos</button>
             <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial Eliminados/Finalizados</button>
-            <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos</button>
-            <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Inscriptos</button>
+            <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos Pendientes</button>
+            <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Pagos Confirmados</button>
           </nav>
         </aside>
 
@@ -845,7 +845,7 @@ const AdminDashboard: React.FC = () => {
           {vistaActual === 'inscriptos' && (
             <div className="admin-content-view">
               <div className="view-header">
-                <h2>👥 Inscriptos</h2>
+                <h2>👥 Pagos Confirmados</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
                     <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />

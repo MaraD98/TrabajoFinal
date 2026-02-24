@@ -146,10 +146,10 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     for elim, evento, usuario in query_con_eliminacion:
         if evento.id_estado == ID_ESTADO_CANCELADO:
             tipo_elim = "soft_delete"
-            estado_texto = "Cancelado (Soft Delete)"
+            estado_texto = "Eliminado"
         elif evento.id_estado == ID_ESTADO_DEPURADO:
             tipo_elim = "hard_delete"
-            estado_texto = "Depurado (Hard Delete Lógico)"
+            estado_texto = "Eliminado Definitivo"
         else:
             tipo_elim = "otro"
             estado_texto = f"Estado {evento.id_estado}"
