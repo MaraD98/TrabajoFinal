@@ -182,7 +182,7 @@ class InscripcionService:
         return reserva
 
     @staticmethod
-    def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual):
+    def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual, background_tasks): # <--- Agregamos background_tasks
         # 1. Buscamos la inscripción
         inscripcion = db.query(Inscripcion).options(joinedload(Inscripcion.evento)).filter(Inscripcion.id_reserva == id_inscripcion).first()
         
@@ -199,16 +199,17 @@ class InscripcionService:
         if inscripcion.evento:
             nom_e = inscripcion.evento.nombre_evento
 
-        # 3. BORRAMOS Y HACEMOS COMMIT
+        # 3. BORRAMOS Y HACEMOS COMMIT (Esto es rápido)
         db.delete(inscripcion)
         db.commit()
 
-        # 4. DISPARAMOS EL MAIL
-        try:
-            print(f"📧 Enviando cancelación a {email_u}...")
-            enviar_correo_cancelacion_reserva(email_destino=email_u, nombre_usuario=nom_u, evento=nom_e)
-            print("✅ Mail enviado.")
-        except Exception as e:
-            print(f"⚠️ El mail no salió: {e}")
+        # 4. ✅ MANDAMOS EL MAIL EN SEGUNDO PLANO
+        # Esto hace que la función responda YA al frontend, y el mail se mande "atrás" solito.
+        background_tasks.add_task(
+            enviar_correo_cancelacion_reserva, 
+            email_destino=email_u, 
+            nombre_usuario=nom_u, 
+            evento=nom_e
+        )
         
         return {"message": "Inscripción cancelada exitosamente"}

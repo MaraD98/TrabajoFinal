@@ -134,13 +134,15 @@ def confirmar_pago(
 )
 def cancelar_inscripcion(
     id_inscripcion: int,
+    background_tasks: BackgroundTasks, # <--- 1. Agregamos esto
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user)
 ):
-    # Llamamos al servicio para que haga la magia
+    # 2. Se lo pasamos al servicio
     InscripcionService.cancelar_inscripcion(
         db=db, 
         id_inscripcion=id_inscripcion, 
-        usuario_actual=current_user
+        usuario_actual=current_user,
+        background_tasks=background_tasks # <--- 3. Crucial pasarlo
     )
-    return # Retorna 204 (sin contenido) al ser exitoso
+    return
