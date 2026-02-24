@@ -295,11 +295,21 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
 
 # --- FUNCIÓN INTERNA DE ENVÍO ---
 def _ejecutar_envio(msg):
+    # 1. Traemos las variables acá adentro para testear
+    test_user = os.getenv("MAIL_REMITENTE")
+    test_pass = os.getenv("MAIL_PASSWORD")
+    
+    print(f"DEBUG - User: {test_user}")
+    print(f"DEBUG - Pass: {test_pass[:3]}***") # Solo mostramos el inicio por seguridad
+
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
+        # Probá cambiar solo esta línea a 587 y usá SMTP común
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.starttls() # Esto es clave para el puerto 587
+            server.login(test_user, test_pass)
             server.send_message(msg)
+        print("✅ ¡ENVIADO!")
         return True
     except Exception as e:
-        print(f"⚠️ Error SMTP: {e}")
+        print(f"❌ Error real en Render: {e}")
         return False
