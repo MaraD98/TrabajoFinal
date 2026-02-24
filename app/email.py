@@ -2,6 +2,7 @@ import smtplib
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
+import socket 
 
 load_dotenv()
 
@@ -295,11 +296,27 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
 
 # --- FUNCIÓN INTERNA DE ENVÍO ---
 def _ejecutar_envio(msg):
+    test_user = os.getenv("MAIL_REMITENTE")
+    test_pass = os.getenv("MAIL_PASSWORD")
+    
+    print(f"DEBUG - Intentando conexión IPv4 con Gmail para: {msg['To']}...")
+
     try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(REMITENTE, PASSWORD)
+        # FORZAMOS IPV4: Resolvemos la IP de gmail manualmente para evitar el error de red
+        gmail_ipv4 = socket.gethostbyname('smtp.gmail.com')
+        
+        # Usamos la IP resuelta y un timeout generoso
+        with smtplib.SMTP(gmail_ipv4, 587, timeout=20) as server:
+            print(f"DEBUG - Conectado a la IP {gmail_ipv4}. Negociando TLS...")
+            server.starttls()
+            
+            print("DEBUG - Haciendo login...")
+            server.login(test_user, test_pass)
+            
             server.send_message(msg)
-        return True
+            print("✅ ¡ENVIADO CORRECTAMENTE!")
+            return True
+            
     except Exception as e:
-        print(f"⚠️ Error SMTP: {e}")
+        print(f"❌ Error real en Render ({type(e).__name__}): {e}")
         return False

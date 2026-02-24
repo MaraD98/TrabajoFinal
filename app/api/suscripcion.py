@@ -5,9 +5,9 @@ import os
 from app.db.database import get_db
 from app.models.auth_models import Usuario
 from app.models.suscripcion_models import SuscripcionNovedades
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
-FRONT_URL = os.getenv("FRONTEND_URL")
+FRONT_URL = os.getenv("FRONT_URL")
 
 router = APIRouter(prefix="/suscripcion", tags=["Suscripciones"])
 
@@ -16,6 +16,8 @@ router = APIRouter(prefix="/suscripcion", tags=["Suscripciones"])
 # ==========================================
 @router.get("/alta")
 def alta_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
+    if not email or email.strip().lower() == "none":
+        return RedirectResponse(url=f"{FRONT_URL}/login")
     # Buscamos ignorando mayúsculas y quitando espacios
     usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email.strip().lower()).first()
     
@@ -62,6 +64,8 @@ def alta_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
 # ==========================================
 @router.get("/baja")
 def baja_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
+    if not email or email.strip().lower() == "none":
+        return RedirectResponse(url=f"{FRONT_URL}/login")
     usuario = db.query(Usuario).filter(func.lower(Usuario.email) == email.strip().lower()).first()
     
     if not usuario:
@@ -86,3 +90,14 @@ def baja_suscripcion(email: str = Query(...), db: Session = Depends(get_db)):
         </body>
     </html>
     """)
+
+# ==========================================
+# RUTA PARA ATRAPAR USUARIOS DESLOGUEADOS
+# ==========================================
+@router.get("/None")
+def atrapar_usuario_deslogueado():
+    # Leemos tu variable (asegurate de usar el nombre correcto que pusimos antes)
+    FRONT_URL = os.getenv("FRONT", "https://trabajofinal-1-5r4j.onrender.com")
+    
+    # Redirigimos automáticamente a la página de login (o a la principal si preferís)
+    return RedirectResponse(url=f"{FRONT_URL}/login")
