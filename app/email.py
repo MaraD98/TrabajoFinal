@@ -2,6 +2,7 @@ import smtplib
 from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
+import socket 
 
 load_dotenv()
 
@@ -298,14 +299,15 @@ def _ejecutar_envio(msg):
     test_user = os.getenv("MAIL_REMITENTE")
     test_pass = os.getenv("MAIL_PASSWORD")
     
-    # 1. Log de inicio de intento
-    print(f"DEBUG - Intentando conexión con Gmail para: {msg['To']}...")
+    print(f"DEBUG - Intentando conexión IPv4 con Gmail para: {msg['To']}...")
 
     try:
-        # 2. Agregamos un timeout explícito de 15 segundos para que no se quede colgado
-        # Si a los 15 seg no conectó, saltará al 'except' y veremos el error.
-        with smtplib.SMTP('smtp.gmail.com', 587, timeout=15) as server:
-            print("DEBUG - Conectado al servidor, negociando TLS...")
+        # FORZAMOS IPV4: Resolvemos la IP de gmail manualmente para evitar el error de red
+        gmail_ipv4 = socket.gethostbyname('smtp.gmail.com')
+        
+        # Usamos la IP resuelta y un timeout generoso
+        with smtplib.SMTP(gmail_ipv4, 587, timeout=20) as server:
+            print(f"DEBUG - Conectado a la IP {gmail_ipv4}. Negociando TLS...")
             server.starttls()
             
             print("DEBUG - Haciendo login...")
@@ -315,12 +317,6 @@ def _ejecutar_envio(msg):
             print("✅ ¡ENVIADO CORRECTAMENTE!")
             return True
             
-    except smtplib.SMTPConnectError:
-        print("❌ Error: No se pudo conectar al servidor de Gmail (Posible bloqueo de puerto en Render).")
-    except smtplib.SMTPAuthenticationError:
-        print("❌ Error: Gmail rechazó el User/Pass. Revisá la App Password.")
     except Exception as e:
-        # 3. Imprimimos el tipo de error exacto para saber qué pasa
-        print(f"❌ Error inesperado ({type(e).__name__}): {e}")
-    
-    return False
+        print(f"❌ Error real en Render ({type(e).__name__}): {e}")
+        return False
