@@ -4,6 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "../styles/mapa.css";
 import { Navbar } from "../components/navbar";
+import 'leaflet-polylinedecorator';
 
 interface Evento {
   id_evento: number;
@@ -28,6 +29,7 @@ export default function EventsMapPage() {
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const routeLayerRef = useRef<L.Polyline | null>(null);
+  const routeDecoratorRef = useRef<any>(null);
 
   useEffect(() => {
     loadEventos();
@@ -113,14 +115,37 @@ export default function EventsMapPage() {
 
       // Si después de leerlo tenemos coordenadas válidas, dibujamos
       if (coordenadas.length > 0) {
+        // A. Limpiamos las flechas viejas si existían
+        if (routeDecoratorRef.current) {
+          routeDecoratorRef.current.remove();
+        }
+
+        // B. Dibujamos la ruta sólida normal
         const polyline = L.polyline(coordenadas, {
           color: "#0cb7f2",
-          weight: 5,
-          opacity: 0.8,
+          weight: 6,
+          opacity: 1.8,
         });
 
         polyline.addTo(mapRef.current);
         routeLayerRef.current = polyline;
+
+        // C. LE CLAVAMOS LAS FLECHAS ENCIMA 🔥
+        const decorator = (L as any).polylineDecorator(polyline, {
+          patterns: [
+            {
+              offset: '6%',     // Empieza al 5% del trayecto
+              repeat: '110px',   // Dibuja una flecha cada 80 píxeles
+              symbol: (L as any).Symbol.arrowHead({
+                pixelSize: 15,
+                polygon: false,
+                pathOptions: { stroke: true, color: '#002244', weight: 3 } // Flechas azul oscuro para que resalten sobre el celeste
+              })
+            }
+          ]
+        }).addTo(mapRef.current);
+
+        routeDecoratorRef.current = decorator;
 
         mapRef.current.fitBounds(polyline.getBounds(), { padding: [50, 50] });
       }
