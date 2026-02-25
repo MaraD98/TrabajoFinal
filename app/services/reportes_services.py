@@ -113,15 +113,17 @@ class ReporteService:
             db.query(
                 Evento,
                 TipoEvento.nombre.label("tipo_nombre"),
+                NivelDificultad.nombre.label("dificultad_nombre"), # <--- AGREGAMOS LA DIFICULTAD
                 Usuario.id_rol,
                 Usuario.nombre_y_apellido.label("organizador"),
                 func.count(ReservaEvento.id_reserva).label("total_reservas")
             )
             .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad) # <--- EL JOIN
             .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
             .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
             .filter(*filtros)
-            .group_by(Evento.id_evento, TipoEvento.nombre, Usuario.id_rol, Usuario.nombre_y_apellido)
+            .group_by(Evento.id_evento, TipoEvento.nombre, NivelDificultad.nombre, Usuario.id_rol, Usuario.nombre_y_apellido)
             .order_by(Evento.fecha_evento.desc())
             .all()
         )
@@ -140,14 +142,14 @@ class ReporteService:
         total_recaudado = 0.0
         total_reservas_recibidas = 0
 
-        for e, tipo_nombre, id_rol, organizador, total_reservas in eventos_query:
+        # Agregamos dificultad_nombre al for
+        for e, tipo_nombre, dificultad_nombre, id_rol, organizador, total_reservas in eventos_query:
             confirmadas = confirmadas_map.get(e.id_evento, 0)
             costo = float(e.costo_participacion or 0)
             monto_evento = costo * confirmadas
             total_recaudado += monto_evento
             total_reservas_recibidas += (total_reservas or 0)
             
-            # Acá definimos la magia: Roles 1 y 2 = Propios, 3 y 4 = Externos
             pertenencia = "Propio" if id_rol in [1, 2] else "Externo"
 
             lista_eventos_detallada.append({
@@ -156,6 +158,7 @@ class ReporteService:
                 "fecha_evento": e.fecha_evento.strftime('%Y-%m-%d') if e.fecha_evento else "Sin fecha",
                 "estado": e.id_estado,
                 "tipo": tipo_nombre,
+                "dificultad": dificultad_nombre or "Sin Dificultad", # <--- AHORA EL FRONTEND TIENE LA DIFICULTAD
                 "pertenencia": pertenencia,
                 "organizador": organizador,
                 "reservas_totales": total_reservas,
