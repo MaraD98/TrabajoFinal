@@ -205,6 +205,12 @@ export default function ReportesPage() {
   const fmt = (val: number) => new Intl.NumberFormat("es-AR").format(val);
   const fmtPeso = (val: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(val);
   const fmtFecha = (f?: string) => f ? new Date(f).toLocaleDateString("es-AR") : "-";
+  const rolLabel: Record<number, string> = {
+    1: "ADMINISTRADOR",
+    2: "SUPERVISOR",
+    3: "ORGANIZADOR",
+    4: "CLIENTE"
+  };
 
   // Estados exclusivos para Supervisor
   const [sortConfigOrg, setSortConfigOrg] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'recaudacion_total', direction: 'desc' });
@@ -571,7 +577,7 @@ export default function ReportesPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginTop: "20px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px", color: "#d7d7d7" }}>
         {stats.map(s => <StatCard key={s.label} {...s} />)}
       </div>
 
@@ -712,58 +718,76 @@ export default function ReportesPage() {
         <EventoDetalleModal evento={eventoDetalle} onClose={() => setEventoDetalle(null)} />
       )}
 
-      {/* ── Barra superior (sin filtros globales) ─────────────────────── */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 1000,
-        background: "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)",
-        padding: "16px 40px", borderBottom: "2px solid #4ade80",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", flexWrap: "wrap", gap: "15px",
-      }}>
-        <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#4ade80" }}>
-          📊 Panel de Reportes
-        </span>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={handleDescargarPDF}
-            disabled={exportando === "pdf"}
-            style={{
-              padding: "10px 20px", background: "#e74c3c", border: "none",
-              borderRadius: "8px", color: "#fff", fontWeight: "bold",
-              cursor: exportando === "pdf" ? "not-allowed" : "pointer",
-              opacity: exportando === "pdf" ? 0.6 : 1,
-            }}
-          >
-            {exportando === "pdf" ? "Generando..." : "📄 Guardar PDF"}
-          </button>
-          <button
-            onClick={() => cargarReportes()}
-            style={{
-              padding: "10px 20px", background: "#4ade80", border: "none",
-              borderRadius: "8px", color: "#000", fontWeight: "bold", cursor: "pointer",
-            }}
-          >
-            ↻ Actualizar
-          </button>
-        </div>
-      </div>
 
-      <div className="reportes-page__container" ref={reporteRef}>
+        {/* Errores */}
+        {error && (
+          <div style={{ 
+            background: "#1a0a0a", border: "1px solid #7f1d1d", borderRadius: "8px", 
+            padding: "14px 20px", marginBottom: "24px", color: "#fca5a5", 
+            display: "flex", gap: "10px", alignItems: "center"
+          }}>
+            <span>⚠️</span> {error}
+            <button 
+              onClick={() => cargarReportes()} 
+              style={{ 
+                marginLeft: "auto", padding: "6px 14px", background: "transparent", 
+                border: "1px solid #7f1d1d", borderRadius: "6px", color: "#fca5a5", cursor: "pointer" 
+              }}
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+
+        {/* ─── CONTENIDO PRINCIPAL (reporteRef) ─── */}
+      <div ref={reporteRef} style={{ maxWidth: "1400px", margin: "0 auto", padding: "32px 24px" }}>
 
         {/* Header */}
         <div className="reportes-header">
           <div>
             <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
             <p className="reportes-header__subtitle">
-              Gestión centralizada de datos para {user?.nombre_y_apellido}
+              Gestión centralizada de datos para
             </p>
+            <span style={{ 
+            padding: "2px 10px", background: "#161616", border: "1px solid #2a2a2a", 
+            borderRadius: "20px", fontSize: "0.72rem", color: "#d7d7d7" 
+          }}>
+            {rolLabel[usuarioRol] ?? `Rol ${usuarioRol}`}
+          </span>
+          {user?.nombre_y_apellido && (
+            <span style={{ fontSize: "0.78rem", color: "#d7d7d7" }}>{user.nombre_y_apellido}</span>
+          )}
+            <p style={{ margin: "6px 0 0", color: "#d7d7d7", fontSize: "0.88rem" }}>
+            Última actualización: {new Date().toLocaleString("es-AR")}
+          </p>
           </div>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "right"}}>
+          <button
+            onClick={() => cargarReportes()}
+            style={{ 
+              padding: "8px 18px",border: "1px solid #d7d7d7", 
+              borderRadius: "7px", color: "#d7d7d7", fontSize: "0.82rem", cursor: "pointer"
+            }}
+          >
+            ↻ Actualizar
+          </button>
+          <button
+            onClick={handleDescargarPDF}
+            disabled={exportando === "pdf"}
+            style={{ 
+              padding: "10px 20px", background: "#e74c3c", border: "none",
+              borderRadius: "8px", color: "#fff", fontWeight: "bold",
+              cursor: exportando === "pdf" ? "not-allowed" : "pointer",
+              opacity: exportando === "pdf" ? 0.6 : 1
+            }}
+          >
+            {exportando === "pdf" ? "Generando PDF..." : "⬇ Guardar PDF"}
+          </button>
+        </div>
         </div>
 
-        {error && (
-          <div className="reportes-alert reportes-alert--error">⚠️ {error}</div>
-        )}
+        {/* ─── Renderizado por Rol ─── */}
 
         {usuarioRol <= 2 && pendientesCount > 0 && (
           <div className="reportes-alert reportes-alert--warning">
