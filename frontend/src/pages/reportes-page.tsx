@@ -6,7 +6,7 @@ import { useAuth } from "../context/auth-context";
 import { getReporteGeneral, exportReporteCSV } from "../services/eventos";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DetalleRecaudacion {
@@ -46,6 +46,9 @@ interface ReporteData {
   recaudacion_total?: number;
   detalle_recaudacion?: DetalleRecaudacion[];
   tendencias_ubicacion?: any[];
+  analisis_organizadores?: { id_usuario: number; organizador: string; email: string; rol: string; total_eventos: number; activos: number; finalizados: number; recaudacion_total: number; }[];
+  top_ocupacion?: { id_evento: number; nombre_evento: string; cupo_maximo: number; inscriptos_pagos: number; reservados_no_pagos: number; total_ocupado: number; tasa_ocupacion: number; es_pago: boolean; }[];
+  dashboard_eventos?: { id_evento: number; nombre_evento: string; fecha_evento: string; responsable: string; estado: string; pertenencia: string; }[];
 }
 
 // ─── Modal detalle de evento ──────────────────────────────────────────────────
@@ -199,6 +202,81 @@ export default function ReportesPage() {
     key: "nombre" | "fecha" | "monto" | "cupo" | "unitario";
     direction: "asc" | "desc";
   }>({ key: "fecha", direction: "desc" });
+
+  // Estados exclusivos para Supervisor
+  const [sortConfigOrg, setSortConfigOrg] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'recaudacion_total', direction: 'desc' });
+  const [modalDashboard, setModalDashboard] = useState<{ isOpen: boolean, title: string, data: any[] }>({ isOpen: false, title: "", data: [] });
+
+  // Función para ordenar la tabla de Organizadores
+  const handleSortOrg = (key: string) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfigOrg.key === key && sortConfigOrg.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfigOrg({ key, direction });
+  };
+
+  const sortedOrganizadores = [...(reporteData?.analisis_organizadores || [])].sort((a: any, b: any) => {
+    if (a[sortConfigOrg.key] < b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? -1 : 1;
+    if (a[sortConfigOrg.key] > b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+  // --- Ordenamiento para la tabla de Ocupación ---
+  const [sortConfigOcupacion, setSortConfigOcupacion] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'tasa_ocupacion', direction: 'desc' });
+
+  const handleSortOcupacion = (key: string) => {
+    let direction: 'asc' | 'desc' = 'desc';
+    if (sortConfigOcupacion.key === key && sortConfigOcupacion.direction === 'desc') {
+      direction = 'asc';
+    }
+    setSortConfigOcupacion({ key, direction });
+  };
+
+  const sortedOcupacion = [...(reporteData?.top_ocupacion || [])].sort((a: any, b: any) => {
+    if (a[sortConfigOcupacion.key] < b[sortConfigOcupacion.key]) return sortConfigOcupacion.direction === 'asc' ? -1 : 1;
+    if (a[sortConfigOcupacion.key] > b[sortConfigOcupacion.key]) return sortConfigOcupacion.direction === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Funciones para procesar el Dashboard
+  const evtSist = reporteData?.dashboard_eventos || [];
+  const statsSist = {
+    Activo: { Propios: 0, Externos: 0, Total: 0 },
+    Finalizado: { Propios: 0, Externos: 0, Total: 0 },
+    Cancelado: { Propios: 0, Externos: 0, Total: 0 }
+  };
+
+  evtSist.forEach(e => {
+    // Verificamos que el estado exista en nuestro diccionario (Activo, Finalizado o Cancelado)
+    if (e.estado && statsSist[e.estado as keyof typeof statsSist]) {
+      const tipo = e.pertenencia === "Propio" ? "Propios" : "Externos";
+      statsSist[e.estado as keyof typeof statsSist][tipo] += 1;
+      statsSist[e.estado as keyof typeof statsSist].Total += 1;
+    }
+  });
+
+  const barData = [
+    { name: 'Activos', Propios: statsSist.Activo.Propios, Externos: statsSist.Activo.Externos },
+    { name: 'Finalizados', Propios: statsSist.Finalizado.Propios, Externos: statsSist.Finalizado.Externos },
+    { name: 'Cancelados', Propios: statsSist.Cancelado.Propios, Externos: statsSist.Cancelado.Externos },
+  ];
+
+  const pieData = [
+    { name: 'Activos', value: statsSist.Activo.Total, color: '#4ade80' },
+    { name: 'Finalizados', value: statsSist.Finalizado.Total, color: '#3b82f6' },
+    { name: 'Cancelados', value: statsSist.Cancelado.Total, color: '#ef4444' }
+  ];
+
+  const handleChartClick = (estadoFiltroPlural: string, tipoFiltro: string | null = null) => {
+    // Reconvertimos el plural visual al singular del backend para poder filtrar la tabla del modal
+    const estadoSingular = estadoFiltroPlural === 'Activos' ? 'Activo' : estadoFiltroPlural === 'Finalizados' ? 'Finalizado' : 'Cancelado';
+    
+    const filtrados = evtSist.filter(e => 
+      e.estado === estadoSingular && (!tipoFiltro || e.pertenencia === tipoFiltro)
+    );
+    const title = tipoFiltro ? `Eventos ${estadoFiltroPlural} (${tipoFiltro}s)` : `Todos los Eventos ${estadoFiltroPlural}`;
+    setModalDashboard({ isOpen: true, title, data: filtrados });
+  };
 
   const reporteRef = useRef<HTMLDivElement>(null);
   const { user, getToken, loadingAuth } = useAuth();
@@ -513,7 +591,7 @@ export default function ReportesPage() {
 
   const pendientesCount =
     reporteData?.eventos_por_estado?.find((e: any) => e.estado === 1)?.cantidad ?? 0;
-
+  
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div className="reportes-page">
@@ -603,7 +681,266 @@ export default function ReportesPage() {
             </div>
           </>
         )}
+        {/* ════════════════════════════════════════════════════════════════
+            ROL 2 — SUPERVISOR (Panel Exclusivo)
+        ════════════════════════════════════════════════════════════════ */}
+        {usuarioRol === 2 && (
+            <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "24px" }}>
+                
+                {/* 1. DASHBOARD EVENTOS DEL SISTEMA (Requerido Arriba) */}
+                <div className="grafico-card grafico-card--wide">
+                    <div className="grafico-card__header">
+                        <h3>📊 Dashboard de Eventos del Sistema</h3>
+                        <p style={{ fontSize: "0.8rem", color: "#888" }}>Clickeá en las barras o la torta para ver los detalles.</p>
+                        <button onClick={() => handleExportarCSV("dashboard_eventos")} className="btn-export">
+                            📥 Exportar Todo (CSV)
+                        </button>
+                    </div>
+                    <div className="grafico-card__body" style={{ display: "flex", flexWrap: "wrap", gap: "20px" }}>
+                        
+                        {/* Gráfico de Barras Apiladas */}
+                        <div style={{ flex: "1 1 400px", height: "300px" }}>
+                            <h4 style={{ textAlign: "center", marginBottom: "10px" }}>Propios vs Externos por Estado</h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <RechartsTooltip cursor={{fill: 'transparent'}}/>
+                                    <Legend />
+                                    <Bar dataKey="Propios" stackId="a" fill="#8b5cf6" onClick={(data: any) => handleChartClick(data.name, "Propio")} style={{ cursor: 'pointer' }}/>
+                                    <Bar dataKey="Externos" stackId="a" fill="#f59e0b" onClick={(data: any) => handleChartClick(data.name, "Externo")} style={{ cursor: 'pointer' }}/>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
 
+                        {/* Gráfico de Torta */}
+                        <div style={{ flex: "1 1 300px", height: "300px" }}>
+                            <h4 style={{ textAlign: "center", marginBottom: "10px" }}>Proporción Total</h4>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={90} dataKey="value" onClick={(data) => handleChartClick(data.name)} style={{ cursor: 'pointer' }}>
+                                        {pieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip />
+                                    <Legend />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Tabla Resumen */}
+                        {/* Aumentamos el marginTop de 15px a 40px para separarlo bien de los gráficos */}
+                        <div style={{ flex: "1 1 100%", marginTop: "40px" }}>
+                            <table className="tabla-reportes-custom">
+                                <thead>
+                                    <tr>
+                                        <th>Estado</th>
+                                        <th style={{ textAlign: "center" }}>Propios</th>
+                                        <th style={{ textAlign: "center" }}>Externos</th>
+                                        <th style={{ textAlign: "right" }}>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {barData.map(row => (
+                                        <tr key={row.name}>
+                                            <td style={{ fontWeight: "bold" }}>{row.name}</td>
+                                            <td style={{ textAlign: "center" }}>{row.Propios}</td>
+                                            <td style={{ textAlign: "center" }}>{row.Externos}</td>
+                                            <td style={{ textAlign: "right", fontWeight: "bold" }}>{row.Propios + row.Externos}</td>
+                                        </tr>
+                                    ))}
+                                    {/* Fila Total Sistema: Fondo gris más oscuro, borde superior fuerte y letra casi negra bien gruesa */}
+                                    <tr style={{ backgroundColor: "#cbd5e1", borderTop: "3px solid #475569" }}>
+                                        <td style={{ fontWeight: "900", color: "#0f172a", fontSize: "1.05rem" }}>TOTAL SISTEMA</td>
+                                        <td style={{ textAlign: "center", fontWeight: "900", color: "#0f172a", fontSize: "1.05rem" }}>
+                                            {barData.reduce((acc, curr) => acc + curr.Propios, 0)}
+                                        </td>
+                                        <td style={{ textAlign: "center", fontWeight: "900", color: "#0f172a", fontSize: "1.05rem" }}>
+                                            {barData.reduce((acc, curr) => acc + curr.Externos, 0)}
+                                        </td>
+                                        <td style={{ textAlign: "right", fontWeight: "900", color: "#0f172a", fontSize: "1.2rem" }}>
+                                            {evtSist.length}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2. Análisis Organizadores Top 10 */}
+                <div className="grafico-card grafico-card--wide">
+                    <div className="grafico-card__header">
+                        <h3>🏆 Análisis Organizadores Top 10</h3>
+                        <p style={{ fontSize: "0.8rem", color: "#888" }}>Por recaudación, eventos y estado. Tocá los encabezados para ordenar.</p>
+                        <button onClick={() => handleExportarCSV("analisis_organizadores")} className="btn-export">
+                            📥 Exportar CSV
+                        </button>
+                    </div>
+                    <div className="grafico-card__body">
+                        <div className="table-responsive">
+                            <table className="tabla-reportes-custom tabla-sortable">
+                                <thead>
+                                    <tr>
+                                        <th onClick={() => handleSortOrg('organizador')} style={{ cursor: 'pointer' }}>
+                                            Organizador {sortConfigOrg.key === 'organizador' ? (sortConfigOrg.direction === 'asc' ? '↑' : '↓') : ''}
+                                        </th>
+                                        <th>Email</th>
+                                        <th>Rol</th>
+                                        <th onClick={() => handleSortOrg('total_eventos')} style={{ cursor: 'pointer', textAlign: "center" }}>
+                                            Total Eventos {sortConfigOrg.key === 'total_eventos' ? (sortConfigOrg.direction === 'asc' ? '↑' : '↓') : ''}
+                                        </th>
+                                        <th onClick={() => handleSortOrg('activos')} style={{ cursor: 'pointer', textAlign: "center" }}>
+                                            Activos {sortConfigOrg.key === 'activos' ? (sortConfigOrg.direction === 'asc' ? '↑' : '↓') : ''}
+                                        </th>
+                                        <th onClick={() => handleSortOrg('finalizados')} style={{ cursor: 'pointer', textAlign: "center" }}>
+                                            Finalizados {sortConfigOrg.key === 'finalizados' ? (sortConfigOrg.direction === 'asc' ? '↑' : '↓') : ''}
+                                        </th>
+                                        <th onClick={() => handleSortOrg('recaudacion_total')} style={{ cursor: 'pointer', textAlign: "right" }}>
+                                            Recaudación Total {sortConfigOrg.key === 'recaudacion_total' ? (sortConfigOrg.direction === 'asc' ? '↑' : '↓') : ''}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sortedOrganizadores.map((org: any, i: number) => (
+                                        <tr key={i}>
+                                            <td style={{ fontWeight: "bold" }}>{org.organizador}</td>
+                                            <td style={{ fontSize: "0.85rem", color: "#555" }}>{org.email}</td>
+                                            <td><span className="badge-tipo">{org.rol}</span></td>
+                                            <td style={{ textAlign: "center", fontWeight: "bold" }}>{org.total_eventos}</td>
+                                            <td style={{ textAlign: "center", color: "#4ade80" }}>{org.activos}</td>
+                                            <td style={{ textAlign: "center", color: "#3b82f6" }}>{org.finalizados}</td>
+                                            <td style={{ textAlign: "right", color: "#16a34a", fontWeight: "bold" }}>
+                                                ${org.recaudacion_total.toLocaleString("es-AR")}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {sortedOrganizadores.length === 0 && <p className="no-data">Sin datos disponibles.</p>}
+                        </div>
+                    </div>
+                </div>
+                {/* 3. Top Eventos por Ocupación (Recuperado) */}
+                <div className="grafico-card grafico-card--wide">
+                    <div className="grafico-card__header">
+                        <h3>🔥 Top 10 Eventos por Tasa de Ocupación</h3>
+                        <p style={{ fontSize: "0.8rem", color: "#888" }}>Inscriptos confirmados (Pagos) vs Reservados pendientes (No pagos)</p>
+                        <button onClick={() => handleExportarCSV("top_ocupacion")} className="btn-export">
+                            📥 Exportar CSV
+                        </button>
+                    </div>
+                    <div className="grafico-card__body">
+                        <div className="table-responsive">
+                            <table className="tabla-reportes-custom">
+                                <thead>
+                                    <tr>
+                                        <th onClick={() => handleSortOcupacion('nombre_evento')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                            Evento {sortConfigOcupacion.key === 'nombre_evento' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                                        </th>
+                                        <th style={{ textAlign: "center" }}>Tipo</th>
+                                        <th onClick={() => handleSortOcupacion('inscriptos_pagos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                            Inscriptos {sortConfigOcupacion.key === 'inscriptos_pagos' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                                        </th>
+                                        <th onClick={() => handleSortOcupacion('reservados_no_pagos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                            Reservas {sortConfigOcupacion.key === 'reservados_no_pagos' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                                        </th>
+                                        <th onClick={() => handleSortOcupacion('cupo_maximo')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                            Cupo Max {sortConfigOcupacion.key === 'cupo_maximo' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                                        </th>
+                                        <th onClick={() => handleSortOcupacion('tasa_ocupacion')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                            Ocupación {sortConfigOcupacion.key === 'tasa_ocupacion' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {/* ATENCIÓN ACÁ: Cambiamos el .map para que use sortedOcupacion */}
+                                    {sortedOcupacion.map((evt: any, i: number) => (
+                                        <tr key={i}>
+                                            <td style={{ fontWeight: "bold" }}>{evt.nombre_evento}</td>
+                                            <td style={{ textAlign: "center" }}>
+                                                <span className="badge-tipo" style={{ backgroundColor: evt.es_pago ? "#3b82f6" : "#64748b" }}>
+                                                    {evt.es_pago ? "Pago" : "Gratuito"}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: "center", color: "#4ade80", fontWeight: "bold" }}>{evt.inscriptos_pagos}</td>
+                                            <td style={{ textAlign: "center", color: "#fbbf24", fontWeight: "bold" }}>{evt.reservados_no_pagos}</td>
+                                            <td style={{ textAlign: "center" }}>{evt.cupo_maximo}</td>
+                                            <td style={{ width: "250px" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                                    <div style={{ flex: 1, height: "10px", backgroundColor: "#e2e8f0", borderRadius: "5px", overflow: "hidden", display: "flex" }}>
+                                                        <div style={{ width: `${(evt.inscriptos_pagos / evt.cupo_maximo) * 100}%`, height: "100%", backgroundColor: "#4ade80" }} />
+                                                        <div style={{ width: `${(evt.reservados_no_pagos / evt.cupo_maximo) * 100}%`, height: "100%", backgroundColor: "#fbbf24" }} />
+                                                    </div>
+                                                    <span style={{ fontSize: "0.85rem", fontWeight: "bold" }}>{evt.tasa_ocupacion}%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                            {!(reporteData?.top_ocupacion?.length) && <p className="no-data">Sin datos disponibles.</p>}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            MODAL DEL DASHBOARD SUPERVISOR
+        ════════════════════════════════════════════════════════════════ */}
+        {modalDashboard.isOpen && (
+            <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                {/* Cambiamos el fondo a un azul noche oscuro (#1e293b) para que la letra clara se lea perfecto */}
+                <div style={{ backgroundColor: "#1e293b", padding: "24px", borderRadius: "12px", width: "90%", maxWidth: "800px", maxHeight: "80vh", overflowY: "auto", boxShadow: "0 10px 25px rgba(0,0,0,0.5)", border: "1px solid #334155" }}>
+                    
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "2px solid #334155", paddingBottom: "10px" }}>
+                        {/* Título en color blanco/hielo */}
+                        <h3 style={{ margin: 0, color: "#f8fafc" }}>{modalDashboard.title}</h3>
+                        {/* Botón de cerrar en gris claro */}
+                        <button onClick={() => setModalDashboard({ isOpen: false, title: "", data: [] })} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#94a3b8" }}>✖</button>
+                    </div>
+
+                    {modalDashboard.data.length > 0 ? (
+                        <table className="tabla-reportes-custom">
+                            <thead>
+                                <tr>
+                                    <th style={{ color: "#f8fafc" }}>Evento</th>
+                                    <th style={{ color: "#f8fafc" }}>Fecha</th>
+                                    <th style={{ color: "#f8fafc" }}>Responsable</th>
+                                    <th style={{ color: "#f8fafc" }}>Pertenencia</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {modalDashboard.data.map((evt: any) => (
+                                    <tr key={evt.id_evento} style={{ borderBottom: "1px solid #334155" }}>
+                                        <td style={{ fontWeight: "bold", color: "#e2e8f0" }}>{evt.nombre_evento}</td>
+                                        <td style={{ color: "#cbd5e1" }}>
+                                        {evt.fecha_evento && evt.fecha_evento !== "Sin fecha" 
+                                            ? evt.fecha_evento.split('-').reverse().join('-') 
+                                            : evt.fecha_evento}
+                                        </td>
+                                        <td style={{ color: "#cbd5e1" }}>{evt.responsable}</td>
+                                        <td>
+                                          <span className="badge-tipo" style={{ 
+                                                backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#f59e0b",
+                                                color: "#ffffff"
+                                            }}>
+                                                {evt.pertenencia}
+                                          </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p style={{ textAlign: "center", color: "#94a3b8", fontSize: "1.1rem" }}>No hay eventos para mostrar en esta categoría.</p>
+                    )}
+                </div>
+            </div>
+        )}
         {/* ════════════════════════════════════════════════════════════════
             ROL 3 — ORGANIZACIÓN EXTERNA
         ════════════════════════════════════════════════════════════════ */}
