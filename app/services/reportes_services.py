@@ -1,7 +1,7 @@
 from collections import Counter
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
-from app.models.auth_models import Usuario
+from sqlalchemy import func, case, text
+from app.models.auth_models import Usuario, Rol
 from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublicacion
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad
 from app.models.inscripcion_models import EstadoReserva, ReservaEvento
@@ -129,44 +129,136 @@ class ReporteService:
         if mes:
             filtros.append(func.extract("month", Evento.fecha_evento) == mes)
 
-        resultados_tipo = (
-            db.query(TipoEvento.nombre, func.count(Evento.id_evento))
-            .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
-            .filter(*filtros).group_by(TipoEvento.nombre).all()
+        # ── 1. Análisis Organizadores Top 10 (con más detalles) ──
+        reservas_confirmadas_sq = (
+            db.query(
+                ReservaEvento.id_evento,
+                func.count(ReservaEvento.id_reserva).label("cant_confirmadas")
+            )
+            .filter(ReservaEvento.id_estado_reserva == 2)
+            .group_by(ReservaEvento.id_evento)
+            .subquery()
         )
-        eventos_por_tipo = [{"tipo": n, "cantidad": c} for n, c in resultados_tipo]
 
-        resultados_dificultad = (
-            db.query(NivelDificultad.nombre, func.count(Evento.id_evento))
-            .join(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad)
-            .filter(*filtros).group_by(NivelDificultad.nombre).all()
+        top_organizadores_query = (
+            db.query(
+                Usuario.id_usuario,
+                Usuario.nombre_y_apellido,
+                Usuario.email,
+                Rol.nombre_rol,
+                func.count(Evento.id_evento).label("total_eventos"),
+                func.count(case((Evento.id_estado == 3, 1))).label("activos"),
+                func.count(case((Evento.id_estado == 4, 1))).label("finalizados"),
+                func.sum(
+                    func.coalesce(reservas_confirmadas_sq.c.cant_confirmadas, 0) * func.coalesce(Evento.costo_participacion, 0)
+                ).label("recaudacion_total")
+            )
+            .join(Evento, Evento.id_usuario == Usuario.id_usuario)
+            .join(Rol, Usuario.id_rol == Rol.id_rol)
+            .outerjoin(reservas_confirmadas_sq, Evento.id_evento == reservas_confirmadas_sq.c.id_evento)
+            .filter(Evento.id_estado.in_([3, 4, 5]))
+            .filter(*filtros)
+            .group_by(Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol)
+            .order_by(text("recaudacion_total DESC"))
+            .limit(10)
+            .all()
         )
-        eventos_por_dificultad = [{"dificultad": n, "cantidad": c} for n, c in resultados_dificultad]
 
-        resultados_estado = db.query(Evento.id_estado, func.count(Evento.id_evento))\
-            .filter(*filtros).group_by(Evento.id_estado).all()
-        eventos_por_estado = [{"estado": e, "cantidad": c} for e, c in resultados_estado]
+        analisis_organizadores = [
+            {
+                "id_usuario": row.id_usuario,
+                "organizador": row.nombre_y_apellido,
+                "email": row.email,
+                "rol": row.nombre_rol,
+                "total_eventos": row.total_eventos,
+                "activos": row.activos,
+                "finalizados": row.finalizados,
+                "recaudacion_total": float(row.recaudacion_total or 0)
+            }
+            for row in top_organizadores_query
+        ]
 
-        resultados_mes = db.query(
-            func.extract("year", Evento.fecha_evento).label("anio"),
-            func.extract("month", Evento.fecha_evento).label("mes"),
-            func.count(Evento.id_evento)
-        ).filter(*filtros).group_by("anio", "mes").all()
-        evolucion_mensual = [{"anio": int(a), "mes": int(m), "cantidad": c} for a, m, c in resultados_mes]
+        # ── 2. Top Eventos por Tasa de Ocupación (Se mantiene igual) ──
+        ocupacion_query = (
+            db.query(
+                Evento.id_evento,
+                Evento.nombre_evento,
+                Evento.cupo_maximo,
+                Evento.costo_participacion,
+                func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("inscriptos_pagos"),
+                func.sum(case((ReservaEvento.id_estado_reserva == 1, 1), else_=0)).label("reservados_no_pagos")
+            )
+            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+            .filter(Evento.cupo_maximo > 0)
+            .filter(Evento.id_estado.in_([3, 4]))
+            .filter(*filtros)
+            .group_by(Evento.id_evento)
+            .all()
+        )
 
+        top_ocupacion = []
+        for row in ocupacion_query:
+            inscriptos = int(row.inscriptos_pagos or 0)
+            reservados = int(row.reservados_no_pagos or 0)
+            total_ocupado = inscriptos + reservados
+            cupo = int(row.cupo_maximo)
+            tasa = (total_ocupado / cupo * 100) if cupo > 0 else 0
+            
+            top_ocupacion.append({
+                "id_evento": row.id_evento,
+                "nombre_evento": row.nombre_evento,
+                "cupo_maximo": cupo,
+                "inscriptos_pagos": inscriptos,
+                "reservados_no_pagos": reservados,
+                "total_ocupado": total_ocupado,
+                "tasa_ocupacion": round(tasa, 2),
+                "es_pago": float(row.costo_participacion or 0) > 0
+            })
+        
+        top_ocupacion.sort(key=lambda x: x["tasa_ocupacion"], reverse=True)
+        top_ocupacion = top_ocupacion[:10]
+
+        # ── 3. Dashboard Eventos del Sistema (Nuevo) ──
+        # Traemos todos los eventos desglosados para que el front arme los gráficos
+        eventos_sistema_query = (
+            db.query(
+                Evento.id_evento,
+                Evento.nombre_evento,
+                Evento.fecha_evento,
+                Usuario.nombre_y_apellido.label("responsable"),
+                Evento.id_estado,
+                case((Usuario.id_rol.in_([1, 2]), "Propio"), else_="Externo").label("pertenencia")
+            )
+            .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
+            .filter(Evento.id_estado.in_([3, 4, 5]))
+            .filter(*filtros)
+            .all()
+        )
+
+        dashboard_eventos = []
+        for row in eventos_sistema_query:
+            estado_str = "Activo" if row.id_estado == 3 else ("Finalizado" if row.id_estado == 4 else "Cancelado")
+            dashboard_eventos.append({
+                "id_evento": row.id_evento,
+                "nombre_evento": row.nombre_evento,
+                "fecha_evento": row.fecha_evento.strftime('%Y-%m-%d') if row.fecha_evento else "Sin fecha",
+                "responsable": row.responsable,
+                "estado": estado_str,
+                "pertenencia": row.pertenencia
+            })
+
+        # Mantenemos las solicitudes externas
         resultados_solicitudes = (
             db.query(EstadoSolicitud.nombre, func.count(SolicitudPublicacion.id_solicitud))
-            .join(SolicitudPublicacion,
-                  EstadoSolicitud.id_estado_solicitud == SolicitudPublicacion.id_estado_solicitud)
+            .join(SolicitudPublicacion, EstadoSolicitud.id_estado_solicitud == SolicitudPublicacion.id_estado_solicitud)
             .group_by(EstadoSolicitud.nombre).all()
         )
         solicitudes_externas = [{"estado": n, "cantidad": c} for n, c in resultados_solicitudes]
 
         return {
-            "eventos_por_tipo": eventos_por_tipo,
-            "eventos_por_dificultad": eventos_por_dificultad,
-            "eventos_por_estado": eventos_por_estado,
-            "evolucion_mensual": evolucion_mensual,
+            "analisis_organizadores": analisis_organizadores,
+            "top_ocupacion": top_ocupacion,
+            "dashboard_eventos": dashboard_eventos,
             "solicitudes_externas": solicitudes_externas
         }
 

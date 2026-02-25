@@ -47,12 +47,15 @@ def export_reportes(
         "eventos_por_tipo": [1, 2, 3], 
         "eventos_por_dificultad": [1, 2], 
         "solicitudes_externas": [2],
-        "mis_eventos_total": [1, 2, 3, 4],
-        "mis_eventos_por_estado": [1, 2, 3, 4],
-        "mis_notificaciones": [1, 2, 3, 4],
-        "eventos_por_ubicacion": [1, 2],
-        "lista_eventos_detallada": [1, 2, 3] ,
-        "mis_inscripciones": [4]
+        "mis_eventos_total": [3,4],
+        "mis_eventos_por_estado": [1,2,3,4],
+        "eventos_por_ubicacion": [1,2],
+        "lista_eventos_detallada": [1,2,3],
+        "analisis_organizadores": [1, 2],  
+        "top_ocupacion": [1, 2],
+        "dashboard_eventos": [1, 2],       
+        "solicitudes_externas": [2],
+        "mis_inscripciones": [4],
     }
 
     if tipo not in roles_permitidos:
@@ -79,6 +82,7 @@ def export_reportes(
     # 4. Extracción de datos y fieldnames (Respetando Documento 1)
     data = []
     fieldnames = []
+    reporte_super = {}
 
     if tipo == "total_eventos":
         data = [{"total_eventos": data_completa.get("total_eventos", 0)}]
@@ -127,6 +131,26 @@ def export_reportes(
     elif tipo == "eventos_por_ubicacion":
         data = data_completa.get("eventos_por_ubicacion", [])
         fieldnames = ["ubicacion", "cantidad"]
+        
+    # Nuevos exportables del Supervisor
+    if current_user.id_rol == 2:
+        reporte_super = ReporteService.reportes_supervisor(db, current_user.id_usuario)
+        
+    if tipo == "analisis_organizadores":
+        data = reporte_super.get("analisis_organizadores", [])
+        fieldnames = ["id_usuario", "organizador", "email", "rol", "total_eventos", "activos", "finalizados", "recaudacion_total"]
+
+    elif tipo == "top_ocupacion":
+        data = reporte_super.get("top_ocupacion", [])
+        fieldnames = ["id_evento", "nombre_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
+
+    elif tipo == "dashboard_eventos":
+        data = reporte_super.get("dashboard_eventos", [])
+        fieldnames = ["id_evento", "nombre_evento", "fecha_evento", "responsable", "estado", "pertenencia"]
+
+    elif tipo == "solicitudes_externas": 
+        data = reporte_super.get("solicitudes_externas", [])
+        fieldnames = ["estado", "cantidad"]
 
     # Desde aca empiezo con los reportes para organizacion externa
     elif tipo == "lista_eventos_detallada":
