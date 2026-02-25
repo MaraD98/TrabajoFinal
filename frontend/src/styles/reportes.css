@@ -64,10 +64,8 @@
    ========================================================================== */
 
 .reportes-page {
-  min-height: 100vh;
   background: linear-gradient(135deg, #0a0e1a 0%, #141824 50%, #1a1420 100%);
   background-attachment: fixed;
-  padding: var(--spacing-xl) var(--spacing-lg);
   color: var(--color-text-secondary);
   position: relative;
 }
@@ -168,7 +166,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
   padding: var(--spacing-lg);
   background: var(--color-bg-card);
   border-radius: var(--radius-lg);
@@ -177,6 +174,7 @@
   animation: slideInDown 0.5s ease-out;
   position: relative;
   overflow: hidden;
+  margin-top: 1em;
 }
 
 .reportes-header::before {
