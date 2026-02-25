@@ -83,18 +83,23 @@ export default function EventoDetalleModal({ eventoId, onClose, eventoPreview, i
   if (!eventoId) return null;
 
   const formatFecha = (fecha: string) => {
-    if (!fecha) return '—';
-    try {
-      // Forzar parseo como fecha local (sin zona horaria)
-      // "2026-03-05" → [2026, 3, 5] → new Date(2026, 2, 5)
-      const partes = fecha.split('T')[0].split('-').map(Number);
-      const d = new Date(partes[0], partes[1] - 1, partes[2]);
-      if (isNaN(d.getTime())) return fecha;
-      return d.toLocaleDateString('es-AR', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-      });
-    } catch { return fecha; }
-  };
+  if (!fecha) return '—';
+  try {
+    let soloFecha = fecha.split('T')[0].split(' ')[0];
+    // YYYY-MM-DD → DD-MM-YYYY
+    if (/^\d{4}-\d{2}-\d{2}$/.test(soloFecha)) {
+      const [yyyy, mm, dd] = soloFecha.split('-');
+      soloFecha = `${dd}-${mm}-${yyyy}`;
+    }
+    // Ahora soloFecha es DD-MM-YYYY seguro
+    const [dd, mm, yyyy] = soloFecha.split('-').map(Number);
+    const d = new Date(yyyy, mm - 1, dd);
+    if (isNaN(d.getTime())) return fecha;
+    return d.toLocaleDateString('es-AR', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+  } catch { return fecha; }
+};  
 
   const cupoLabel = () => {
     if (!evento) return '';
