@@ -46,6 +46,9 @@ interface ReporteData {
   recaudacion_total?: number;
   detalle_recaudacion?: DetalleRecaudacion[];
   tendencias_ubicacion?: any[];
+  tendencias_ubicacion_completa?: any[];
+  top_10_recaudacion?: any[];
+  usuarios_nuevos?: any[];
 }
 
 // ─── Modal detalle de evento ──────────────────────────────────────────────────
@@ -199,10 +202,53 @@ export default function ReportesPage() {
     key: "nombre" | "fecha" | "monto" | "cupo" | "unitario";
     direction: "asc" | "desc";
   }>({ key: "fecha", direction: "desc" });
-
   const reporteRef = useRef<HTMLDivElement>(null);
   const { user, getToken, loadingAuth } = useAuth();
   const usuarioRol = user?.id_rol || 0;
+
+  // --- Estados para Admin (Nuevos Reportes) ---
+  const [filtroPertenenciaAdmin, setFiltroPertenenciaAdmin] = useState<'Todos' | 'Propio' | 'Externo'>('Todos');
+  
+  const [modalAdminEvento, setModalAdminEvento] = useState<any | null>(null);
+  // --- Estados para las Tarjetas Desplegables del Admin ---
+  const [expandCard1, setExpandCard1] = useState(false);
+  const [expandCard2, setExpandCard2] = useState(false);
+  const [filtroCard3, setFiltroCard3] = useState<'Propio' | 'Externo'>('Propio');
+  
+  
+  // Cálculos para las tarjetas
+  const todosLosEventosAdmin = reporteData?.lista_eventos_detallada || [];
+  const cantPropios = todosLosEventosAdmin.filter((e: any) => e.pertenencia === 'Propio').length;
+  const cantExternos = todosLosEventosAdmin.filter((e: any) => e.pertenencia === 'Externo').length;
+  
+  const totalReservasAdmin = todosLosEventosAdmin.reduce((acc: number, curr: any) => acc + curr.reservas_totales, 0);
+  const totalInscriptosAdmin = todosLosEventosAdmin.reduce((acc: number, curr: any) => acc + curr.inscripciones_confirmadas, 0);
+  const pendientesAdmin = totalReservasAdmin - totalInscriptosAdmin;
+  
+  const eventosFiltradosTarjeta = todosLosEventosAdmin.filter((e: any) => e.pertenencia === filtroCard3);
+  const recaudacionTarjeta = eventosFiltradosTarjeta.reduce((acc: number, curr: any) => acc + curr.monto_recaudado, 0);
+  // --- Estados para Usuarios y Mapa de Calor ---
+  const [mesExpandido, setMesExpandido] = useState<string | null>(null);
+  const [provinciaExpandidaAdmin, setProvinciaExpandidaAdmin] = useState<string | null>(null);
+
+  // 1. Agrupar usuarios nuevos por Mes (ej: "2023-10")
+  const usuariosPorMes = (reporteData?.usuarios_nuevos || []).reduce((acc: any, user: any) => {
+      // Extraemos "YYYY-MM" de la fecha "YYYY-MM-DD"
+      const mesAnio = user.fecha_creacion ? user.fecha_creacion.substring(0, 7) : "Sin fecha";
+      if (!acc[mesAnio]) acc[mesAnio] = [];
+      acc[mesAnio].push(user);
+      return acc;
+  }, {});
+
+  // 2. Calcular totales para la barra de porcentajes de Roles
+  const totalClientes = (reporteData?.usuarios_nuevos || []).filter((u: any) => u.rol === "Cliente").length;
+  const totalOrganizaciones = (reporteData?.usuarios_nuevos || []).filter((u: any) => u.rol === "Organización Externa").length;
+  const totalUsuariosNuevos = totalClientes + totalOrganizaciones;
+  const pctClientes = totalUsuariosNuevos > 0 ? (totalClientes / totalUsuariosNuevos) * 100 : 0;
+  const pctOrganizaciones = totalUsuariosNuevos > 0 ? (totalOrganizaciones / totalUsuariosNuevos) * 100 : 0;
+
+  // 3. Calcular el máximo de eventos en una provincia para dibujar la barra de calor
+  const maxEventosProvincia = Math.max(...(reporteData?.tendencias_ubicacion_completa?.map((p: any) => p.total_eventos) || [1]));
 
   const TIPOS_EVENTO = [
     "Ciclismo de Ruta",
@@ -585,6 +631,291 @@ export default function ReportesPage() {
         {/* ── Tarjetas Admin / Supervisor ────────────────────────────────── */}
         {(usuarioRol === 1 || usuarioRol === 2) && (
           <>
+            <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
+                
+                {/* TARJETA 1: Total Eventos */}
+                <div style={{ flex: "1 1 30%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minWidth: "250px" }}>
+                    <h4 style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>Total Eventos del Sistema</h4>
+                    <span style={{ fontSize: "2rem", fontWeight: "bold", color: "#fff" }}>{todosLosEventosAdmin.length}</span>
+                    <div style={{ marginTop: "10px" }}>
+                        <button onClick={() => setExpandCard1(!expandCard1)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", fontSize: "0.9rem", padding: 0 }}>
+                            {expandCard1 ? "Ocultar detalle ▴" : "Ver detalle ▾"}
+                        </button>
+                        {expandCard1 && (
+                            <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #334155", display: "flex", justifyContent: "space-between", color: "#cbd5e1", fontSize: "0.95rem" }}>
+                                <span>Propios: <strong style={{ color: "#8b5cf6" }}>{cantPropios}</strong></span>
+                                <span>Externos: <strong style={{ color: "#4b5563" }}>{cantExternos}</strong></span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* TARJETA 2: Usuarios Registrados (Participantes) */}
+                <div style={{ flex: "1 1 30%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minWidth: "250px" }}>
+                    <h4 style={{ color: "#94a3b8", margin: "0 0 10px 0" }}>Participantes Registrados</h4>
+                    <span style={{ fontSize: "2rem", fontWeight: "bold", color: "#3b82f6" }}>{totalReservasAdmin}</span>
+                    <div style={{ marginTop: "10px" }}>
+                        <button onClick={() => setExpandCard2(!expandCard2)} style={{ background: "none", border: "none", color: "#3b82f6", cursor: "pointer", fontSize: "0.9rem", padding: 0 }}>
+                            {expandCard2 ? "Ocultar detalle ▴" : "Ver detalle ▾"}
+                        </button>
+                        {expandCard2 && (
+                            <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #334155", display: "flex", justifyContent: "space-between", color: "#cbd5e1", fontSize: "0.95rem" }}>
+                                <span>Inscriptos Confirmados: <strong style={{ color: "#4ade80" }}>{totalInscriptosAdmin}</strong></span>
+                                <span>Reservas Pendientes: <strong style={{ color: "#fbbf24" }}>{pendientesAdmin}</strong></span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* TARJETA 3: Eventos por Pertenencia (Filtro) */}
+                <div style={{ flex: "1 1 30%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minWidth: "250px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                        <h4 style={{ color: "#94a3b8", margin: 0 }}>Rendimiento</h4>
+                        <select 
+                            value={filtroCard3} 
+                            onChange={(e) => setFiltroCard3(e.target.value as 'Propio' | 'Externo')}
+                            style={{ backgroundColor: "#1e293b", color: "#fff", border: "1px solid #334155", borderRadius: "5px", padding: "4px", fontSize: "0.85rem", cursor: "pointer" }}
+                        >
+                            <option value="Propio">Propios</option>
+                            <option value="Externo">Externos</option>
+                        </select>
+                    </div>
+                    <span style={{ fontSize: "2rem", fontWeight: "bold", color: "#8b5cf6" }}>
+                        {eventosFiltradosTarjeta.length} <span style={{ fontSize: "1.1rem", color: "#94a3b8", fontWeight: "normal" }}>eventos</span>
+                    </span>
+                    <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid #334155", display: "flex", justifyContent: "space-between", color: "#cbd5e1", fontSize: "0.95rem" }}>
+                        <span>Recaudación:</span>
+                        <strong style={{ color: "#4ade80" }}>${recaudacionTarjeta.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                </div>
+
+            </div>
+
+            {/* ═════════════════════════════════════════════════════════════════════
+                TOP 10 DE EVENTOS POR RECAUDACIÓN (Actualizado)
+            ═════════════════════════════════════════════════════════════════════ */}
+            <div className="reportes-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                    <h3>🏆 Top 10 Eventos por Recaudación</h3>
+                    <select 
+                        value={filtroPertenenciaAdmin} 
+                        onChange={(e) => setFiltroPertenenciaAdmin(e.target.value as any)}
+                        style={{ padding: "6px", borderRadius: "5px", backgroundColor: "#1e293b", color: "#fff", border: "1px solid #334155" }}
+                    >
+                        <option value="Todos">Mostrar Todos</option>
+                        <option value="Propio">Solo Propios</option>
+                        <option value="Externo">Solo Externos</option>
+                    </select>
+                </div>
+                
+                <div style={{ overflowX: "auto" }}>
+                    <table className="tabla-reportes-custom">
+                        <thead>
+                            <tr>
+                                <th style={{ textAlign: "center" }}>Posición</th>
+                                <th>Evento</th>
+                                <th>Pertenencia</th>
+                                <th style={{ textAlign: "center" }}>Valor Unitario</th>
+                                {/* Le sacamos lo de Pagos / Max para dejarlo más limpio */}
+                                <th style={{ textAlign: "center" }}>Cupo</th>
+                                <th style={{ textAlign: "right" }}>Recaudación</th>
+                                <th style={{ textAlign: "center" }}>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {(reporteData?.top_10_recaudacion || [])
+                                .filter((e: any) => filtroPertenenciaAdmin === 'Todos' || e.pertenencia === filtroPertenenciaAdmin)
+                                .slice(0, 10)
+                                .map((evt: any, index: number) => (
+                                <tr key={evt.id}>
+                                    <td style={{ textAlign: "center", fontWeight: "900", color: index < 3 ? "#fbbf24" : "#cbd5e1", fontSize: "1.1rem" }}>
+                                        #{index + 1}
+                                    </td>
+                                    <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
+                                    <td>
+                                        <span className="badge-tipo" style={{ backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563" }}>
+                                            {evt.pertenencia}
+                                        </span>
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>
+                                        ${evt.costo_participacion.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    {/* Acá mostramos Reservas Totales / Max */}
+                                    <td style={{ textAlign: "center", fontWeight: "bold" }}>
+                                        <span style={{ color: "#3b82f6" }}>{evt.reservas_totales}</span> 
+                                        <span style={{ color: "#64748b" }}> / {evt.cupo_maximo || "∞"}</span>
+                                    </td>
+                                    <td style={{ textAlign: "right", fontWeight: "bold", color: "#4ade80" }}>
+                                        ${evt.monto_recaudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td style={{ textAlign: "center" }}>
+                                        <button 
+                                            onClick={() => setModalAdminEvento(evt)}
+                                            style={{ padding: "6px 12px", backgroundColor: "#3b82f6", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold", transition: "0.2s" }}
+                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#2563eb"}
+                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#3b82f6"}
+                                        >
+                                            Ver más
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {/* ═════════════════════════════════════════════════════════════════════
+                NUEVO REPORTE: DISTRIBUCIÓN DE USUARIOS Y CRECIMIENTO MENSUAL
+            ═════════════════════════════════════════════════════════════════════ */}
+            <div style={{ display: "flex", gap: "20px", marginTop: "40px", flexWrap: "wrap" }}>
+                
+                {/* LADO IZQUIERDO: Totales y Barra Porcentual */}
+                <div style={{ flex: "1 1 45%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155" }}>
+                    <h3 style={{ margin: "0 0 20px 0" }}>👥 Distribución por Rol</h3>
+                    
+                    <table className="tabla-reportes-custom" style={{ marginBottom: "20px" }}>
+                        <thead>
+                            <tr>
+                                <th>Rol de Usuario</th>
+                                <th style={{ textAlign: "center" }}>Total Registrados</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span style={{ color: "#0ea5e9", fontWeight: "bold" }}>● Cliente</span></td>
+                                <td style={{ textAlign: "center", fontWeight: "bold", fontSize: "1.1rem" }}>{totalClientes}</td>
+                            </tr>
+                            <tr>
+                                <td><span style={{ color: "#f97316", fontWeight: "bold" }}>● Organización Externa</span></td>
+                                <td style={{ textAlign: "center", fontWeight: "bold", fontSize: "1.1rem" }}>{totalOrganizaciones}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    {/* Barra Porcentual Visual */}
+                    <div style={{ marginTop: "30px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#94a3b8", marginBottom: "5px" }}>
+                            <span>Clientes ({pctClientes.toFixed(1)}%)</span>
+                            <span>Organizaciones ({pctOrganizaciones.toFixed(1)}%)</span>
+                        </div>
+                        <div style={{ width: "100%", height: "12px", backgroundColor: "#1e293b", borderRadius: "10px", display: "flex", overflow: "hidden" }}>
+                            <div style={{ width: `${pctClientes}%`, backgroundColor: "#0ea5e9", transition: "width 0.5s" }}></div>
+                            <div style={{ width: `${pctOrganizaciones}%`, backgroundColor: "#f97316", transition: "width 0.5s" }}></div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* LADO DERECHO: Evolución Mensual (Acordeón) */}
+                <div style={{ flex: "1 1 45%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155" }}>
+                    <h3 style={{ margin: "0 0 20px 0" }}>📈 Nuevos Registros por Mes</h3>
+                    
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "300px", overflowY: "auto", paddingRight: "5px" }}>
+                        {Object.keys(usuariosPorMes).sort().reverse().map((mes, index) => (
+                            <div key={index} style={{ backgroundColor: "#1e293b", borderRadius: "8px", overflow: "hidden" }}>
+                                <div 
+                                    onClick={() => setMesExpandido(mesExpandido === mes ? null : mes)}
+                                    style={{ padding: "12px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderBottom: mesExpandido === mes ? "1px solid #334155" : "none" }}
+                                >
+                                    <strong style={{ color: "#f8fafc" }}>{mes}</strong>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <span className="badge-tipo" style={{ backgroundColor: "#3b82f6" }}>{usuariosPorMes[mes].length} usuarios</span>
+                                        <span style={{ color: "#94a3b8" }}>{mesExpandido === mes ? "▲" : "▼"}</span>
+                                    </div>
+                                </div>
+                                
+                                {mesExpandido === mes && (
+                                    <div style={{ padding: "10px 15px", backgroundColor: "#0f172a" }}>
+                                        {usuariosPorMes[mes].map((u: any, i: number) => (
+                                            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i !== usuariosPorMes[mes].length - 1 ? "1px solid #1e293b" : "none", fontSize: "0.85rem" }}>
+                                                <div>
+                                                    <span style={{ color: "#cbd5e1", fontWeight: "bold" }}>{u.nombre}</span><br/>
+                                                    <span style={{ color: "#64748b" }}>{u.email}</span>
+                                                </div>
+                                                <div style={{ textAlign: "right" }}>
+                                                    <span style={{ color: u.rol === "Cliente" ? "#0ea5e9" : "#f97316" }}>{u.rol}</span><br/>
+                                                    <span style={{ color: "#4ade80" }}>{u.cantidad_inscripciones} inscrip.</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* ═════════════════════════════════════════════════════════════════════
+                NUEVO MAPA DE CALOR: DENSIDAD POR PROVINCIA (Unificado y Visual)
+            ═════════════════════════════════════════════════════════════════════ */}
+            <div className="reportes-card" style={{ marginTop: "40px", marginBottom: "40px" }}>
+                <div style={{ marginBottom: "20px" }}>
+                    <h3>📍 Mapa de Densidad por Provincia</h3>
+                    <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>
+                        Medidor de concentración de eventos. Hacé clic en un evento para ver sus detalles completos.
+                    </p>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                    {reporteData?.tendencias_ubicacion_completa?.map((prov: any, index: number) => {
+                        // Calculamos qué tan "caliente" es la provincia para llenar la barra roja/naranja
+                        const porcentajeCalor = (prov.total_eventos / maxEventosProvincia) * 100;
+                        
+                        // Unificamos TODOS los eventos de todas las localidades de esa provincia en un solo array
+                        const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos);
+
+                        return (
+                            <div key={index} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", overflow: "hidden" }}>
+                                
+                                {/* Fila clickeable principal con la BARRA DE CALOR de fondo */}
+                                <div 
+                                    onClick={() => setProvinciaExpandidaAdmin(provinciaExpandidaAdmin === prov.provincia ? null : prov.provincia)}
+                                    style={{ position: "relative", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", zIndex: 1 }}
+                                >
+                                    {/* La barra de densidad (Fondo de color) */}
+                                    <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${porcentajeCalor}%`, backgroundColor: porcentajeCalor > 70 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)", zIndex: -1, transition: "width 1s" }}></div>
+                                    
+                                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                        <span style={{ fontSize: "1.2rem" }}>{porcentajeCalor > 70 ? "🔥" : "🗺️"}</span>
+                                        <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.1rem" }}>{prov.provincia}</h4>
+                                    </div>
+                                    
+                                    <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                                        <strong style={{ color: porcentajeCalor > 70 ? "#ef4444" : "#fbbf24" }}>{prov.total_eventos} Eventos</strong>
+                                        <span style={{ color: "#94a3b8" }}>{provinciaExpandidaAdmin === prov.provincia ? "▲" : "▼"}</span>
+                                    </div>
+                                </div>
+
+                                {/* Desplegable con los eventos (AHORA CLICKEABLES) */}
+                                {provinciaExpandidaAdmin === prov.provincia && (
+                                    <div style={{ padding: "15px 20px", borderTop: "1px solid #334155", backgroundColor: "#1e293b" }}>
+                                        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+                                            {todosEventosProvincia.map((evento: any, i: number) => (
+                                                <li 
+                                                    key={i} 
+                                                    onClick={() => setModalAdminEvento(evento)} // ¡ACÁ ABRIMOS EL MODAL!
+                                                    style={{ backgroundColor: "#0f172a", padding: "10px", borderRadius: "6px", display: "flex", justifyContent: "space-between", cursor: "pointer", border: "1px solid #334155" }}
+                                                    onMouseOver={(e) => e.currentTarget.style.borderColor = "#3b82f6"}
+                                                    onMouseOut={(e) => e.currentTarget.style.borderColor = "#334155"}
+                                                >
+                                                    <div>
+                                                        <strong style={{ color: "#e2e8f0" }}>{evento.nombre}</strong>
+                                                        <span style={{ color: "#94a3b8", fontSize: "0.85rem", marginLeft: "10px" }}>{evento.tipo}</span>
+                                                    </div>
+                                                    <span style={{ color: evento.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontSize: "0.85rem", fontWeight: "bold" }}>
+                                                        {evento.pertenencia}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
             <div className="stat-card stat-card--primary">
               <div className="stat-card__valor">{reporteData?.total_eventos ?? 0}</div>
               <div className="stat-card__label">Total Eventos Sistema</div>
@@ -1251,7 +1582,49 @@ export default function ReportesPage() {
             </div>
           </div>
         )}
+      {/* ════════════════════════════════════════════════════════════════
+            MODAL DETALLE EVENTO ADMIN (BOTÓN VER MÁS)
+        ════════════════════════════════════════════════════════════════ */}
+        {modalAdminEvento && (
+            <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "center" }}>
+                <div style={{ backgroundColor: "#1e293b", padding: "24px", borderRadius: "12px", width: "90%", maxWidth: "600px", border: "1px solid #334155", color: "#f8fafc", boxShadow: "0 10px 25px rgba(0,0,0,0.5)" }}>
+                    
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #334155", paddingBottom: "10px" }}>
+                        <h3 style={{ margin: 0, color: "#fff" }}>Detalles del Evento</h3>
+                        <button onClick={() => setModalAdminEvento(null)} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer", color: "#94a3b8" }}>✖</button>
+                    </div>
+                    
+                    {/* Grilla de información */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", fontSize: "0.95rem" }}>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Evento:</strong> <br/>{modalAdminEvento.nombre}</p>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Organizador:</strong> <br/>{modalAdminEvento.organizador}</p>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Fecha:</strong> <br/>{modalAdminEvento.fecha_evento.split('-').reverse().join('-')}</p>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Tipo:</strong> <br/>{modalAdminEvento.tipo}</p>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Ubicación:</strong> <br/>{modalAdminEvento.ubicacion || "Sin ubicación"}</p>
+                        <p style={{ margin: 0 }}><strong style={{ color: "#94a3b8" }}>Distancia:</strong> <br/>{modalAdminEvento.distancia_km} km</p>
+                    </div>
 
+                    <h4 style={{ marginTop: "25px", marginBottom: "10px", color: "#cbd5e1" }}>Desglose de Inscripciones</h4>
+                    
+                    {/* Tarjetitas de estado de reservas */}
+                    <div style={{ display: "flex", justifyContent: "space-between", backgroundColor: "#0f172a", padding: "15px", borderRadius: "8px", border: "1px solid #334155" }}>
+                        <div style={{ textAlign: "center", flex: 1 }}>
+                            <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#fff" }}>{modalAdminEvento.cupo_maximo || "∞"}</span>
+                            <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.8rem", marginTop: "5px" }}>Cupo Máximo</p>
+                        </div>
+                        <div style={{ textAlign: "center", flex: 1, borderLeft: "1px solid #334155", borderRight: "1px solid #334155" }}>
+                            <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#4ade80" }}>{modalAdminEvento.inscripciones_confirmadas}</span>
+                            <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.8rem", marginTop: "5px" }}>Pagos Confirmados</p>
+                        </div>
+                        <div style={{ textAlign: "center", flex: 1 }}>
+                            <span style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#fbbf24" }}>{modalAdminEvento.reservas_totales - modalAdminEvento.inscripciones_confirmadas}</span>
+                            <p style={{ margin: 0, color: "#94a3b8", fontSize: "0.8rem", marginTop: "5px" }}>Reservas Pendientes</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        )}
       </div>
       {/* fin .reportes-page__container */}
 

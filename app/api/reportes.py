@@ -59,7 +59,11 @@ def export_reportes(
         "mis_inscripciones": [2,3,4],
         "mis_notificaciones": [2,3,4],
         "eventos_por_ubicacion": [1,2],
-        "lista_eventos_detallada": [1,2,3] 
+        "lista_eventos_detallada": [1,2,3],
+        "tendencias_ubicacion_completa": [1, 3], # Admin y Org Externa
+        "top_10_recaudacion": [1],               # Solo Admin
+        "usuarios_nuevos": [1],                  # Solo Admin
+        "lista_eventos_detallada": [1, 2, 3]     # Ahora el 1 también lo usa
     }
 
     if tipo not in roles_permitidos:
@@ -165,6 +169,20 @@ def export_reportes(
         data = reporte.get("lista_eventos_detallada", [])
         fieldnames = ["id", "nombre", "fecha", "tipo", "reservas", "estado"]
 
+    elif tipo == "tendencias_ubicacion_completa":
+        if current_user.id_rol == 1:
+            data = ReporteService.reportes_admin(db).get("tendencias_ubicacion_completa", [])
+        else:
+            data = ReporteService.reportes_organizacion_externa(db, current_user.id_usuario).get("tendencias_ubicacion", [])
+        fieldnames = ["provincia", "total_eventos"] # Podés sumar más columnas si querés
+
+    elif tipo == "top_10_recaudacion":
+        data = ReporteService.reportes_admin(db).get("top_10_recaudacion", [])
+        fieldnames = ["nombre", "fecha_evento", "tipo", "pertenencia", "organizador", "inscripciones_confirmadas", "monto_recaudado"]
+
+    elif tipo == "usuarios_nuevos":
+        data = ReporteService.reportes_admin(db).get("usuarios_nuevos", [])
+        fieldnames = ["nombre", "email", "rol", "fecha_creacion", "cantidad_inscripciones", "cantidad_eventos_creados"]
 
     # Crear CSV en memoria
     output = StringIO()
