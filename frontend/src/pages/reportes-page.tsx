@@ -786,7 +786,7 @@ export default function ReportesPage() {
         )}
 
         {/* ── Tarjetas Admin / Supervisor ────────────────────────────────── */}
-        {(usuarioRol === 1 || usuarioRol === 2) && (
+        {(usuarioRol === 1 ) && (
           <>
             <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
                 
