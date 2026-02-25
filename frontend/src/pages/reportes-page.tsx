@@ -199,6 +199,9 @@ export default function ReportesPage() {
     key: "nombre" | "fecha" | "monto" | "cupo" | "unitario";
     direction: "asc" | "desc";
   }>({ key: "fecha", direction: "desc" });
+  const fmt = (val: number) => new Intl.NumberFormat("es-AR").format(val);
+  const fmtPeso = (val: number) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(val);
+  const fmtFecha = (f?: string) => f ? new Date(f).toLocaleDateString("es-AR") : "-";
 
   const reporteRef = useRef<HTMLDivElement>(null);
   const { user, getToken, loadingAuth } = useAuth();
@@ -226,14 +229,13 @@ export default function ReportesPage() {
   // ── Acciones ──────────────────────────────────────────────────────────────
   const cargarReportes = async (tokenParam?: string) => {
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true); setError(null);
       const token = tokenParam || getToken();
       if (!token) { setError("No se encontró una sesión activa."); return; }
       const data = await getReporteGeneral(token, undefined, undefined);
       setReporteData(data);
     } catch (err: any) {
-      setError(err?.response?.status === 401 ? "Sesión expirada" : "Error al cargar reportes");
+      setError(err?.response?.status === 401 ? "Sesión expirada. Iniciá sesión nuevamente." : "Error al cargar reportes.");
     } finally {
       setLoading(false);
     }
@@ -256,14 +258,14 @@ export default function ReportesPage() {
     if (!reporteRef.current) return;
     try {
       setExportando("pdf");
-      const canvas = await html2canvas(reporteRef.current, { scale: 2, backgroundColor: "#000000" });
+      const canvas = await html2canvas(reporteRef.current, { scale: 2, backgroundColor: "#080808" });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const w = pdf.internal.pageSize.getWidth();
       const imgProps = pdf.getImageProperties(imgData);
-      pdf.addImage(imgData, "PNG", 0, 10, pdfWidth, (imgProps.height * pdfWidth) / imgProps.width);
-      pdf.save("reporte-panel-control.pdf");
-    } catch {
+      pdf.addImage(imgData, "PNG", 0, 0, w, (imgProps.height * w) / imgProps.width);
+      pdf.save(`reporte-${new Date().toISOString().slice(0, 10)}.pdf`);
+    } catch (err) {
       alert("No se pudo generar el PDF");
     } finally {
       setExportando(null);
@@ -440,6 +442,115 @@ export default function ReportesPage() {
       </div>
     );
   };
+
+  // Componente pequeño para los badges de estado del cliente
+  function EstadoBadge({ estado }: { estado: number }) {
+    const config: Record<number, { txt: string; bg: string; clr: string }> = {
+      1: { txt: "Pendiente", bg: "#fbbf2422", clr: "#fbbf24" },
+      2: { txt: "Confirmada", bg: "#4ade8022", clr: "#4ade80" },
+      3: { txt: "Cancelada", bg: "#f8717122", clr: "#f87171" },
+    };
+    const s = config[estado] || { txt: "Desconocido", bg: "#333", clr: "#888" };
+    return (
+      <span style={{ 
+        padding: "4px 10px", borderRadius: "12px", fontSize: "0.7rem", fontWeight: "bold",
+        background: s.bg, color: s.clr, border: `1px solid ${s.clr}44`, textTransform: "uppercase" 
+      }}>
+        {s.txt}
+      </span>
+    );
+  }
+
+  // Card de estadística simple
+  function StatCard({ label, value, color }: any) {
+    return (
+      <div style={{ background: "#1a1a1a", padding: "16px", borderRadius: "12px", border: `1px solid ${color}44` }}>
+        <p style={{ margin: 0, fontSize: "0.75rem", color: "#888", textTransform: "uppercase" }}>{label}</p>
+        <p style={{ margin: "4px 0 0", fontSize: "1.2rem", fontWeight: "bold", color: "#fff" }}>{value}</p>
+      </div>
+    );
+  }
+
+  //Seccion Cliente
+
+  function SeccionCliente({ data, onExport }: { data: ReporteData; onExport: (tipo: string) => void }) {
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+
+  const inscripciones = data.mis_inscripciones ?? [];
+  const filtradas = inscripciones.filter(i => {
+    const mb = i.evento_nombre?.toLowerCase().includes(busqueda.toLowerCase());
+    const me = !filtroEstado || i.estado_id === Number(filtroEstado);
+    return mb && me;
+  });
+
+  const stats = [
+    { label: "Total Inscripciones", value: fmt(inscripciones.length), color: "#4ade80" },
+    { label: "Confirmadas", value: fmt(inscripciones.filter(i => i.estado_id === 2).length), color: "#60a5fa" },
+    { label: "Pendientes", value: fmt(inscripciones.filter(i => i.estado_id === 1).length), color: "#fbbf24" },
+    { label: "Total Gastado", value: fmtPeso(inscripciones.reduce((acc, curr) => acc + (curr.costo || 0), 0)), color: "#a78bfa" },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginTop: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "14px" }}>
+        {stats.map(s => <StatCard key={s.label} {...s} />)}
+      </div>
+
+      <div className="grafico-card grafico-card--wide">
+        <div className="grafico-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3>🎟️ Mis Inscripciones</h3>
+          <button className="reportes-alert__retry" onClick={() => onExport("mis_inscripciones")} style={{ padding: "5px 15px", fontSize: "0.8rem" }}>
+            Exportar CSV
+          </button>
+        </div>
+        <div className="grafico-card__body">
+          <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+            <input 
+              className="reportes-input" 
+              placeholder="Buscar evento..." 
+              value={busqueda} 
+              onChange={e => setBusqueda(e.target.value)} 
+              style={{ flex: 1, padding: "8px", background: "#0d0d0d", border: "1px solid #333", color: "#fff", borderRadius: "6px" }}
+            />
+            <select 
+              value={filtroEstado} 
+              onChange={e => setFiltroEstado(e.target.value)}
+              style={{ padding: "8px", background: "#0d0d0d", border: "1px solid #333", color: "#fff", borderRadius: "6px" }}
+            >
+              <option value="">Todos los estados</option>
+              <option value="1">Pendiente</option>
+              <option value="2">Confirmada</option>
+              <option value="3">Cancelada</option>
+            </select>
+          </div>
+          <div className="table-responsive">
+            <table className="tabla-reportes-custom">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Fecha</th>
+                  <th>Costo</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtradas.map((ins, idx) => (
+                  <tr key={idx}>
+                    <td><strong>{ins.evento_nombre}</strong><br/><small style={{color: "#888"}}>{ins.tipo}</small></td>
+                    <td>{fmtFecha(ins.fecha_evento)}</td>
+                    <td style={{ color: "#fbbf24" }}>{ins.costo > 0 ? fmtPeso(ins.costo) : "Gratis"}</td>
+                    <td><EstadoBadge estado={ins.estado_id} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   // ── Datos derivados ───────────────────────────────────────────────────────
 
@@ -894,6 +1005,16 @@ export default function ReportesPage() {
               </div>
             </div>
             </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
+             ROL 4 — CLIENTE
+        ════════════════════════════════════════════════════════════════ */}
+        {usuarioRol === 4 && reporteData && (
+          <SeccionCliente 
+            data={reporteData} 
+            onExport={handleExportarCSV} 
+          />
         )}
 
         {/* ════════════════════════════════════════════════════════════════

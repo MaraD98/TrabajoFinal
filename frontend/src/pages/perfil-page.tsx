@@ -4,6 +4,7 @@ import { useNavigate, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { Footer } from "../components/footer";
 import { Navbar } from '../components/navbar';
+import { HashLink } from 'react-router-hash-link';
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -520,9 +521,26 @@ useEffect(() => {
                                 {inscripciones.length === 0 ? (
                                     <div style={{ textAlign: 'center', padding: '40px 0', color: '#888' }}>
                                         <p>No te has inscripto a ningún evento todavía.</p>
-                                        <button onClick={() => navigate('/')} style={{ marginTop: '10px', padding: '8px 16px', background: '#ccff00', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                        
+                                        {/* Usamos HashLink en lugar de button + navigate */}
+                                        <HashLink 
+                                            smooth 
+                                            to="/#eventos" 
+                                            style={{ 
+                                                display: 'inline-block',
+                                                marginTop: '10px', 
+                                                padding: '8px 16px', 
+                                                background: '#ccff00', 
+                                                color: '#000',
+                                                textDecoration: 'none',
+                                                border: 'none', 
+                                                borderRadius: '4px', 
+                                                fontWeight: 'bold', 
+                                                cursor: 'pointer' 
+                                            }}
+                                        >
                                             EXPLORAR EVENTOS
-                                        </button>
+                                        </HashLink>
                                     </div>
                                 ) : (
                                     inscripciones.map((ins) => (
