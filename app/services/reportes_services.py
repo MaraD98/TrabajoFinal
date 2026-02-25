@@ -68,14 +68,13 @@ class ReporteService:
         if mes:
             filtros.append(func.extract("month", Evento.fecha_evento) == mes)
 
+        # -- CONTEOS BÁSICOS ORIGINALES (No los tocamos para no romper el CSV) --
         total_eventos = db.query(func.count(Evento.id_evento)).filter(*filtros).scalar()
 
-        resultados_estado = db.query(Evento.id_estado, func.count(Evento.id_evento))\
-            .filter(*filtros).group_by(Evento.id_estado).all()
+        resultados_estado = db.query(Evento.id_estado, func.count(Evento.id_evento)).filter(*filtros).group_by(Evento.id_estado).all()
         eventos_por_estado = [{"estado": e, "cantidad": c} for e, c in resultados_estado]
 
-        resultados_usuario = db.query(Evento.id_usuario, func.count(Evento.id_evento))\
-            .filter(*filtros).group_by(Evento.id_usuario).all()
+        resultados_usuario = db.query(Evento.id_usuario, func.count(Evento.id_evento)).filter(*filtros).group_by(Evento.id_usuario).all()
         eventos_por_usuario = [{"usuario": u, "cantidad": c} for u, c in resultados_usuario]
 
         resultados_mes = db.query(
@@ -100,17 +99,146 @@ class ReporteService:
         eventos_por_dificultad = [{"dificultad": n, "cantidad": c} for n, c in resultados_dificultad]
 
         usuarios_total = db.query(func.count(Usuario.id_usuario)).scalar()
-        resultados_roles = db.query(Usuario.id_rol, func.count(Usuario.id_usuario))\
-            .group_by(Usuario.id_rol).all()
+        resultados_roles = db.query(Usuario.id_rol, func.count(Usuario.id_usuario)).group_by(Usuario.id_rol).all()
         usuarios_por_rol = [{"rol": r, "cantidad": c} for r, c in resultados_roles]
 
         ubicaciones_crudas = db.query(Evento.ubicacion).filter(*filtros).all()
         lista_lugares = [ReporteService._extraer_localidad(u[0]) for u in ubicaciones_crudas if u[0]]
         conteo = Counter(lista_lugares)
-        eventos_por_ubicacion = [
-            {"ubicacion": lugar, "cantidad": cantidad}
-            for lugar, cantidad in conteo.most_common(10)
-        ]
+        eventos_por_ubicacion = [{"ubicacion": lugar, "cantidad": cantidad} for lugar, cantidad in conteo.most_common(10)]
+
+        # ═════════════════════════════════════════════════════════════════════
+        # -- NUEVA LÓGICA AGREGADA PARA LOS REQUERIMIENTOS 1 AL 5 DEL ADMIN --
+        # ═════════════════════════════════════════════════════════════════════
+
+        # 1 y 2. Lista Detallada (Propios y Externos) y Recaudación
+        eventos_query = (
+            db.query(
+                Evento,
+                TipoEvento.nombre.label("tipo_nombre"),
+                NivelDificultad.nombre.label("dificultad_nombre"), # <--- AGREGAMOS LA DIFICULTAD
+                Usuario.id_rol,
+                Usuario.nombre_y_apellido.label("organizador"),
+                func.count(ReservaEvento.id_reserva).label("total_reservas")
+            )
+            .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad) # <--- EL JOIN
+            .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
+            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+            .filter(*filtros)
+            .group_by(Evento.id_evento, TipoEvento.nombre, NivelDificultad.nombre, Usuario.id_rol, Usuario.nombre_y_apellido)
+            .order_by(Evento.fecha_evento.desc())
+            .all()
+        )
+
+        confirmadas_subq = (
+            db.query(
+                ReservaEvento.id_evento,
+                func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("confirmadas")
+            )
+            .group_by(ReservaEvento.id_evento)
+            .all()
+        )
+        confirmadas_map = {row.id_evento: int(row.confirmadas or 0) for row in confirmadas_subq}
+
+        lista_eventos_detallada = []
+        total_recaudado = 0.0
+        total_reservas_recibidas = 0
+
+        # Agregamos dificultad_nombre al for
+        for e, tipo_nombre, dificultad_nombre, id_rol, organizador, total_reservas in eventos_query:
+            confirmadas = confirmadas_map.get(e.id_evento, 0)
+            costo = float(e.costo_participacion or 0)
+            monto_evento = costo * confirmadas
+            total_recaudado += monto_evento
+            total_reservas_recibidas += (total_reservas or 0)
+            
+            pertenencia = "Propio" if id_rol in [1, 2] else "Externo"
+
+            lista_eventos_detallada.append({
+                "id": e.id_evento,
+                "nombre": e.nombre_evento,
+                "fecha_evento": e.fecha_evento.strftime('%Y-%m-%d') if e.fecha_evento else "Sin fecha",
+                "estado": e.id_estado,
+                "tipo": tipo_nombre,
+                "dificultad": dificultad_nombre or "Sin Dificultad", # <--- AHORA EL FRONTEND TIENE LA DIFICULTAD
+                "pertenencia": pertenencia,
+                "organizador": organizador,
+                "reservas_totales": total_reservas,
+                "inscripciones_confirmadas": confirmadas,
+                "cupo_maximo": e.cupo_maximo,
+                "costo_participacion": costo,
+                "monto_recaudado": round(monto_evento, 2),
+                "ubicacion": e.ubicacion,
+                "distancia_km": float(e.distancia_km or 0),
+            })
+
+        # 3. Tendencias por Ubicación (Con pertenencia)
+        tendencias_dict = {}
+        for ev in lista_eventos_detallada:
+            if ev["estado"] not in [3, 4]: 
+                continue
+            prov = ReporteService._extraer_provincia(ev["ubicacion"]).strip().title()
+            loc = ReporteService._extraer_localidad(ev["ubicacion"]).strip().title()
+
+            if prov not in tendencias_dict:
+                tendencias_dict[prov] = {"provincia": prov, "total_eventos": 0, "localidades": {}}
+            if loc not in tendencias_dict[prov]["localidades"]:
+                tendencias_dict[prov]["localidades"][loc] = {"localidad": loc, "cantidad": 0, "eventos": []}
+
+            tendencias_dict[prov]["localidades"][loc]["eventos"].append(ev)
+            tendencias_dict[prov]["localidades"][loc]["cantidad"] += 1
+            tendencias_dict[prov]["total_eventos"] += 1
+
+        tendencias_ubicacion = []
+        for prov_data in tendencias_dict.values():
+            prov_data["localidades"] = list(prov_data["localidades"].values())
+            tendencias_ubicacion.append(prov_data)
+        tendencias_ubicacion.sort(key=lambda x: x["total_eventos"], reverse=True)
+
+        # 4. Top 10 Recaudación
+        top_10_recaudacion = sorted(
+            [e for e in lista_eventos_detallada if e["estado"] in [3, 4]], 
+            key=lambda x: x["monto_recaudado"], 
+            reverse=True
+        )[:10]
+
+        # 5. Usuarios Nuevos (Clientes y Org Externas)
+        usuarios_nuevos_query = db.query(Usuario).filter(Usuario.id_rol.in_([3, 4])).all()
+        usuarios_nuevos = []
+        for u in usuarios_nuevos_query:
+            fecha_creacion = getattr(u, 'fecha_creacion', None) or getattr(u, 'fecha_registro', None)
+            
+            # Filtro manual de fecha para usuarios si aplicaron filtros
+            if anio and fecha_creacion and fecha_creacion.year != anio:
+                continue
+            if mes and fecha_creacion and fecha_creacion.month != mes:
+                continue
+
+            # Buscar inscripciones confirmadas
+            inscripciones_q = (
+                db.query(Evento.nombre_evento, Evento.fecha_evento)
+                .join(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+                .filter(ReservaEvento.id_usuario == u.id_usuario, ReservaEvento.id_estado_reserva == 2)
+                .all()
+            )
+            insc_list = [{"evento": i.nombre_evento, "fecha": i.fecha_evento.strftime('%d/%m/%Y') if i.fecha_evento else ""} for i in inscripciones_q]
+
+            # Buscar eventos creados
+            ev_creados_q = db.query(Evento.nombre_evento, Evento.fecha_evento).filter(Evento.id_usuario == u.id_usuario).all()
+            ev_list = [{"evento": e.nombre_evento, "fecha": e.fecha_evento.strftime('%d/%m/%Y') if e.fecha_evento else ""} for e in ev_creados_q]
+
+            usuarios_nuevos.append({
+                "id": u.id_usuario,
+                "nombre": u.nombre_y_apellido,
+                "email": getattr(u, 'email', 'Sin Email'),
+                "rol": "Organización Externa" if u.id_rol == 3 else "Cliente",
+                "fecha_creacion": fecha_creacion.strftime('%d/%m/%Y') if fecha_creacion else "Sin fecha",
+                "inscripciones": insc_list,
+                "cantidad_inscripciones": len(insc_list),
+                "eventos_creados": ev_list,
+                "cantidad_eventos_creados": len(ev_list)
+            })
 
         return {
             "total_eventos": total_eventos,
@@ -121,7 +249,15 @@ class ReporteService:
             "eventos_por_mes": eventos_por_mes,
             "usuarios_total": usuarios_total,
             "usuarios_por_rol": usuarios_por_rol,
-            "eventos_por_ubicacion": eventos_por_ubicacion
+            "eventos_por_ubicacion": eventos_por_ubicacion,
+            
+            # -- DATOS NUEVOS PARA LOS REQUERIMIENTOS FRONTEND --
+            "lista_eventos_detallada": lista_eventos_detallada,
+            "recaudacion_total": round(total_recaudado, 2),
+            "total_reservas_recibidas": total_reservas_recibidas,
+            "tendencias_ubicacion_completa": tendencias_ubicacion,
+            "top_10_recaudacion": top_10_recaudacion,
+            "usuarios_nuevos": usuarios_nuevos
         }
 
     @staticmethod
