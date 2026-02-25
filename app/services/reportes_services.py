@@ -4,7 +4,7 @@ from sqlalchemy import func, case, text
 from app.models.auth_models import Usuario, Rol
 from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublicacion
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad
-from app.models.inscripcion_models import ReservaEvento
+from app.models.inscripcion_models import EstadoReserva, ReservaEvento
 
 
 class ReporteService:
@@ -426,7 +426,53 @@ class ReporteService:
 
     @staticmethod
     def reportes_cliente(db: Session, id_usuario: int):
+        """
+        REPORTES CLIENTE - Mis inscripciones y actividad
+        """
+        # Obtener todas las reservas del cliente
+        reservas = db.query(
+            ReservaEvento.id_reserva,
+            ReservaEvento.id_estado_reserva,
+            ReservaEvento.fecha_reserva,
+            Evento.id_evento,
+            Evento.nombre_evento,
+            Evento.fecha_evento,
+            Evento.costo_participacion,
+            Evento.ubicacion,
+            TipoEvento.nombre.label("tipo"),
+            EstadoReserva.nombre.label("estado_reserva")
+        ).join(Evento, ReservaEvento.id_evento == Evento.id_evento)\
+         .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)\
+         .join(EstadoReserva, ReservaEvento.id_estado_reserva == EstadoReserva.id_estado_reserva)\
+         .filter(ReservaEvento.id_usuario == id_usuario)\
+         .order_by(ReservaEvento.fecha_reserva.desc()).all()
+        
+        mis_inscripciones = [{
+            "reserva_id": r.id_reserva,
+            "evento_id": r.id_evento,
+            "evento_nombre": r.nombre_evento,
+            "fecha_evento": r.fecha_evento.strftime('%Y-%m-%d') if r.fecha_evento else None,
+            "fecha_reserva": r.fecha_reserva.strftime('%Y-%m-%d') if r.fecha_reserva else None,
+            "costo": float(r.costo_participacion or 0),
+            "ubicacion": r.ubicacion,
+            "tipo": r.tipo,
+            "estado": r.estado_reserva,
+            "estado_id": r.id_estado_reserva
+        } for r in reservas]
+        
+        # Estadísticas
+        total_inscripciones = len(mis_inscripciones)
+        confirmadas = sum(1 for i in mis_inscripciones if i["estado_id"] == 2)
+        pendientes = sum(1 for i in mis_inscripciones if i["estado_id"] == 1)
+        canceladas = sum(1 for i in mis_inscripciones if i["estado_id"] == 3)
+        
+        total_gastado = sum(i["costo"] for i in mis_inscripciones if i["estado_id"] == 2)
+        
         return {
-            "mis_inscripciones": "Aquí iría la lógica de inscripciones del cliente",
-            "mis_notificaciones": "Aquí iría la lógica de notificaciones del cliente",
+            "mis_inscripciones": mis_inscripciones,
+            "total_inscripciones": total_inscripciones,
+            "confirmadas": confirmadas,
+            "pendientes": pendientes,
+            "canceladas": canceladas,
+            "total_gastado": round(total_gastado, 2)
         }

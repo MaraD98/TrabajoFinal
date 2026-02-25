@@ -145,11 +145,24 @@ export default function InicioPage() {
         }
     };
 
-    const aplicarFiltros = () => {
-        cargarEventos();
+    const aplicarFiltros = async () => {
+    await cargarEventos(); // Esperamos a que la función asíncrona termine
+
+    // Usamos un intervalo para intentar scrollear varias veces hasta que el elemento aparezca
+    let intentos = 0;
+    const scrollInterval = setInterval(() => {
+        const elemento = document.getElementById('eventos');
+        if (elemento) {
+            elemento.scrollIntoView({ behavior: 'smooth' });
+            clearInterval(scrollInterval);
+        }
+        intentos++;
+        if (intentos > 10) clearInterval(scrollInterval); // Si después de 1 segundo no aparece, paramos
+    }, 100);
     };
 
     const limpiarFiltros = async () => {
+        // 1. Resetear estados de los inputs
         setBusqueda("");
         setUbicacion("");
         setFechaDesde("");
@@ -158,31 +171,46 @@ export default function InicioPage() {
         setDificultadSeleccionada(undefined);
         
         setLoading(true);
+
         try {
+            // 2. Traer todos los eventos de nuevo (sin filtros)
             const resultado = await buscarEventosConFiltros({});
             const eventosFiltrados = resultado.eventos || [];
+            
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
 
+            // 3. Procesar y filtrar por fecha
             const eventosProcesados = eventosFiltrados
                 .filter((evento: Evento) => {
                     const fechaEvento = parsearFechaDD_MM_YYYY(evento.fecha_evento);
                     return fechaEvento && fechaEvento >= hoy;
                 })
                 .sort((a: Evento, b: Evento) => {
-            const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
-            const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
-            return fechaA - fechaB;
+                    const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
+                    const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
+                    return fechaA - fechaB;
                 });
 
+            // 4. Actualizar estados de la lista
             setEventos(eventosProcesados);
             setTotalEventos(resultado.total);
             setMensajeResultado(resultado.mensaje);
+
         } catch (err) {
             console.error(err);
             setError('No se pudieron cargar los eventos.');
         } finally {
-            setLoading(false);
+            // 5. IMPORTANTE: Primero apagamos el loader
+            setLoading(false); 
+            
+            // 6. El scroll va acá afuera para que ocurra DESPUÉS de que el DOM de eventos aparezca
+            setTimeout(() => {
+                const elemento = document.getElementById('eventos');
+                if (elemento) {
+                    elemento.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 300); // 300ms es el tiempo justo para que React termine de pintar el componente
         }
     };
 
@@ -312,7 +340,7 @@ export default function InicioPage() {
                         </div>
 
                         <div className="filter-actions">
-                            <button className="btn-aplicar-filtros" onClick={aplicarFiltros} style={{ background: '#ccff00', color: '#000', border: 'none', padding: '12px 30px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }}>
+                            <button type="button" className="btn-aplicar-filtros" onClick={aplicarFiltros} style={{ background: '#ccff00', color: '#000', border: 'none', padding: '12px 30px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }}>
                                 🔍 BUSCAR
                             </button>
                             <button className="btn-limpiar-filtros" onClick={limpiarFiltros} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '12px 30px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.3s' }}>
