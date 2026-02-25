@@ -258,13 +258,13 @@ export default function ReportesPage() {
   const barData = [
     { name: 'Activos', Propios: statsSist.Activo.Propios, Externos: statsSist.Activo.Externos },
     { name: 'Finalizados', Propios: statsSist.Finalizado.Propios, Externos: statsSist.Finalizado.Externos },
-    { name: 'Cancelados', Propios: statsSist.Cancelado.Propios, Externos: statsSist.Cancelado.Externos },
+    { name: 'Eliminados', Propios: statsSist.Cancelado.Propios, Externos: statsSist.Cancelado.Externos },
   ];
 
   const pieData = [
     { name: 'Activos', value: statsSist.Activo.Total, color: '#4ade80' },
     { name: 'Finalizados', value: statsSist.Finalizado.Total, color: '#3b82f6' },
-    { name: 'Cancelados', value: statsSist.Cancelado.Total, color: '#ef4444' }
+    { name: 'Eliminados', value: statsSist.Cancelado.Total, color: '#ef4444' }
   ];
 
   const handleChartClick = (estadoFiltroPlural: string, tipoFiltro: string | null = null) => {
