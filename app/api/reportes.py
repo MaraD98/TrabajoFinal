@@ -1,18 +1,11 @@
-# app/api/api.py
-from fastapi import APIRouter, Depends, HTTPException, status, Query # Importamos Query para los filtros
-from sqlalchemy import func
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.api.admin_eventos import get_current_user
 from app.db.database import get_db
-from app.core.security import security
-from app.models.registro_models import Evento
 from app.services.reportes_services import ReporteService
 from fastapi.responses import StreamingResponse
 from io import StringIO
 import csv
-from app.models.auth_models import Usuario
-from app.models.registro_models import Evento
-
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
@@ -20,13 +13,13 @@ router = APIRouter(prefix="/reportes", tags=["Reportes"])
 def obtener_reportes(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
-    anio: int = Query(None, description="Año para filtrar"), # Filtro opcional
-    mes: int = Query(None, description="Mes para filtrar")    # Filtro opcional
+    anio: int = Query(None, description="Año para filtrar"),
+    mes: int = Query(None, description="Mes para filtrar")
 ):
     if current_user.id_rol == 1:
-        return ReporteService.reportes_admin(db, anio=anio, mes=mes) # Pasamos filtros
+        return ReporteService.reportes_admin(db, anio=anio, mes=mes)
     elif current_user.id_rol == 2:
-        return ReporteService.reportes_supervisor(db, current_user.id_usuario, anio=anio, mes=mes) # Pasamos filtros
+        return ReporteService.reportes_supervisor(db, current_user.id_usuario, anio=anio, mes=mes)
     elif current_user.id_rol == 3:
         return ReporteService.reportes_organizacion_externa(db, current_user.id_usuario)
     elif current_user.id_rol == 4:
@@ -45,128 +38,127 @@ def export_reportes(
 ):
     # Mapeo de roles permitidos para cada tipo de reporte
     roles_permitidos = {
-        "total_eventos": [2],
-        "eventos_por_estado": [2, 3],
-        "eventos_por_usuario": [2],
-        "eventos_por_mes": [2],
+        "total_eventos": [1, 2],
+        "eventos_por_estado": [1, 2, 3],
+        "eventos_por_usuario": [1, 2],
+        "eventos_por_mes": [1, 2],
         "usuarios_total": [1],
         "usuarios_por_rol": [1],
-        "eventos_por_tipo": [1, 2], 
+        "eventos_por_tipo": [1, 2, 3], 
         "eventos_por_dificultad": [1, 2], 
         "solicitudes_externas": [2],
-        "mis_eventos_total": [2,3,4],
-        "mis_eventos_por_estado": [2,3,4],
-        "mis_inscripciones": [2,3,4],
-        "mis_notificaciones": [2,3,4],
+        "mis_eventos_total": [3,4],
+        "mis_eventos_por_estado": [1,2,3,4],
         "eventos_por_ubicacion": [1,2],
         "lista_eventos_detallada": [1,2,3],
         "tendencias_ubicacion_completa": [1, 3], # Admin y Org Externa
         "top_10_recaudacion": [1],               # Solo Admin
         "usuarios_nuevos": [1],                  # Solo Admin
-        "lista_eventos_detallada": [1, 2, 3]     # Ahora el 1 también lo usa
+        "lista_eventos_detallada": [1, 2, 3],     # Ahora el 1 también lo usa
+        "analisis_organizadores": [1, 2],  
+        "top_ocupacion": [1, 2],
+        "dashboard_eventos": [1, 2],       
+        "solicitudes_externas": [2],
+        "mis_inscripciones": [4],
     }
 
     if tipo not in roles_permitidos:
         raise HTTPException(status_code=400, detail="Tipo de reporte no válido")
     
-    # Validación de rol (Rol 1 es Admin y tiene acceso a todo lo de roles_permitidos)
+    # 2. Validación de permisos
     es_admin = current_user.id_rol == 1
     tiene_permiso = current_user.id_rol in roles_permitidos.get(tipo, [])
 
     if not es_admin and not tiene_permiso:
         raise HTTPException(status_code=403, detail="No tienes permisos para exportar este reporte")
     
-    # Inicializamos variables
+    # 3. Obtención de datos centralizada (Lógica del Documento 2)
+    # Llamamos al service una sola vez según el rol
+    if current_user.id_rol == 1:
+        data_completa = ReporteService.reportes_admin(db)
+    elif current_user.id_rol == 2:
+        data_completa = ReporteService.reportes_supervisor(db, current_user.id_usuario)
+    elif current_user.id_rol == 3:
+        data_completa = ReporteService.reportes_organizacion_externa(db, current_user.id_usuario)
+    else:
+        data_completa = ReporteService.reportes_cliente(db, current_user.id_usuario)
+
+    # 4. Extracción de datos y fieldnames (Respetando Documento 1)
     data = []
     fieldnames = []
+    reporte_super = {}
 
-    # Generar datos según tipo
     if tipo == "total_eventos":
-        total_eventos = db.query(func.count(Evento.id_evento)).scalar()
-        data = [{"total_eventos": total_eventos}]
+        data = [{"total_eventos": data_completa.get("total_eventos", 0)}]
         fieldnames = ["total_eventos"]
 
-    if current_user.id_rol == 1:
-        # Ahora pasamos el ID para que el Admin también vea sus "Mis Eventos"
-        data = ReporteService.reportes_admin(db, current_user.id_usuario)
-
     elif tipo == "eventos_por_estado":
-        resultados = db.query(Evento.id_estado, func.count(Evento.id_evento)).group_by(Evento.id_estado).all()
-        data = [{"estado": estado, "cantidad": cantidad} for estado, cantidad in resultados]
+        data = data_completa.get("eventos_por_estado", [])
         fieldnames = ["estado", "cantidad"]
 
     elif tipo == "eventos_por_usuario":
-        resultados = db.query(Evento.id_usuario, func.count(Evento.id_evento)).group_by(Evento.id_usuario).all()
-        data = [{"usuario": usuario, "cantidad": cantidad} for usuario, cantidad in resultados]
+        data = data_completa.get("eventos_por_usuario", [])
         fieldnames = ["usuario", "cantidad"]
 
     elif tipo == "eventos_por_mes":
-        resultados = db.query(
-            func.extract("year", Evento.fecha_evento).label("anio"),
-            func.extract("month", Evento.fecha_evento).label("mes"),
-            func.count(Evento.id_evento)
-        ).group_by("anio", "mes").all()
-        data = [{"anio": int(anio), "mes": int(mes), "cantidad": cantidad} for anio, mes, cantidad in resultados]
+        data = data_completa.get("eventos_por_mes", [])
         fieldnames = ["anio", "mes", "cantidad"]
 
     elif tipo == "usuarios_total":
-        usuarios_total = db.query(func.count(Usuario.id_usuario)).scalar()
-        data = [{"usuarios_total": usuarios_total}]
+        data = [{"usuarios_total": data_completa.get("usuarios_total", 0)}]
         fieldnames = ["usuarios_total"]
 
     elif tipo == "usuarios_por_rol":
-        resultados = db.query(Usuario.id_rol, func.count(Usuario.id_usuario)).group_by(Usuario.id_rol).all()
-        data = [{"rol": rol, "cantidad": cantidad} for rol, cantidad in resultados]
+        data = data_completa.get("usuarios_por_rol", [])
         fieldnames = ["rol", "cantidad"]
 
     elif tipo == "eventos_por_tipo":
-        resultados = db.query(Evento.tipo_evento, func.count(Evento.id_evento)).group_by(Evento.tipo_evento).all()
-        data = [{"tipo": tipo_evento, "cantidad": cantidad} for tipo_evento, cantidad in resultados]
+        data = data_completa.get("eventos_por_tipo", data_completa.get("rendimiento_por_tipo", []))
         fieldnames = ["tipo", "cantidad"]
 
-    elif tipo == "solicitudes_externas": 
-        data = ReporteService.reportes_supervisor(db, current_user.id_usuario)["solicitudes_externas"]
+    elif tipo == "eventos_por_dificultad":
+        data = data_completa.get("eventos_por_dificultad", [])
+        fieldnames = ["dificultad", "cantidad"]
+
+    elif tipo == "solicitudes_externas":
+        data = data_completa.get("solicitudes_externas", [])
         fieldnames = ["estado", "cantidad"]
 
     elif tipo == "mis_eventos_total":
-        total = db.query(func.count(Evento.id_evento)).filter(Evento.id_usuario == current_user.id_usuario).scalar()
-        data = [{"mis_eventos_total": total}]
+        data = [{"mis_eventos_total": data_completa.get("mis_eventos_total", 0)}]
         fieldnames = ["mis_eventos_total"]
 
     elif tipo == "mis_eventos_por_estado":
-        resultados = db.query(Evento.id_estado, func.count(Evento.id_evento)).filter(Evento.id_usuario == current_user.id_usuario).group_by(Evento.id_estado).all()
-        data = [{"estado": estado, "cantidad": cantidad} for estado, cantidad in resultados]
+        data = data_completa.get("mis_eventos_por_estado", [])
         fieldnames = ["estado", "cantidad"]
 
-    elif tipo == "mis_inscripciones":
-        # Placeholder: depende de tu modelo de inscripciones
-        data = [{"evento": "Carrera 5K", "estado": "Inscripto"}]
-        fieldnames = ["evento", "estado"]
-
-    elif tipo == "mis_notificaciones":
-        # Placeholder: depende de tu modelo de notificaciones
-        data = [{"mensaje": "Tu evento fue aprobado"}]
-        fieldnames = ["mensaje"]
-
-    # --- AGREGADO AL FINAL: REPORTE DIFICULTAD ---
-    elif tipo == "eventos_por_dificultad":
-        # Obtenemos la data usando el service para asegurar consistencia
-        data = ReporteService.reportes_admin(db)["eventos_por_dificultad"]
-        fieldnames = ["dificultad", "cantidad"]
-
     elif tipo == "eventos_por_ubicacion":
-        if current_user.id_rol == 1:
-            reporte = ReporteService.reportes_admin(db)
-        else:
-            reporte = ReporteService.reportes_supervisor(db, current_user.id_usuario)
-
-        data = reporte.get("eventos_por_ubicacion", [])
+        data = data_completa.get("eventos_por_ubicacion", [])
         fieldnames = ["ubicacion", "cantidad"]
+        
+    # Nuevos exportables del Supervisor
+    if current_user.id_rol == 2:
+        reporte_super = ReporteService.reportes_supervisor(db, current_user.id_usuario)
+        
+    if tipo == "analisis_organizadores":
+        data = reporte_super.get("analisis_organizadores", [])
+        fieldnames = ["id_usuario", "organizador", "email", "rol", "total_eventos", "activos", "finalizados", "recaudacion_total"]
+
+    elif tipo == "top_ocupacion":
+        data = reporte_super.get("top_ocupacion", [])
+        fieldnames = ["id_evento", "nombre_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
+
+    elif tipo == "dashboard_eventos":
+        data = reporte_super.get("dashboard_eventos", [])
+        fieldnames = ["id_evento", "nombre_evento", "fecha_evento", "responsable", "estado", "pertenencia"]
+
+    elif tipo == "solicitudes_externas": 
+        data = reporte_super.get("solicitudes_externas", [])
+        fieldnames = ["estado", "cantidad"]
 
     # Desde aca empiezo con los reportes para organizacion externa
     elif tipo == "lista_eventos_detallada":
-        reporte = ReporteService.reportes_organizacion_externa(db, current_user.id_usuario)
-        data = reporte.get("lista_eventos_detallada", [])
+        data = data_completa.get("lista_eventos_detallada", [])
         fieldnames = ["id", "nombre", "fecha", "tipo", "reservas", "estado"]
 
     elif tipo == "tendencias_ubicacion_completa":
@@ -183,16 +175,20 @@ def export_reportes(
     elif tipo == "usuarios_nuevos":
         data = ReporteService.reportes_admin(db).get("usuarios_nuevos", [])
         fieldnames = ["nombre", "email", "rol", "fecha_creacion", "cantidad_inscripciones", "cantidad_eventos_creados"]
+    elif tipo == "mis_inscripciones":
+        data = data_completa.get("mis_inscripciones", [])
+        fieldnames = ["evento", "estado"]
 
-    # Crear CSV en memoria
+    # 5. Generación del CSV (Lógica robusta)
     output = StringIO()
-    if fieldnames:
-        writer = csv.DictWriter(output, fieldnames=fieldnames)
+    if data:
+        # extrasaction='ignore' evita errores si el service devuelve más campos de los que queremos exportar
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(data)
     else:
-        # Fallback por si data viene vacío para no romper el CSV
         output.write("Sin datos disponibles para este reporte")
+    
     output.seek(0)
 
     return StreamingResponse(

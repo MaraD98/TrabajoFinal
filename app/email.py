@@ -1,14 +1,16 @@
-import smtplib
-from email.message import EmailMessage
 import os
 from dotenv import load_dotenv
-import socket 
+from email.message import EmailMessage
+# Reemplazamos smtplib y socket por la librería de SendGrid
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 
-# --- CONFIGURACIÓN GLOBAL (Carga una sola vez al iniciar) ---
+# --- CONFIGURACIÓN GLOBAL ---
 REMITENTE = os.getenv("MAIL_REMITENTE")
-PASSWORD = os.getenv("MAIL_PASSWORD")
+# Usamos la API KEY en lugar del PASSWORD de Gmail
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 API_URL = os.getenv("BACKEND_URL")
 URL_LOGO = os.getenv("URL_LOGO")
 
@@ -188,10 +190,8 @@ def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id
     """
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
-def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, motivo: str):
-    REMITENTE = os.getenv("MAIL_REMITENTE")
-    PASSWORD = os.getenv("MAIL_PASSWORD")
 
+def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, motivo: str):
     msg = EmailMessage()
     msg['Subject'] = f'❌ EVENTO CANCELADO: {nombre_evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -228,6 +228,7 @@ def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, mot
     """
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
+
 def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
     msg = EmailMessage()
     msg['Subject'] = f'⏰ ¡Últimas 24hs! Asegurá tu lugar en {nombre_evento}'
@@ -294,29 +295,35 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
 
-# --- FUNCIÓN INTERNA DE ENVÍO ---
+# --- FUNCIÓN INTERNA DE ENVÍO ADAPTADA A SENDGRID ---
 def _ejecutar_envio(msg):
-    test_user = os.getenv("MAIL_REMITENTE")
-    test_pass = os.getenv("MAIL_PASSWORD")
-    
-    print(f"DEBUG - Intentando conexión IPv4 con Gmail para: {msg['To']}...")
+    print(f"DEBUG - Intentando envío vía SendGrid API para: {msg['To']}...")
+
+    # Extraemos el HTML del objeto EmailMessage que ya armaste
+    html_body = ""
+    for part in msg.iter_parts():
+        if part.get_content_type() == 'text/html':
+            html_body = part.get_payload(decode=True).decode()
+
+    # Creamos el objeto Mail de SendGrid
+    message = Mail(
+        from_email=REMITENTE,
+        to_emails=msg['To'],
+        subject=msg['Subject'],
+        html_content=html_body
+    )
 
     try:
-        # FORZAMOS IPV4: Resolvemos la IP de gmail manualmente para evitar el error de red
-        gmail_ipv4 = socket.gethostbyname('smtp.gmail.com')
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
         
-        # Usamos la IP resuelta y un timeout generoso
-        with smtplib.SMTP(gmail_ipv4, 587, timeout=20) as server:
-            print(f"DEBUG - Conectado a la IP {gmail_ipv4}. Negociando TLS...")
-            server.starttls()
-            
-            print("DEBUG - Haciendo login...")
-            server.login(test_user, test_pass)
-            
-            server.send_message(msg)
-            print("✅ ¡ENVIADO CORRECTAMENTE!")
+        if response.status_code in [200, 201, 202]:
+            print(f"✅ ¡ENVIADO VIA API! Status: {response.status_code}")
             return True
+        else:
+            print(f"⚠️ Error SendGrid: Status {response.status_code}")
+            return False
             
     except Exception as e:
-        print(f"❌ Error real en Render ({type(e).__name__}): {e}")
+        print(f"❌ Error en la API: {e}")
         return False
