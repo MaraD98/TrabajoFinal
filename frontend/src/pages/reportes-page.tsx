@@ -795,27 +795,6 @@ export default function ReportesPage() {
           </div>
         )}
 
-        {/* ── Tarjetas Admin / Supervisor ────────────────────────────────── */}
-        {(usuarioRol === 1 || usuarioRol === 2) && (
-          <>
-            <div className="stat-card stat-card--primary">
-              <div className="stat-card__valor">{reporteData?.total_eventos ?? 0}</div>
-              <div className="stat-card__label">Total Eventos Sistema</div>
-            </div>
-            <div className="stat-card stat-card--success">
-              <div className="stat-card__valor">{reporteData?.usuarios_total ?? 0}</div>
-              <div className="stat-card__label">Usuarios Registrados</div>
-            </div>
-            <div
-              className="stat-card stat-card--info"
-              style={{ cursor: "pointer" }}
-              onClick={() => document.getElementById("lista_eventos_detallada")?.scrollIntoView({ behavior: "smooth" })}
-            >
-              <div className="stat-card__valor">{reporteData?.mis_eventos_total ?? 0}</div>
-              <div className="stat-card__label">Mis Eventos Creados</div>
-            </div>
-          </>
-        )}
         {/* ════════════════════════════════════════════════════════════════
             ROL 2 — SUPERVISOR (Panel Exclusivo)
         ════════════════════════════════════════════════════════════════ */}
@@ -1079,7 +1058,7 @@ export default function ReportesPage() {
         {/* ════════════════════════════════════════════════════════════════
             ROL 3 — ORGANIZACIÓN EXTERNA
         ════════════════════════════════════════════════════════════════ */}
-        {usuarioRol === 3 && (
+        {usuarioRol <= 3 && (
           <div style={{ marginTop: "20px" }}>
 
             {/* Acordeón: mis solicitudes por estado */}
@@ -1290,29 +1269,46 @@ export default function ReportesPage() {
                 {detalleRecaudacionFiltrado.length === 0 ? (
                   <p className="no-data">Sin eventos para mostrar con los filtros actuales.</p>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="tabla-reportes-custom">
-                      <thead>
+                  <div 
+                    className="table-responsive" 
+                    style={{ 
+                      maxHeight: "450px", /* Altura máxima para activar el scroll */
+                      overflowY: "auto", 
+                      overflowX: "auto" 
+                    }}
+                  >
+                    <table className="tabla-reportes-custom" style={{ width: "100%", borderCollapse: "collapse", position: "relative" }}>
+                      
+                      {/* ENCABEZADO FIJO (Sticky) */}
+                      <thead style={{ 
+                        position: "sticky", 
+                        top: 0, 
+                        zIndex: 10, 
+                        backgroundColor: "#1e1e1e", /* Cambiá este color si tu fondo es distinto */
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.2)" 
+                      }}>
                         <tr>
-                          <th style={{ cursor: "pointer" }} onClick={() => handleSortFin("nombre")}>
+                          <th style={{ cursor: "pointer", padding: "12px 8px" }} onClick={() => handleSortFin("nombre")}>
                             Evento{sif("nombre")}
                           </th>
-                          <th style={{ cursor: "pointer" }} onClick={() => handleSortFin("fecha")}>
+                          <th style={{ cursor: "pointer", padding: "12px 8px" }} onClick={() => handleSortFin("fecha")}>
                             Fecha{sif("fecha")}
                           </th>
-                          <th>Tipo</th>
-                          <th style={{ textAlign: "center", cursor: "pointer" }} onClick={() => handleSortFin("cupo")}>
+                          <th style={{ padding: "12px 8px" }}>Tipo</th>
+                          <th style={{ textAlign: "center", cursor: "pointer", padding: "12px 8px" }} onClick={() => handleSortFin("cupo")}>
                             Cupo{sif("cupo")}
                           </th>
-                          <th style={{ textAlign: "right", cursor: "pointer" }} onClick={() => handleSortFin("unitario")}>
+                          <th style={{ textAlign: "right", cursor: "pointer", padding: "12px 8px" }} onClick={() => handleSortFin("unitario")}>
                             Valor Unit.{sif("unitario")}
                           </th>
-                          <th style={{ textAlign: "right", cursor: "pointer" }} onClick={() => handleSortFin("monto")}>
+                          <th style={{ textAlign: "right", cursor: "pointer", padding: "12px 8px" }} onClick={() => handleSortFin("monto")}>
                             Monto Total{sif("monto")}
                           </th>
-                          <th style={{ textAlign: "center" }}>Acción</th>
+                          <th style={{ textAlign: "center", padding: "12px 8px" }}>Acción</th>
                         </tr>
                       </thead>
+                      
+                      {/* CUERPO DE LA TABLA (Scrolleable) */}
                       <tbody>
                         {detalleRecaudacionFiltrado.map((item: DetalleRecaudacion, idx: number) => (
                           <tr key={idx}>
@@ -1349,22 +1345,33 @@ export default function ReportesPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot>
+                      
+                      {/* PIE DE TABLA FIJO (Sticky - Totales) */}
+                      <tfoot style={{ 
+                        position: "sticky", 
+                        bottom: 0, 
+                        zIndex: 10, 
+                        backgroundColor: "#1e1e1e", /* Mismo color que el header */
+                        boxShadow: "0 -2px 4px rgba(0,0,0,0.2)" 
+                      }}>
                         <tr style={{ borderTop: "2px solid #4ade80" }}>
-                          <td colSpan={5} style={{ textAlign: "right", fontWeight: "bold", fontSize: "1.1rem" }}>
+                          <td colSpan={5} style={{ textAlign: "right", fontWeight: "bold", fontSize: "1.1rem", padding: "12px 8px" }}>
                             TOTAL FILTRADO:
                           </td>
-                          <td style={{ textAlign: "right", color: "#4ade80", fontWeight: "bold", fontSize: "1.2rem" }}>
+                          <td style={{ textAlign: "right", color: "#4ade80", fontWeight: "bold", fontSize: "1.2rem", padding: "12px 8px" }}>
                             ${totalRecaudacionFiltrado.toLocaleString("es-AR")}
                           </td>
-                          <td />
+                          <td style={{ padding: "12px 8px" }} />
                         </tr>
                       </tfoot>
+                      
                     </table>
                   </div>
                 )}
               </div>
             </div>
+
+            
             </div>
         )}
 
@@ -1382,25 +1389,6 @@ export default function ReportesPage() {
             ADMIN / SUPERVISOR — Gráficos del sistema
         ════════════════════════════════════════════════════════════════ */}
         <div className="reportes-graficos">
-
-          {usuarioRol <= 2 && (reporteData?.eventos_por_mes ?? []).length > 0 && (
-            <div className="grafico-card grafico-card--wide">
-              <div className="grafico-card__header">
-                <h3>📅 Tendencia Mensual de Eventos</h3>
-                <button
-                  data-html2canvas-ignore="true"
-                  disabled={exportando === "eventos_por_mes"}
-                  onClick={() => handleExportarCSV("eventos_por_mes")}
-                  className="btn-export"
-                >
-                  {exportando === "eventos_por_mes" ? "..." : "📥 CSV"}
-                </button>
-              </div>
-              <div className="grafico-card__body">
-                {renderGraficoLinea(reporteData?.eventos_por_mes ?? [])}
-              </div>
-            </div>
-          )}
 
           {usuarioRol <= 2 && (reporteData?.eventos_por_tipo ?? []).length > 0 && (
             <div className="grafico-card">
@@ -1474,28 +1462,6 @@ export default function ReportesPage() {
               </div>
               <div className="grafico-card__body">
                 {renderGraficoPie(reporteData?.usuarios_por_rol ?? [], "rol", "cantidad", getNombreRol)}
-              </div>
-            </div>
-          )}
-
-          {usuarioRol <= 2 && (
-            <div className="grafico-card">
-              <div className="grafico-card__header">
-                <h3>🕵️ Auditoría de Cambios</h3>
-                <button
-                  data-html2canvas-ignore="true"
-                  disabled={exportando === "auditoria"}
-                  onClick={() => handleExportarCSV("auditoria")}
-                  className="btn-export"
-                >
-                  {exportando === "auditoria" ? "..." : "📥 CSV"}
-                </button>
-              </div>
-              <div className="grafico-card__body">
-                <p style={{ fontSize: "0.9rem", color: "#e0e0e0" }}>
-                  Registro de intervenciones administrativas sobre eventos y usuarios.
-                </p>
-                <div className="audit-badge">Auditoría Activa</div>
               </div>
             </div>
           )}

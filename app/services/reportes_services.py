@@ -6,17 +6,20 @@ from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublica
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad
 from app.models.inscripcion_models import EstadoReserva, ReservaEvento
 
-
 class ReporteService:
 
     @staticmethod
-    def _get_mis_estadisticas(db: Session, id_usuario: int):
-        total = db.query(func.count(Evento.id_evento))\
-                  .filter(Evento.id_usuario == id_usuario).scalar()
+    def _get_mis_estadisticas(db: Session, id_usuario: int, id_rol: int):
+        query_total = db.query(func.count(Evento.id_evento))
+        query_estados = db.query(Evento.id_estado, func.count(Evento.id_evento)).group_by(Evento.id_estado)
 
-        res_estados = db.query(Evento.id_estado, func.count(Evento.id_evento))\
-                        .filter(Evento.id_usuario == id_usuario)\
-                        .group_by(Evento.id_estado).all()
+        # Si NO es admin(1) ni supervisor(2), filtramos solo por su usuario
+        if id_rol > 2:
+            query_total = query_total.filter(Evento.id_usuario == id_usuario)
+            query_estados = query_estados.filter(Evento.id_usuario == id_usuario)
+
+        total = query_total.scalar()
+        res_estados = query_estados.all()
         por_estado = [{"estado": e, "cantidad": c} for e, c in res_estados]
 
         return {
@@ -263,11 +266,12 @@ class ReporteService:
         }
 
     @staticmethod
-    def reportes_organizacion_externa(db: Session, id_usuario: int):
-        stats_base = ReporteService._get_mis_estadisticas(db, id_usuario)
+    def reportes_organizacion_externa(db: Session, id_usuario: int, id_rol: int):
+        # 1. Pasamos el rol a las estadísticas base
+        stats_base = ReporteService._get_mis_estadisticas(db, id_usuario, id_rol)
 
-        # ── Lista detallada de todos mis eventos ──────────────────────────────
-        eventos_query = (
+        # ── BASES DE CONSULTA (Sin filtrar por usuario todavía) ──
+        base_eventos_query = (
             db.query(
                 Evento.id_evento,
                 Evento.nombre_evento,
@@ -284,12 +288,44 @@ class ReporteService:
             )
             .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
             .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
-            .filter(Evento.id_usuario == id_usuario)
             .group_by(Evento.id_evento, TipoEvento.nombre)
-            .order_by(Evento.fecha_evento.desc())
-            .all()
         )
 
+        # ARREGLO 1: Armamos la base sin filtro de Popularidad por tipo
+        base_resultados_tipo = (
+            db.query(TipoEvento.nombre, func.count(ReservaEvento.id_reserva))
+            .join(Evento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+            .group_by(TipoEvento.nombre)
+        )
+
+        # ARREGLO 2: Armamos la base sin filtro de Reservas confirmadas
+        base_confirmadas_subq = (
+            db.query(
+                ReservaEvento.id_evento,
+                func.sum(
+                    case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)
+                ).label("confirmadas"),
+                func.count(ReservaEvento.id_reserva).label("total")
+            )
+            .join(Evento, ReservaEvento.id_evento == Evento.id_evento)
+            .group_by(ReservaEvento.id_evento)
+        )
+
+        # ── APLICAMOS EL FILTRO CONDICIONAL IGUAL QUE EN EL FRONT ──
+        # Si el rol es mayor a 2 (ej: Organizador 3), filtramos para que vea solo lo suyo.
+        # Si es 1 (Admin) o 2 (Supervisor), se saltan este if y ven TODO.
+        if id_rol > 2:
+            base_eventos_query = base_eventos_query.filter(Evento.id_usuario == id_usuario)
+            base_resultados_tipo = base_resultados_tipo.filter(Evento.id_usuario == id_usuario)
+            base_confirmadas_subq = base_confirmadas_subq.filter(Evento.id_usuario == id_usuario)
+
+        # Ejecutamos las consultas (ahora si son globales para admin/super)
+        eventos_query = base_eventos_query.order_by(Evento.fecha_evento.desc()).all()
+        resultados_tipo = base_resultados_tipo.all()
+        confirmadas_subq = base_confirmadas_subq.all()
+
+        # ── ARMADO DE LISTAS ──
         lista_eventos = [
             {
                 "id": e.id_evento,
@@ -311,32 +347,10 @@ class ReporteService:
             for e in eventos_query
         ]
 
-        # ── Popularidad por tipo (total inscriptos por categoría) ─────────────
-        resultados_tipo = (
-            db.query(TipoEvento.nombre, func.count(ReservaEvento.id_reserva))
-            .join(Evento, Evento.id_tipo == TipoEvento.id_tipo)
-            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
-            .filter(Evento.id_usuario == id_usuario)
-            .group_by(TipoEvento.nombre)
-            .all()
-        )
+        # Mapeamos los resultados_tipo (que ahora respetan el rol)
         rendimiento_tipo = [{"tipo": n, "cantidad": c} for n, c in resultados_tipo if c > 0]
 
-        # ── Reservas confirmadas por evento (sub-query separada, sin CAST) ────
-        #    Usamos case() de SQLAlchemy, que es compatible con todos los dialectos.
-        confirmadas_subq = (
-            db.query(
-                ReservaEvento.id_evento,
-                func.sum(
-                    case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)
-                ).label("confirmadas"),
-                func.count(ReservaEvento.id_reserva).label("total")
-            )
-            .join(Evento, ReservaEvento.id_evento == Evento.id_evento)
-            .filter(Evento.id_usuario == id_usuario)
-            .group_by(ReservaEvento.id_evento)
-            .all()
-        )
+        # Mapeamos las confirmadas (que ahora respetan el rol)
         confirmadas_map: dict = {row.id_evento: {"confirmadas": int(row.confirmadas or 0), "total": int(row.total or 0)} for row in confirmadas_subq}
 
         # ── Detalle de recaudación: TODOS los eventos (incluye gratuitos) ─────
@@ -367,7 +381,7 @@ class ReporteService:
                 "distancia_km": float(e.distancia_km or 0),
             })
 
-        # ── Tendencias globales por ubicación ─────────────────────────────────
+        # ── Tendencias globales por ubicación (Queda igual, ya era global) ──
         eventos_globales = (
             db.query(
                 Evento.nombre_evento,
@@ -384,7 +398,6 @@ class ReporteService:
 
         tendencias_dict: dict = {}
         for evento in eventos_globales:
-            # .strip().title() garantiza agrupación case-insensitive
             provincia = ReporteService._extraer_provincia(evento.ubicacion).strip().title()
             localidad = ReporteService._extraer_localidad(evento.ubicacion).strip().title()
 
