@@ -1,10 +1,12 @@
 import os
 import shutil
 from uuid import uuid4
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
+from app.models.registro_models import Evento
 from app.models.auth_models import Usuario
 from app.models.eliminacion_models import EliminacionEvento
 from app.db.crud import registro_crud
@@ -21,6 +23,7 @@ from app.db.crud.notificacion_crud import NotificacionCRUD
 from app.models.inscripcion_models import ReservaEvento      
 from app.models.suscripcion_models import SuscripcionNovedades
 from app.email import (
+    enviar_correo_advertencia_organizador,
     enviar_correo_nuevo_evento, 
     enviar_correo_cancelacion_evento,  
     enviar_correo_modificacion_evento   
@@ -441,3 +444,113 @@ class EventoService:
                 resultados.append(imagen_entry)
         
         return resultados if resultados else {"mensaje": "No se enviaron datos nuevos"}
+    
+
+    # ==========================================
+    # REVISIÓN AUTOMÁTICA DE OCUPACIÓN (CRON)
+    # Advertencias (10 a 6 días) y Cancelación (5 días)
+    # ==========================================
+    @staticmethod
+    def cancelar_eventos_por_baja_ocupacion(db: Session):
+        hoy = datetime.now().date()
+        
+        # Definimos el rango de días (desde cancelación en 5 días, hasta primer aviso en 10 días)
+        fecha_cancelacion = hoy + timedelta(days=5)
+        fecha_primer_aviso = hoy + timedelta(days=10)
+
+        # Buscamos eventos activos que estén en ese rango de fechas
+        eventos_a_revisar = (
+            db.query(Evento)
+            .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)
+            .filter(func.date(Evento.fecha_evento) >= fecha_cancelacion)
+            .filter(func.date(Evento.fecha_evento) <= fecha_primer_aviso)
+            .filter(Evento.cupo_maximo > 0)
+            .all()
+        )
+
+        eventos_cancelados = []
+        eventos_advertidos = []
+
+        for evento in eventos_a_revisar:
+            # Calculamos exactamente cuántos días faltan para el evento
+            # (Usamos .date() por si fecha_evento es DateTime)
+            fecha_ev = evento.fecha_evento.date() if isinstance(evento.fecha_evento, datetime) else evento.fecha_evento
+            dias_para_el_evento = (fecha_ev - hoy).days
+
+            # 3. Contar inscripciones confirmadas
+            confirmadas = (
+                db.query(func.count(ReservaEvento.id_reserva))
+                .filter(ReservaEvento.id_evento == evento.id_evento)
+                .filter(ReservaEvento.id_estado_reserva == 2)
+                .scalar()
+            ) or 0
+
+            porcentaje_ocupacion = (confirmadas / evento.cupo_maximo) * 100
+
+            # Si el evento YA CUBRIÓ el 40%, no hacemos nada (está a salvo)
+            if porcentaje_ocupacion >= 40.0:
+                continue
+
+            # Buscamos al organizador
+            organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+
+            # =========================================================
+            # FASE 1: ADVERTENCIA (Faltan entre 6 y 10 días para el evento)
+            # =========================================================
+            if 6 <= dias_para_el_evento <= 10:
+                if organizador and organizador.email:
+                    # Si el evento es en 10 días, se cancela en 5. 
+                    # Si el evento es en 6 días, se cancela en 1 (mañana).
+                    dias_para_cancelacion = dias_para_el_evento - 5
+                    
+                    # Llamamos a una nueva función de correo (te la dejo más abajo)
+                    enviar_correo_advertencia_organizador(
+                        email_destino=organizador.email,
+                        nombre_evento=evento.nombre_evento,
+                        porcentaje=porcentaje_ocupacion,
+                        dias_restantes=dias_para_cancelacion
+                    )
+                    eventos_advertidos.append(evento.nombre_evento)
+
+            # =========================================================
+            # FASE 2: CANCELACIÓN (Faltan exactamente 5 días)
+            # =========================================================
+            elif dias_para_el_evento == 5:
+                evento.id_estado = ID_ESTADO_CANCELADO 
+                
+                usuarios_reserva = (
+                    db.query(Usuario)
+                    .join(ReservaEvento, ReservaEvento.id_usuario == Usuario.id_usuario)
+                    .filter(ReservaEvento.id_evento == evento.id_evento)
+                    .all()
+                )
+                
+                emails_a_notificar = set([u.email for u in usuarios_reserva if u.email])
+                if organizador and organizador.email:
+                    emails_a_notificar.add(organizador.email)
+
+                texto_motivo = f"Lamentablemente, el evento no alcanzó el cupo mínimo del 40% requerido para su realización (Ocupación final: {porcentaje_ocupacion:.1f}%). Su dinero será devuelto a la cuenta desde la cual se realizó el pago. Sentimos las molestias ocasionadas."
+                
+                for email in emails_a_notificar:
+                    enviar_correo_cancelacion_evento(
+                        email_destino=email,
+                        nombre_evento=evento.nombre_evento,
+                        motivo=texto_motivo
+                    )
+
+                eventos_cancelados.append({
+                    "id": evento.id_evento,
+                    "nombre": evento.nombre_evento,
+                    "ocupacion": f"{porcentaje_ocupacion:.1f}%"
+                })
+
+        # Solo hacemos commit si hubo cancelaciones (las advertencias no modifican la DB)
+        if eventos_cancelados:
+            db.commit()
+
+        return {
+            "mensaje": f"Se evaluaron {len(eventos_a_revisar)} eventos en riesgo.", 
+            "advertidos": len(eventos_advertidos),
+            "cancelados": len(eventos_cancelados),
+            "detalle_cancelados": eventos_cancelados
+        }

@@ -262,6 +262,55 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
 
+
+def enviar_correo_advertencia_organizador(email_destino: str, nombre_evento: str, porcentaje: float, dias_restantes: int):
+    msg = EmailMessage()
+    msg['Subject'] = f'⚠️ Atención: Riesgo de cancelación para {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e; border-bottom: 1px solid #333;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
+                </div>
+                <div style="background-color: #ffcc00; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #121212;">Aviso de Baja Ocupación</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 18px;">Hola,</p>
+                    
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        Te contactamos desde el sistema porque notamos que tu evento <strong>{nombre_evento}</strong> 
+                        actualmente cuenta con un <strong>{porcentaje:.1f}%</strong> de inscripciones confirmadas.
+                    </p>
+
+                    <div style="background-color: #3d3300; border: 2px dashed #ffcc00; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+                        <h2 style="color: #ffcc00; margin: 0 0 10px 0;">⚠️ IMPORTANTE</h2>
+                        <p style="font-size: 16px; margin: 0; line-height: 1.5; color: #ffffff;">
+                            Si el evento no alcanza el mínimo del 40% de ocupación,<br>
+                            se cancelará automáticamente en <br>
+                            <span style="font-size: 26px; font-weight: bold; color: #ffcc00;">{dias_restantes} DÍA(S)</span>
+                        </p>
+                    </div>
+
+                    <p style="color: #cccccc; font-size: 14px; text-align: center;">
+                        ¡Te animamos a que invites a más personas y compartas tu evento en redes sociales 
+                        para que siga en pie y sea un éxito!
+                    </p>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
+
 def enviar_correo_pago_confirmado(email_destino: str, evento: str):
     msg = EmailMessage()
     msg['Subject'] = f'✅ Pago Confirmado: {evento}'
