@@ -142,17 +142,20 @@ export default function SolicitudEventoPage() {
         ruta_coordenadas: formData.ruta_coordenadas
       };
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=true`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(datosAEnviar)
-        }
-      );
+      const url = idBorrador
+        ? `${import.meta.env.VITE_API_URL}/solicitudes-eventos/${idBorrador}?enviar=true`
+        : `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=true`;
+
+      const method = idBorrador ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datosAEnviar)
+      });
 
       if (response.ok) {
         localStorage.removeItem('borrador_solicitud');
