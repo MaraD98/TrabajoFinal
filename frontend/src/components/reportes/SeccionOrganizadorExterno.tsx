@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 
 interface SeccionOrganizadorExternoProps {
   usuarioRol: number;
   reporteData: any;
+  // Fechas que vienen desde el filtro global en ReportesPage
+  fechaInicio: string;
+  fechaFin: string;
   // Estados y funciones para "Mis Solicitudes"
   estadoAbierto: number | null;
   setEstadoAbierto: (id: number | null) => void;
@@ -24,17 +27,19 @@ interface SeccionOrganizadorExternoProps {
   setFiltroTipoRecaudacion: (val: string) => void;
   TIPOS_EVENTO: string[];
   // Tabla de Recaudación
-  handleSortFin: (key: "nombre" | "fecha" | "monto" | "cupo" | "unitario") => void;  sif: (key: string) => React.ReactNode;
+  handleSortFin: (key: "nombre" | "fecha" | "monto" | "cupo" | "unitario") => void;  
+  sif: (key: string) => React.ReactNode;
   setEventoDetalle: (item: any) => void;
 }
 
 export function SeccionOrganizadorExterno({
   usuarioRol,
   reporteData,
+  fechaInicio,
+  fechaFin,
   estadoAbierto,
   setEstadoAbierto,
   sortedLista,
-  getNombreEstado,
   handleSort,
   si,
   renderGraficoTorta,
@@ -50,126 +55,20 @@ export function SeccionOrganizadorExterno({
   TIPOS_EVENTO,
   handleSortFin,
   sif,
-  setEventoDetalle
+  setEventoDetalle,
 }: SeccionOrganizadorExternoProps) {
-  
+
+  // Estado local para manejar qué motivo mostrar en el modal
+  const [motivoModal, setMotivoModal] = useState<string | null>(null);
+
   // Si el rol es mayor a 3, no renderizamos nada (solo 1, 2 y 3 lo ven)
   if (usuarioRol > 3) return null;
 
   return (
-    <div style={{ marginTop: "20px" }}>
-      {/* Acordeón: mis solicitudes por estado */}
-      {(reporteData?.lista_eventos_detallada ?? []).length > 0 && (
-        <div className="grafico-card grafico-card--wide" id="lista_eventos_detallada">
-          <div className="grafico-card__header">
-            <h3>📋 Mis Solicitudes por Estado</h3>
-          </div>
-          <div className="grafico-card__body">
-            {[2, 3, 4, 5, 6].map((idEstado: number) => {
-              const items = sortedLista(
-                (reporteData?.lista_eventos_detallada ?? []).filter((e: any) => e.estado === idEstado)
-              );
-              if (!items.length) return null;
-              const isOpen = estadoAbierto === idEstado;
-              const bc = idEstado === 3 ? "#4ade80" : idEstado === 2 ? "#fbbf24" : "#e74c3c";
-
-              return (
-                <div key={idEstado} style={{ marginBottom: "10px", border: "1px solid #333", borderRadius: "8px", overflow: "hidden" }}>
-                  <div
-                    onClick={() => setEstadoAbierto(isOpen ? null : idEstado)}
-                    style={{
-                      padding: "15px", backgroundColor: "#252525",
-                      display: "flex", justifyContent: "space-between",
-                      alignItems: "center", cursor: "pointer",
-                      borderLeft: `4px solid ${bc}`,
-                    }}
-                  >
-                    <span style={{ fontWeight: "bold", fontSize: "1rem" }}>
-                      {getNombreEstado(idEstado).toUpperCase()} ({items.length})
-                    </span>
-                    <span style={{ transition: "transform 0.3s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-                      ▼
-                    </span>
-                  </div>
-
-                  {isOpen && (
-                    <div style={{ padding: "10px", backgroundColor: "#1a1a1a" }}>
-                      <div className="table-responsive">
-                        <table className="tabla-reportes-custom">
-                          <thead>
-                            <tr>
-                              <th style={{ cursor: "pointer" }} onClick={() => handleSort("nombre")}>
-                                Evento{si("nombre")}
-                              </th>
-                              <th style={{ cursor: "pointer" }} onClick={() => handleSort("fecha")}>
-                                Fecha{si("fecha")}
-                              </th>
-                              <th>Tipo</th>
-                              <th style={{ textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("reservas")}>
-                                Cupo / Reservas{si("reservas")}
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((evt: any) => (
-                              <tr key={evt.id}>
-                                <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
-                                <td>{evt.fecha}</td>
-                                <td><span className="badge-tipo">{evt.tipo}</span></td>
-                                <td style={{ textAlign: "center" }}>
-                                  <div className="reservas-indicator">
-                                    {evt.reservas}{evt.cupo_maximo ? ` / ${evt.cupo_maximo}` : ""}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── FILA 1 (100%): Popularidad por Categoría ───────────── */}
-      <div className="grafico-card grafico-card--wide" style={{ marginTop: "24px" }}>
-        <div className="grafico-card__header">
-          <h3>📈 Popularidad por Categoría de Mis Eventos</h3>
-          <p style={{ fontSize: "0.8rem", color: "#888" }}>
-            Distribución de inscritos según el tipo de actividad que organizás.
-          </p>
-          <button
-            data-html2canvas-ignore="true"
-            onClick={() => handleExportarCSV("rendimiento_categorias")}
-            className="btn-export"
-          >
-            📥 CSV
-          </button>
-        </div>
-        <div className="grafico-card__body">
-          {renderGraficoTorta(reporteData?.rendimiento_por_tipo ?? [], "tipo", "cantidad", "Detalle")}
-          <div className="insight-text" style={{ marginTop: "20px" }}>
-            {(reporteData?.rendimiento_por_tipo ?? []).length > 0 ? (
-              <>
-                💡 Tu categoría más buscada es{" "}
-                <strong>
-                  {[...(reporteData?.rendimiento_por_tipo ?? [])]
-                    .sort((a: any, b: any) => b.cantidad - a.cantidad)[0]?.tipo}
-                </strong>
-              </>
-            ) : (
-              "💡 No hay datos suficientes para determinar una tendencia."
-            )}
-          </div>
-        </div>
-      </div>
+    <div>
 
       {/* ── FILA 2: Tarjeta filtros + tarjeta totales ───────────── */}
-      <div className="reportes-graficos" style={{ marginTop: "24px" }}>
+      <div className="reportes-graficos" >
         {/* Tarjeta izquierda: resumen + filtros de recaudación */}
         <div className="grafico-card">
           <div className="grafico-card__header">
@@ -366,6 +265,242 @@ export function SeccionOrganizadorExterno({
           )}
         </div>
       </div>
+
+      {/* ── Inscriptos por Categoría ───────────── */}
+      {(() => {
+        // 1. Agarramos la lista de eventos detallada para poder filtrar por fecha
+        let eventosParaTorta = reporteData?.lista_eventos_detallada ?? [];
+
+        // 2. Aplicamos el mismo filtro de fechas global
+        if (fechaInicio) {
+          eventosParaTorta = eventosParaTorta.filter((e: any) => new Date(e.fecha_evento) >= new Date(fechaInicio));
+        }
+        if (fechaFin) {
+          eventosParaTorta = eventosParaTorta.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
+        }
+
+        // 3. Agrupamos y sumamos los inscriptos (reservas) por cada tipo/categoría
+        const agrupadoPorCategoria = eventosParaTorta.reduce((acc: any, evt: any) => {
+          const tipo = evt.tipo || "Sin categoría";
+          const inscriptos = evt.reservas || 0;
+          if (!acc[tipo]) acc[tipo] = 0;
+          acc[tipo] += inscriptos;
+          return acc;
+        }, {});
+
+        // 4. Lo convertimos al formato que necesita tu gráfico y lo ordenamos de mayor a menor
+        const datosTortaFiltrados = Object.keys(agrupadoPorCategoria)
+          .map(tipo => ({
+            tipo,
+            cantidad: agrupadoPorCategoria[tipo]
+          }))
+          .filter(item => item.cantidad > 0) // Ocultamos categorías con 0 inscriptos
+          .sort((a, b) => b.cantidad - a.cantidad);
+
+        // 5. Sacamos el dato de la categoría con más inscriptos
+        const categoriaGanadora = datosTortaFiltrados.length > 0 ? datosTortaFiltrados[0].tipo : null;
+
+        return (
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "24px" }}>
+            <div className="grafico-card__header">
+              {/* Cambiamos los títulos según lo que pidió el profe */}
+              <h3>📈 Distribución de Inscriptos por Categoría</h3>
+              <p style={{ fontSize: "13px", color: "#d7d7d7" }}>
+                Cantidad total de inscriptos según el tipo de evento que organizás.
+              </p>
+              <button
+                data-html2canvas-ignore="true"
+                onClick={() => handleExportarCSV("rendimiento_categorias")}
+                className="btn-export"
+              >
+                📥 CSV
+              </button>
+            </div>
+            <div className="grafico-card__body">
+              {/* Le pasamos la data ya filtrada por fecha y recalculada */}
+              {renderGraficoTorta(datosTortaFiltrados, "tipo", "cantidad", "Inscriptos")}
+              
+              <div className="insight-text" style={{ marginTop: "20px" }}>
+                {categoriaGanadora ? (
+                  <>
+                    💡 Tu categoría con más inscriptos es <strong>{categoriaGanadora}</strong>.
+                  </>
+                ) : (
+                  "💡 No hay inscriptos en este rango de fechas para determinar una tendencia."
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+       {/* Acordeón: mis solicitudes por estado */}
+      {(reporteData?.lista_eventos_detallada ?? []).length > 0 && (
+        <div className="grafico-card grafico-card--wide" id="lista_eventos_detallada">
+          <div className="grafico-card__header">
+            <h3>📋 Mis Solicitudes de eventos por estado</h3>
+          </div>
+          <div className="grafico-card__body">
+            
+            {/* Definimos los grupos, uniendo el 5 y el 6 */}
+            {[
+              { idGrupo: 2, nombre: "PENDIENTES", estados: [2], color: "#fbbf24" },
+              { idGrupo: 3, nombre: "PUBLICADOS", estados: [3], color: "#4ade80" },
+              { idGrupo: 4, nombre: "FINALIZADOS", estados: [4], color: "#3498db" },
+              { idGrupo: 5, nombre: "ELIMINADOS", estados: [5], color: "#e74c3c" }
+            ].map((grupo) => {
+              
+              // 1. Filtramos por estado
+              let eventosDelGrupo = (reporteData?.lista_eventos_detallada ?? []).filter((e: any) => 
+                grupo.estados.includes(e.estado)
+              );
+
+              // 2. Filtramos por las fechas que vienen como props
+              if (fechaInicio) {
+                eventosDelGrupo = eventosDelGrupo.filter((e: any) => new Date(e.fecha_evento) >= new Date(fechaInicio));
+              }
+              if (fechaFin) {
+                eventosDelGrupo = eventosDelGrupo.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
+              }
+
+              const items = sortedLista(eventosDelGrupo);
+              if (!items.length) return null;
+              
+              const isOpen = estadoAbierto === grupo.idGrupo;
+              const bc = grupo.color;
+
+              return (
+                <div key={grupo.idGrupo} style={{ marginBottom: "10px", border: "1px solid #333", borderRadius: "8px", overflow: "hidden" }}>
+                  
+                  {/* Cabecera del Acordeón */}
+                  <div
+                    onClick={() => setEstadoAbierto(isOpen ? null : grupo.idGrupo)}
+                    style={{
+                      padding: "15px", backgroundColor: "#252525",
+                      display: "flex", justifyContent: "space-between",
+                      alignItems: "center", cursor: "pointer",
+                      borderLeft: `4px solid ${bc}`,
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontWeight: "bold", fontSize: "1rem" }}>
+                        {grupo.nombre} ({items.length})
+                      </span>
+                    </div>
+                    <span style={{ transition: "transform 0.3s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                      ▼
+                    </span>
+                  </div>
+
+                  {/* Contenido del Acordeón */}
+                  {isOpen && (
+                    <div style={{ padding: "10px", backgroundColor: "#1a1a1a" }}>
+                      <div className="table-responsive">
+                        <table className="tabla-reportes-custom">
+                          <thead>
+                            <tr>
+                              <th style={{ cursor: "pointer" }} onClick={() => handleSort("nombre")}>
+                                Evento{si("nombre")}
+                              </th>
+                              <th style={{ cursor: "pointer" }} onClick={() => handleSort("fecha")}>
+                                Fecha{si("fecha")}
+                              </th>
+                              <th>Tipo</th>
+                              <th style={{ textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("reservas")}>
+                                Cupo / Reservas{si("reservas")}
+                              </th>
+                              {/* Columna de Motivo solo para cancelados */}
+                              {grupo.idGrupo === 5 && (
+                                <th style={{ textAlign: "center" }}>Motivo</th>
+                              )}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((evt: any) => (
+                              <tr key={evt.id}>
+                                <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
+                                <td>{evt.fecha}</td>
+                                <td><span className="badge-tipo">{evt.tipo}</span></td>
+                                <td style={{ textAlign: "center" }}>
+                                  <div className="reservas-indicator">
+                                    {evt.reservas}{evt.cupo_maximo ? ` / ${evt.cupo_maximo}` : ""}
+                                  </div>
+                                </td>
+                                {/* Botón del Ojito para mostrar el motivo */}
+                                {grupo.idGrupo === 5 && (
+                                  <td style={{ textAlign: "center" }}>
+                                    <button 
+                                      onClick={() => setMotivoModal(evt.motivo || "No se especificó un motivo para esta acción.")}
+                                      style={{ 
+                                        background: "none", border: "none", cursor: "pointer", 
+                                        fontSize: "1.2rem", padding: "5px", transition: "transform 0.2s" 
+                                      }}
+                                      title="Ver motivo completo"
+                                      onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.2)"}
+                                      onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+                                    >
+                                      👁️
+                                    </button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL FLOTANTE PARA EL MOTIVO --- */}
+      {motivoModal && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "rgba(0,0,0,0.75)", display: "flex", justifyContent: "center", 
+          alignItems: "center", zIndex: 9999, backdropFilter: "blur(3px)"
+        }}>
+          <div style={{ 
+            backgroundColor: "#252525", padding: "25px", borderRadius: "10px", 
+            maxWidth: "500px", width: "90%", border: "1px solid #e74c3c", 
+            boxShadow: "0 10px 30px rgba(0,0,0,0.8)" 
+          }}>
+            <h3 style={{ 
+              color: "#e74c3c", marginTop: 0, borderBottom: "1px solid #444", 
+              paddingBottom: "15px", display: "flex", alignItems: "center", gap: "10px" 
+            }}>
+              <span>⚠️</span> Detalle del Motivo
+            </h3>
+            <p style={{ 
+              color: "#e0e0e0", lineHeight: "1.6", fontSize: "1rem", 
+              whiteSpace: "pre-wrap", marginTop: "15px" 
+            }}>
+              {motivoModal}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "25px" }}>
+              <button 
+                onClick={() => setMotivoModal(null)}
+                style={{ 
+                  padding: "10px 20px", backgroundColor: "#333", color: "#fff", 
+                  border: "1px solid #555", borderRadius: "6px", cursor: "pointer", 
+                  fontWeight: "bold", transition: "background-color 0.2s" 
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#444"}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#333"}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+
     </div>
   );
 }

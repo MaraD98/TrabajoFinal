@@ -1,6 +1,7 @@
 from collections import Counter
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case, text
+from app.models.eliminacion_models import EliminacionEvento
 from app.models.auth_models import Usuario, Rol
 from app.models.evento_solicitud_models import EstadoSolicitud, SolicitudPublicacion
 from app.models.registro_models import Evento, TipoEvento, NivelDificultad
@@ -421,10 +422,12 @@ class ReporteService:
                 Evento.ubicacion,
                 TipoEvento.nombre.label("tipo_nombre"),
                 func.count(ReservaEvento.id_reserva).label("total_reservas"),
+                EliminacionEvento.motivo_eliminacion.label("motivo_eliminacion"),
             )
             .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
             .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
-            .group_by(Evento.id_evento, TipoEvento.nombre)
+            .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
+            .group_by(Evento.id_evento, TipoEvento.nombre, EliminacionEvento.motivo_eliminacion)
         )
 
         # ARREGLO 1: Armamos la base sin filtro de Popularidad por tipo
@@ -479,6 +482,7 @@ class ReporteService:
                 "distancia_km": float(e.distancia_km or 0),
                 "descripcion": e.descripcion or "",
                 "ubicacion_completa": e.ubicacion or "",
+                "motivo": e.motivo_eliminacion,
             }
             for e in eventos_query
         ]

@@ -22,7 +22,14 @@ import { SeccionSupervisor } from "../components/reportes/SeccionSupervisor";
 import { SeccionOrganizadorExterno } from "../components/reportes/SeccionOrganizadorExterno";
 // Componentes para sección Cliente
 import { SeccionCliente } from "../components/reportes/SeccionCliente";
-
+import {
+    ResponsiveContainer,    
+    Legend,
+    PieChart,
+    Pie,
+    Cell,
+    Tooltip
+} from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ReporteData {
@@ -87,7 +94,7 @@ export default function ReportesPage() {
   const rolLabel: Record<number, string> = {
     1: "ADMINISTRADOR",
     2: "SUPERVISOR",
-    3: "ORGANIZADOR",
+    3: "ORGANIZADOR EXTERNO",
     4: "CLIENTE"
   };
 
@@ -95,7 +102,7 @@ export default function ReportesPage() {
   const [sortConfigOrg, setSortConfigOrg] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'recaudacion_total', direction: 'desc' });
   const [modalDashboard, setModalDashboard] = useState<{ isOpen: boolean, title: string, data: any[] }>({ isOpen: false, title: "", data: [] });
 
-  // Función para ordenar la tabla de Organizadores
+  // Función para ordenar la tabla de Organizadores Externos
   const handleSortOrg = (key: string) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfigOrg.key === key && sortConfigOrg.direction === 'desc') {
@@ -109,6 +116,15 @@ export default function ReportesPage() {
     if (a[sortConfigOrg.key] > b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? 1 : -1;
     return 0;
   });
+
+  // Estados para el Filtro Global de Fechas
+  const [fechaInicio, setFechaInicio] = useState<string>("");
+  const [fechaFin, setFechaFin] = useState<string>("");
+
+  // ── Label helpers ─────────────────────────────────────────────────────────
+  const getNombreEstado = (id: number) =>
+    (({ 1: "Borrador", 2: "Pendiente", 3: "Publicado", 4: "Finalizado", 5: "Cancelado" } as Record<number, string>)[id] || `Estado ${id}`);
+
   // --- Ordenamiento para la tabla de Ocupación ---
   const [sortConfigOcupacion, setSortConfigOcupacion] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'tasa_ocupacion', direction: 'desc' });
 
@@ -320,64 +336,71 @@ export default function ReportesPage() {
     });
   };
 
-  // ── Label helpers ─────────────────────────────────────────────────────────
-  const getNombreEstado = (id: number) =>
-    (({ 1: "Borrador", 2: "Pendiente", 3: "Publicado", 4: "Finalizado", 5: "Cancelado", 6: "Depurado por Admin" } as Record<number, string>)[id] || `Estado ${id}`);
-
-  // ── Gráficos ──────────────────────────────────────────────────────────────
+// ── Gráficos ──────────────────────────────────────────────────────────────
   const renderGraficoTorta = (datos: any[], keyName: string, valName: string, tituloModal: string) => {
-    if (!datos || datos.length === 0) return <p className="no-data">No hay datos</p>;
-
-    const total = datos.reduce((sum, item) => sum + Number(item[valName]), 0);
-    let acumulado = 0;
+    if (!datos || datos.length === 0) return <p className="no-data">No hay datos suficientes para mostrar.</p>;
+  
+    const datosOrdenados = [...datos].sort((a, b) => Number(b[valName]) - Number(a[valName]));
+    const total = datosOrdenados.reduce((sum, item) => sum + Number(item[valName]), 0);
     const colores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
-
+  
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: "20px", width: "100%", justifyContent: "center" }}>
-        {/* Gráfico SVG Interactivo */}
-        <svg viewBox="0 0 32 32" style={{ width: "150px", height: "150px", borderRadius: "50%", transform: "rotate(-90deg)" }}>
-          {datos.map((item, index) => {
-            const valor = Number(item[valName]);
-            const porcentaje = valor / total;
-            const dasharray = `${porcentaje * 100} 100`;
-            const dashoffset = -acumulado * 100;
-            acumulado += porcentaje;
-            
-            return (
-              <circle
-                key={index}
-                r="15.91549431" cx="16" cy="16"
-                fill="none"
-                stroke={colores[index % colores.length]}
-                strokeWidth="32"
-                strokeDasharray={dasharray}
-                strokeDashoffset={dashoffset}
-                style={{ cursor: "pointer", transition: "opacity 0.2s" }}
-                onMouseOver={(e) => e.currentTarget.style.opacity = "0.8"}
-                onMouseOut={(e) => e.currentTarget.style.opacity = "1"}
-                onClick={() => setModalFiltroTorta({ titulo: tituloModal, filtroKey: keyName, valor: item[keyName] })}
+      // Centramos un contenedor que no pase de los 600px para que no se separen tanto
+      <div style={{ width: "100%", height: "250px", display: "flex", justifyContent: "center" }}>
+        <div style={{ width: "100%", maxWidth: "550px", height: "100%" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={datosOrdenados}
+                cx="40%" 
+                cy="50%"
+                innerRadius={0} 
+                outerRadius={90}
+                dataKey={valName}
+                nameKey={keyName}
+                onClick={(data) => {
+                  const valorClickeado = data?.payload ? data.payload[keyName] : data[keyName];
+                  if (valorClickeado) {
+                    setModalFiltroTorta({ titulo: tituloModal, filtroKey: keyName, valor: valorClickeado });
+                  }
+                }}
+                style={{ cursor: 'pointer', outline: "none" }}
+                animationBegin={0}
+                animationDuration={800}
               >
-                {/* TOOLTIP NATIVO (Aparece al apoyar el mouse) */}
-                <title>{item[keyName]}: {valor} eventos ({(porcentaje * 100).toFixed(1)}%)</title>
-              </circle>
-            );
-          })}
-        </svg>
-
-        {/* Leyenda Interactiva */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {datos.map((item, index) => (
-            <div 
-                key={index} 
-                style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.9rem", color: "#cbd5e1", cursor: "pointer" }}
-                onClick={() => setModalFiltroTorta({ titulo: tituloModal, filtroKey: keyName, valor: item[keyName] })}
-                title={`Ver detalles de ${item[keyName]}`}
-            >
-              <div style={{ width: "14px", height: "14px", backgroundColor: colores[index % colores.length], borderRadius: "3px" }}></div>
-              <span style={{ fontWeight: "bold", color: "#f8fafc" }}>{item[keyName]}</span> 
-              <span style={{ color: "#94a3b8" }}>({item[valName]})</span>
-            </div>
-          ))}
+                {datosOrdenados.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={colores[index % colores.length]} style={{ outline: "none" }} />
+                ))}
+              </Pie>
+              
+              <Tooltip 
+                formatter={(value: any, name: any) => {
+                  const numValue = Number(value);
+                  const porcentaje = total > 0 ? ((numValue / total) * 100).toFixed(1) : 0;
+                  return [`${numValue} inscriptos (${porcentaje}%)`, name];
+                }}
+                contentStyle={{ backgroundColor: "#1e1e1e", borderColor: "#444", borderRadius: "8px", color: "#fff" }}
+                itemStyle={{ color: "#fff", fontWeight: "bold" }}
+              />
+              
+              <Legend 
+                layout="vertical"
+                verticalAlign="middle"
+                align="right"
+                iconType="circle"
+                wrapperStyle={{ fontSize: "0.9rem" }}
+                formatter={(value: any, entry: any) => {
+                  const itemValor = entry.payload[valName];
+                  const porcentaje = total > 0 ? ((Number(itemValor) / total) * 100).toFixed(1) : 0;
+                  return (
+                    <span style={{ color: "#f8fafc", fontWeight: "bold" }}>
+                      {value} <span style={{ color: "#94a3b8", fontWeight: "normal" }}>({itemValor} - {porcentaje}%)</span>
+                    </span>
+                  );
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
     );
@@ -511,9 +534,9 @@ export default function ReportesPage() {
         {/* Header */}
         <div className="reportes-header">
           <div>
-            <h1 className="reportes-header__title">Panel de Control y Reportes</h1>
+            <h1 className="reportes-header__title">Módulo de Reportes</h1>
             <p className="reportes-header__subtitle">
-              Gestión centralizada de datos para
+              Sección de datos y reportes centralizados para el perfil de
             </p>
             <span style={{ 
             padding: "2px 10px", background: "#161616", border: "1px solid #2a2a2a", 
@@ -522,11 +545,19 @@ export default function ReportesPage() {
             {rolLabel[usuarioRol] ?? `Rol ${usuarioRol}`}
           </span>
           {user?.nombre_y_apellido && (
-            <span style={{ fontSize: "0.78rem", color: "#d7d7d7" }}>{user.nombre_y_apellido}</span>
+            <span style={{ fontSize: "0.78rem", color: "#d7d7d7" }}>: {user.nombre_y_apellido}</span>
           )}
             <p style={{ margin: "6px 0 0", color: "#d7d7d7", fontSize: "0.88rem" }}>
-            Última actualización: {new Date().toLocaleString("es-AR")}
-          </p>
+            Última actualización: {new Date().toLocaleString("es-AR", {
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              hour12: false 
+            })}
+         </p>
           </div>
           <div style={{ display: "flex", gap: "10px", justifyContent: "right"}}>
           <button
@@ -552,6 +583,37 @@ export default function ReportesPage() {
           </button>
         </div>
         </div>
+
+        {/* --- FILTRO GLOBAL DE FECHAS --- */}
+      <div style={{ marginTop: "20px", display: "flex", gap: "15px", alignItems: "center", backgroundColor: "#1e1e1e", padding: "15px", borderRadius: "8px", border: "1px solid #333" }}>
+        <span style={{ fontWeight: "bold", color: "#d7d7d7" }}>Filtrar reportes por fecha:</span>
+        <div>
+          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Desde:</label>
+          <input 
+            type="date" 
+            value={fechaInicio} 
+            onChange={(e) => setFechaInicio(e.target.value)}
+            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
+          />
+        </div>
+        <div>
+          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Hasta:</label>
+          <input 
+            type="date" 
+            value={fechaFin} 
+            onChange={(e) => setFechaFin(e.target.value)}
+            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
+          />
+        </div>
+        {(fechaInicio || fechaFin) && (
+          <button 
+            onClick={() => { setFechaInicio(""); setFechaFin(""); }}
+            style={{ padding: "8px 15px", backgroundColor: "#e63946", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
+          >
+            Limpiar Filtros
+          </button>
+        )}
+      </div>
 
         {/* ─── Renderizado por Rol ─── */}
 
@@ -652,6 +714,11 @@ export default function ReportesPage() {
         {/* ════════════════════════════════════════════════════════════════
                ROL 2 — SUPERVISOR (Panel Exclusivo)
             ═══════════════════════════════════════════════════════════════ */}
+          {/* MODAL DEL DASHBOARD SUPERVISOR */}
+          <ModalSupervisor 
+            modal={modalDashboard} 
+            onClose={() => setModalDashboard({ isOpen: false, title: "", data: [] })} 
+          />
         {usuarioRol === 2 && (
             <SeccionSupervisor 
                 handleExportarCSV={handleExportarCSV}
@@ -672,12 +739,7 @@ export default function ReportesPage() {
         {/* ════════════════════════════════════════════════════════════════
              ROL 3 — ORGANIZADOR EXTERNO (Panel Exclusivo)
         ════════════════════════════════════════════════════════════════ */}
-
-        {/* MODAL DEL DASHBOARD SUPERVISOR */}
-        <ModalSupervisor 
-          modal={modalDashboard} 
-          onClose={() => setModalDashboard({ isOpen: false, title: "", data: [] })} 
-        />
+        
         <SeccionOrganizadorExterno
           usuarioRol={usuarioRol}
           reporteData={reporteData}
@@ -701,7 +763,18 @@ export default function ReportesPage() {
           handleSortFin={handleSortFin}
           sif={sif}
           setEventoDetalle={setEventoDetalle}
+          // 👇 AGREGÁ ESTAS DOS LÍNEAS 👇
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          // 👆 ---------------------- 👆
         />
+              {/* MODAL FLOTANTE AL HACER CLIC EN LA TORTA */}
+          <ModalFiltroTorta 
+            filtro={modalFiltroTorta} 
+            onClose={() => setModalFiltroTorta(null)} 
+            eventos={eventosDetalle} 
+          />
+
 
         {/* ════════════════════════════════════════════════════════════════
              ROL 4 — CLIENTE

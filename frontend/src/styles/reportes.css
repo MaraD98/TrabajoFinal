@@ -742,6 +742,7 @@
   flex-direction: column;
   transition: var(--transition);
   overflow: hidden;
+  margin-top: 1em;
 }
 
 .grafico-card:hover {

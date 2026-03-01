@@ -1,4 +1,3 @@
-
 // Definimos la forma del objeto que maneja tu filtro
 export interface FiltroTorta {
   titulo: string;
@@ -13,6 +12,7 @@ interface ModalFiltroTortaProps {
 }
 
 export function ModalFiltroTorta({ filtro, onClose, eventos }: ModalFiltroTortaProps) {
+
   // Si no hay filtro seleccionado, no renderizamos nada
   if (!filtro) return null;
 
@@ -62,24 +62,36 @@ export function ModalFiltroTorta({ filtro, onClose, eventos }: ModalFiltroTortaP
               </tr>
             </thead>
             <tbody>
-              {eventosFiltrados.map((evt: any, idx: number) => (
-                <tr key={idx}>
-                  <td style={{ fontWeight: "bold", color: "#fff" }}>{evt.nombre}</td>
-                  <td>{evt.fecha_evento ? evt.fecha_evento.split('-').reverse().join('-') : "-"}</td>
-                  <td>
-                    <span style={{ color: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontWeight: "bold", fontSize: "0.85rem" }}>
-                      {evt.pertenencia}
-                    </span>
-                  </td>
-                  <td>{filtro.filtroKey === "tipo" ? evt.tipo : filtro.filtroKey === "dificultad" ? evt.dificultad : evt.organizador}</td>
-                  <td style={{ textAlign: "center" }}>
-                    <span style={{ color: "#4ade80", fontWeight: "bold" }}>{evt.inscripciones_confirmadas}</span> / {evt.cupo_maximo || "∞"}
-                  </td>
-                  <td style={{ textAlign: "right", fontWeight: "bold", color: "#fbbf24" }}>
-                    ${evt.monto_recaudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              ))}
+              {eventosFiltrados.map((evt: any, idx: number) => {
+                // 1. Buscamos inscriptos (según cómo venga del backend)
+                const inscriptos = evt.inscripciones_confirmadas ?? evt.reservas ?? 0;
+                
+                // 2. Buscamos la recaudación (si no viene, la calculamos)
+                const recaudacion = evt.monto_recaudado ?? (inscriptos * (evt.costo_participacion || 0));
+
+                return (
+                  <tr key={idx}>
+                    <td style={{ fontWeight: "bold", color: "#fff" }}>{evt.nombre}</td>
+                    <td>{evt.fecha_evento ? evt.fecha_evento.split('-').reverse().join('-') : "-"}</td>
+                    <td>
+                      <span style={{ color: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontWeight: "bold", fontSize: "0.85rem" }}>
+                        {evt.pertenencia || "-"}
+                      </span>
+                    </td>
+                    <td>{filtro.filtroKey === "tipo" ? evt.tipo : filtro.filtroKey === "dificultad" ? evt.dificultad : evt.organizador}</td>
+                    
+                    {/* APLICAMOS LA VARIABLE INSCRIPTOS */}
+                    <td style={{ textAlign: "center" }}>
+                      <span style={{ color: "#4ade80", fontWeight: "bold" }}>{inscriptos}</span> / {evt.cupo_maximo || "∞"}
+                    </td>
+                    
+                    {/* APLICAMOS LA VARIABLE RECAUDACION */}
+                    <td style={{ textAlign: "right", fontWeight: "bold", color: "#fbbf24" }}>
+                      ${recaudacion.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           
