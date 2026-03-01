@@ -86,30 +86,11 @@ export function SeccionOrganizadorExterno({
 
   return (
     <div>
-
-      {/* ── MÉTRICAS GLOBALES SUPERIORES ───────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "1em", marginTop: "1em" }}>
-        {[
-          { label: "Recaudación total sistema", value: `$${(reporteData?.recaudacion_total ?? 0).toLocaleString("es-AR")}`, color: "#4ade80" },
-          { label: "Total reservas recibidas", value: String(reporteData?.total_reservas_recibidas ?? 0), color: "#60a5fa" },
-          { label: "Mis eventos creados", value: String(reporteData?.mis_eventos_total ?? 0), color: "#fbbf24" },
-        ].map((card) => (
-          <div key={card.label} style={{ background: "#252525", borderRadius: "8px", padding: "20px" }}>
-            <p style={{ margin: 0, color: "#888", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {card.label}
-            </p>
-            <p style={{ margin: "6px 0 0", color: card.color, fontWeight: "bold", fontSize: "2rem" }}>
-              {card.value}
-            </p>
-          </div>
-        ))}
-      </div>
         
       {/* ── SECCIÓN RECAUDACIÓN (A LO ANCHO) ───────────── */}
       <div style={{ display: "flex", flexDirection: "column" }}>
-        
         {/* Tarjeta de Resumen y Filtros */}
-        <div className="grafico-card grafico-card--wide">
+        <div className="grafico-card grafico-card--wide" id="seccion_recaudacion">
           <div className="grafico-card__header">
             <h3>💰 Recaudación Total de mis eventos</h3>
             <p style={{ fontSize: "14px", color: "#d7d7d7" }}>
@@ -298,7 +279,7 @@ export function SeccionOrganizadorExterno({
         const categoriaGanadora = datosTortaFiltrados.length > 0 ? datosTortaFiltrados[0].tipo : null;
 
         return (
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "24px" }}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "24px" }} id="seccion_inscriptos">
             <div className="grafico-card__header">
               <h3>📈 Distribución de Inscriptos por Categoría</h3>
               <p style={{ fontSize: "13px", color: "#d7d7d7" }}>
@@ -322,11 +303,11 @@ export function SeccionOrganizadorExterno({
         );
       })()}
 
-      {/* Acordeón: mis solicitudes por estado */}
+      {/* Acordeón: mis eventos por estado */}
       {(reporteData?.lista_eventos_detallada ?? []).length > 0 && (
         <div className="grafico-card grafico-card--wide" id="lista_eventos_detallada" style={{ marginTop: "24px" }}>
           <div className="grafico-card__header">
-            <h3>📋 Mis Solicitudes de eventos por estado</h3>
+            <h3>📋 Mis eventos por estado</h3>
           </div>
           <div className="grafico-card__body">
             {[
@@ -429,6 +410,74 @@ export function SeccionOrganizadorExterno({
           </div>
         </div>
       )}
+
+
+      {/* ── MÉTRICAS GLOBALES ───────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px", marginBottom: "1em", marginTop: "1em" }}>
+        {[
+          { 
+            label: "Recaudación total de mis eventos", 
+            value: `$${(reporteData?.recaudacion_total ?? 0).toLocaleString("es-AR")}`, 
+            color: "#4ade80",
+            targetId: "seccion_recaudacion"
+          },
+          { 
+            label: "Inscripciones totales recibidas", 
+            value: String(reporteData?.total_reservas_recibidas ?? 0), 
+            color: "#60a5fa",
+            targetId: "seccion_inscriptos"
+          },
+          { 
+            label: "Mis eventos creados", 
+            value: String(reporteData?.mis_eventos_total ?? 0), 
+            color: "#fbbf24",
+            targetId: "lista_eventos_detallada"
+          },
+        ].map((card) => (
+          <div 
+            key={card.label} 
+            onClick={() => {
+              const element = document.getElementById(card.targetId);
+              if (element) {
+                // 1. Scrolleamos pero dejando la tarjeta en el CENTRO de la vista
+                element.scrollIntoView({ behavior: "smooth", block: "center" });
+
+                // 2. Le damos un efecto de "Resplandor / Iluminación" temporal
+                element.animate([
+                  { boxShadow: "0 0 0px rgba(0,0,0,0)", transform: "scale(1)" },
+                  { boxShadow: `0 0 30px ${card.color}`, transform: "scale(1.01)" }, // Brilla con el color de la métrica
+                  { boxShadow: "0 0 0px rgba(0,0,0,0)", transform: "scale(1)" }
+                ], {
+                  duration: 1500, // El destello dura 1.5 segundos
+                  easing: "ease-in-out"
+                });
+              }
+            }}
+            style={{ 
+              background: "#252525", 
+              borderRadius: "8px", 
+              padding: "20px",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <p style={{ margin: 0, color: "#888", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {card.label}
+            </p>
+            <p style={{ margin: "6px 0 0", color: card.color, fontWeight: "bold", fontSize: "2rem" }}>
+              {card.value}
+            </p>
+          </div>
+        ))}
+      </div>
 
       {/* --- MODAL FLOTANTE PARA EL MOTIVO --- */}
       {motivoModal && (
