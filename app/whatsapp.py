@@ -5,9 +5,9 @@ from twilio.rest import Client
 load_dotenv()
 
 # --- CONFIGURACIÓN GLOBAL ---
-TWILIO_SID = "AC7acb0ac05b01eb4077c0c1ee427e93c1"
-TWILIO_AUTH_TOKEN = "e267bf7161770cc8639bbd31f5e9f91a"
-TWILIO_NUMBER = "whatsapp:+14155238886" 
+TWILIO_SID = os .getenv("TWILIO_SID") 
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")  
+TWILIO_NUMBER = os.getenv("TWILIO_NUMBER")  
 
 # --- PIE DE SEGURIDAD ---
 PIE_SEGURIDAD = (
