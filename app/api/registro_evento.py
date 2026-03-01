@@ -1,7 +1,9 @@
 # app/api/registro_evento.py
 # ✅ OPCIÓN A: REDIRIGIR POST /eventos/ AL FLUJO DE SOLICITUDES
 
-from fastapi import APIRouter, Depends, status, HTTPException, File, Form, UploadFile, Request, Query
+import os
+
+from fastapi import APIRouter, Depends, Header, status, HTTPException, File, Form, UploadFile, Request, Query
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -440,3 +442,40 @@ def agregar_multimedia_evento(
 
 #     # Llama a TU crud original
 #     return registro_crud.solicitar_baja_evento(db, evento_id, request_body.motivo)
+
+
+# ============================================================================
+# ✅ NUEVO: CRON JOB PARA REVISIÓN DE EVENTOS POR BAJA OCUPACIÓN
+# ============================================================================
+
+@router.get(
+    "/cron/revisar-eventos",
+    summary="CRON: Cancelar eventos por baja ocupación",
+    description="Evalúa eventos a 5 días de realizarse. Si no llegan al 40% de cupo, se cancelan y se notifica a los inscritos."
+)
+def ejecutar_revision_diaria(
+    cron_secret: str = Header(None, alias="cron-secret"), # Usamos alias para asegurar que agarra el header exacto
+    db: Session = Depends(get_db)
+):
+    """
+    Este endpoint está pensado para ser llamado por cron-job.org todos los días.
+    Requiere un Header 'cron-secret' válido.
+    """
+    SECRETO_ESPERADO = os.getenv("SECRETO_ESPERADO")
+    
+    # Validamos que el secreto exista en el entorno y que coincida con el header
+    if not SECRETO_ESPERADO or cron_secret != SECRETO_ESPERADO:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="No autorizado. Falta o es incorrecto el Header 'cron-secret'."
+        )
+
+    try:
+        resultado = EventoService.cancelar_eventos_por_baja_ocupacion(db)
+        return {
+            "status": "ok", 
+            "mensaje": "Revisión completada con éxito",
+            "detalles": resultado
+        }
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
