@@ -7,6 +7,7 @@ from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.eliminacion_models import EliminacionEvento  # ✅ IMPORTAR AQUÍ
 from app.email import enviar_correo_cancelacion_evento
+from app.whatsapp import enviar_whatsapp_cancelacion_evento
 
 # ============================================================================
 # CONSTANTES
@@ -349,7 +350,7 @@ class EliminacionService:
 
         count = 0
         for reserva in reservas:
-            # Usamos la relación 'usuario' que ya viene cargada en la reserva
+
             participante = reserva.usuario 
             
             if participante and participante.email:
@@ -376,12 +377,31 @@ class EliminacionService:
                     print(f"     {'-'*60}")
                 except Exception as e:
                     print(f"  ❌ Error enviando mail a {participante.email}: {e}")
+                    
+                    # --- ✅ NUEVO: ENVÍO DE WHATSAPP ---
+                if hasattr(participante, 'telefono') and participante.telefono:
+                    try:
+                        # Llamamos a la función de whatsapp.py
+                        enviar_whatsapp_cancelacion_evento(
+                            telefono=participante.telefono,
+                            nombre_evento=evento.nombre_evento,
+                            motivo=motivo
+                        )
+                        print(f"  📱 WhatsApp enviado a: {participante.telefono}")
+                    except Exception as e:
+                        print(f"  ❌ Error WhatsApp a {participante.telefono}: {e}")
+
+                count += 1
+                print(f"  ✅ Procesado: {participante.email if participante.email else 'Sin Email'}")
+                print(f"  {'-'*60}")
         
-        # 4. Finalizamos proceso
+        # Finalizamos proceso
         eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
         print(f"{'='*70}")
-        print(f"[✅ OK] {count} notificaciones procesadas")
+        print(f"[✅ OK] {count} notificaciones (Email/WhatsApp) procesadas")
         print(f"{'='*70}\n")
+
+
     # ========================================================================
     # CONSULTAS
     # ========================================================================

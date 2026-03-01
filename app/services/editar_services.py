@@ -10,7 +10,9 @@ from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_audit
 from datetime import datetime
 from app.email import enviar_correo_modificacion_evento
 from app.models.registro_models import ReservaEvento  
+from app.whatsapp import enviar_whatsapp_modificacion_evento
 import json
+
 
 ID_ESTADO_PUBLICADO = 3
 
@@ -152,6 +154,16 @@ class EditarEventoService:
                     fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
                 )
     
+            # ✅ WHATSAPP (Agregado)
+                if hasattr(reser.usuario, 'telefono') and reser.usuario.telefono:
+                    try:
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=reser.usuario.telefono,
+                            nombre_evento=evento.nombre_evento
+                        )
+                    except Exception as e:
+                        print(f"❌ Error WhatsApp: {e}")
+
         # 3. Devolvemos la respuesta detallada (la que venía de Main)
         return {
             "mensaje": "[AUTO-APROBADO] Cambios aplicados directamente por Admin/Supervisor",
@@ -334,6 +346,16 @@ class EditarEventoService:
                     id_evento=evento.id_evento,
                     fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
                 )
+
+            # ✅ WHATSAPP (Agregado)
+                if hasattr(reser.usuario, 'telefono') and reser.usuario.telefono:
+                    try:
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=reser.usuario.telefono,
+                            nombre_evento=evento.nombre_evento
+                        )
+                    except Exception as e:
+                        print(f"❌ Error WhatsApp: {e}")
         
         return {
             "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
@@ -579,26 +601,45 @@ class EditarEventoService:
         # 6. Guardar todo en auditoría
         guardar_cambios_auditoria(db, evento, historial, cambios_realizados)
 
-        # 👇 AGREGADO: Notificar a inscriptos (Pendientes 1 y Confirmados 2)
+        # 👇 Notificar a inscriptos (Pendientes 1 y Confirmados 2)
         try:
-            from app.models.registro_models import ReservaEvento  # Aseguramos import local si es necesario
+            from app.models.registro_models import ReservaEvento
             inscriptos = db.query(ReservaEvento).filter(
                 ReservaEvento.id_evento == evento.id_evento,
                 ReservaEvento.id_estado_reserva.in_([1, 2])
             ).all()
 
             for reser in inscriptos:
+                # 1. Bloque de Mail (Protegido)
                 if reser.usuario and reser.usuario.email:
-                    enviar_correo_modificacion_evento(
-                        email_destino=reser.usuario.email,
-                        nombre_evento=evento.nombre_evento,
-                        id_evento=evento.id_evento,
-                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
-                    )
-            print(f"✅ Notificaciones enviadas a {len(inscriptos)} usuarios desde edición directa.")
+                    try:
+                        enviar_correo_modificacion_evento(
+                            email_destino=reser.usuario.email,
+                            nombre_evento=evento.nombre_evento,
+                            id_evento=evento.id_evento,
+                            fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Error mail (se ignora para seguir con WhatsApp): {e}")
+
+                # 2. ✅ Tu bloque de WhatsApp (Protegido)
+                if reser.usuario and hasattr(reser.usuario, 'telefono') and reser.usuario.telefono:
+                    try:
+                        print(f"📱 Intentando WhatsApp para: {reser.usuario.telefono}")
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=reser.usuario.telefono,
+                            nombre_evento=evento.nombre_evento
+                        )
+                    except Exception as e:
+                        print(f"❌ Error WhatsApp: {e}")
+
+            print(f"✅ Proceso de notificaciones finalizado.")
+
         except Exception as e:
-            print(f"⚠️ Error al enviar correos en edición directa: {e}")
+            # 👈 ESTE es el except que te faltaba para cerrar el try de arriba
+            print(f"⚠️ Error al obtener inscriptos o procesar la lista: {e}")
         
+        # El return va afuera de todo el bloque de notificaciones
         return {
             "success": True,
             "message": f"Evento actualizado correctamente. {len(cambios_realizados)} cambio(s) aplicado(s).",

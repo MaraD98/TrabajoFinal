@@ -5,9 +5,8 @@ from app.models.inscripcion_models import ReservaEvento
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.inscripcion_models import ReservaEvento as Inscripcion
-
 from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva
-
+from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento
 
 class InscripcionService:
 
@@ -61,7 +60,7 @@ class InscripcionService:
 
         return datos_formateados
 
-    # 👇 ESTE ES EL MÉTODO NUEVO QUE AGREGAMOS PARA TU PERFIL
+    # ESTE ES EL MÉTODO NUEVO QUE AGREGAMOS PARA TU PERFIL
     @staticmethod
     def listar_por_usuario(db: Session, id_usuario: int):
         reservas = db.query(ReservaEvento).filter(ReservaEvento.id_usuario == id_usuario).options(
@@ -132,7 +131,7 @@ class InscripcionService:
             id_estado=id_estado_inicial
         )
 
-        # ✅ MANDAMOS EL MAIL EN SEGUNDO PLANO
+        # MANDAMOS EL MAIL EN SEGUNDO PLANO
         background_tasks.add_task(
             enviar_correo_reserva,
             email_destino=usuario_actual.email,
@@ -140,6 +139,16 @@ class InscripcionService:
             evento=evento.nombre_evento,
             fecha=f"{evento.fecha_evento}. {mensaje}"
         )
+
+        # MANDAMOS EL WHATSAPP EN SEGUNDO PLANO (SOLO SI EL USUARIO TIENE TELÉFONO)
+        if hasattr(usuario_actual, 'telefono') and usuario_actual.telefono:
+            background_tasks.add_task(
+                enviar_whatsapp_reserva,
+                telefono=usuario_actual.telefono,
+                nombre_usuario=usuario_actual.nombre_y_apellido,
+                evento=evento.nombre_evento,
+                fecha=str(evento.fecha_evento)
+            )
 
         return {
             "mensaje": mensaje,
@@ -203,7 +212,7 @@ class InscripcionService:
         db.delete(inscripcion)
         db.commit()
 
-        # 4. ✅ MANDAMOS EL MAIL EN SEGUNDO PLANO
+        # 4. MANDAMOS EL MAIL EN SEGUNDO PLANO
         # Esto hace que la función responda YA al frontend, y el mail se mande "atrás" solito.
         background_tasks.add_task(
             enviar_correo_cancelacion_reserva, 
@@ -211,5 +220,14 @@ class InscripcionService:
             nombre_usuario=nom_u, 
             evento=nom_e
         )
+
+        # AGREGAMOS EL WHATSAPP AQUÍ
+        if hasattr(usuario_actual, 'telefono') and usuario_actual.telefono:
+            background_tasks.add_task(
+                enviar_whatsapp_cancelacion_evento,
+                telefono=usuario_actual.telefono,
+                nombre_evento=nom_e,
+                motivo="Cancelación por parte del usuario o administrador."
+            )
         
         return {"message": "Inscripción cancelada exitosamente"}
