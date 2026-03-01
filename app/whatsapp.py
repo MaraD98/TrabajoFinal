@@ -42,6 +42,7 @@ def _ejecutar_envio_whatsapp(telefono_destino: str, mensaje: str):
 # --- FUNCIONES DE AVISO ---
 
 def enviar_whatsapp_reserva(telefono: str, nombre_usuario: str, evento: str, fecha: str):
+    print(f"DEBUG - Preparando mensaje WhatsApp para {nombre_usuario} ({telefono}) sobre evento '{evento}' el {fecha}")
     texto = (
         f"🚲 *¡Hola {nombre_usuario}! Reserva Confirmada*\n\n"
         f"Te confirmamos tu lugar para: *{evento}*\n"
