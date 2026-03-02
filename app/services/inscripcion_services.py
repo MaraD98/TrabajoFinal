@@ -81,6 +81,19 @@ class InscripcionService:
             elif r.id_estado_reserva == 4:
                 nombre_estado = "Expirada"
 
+            # --- LÓGICA DE DETALLE DE CANCELACIÓN ---
+            detalle_baja = ""
+            if r.id_estado_reserva == 3:
+                # Importamos aquí para evitar importaciones circulares
+                from app.models.eliminacion_models import EliminacionEvento
+                # Buscamos si hay un registro de que el evento fue eliminado
+                eliminacion = db.query(EliminacionEvento).filter(EliminacionEvento.id_evento == r.id_evento).first()
+                if eliminacion:
+                    detalle_baja = f"Evento cancelado por el organizador: {eliminacion.motivo_eliminacion}"
+                else:
+                    detalle_baja = "Cancelada por el usuario"
+            # ----------------------------------------
+
             item = {
                 "id_reserva": r.id_reserva,
                 "nombre_evento": evt.nombre_evento if evt else "Evento no encontrado",
@@ -89,7 +102,9 @@ class InscripcionService:
                 "nivel_dificultad": evt.nivel_dificultad.nombre if (evt and evt.nivel_dificultad) else "N/A",
                 "fecha_inscripcion": str(r.fecha_reserva).split(".")[0] if r.fecha_reserva else "-",
                 "estado_reserva": nombre_estado,
-                "monto": float(evt.costo_participacion) if (evt and evt.costo_participacion) else 0.0
+                "estado_id": r.id_estado_reserva, # Agregamos el ID para facilitar el estilo en el front
+                "monto": float(evt.costo_participacion) if (evt and evt.costo_participacion) else 0.0,
+                "detalle_baja": detalle_baja # <--- Mandamos el motivo al front
             }
             datos_formateados.append(item)
         return datos_formateados
@@ -191,7 +206,7 @@ class InscripcionService:
         return reserva
 
     @staticmethod
-    def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual, background_tasks): # <--- Agregamos background_tasks
+    def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual, background_tasks):
         # 1. Buscamos la inscripción
         inscripcion = db.query(Inscripcion).options(joinedload(Inscripcion.evento)).filter(Inscripcion.id_reserva == id_inscripcion).first()
         
@@ -201,19 +216,17 @@ class InscripcionService:
         if usuario_actual.id_rol not in [1, 2] and inscripcion.id_usuario != usuario_actual.id_usuario:
              raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva.")
         
-        # 2. CAPTURAMOS LOS DATOS AQUÍ
+        # 2. CAPTURAMOS LOS DATOS PARA NOTIFICAR
         email_u = usuario_actual.email
         nom_u = usuario_actual.nombre_y_apellido
-        nom_e = "Evento"
-        if inscripcion.evento:
-            nom_e = inscripcion.evento.nombre_evento
+        nom_e = inscripcion.evento.nombre_evento if inscripcion.evento else "Evento"
 
-        # 3. BORRAMOS Y HACEMOS COMMIT (Esto es rápido)
-        db.delete(inscripcion)
-        db.commit()
+        # 3. 🔥 CAMBIO CLAVE: NO BORRAMOS, ACTUALIZAMOS EL ESTADO
+        # Según tus ifs de arriba, el ID 3 es "Cancelada"
+        inscripcion.id_estado_reserva = 3 
+        db.commit() # Guardamos el cambio de estado
 
-        # 4. MANDAMOS EL MAIL EN SEGUNDO PLANO
-        # Esto hace que la función responda YA al frontend, y el mail se mande "atrás" solito.
+        # 4. MANDAMOS NOTIFICACIONES EN SEGUNDO PLANO
         background_tasks.add_task(
             enviar_correo_cancelacion_reserva, 
             email_destino=email_u, 
@@ -221,13 +234,12 @@ class InscripcionService:
             evento=nom_e
         )
 
-        # AGREGAMOS EL WHATSAPP AQUÍ
         if hasattr(usuario_actual, 'telefono') and usuario_actual.telefono:
             background_tasks.add_task(
                 enviar_whatsapp_cancelacion_evento,
                 telefono=usuario_actual.telefono,
                 nombre_evento=nom_e,
-                motivo="Cancelación por parte del usuario o administrador."
+                motivo="Cancelación realizada exitosamente."
             )
         
-        return {"message": "Inscripción cancelada exitosamente"}
+        return {"message": "Inscripción cancelada exitosamente (Soft Delete)"}

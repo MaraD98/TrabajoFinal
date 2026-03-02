@@ -66,12 +66,16 @@ class PerfilService:
         # 2. Procesamos la lógica de presentación (Mapeo)
         for reserva, evento in resultados_crud:
             
-            # Lógica de negocio: Traducción de estados
+            # Lógica de negocio: Traducción de estados (Corregida)
             estado_texto = "Desconocido"
-            if reserva.id_estado_reserva == 1: estado_texto = "Pendiente de Pago"
-            elif reserva.id_estado_reserva == 2: estado_texto = "Confirmado"
-            elif reserva.id_estado_reserva == 3: estado_texto = "Rechazado"
-            elif reserva.id_estado_reserva == 5: estado_texto = "Cancelado"
+            if reserva.id_estado_reserva == 1: 
+                estado_texto = "Pendiente"  # Antes decia "Pendiente de Pago"
+            elif reserva.id_estado_reserva == 2: 
+                estado_texto = "Confirmada" # Corregido a femenino como tu DB
+            elif reserva.id_estado_reserva == 3: 
+                estado_texto = "Cancelada"  # Corregido: ID 3 es Cancelada, no Rechazado
+            elif reserva.id_estado_reserva == 4: 
+                estado_texto = "Expirada"
 
             item = {
                 "id_reserva": reserva.id_reserva,

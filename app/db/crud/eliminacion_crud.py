@@ -54,11 +54,26 @@ def obtener_registro_eliminacion(db: Session, id_evento: int) -> EliminacionEven
 # ============================================================================
 # CAMBIAR ESTADOS DE EVENTOS
 # ============================================================================
-def cancelar_evento(db: Session, id_evento: int) -> Evento:
-    """Cambia el evento a estado 5 (Cancelado - Soft Delete)."""
+def cancelar_evento(db: Session, id_evento: int, motivo: str = "Evento cancelado") -> Evento:
+    """
+    Cambia el evento a estado 5 y guarda el motivo en las reservas.
+    """
+    from app.models.registro_models import ReservaEvento 
+    
     evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
     if evento:
+        # 1. Cambiamos el estado del evento
         evento.id_estado = ID_ESTADO_CANCELADO
+        
+        # 2. Actualizamos las reservas y LES PASAMOS EL MOTIVO
+        db.query(ReservaEvento).filter(
+            ReservaEvento.id_evento == id_evento,
+            ReservaEvento.id_estado_reserva.in_([1, 2])
+        ).update({
+            "id_estado_reserva": 3,
+            "detalle_baja": motivo  # Esto es lo que lee el Front después
+        }, synchronize_session=False)
+        
         db.flush()
     return evento
 
