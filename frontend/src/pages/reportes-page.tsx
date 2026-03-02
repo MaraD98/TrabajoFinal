@@ -99,11 +99,16 @@ export default function ReportesPage() {
   };
 
   // Estados exclusivos para Supervisor
-  const [sortConfigOrg, setSortConfigOrg] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'recaudacion_total', direction: 'desc' });
+  type OrganizadorKey = "organizador" | "total_eventos" | "activos" | "finalizados" | "recaudacion_total" | "rol";
+
+  const [sortConfigOrg, setSortConfigOrg] = useState<{ key: OrganizadorKey | null, direction: 'asc' | 'desc' | null }>({ key: 'recaudacion_total', direction: 'desc' });
+  const [filtroRolOrg, setFiltroRolOrg] = useState<string>('todos'); // <-- NUEVO ESTADO PARA EL FILTRO
+
+  // Mantenemos tu modalDashboard intacto:
   const [modalDashboard, setModalDashboard] = useState<{ isOpen: boolean, title: string, data: any[] }>({ isOpen: false, title: "", data: [] });
 
   // Función para ordenar la tabla de Organizadores Externos
-  const handleSortOrg = (key: string) => {
+  const handleSortOrg = (key: OrganizadorKey) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfigOrg.key === key && sortConfigOrg.direction === 'desc') {
       direction = 'asc';
@@ -111,7 +116,15 @@ export default function ReportesPage() {
     setSortConfigOrg({ key, direction });
   };
 
-  const sortedOrganizadores = [...(reporteData?.analisis_organizadores || [])].sort((a: any, b: any) => {
+  // 1. Primero filtramos por rol
+  let organizadoresFiltrados = reporteData?.analisis_organizadores || [];
+  if (filtroRolOrg !== 'todos') {
+    organizadoresFiltrados = organizadoresFiltrados.filter((org: any) => org.rol === filtroRolOrg);
+  }
+
+  // 2. Luego ordenamos la lista que ya filtramos
+  const sortedOrganizadores = [...organizadoresFiltrados].sort((a: any, b: any) => {
+    if (!sortConfigOrg.key) return 0;
     if (a[sortConfigOrg.key] < b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? -1 : 1;
     if (a[sortConfigOrg.key] > b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? 1 : -1;
     return 0;
@@ -127,7 +140,8 @@ export default function ReportesPage() {
 
   // --- Ordenamiento para la tabla de Ocupación ---
   const [sortConfigOcupacion, setSortConfigOcupacion] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'tasa_ocupacion', direction: 'desc' });
-
+  const [filtroOcupacion, setFiltroOcupacion] = useState<'todos' | 'riesgo' | 'exito'>('todos');
+  
   const handleSortOcupacion = (key: string) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfigOcupacion.key === key && sortConfigOcupacion.direction === 'desc') {
@@ -141,6 +155,11 @@ export default function ReportesPage() {
     if (a[sortConfigOcupacion.key] > b[sortConfigOcupacion.key]) return sortConfigOcupacion.direction === 'asc' ? 1 : -1;
     return 0;
   });
+  const ocupacionFiltrada = sortedOcupacion.filter(evt => {
+    if (filtroOcupacion === 'riesgo') return evt.tasa_ocupacion < 40;
+    if (filtroOcupacion === 'exito') return evt.tasa_ocupacion >= 40;
+    return true;
+});
 
   // Funciones para procesar el Dashboard
   const evtSist = reporteData?.dashboard_eventos || [];
@@ -158,18 +177,6 @@ export default function ReportesPage() {
       statsSist[e.estado as keyof typeof statsSist].Total += 1;
     }
   });
-
-  const barData = [
-    { name: 'Activos', Propios: statsSist.Activo.Propios, Externos: statsSist.Activo.Externos },
-    { name: 'Finalizados', Propios: statsSist.Finalizado.Propios, Externos: statsSist.Finalizado.Externos },
-    { name: 'Eliminados', Propios: statsSist.Cancelado.Propios, Externos: statsSist.Cancelado.Externos },
-  ];
-
-  const pieData = [
-    { name: 'Activos', value: statsSist.Activo.Total, color: '#4ade80' },
-    { name: 'Finalizados', value: statsSist.Finalizado.Total, color: '#3b82f6' },
-    { name: 'Eliminados', value: statsSist.Cancelado.Total, color: '#ef4444' }
-  ];
 
   const handleChartClick = (estadoFiltroPlural: string, tipoFiltro: string | null = null) => {
     // Reconvertimos el plural visual al singular del backend para poder filtrar la tabla del modal
@@ -722,17 +729,22 @@ export default function ReportesPage() {
         {usuarioRol === 2 && (
             <SeccionSupervisor 
                 handleExportarCSV={handleExportarCSV}
-                barData={barData}
-                pieData={pieData}
                 handleChartClick={handleChartClick}
+                fechaInicio={fechaInicio} 
+                fechaFin={fechaFin}
                 evtSist={evtSist}
                 handleSortOrg={handleSortOrg}
                 sortConfigOrg={sortConfigOrg}
                 sortedOrganizadores={sortedOrganizadores}
                 handleSortOcupacion={handleSortOcupacion}
                 sortConfigOcupacion={sortConfigOcupacion}
-                sortedOcupacion={sortedOcupacion}
-                reporteData={reporteData}
+                ocupacionFiltrada={ocupacionFiltrada}
+                filtroOcupacion={filtroOcupacion}
+                setFiltroOcupacion={setFiltroOcupacion}
+                filtroRolOrg={filtroRolOrg}               
+                setFiltroRolOrg={setFiltroRolOrg}         
+                organizadoresFiltrados={sortedOrganizadores} 
+                
             />
         )}
 

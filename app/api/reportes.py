@@ -138,7 +138,7 @@ def export_reportes(
         fieldnames = ["id_usuario", "organizador", "email", "rol", "total_eventos", "activos", "finalizados", "recaudacion_total"]
     elif tipo == "top_ocupacion":
         data = data_completa.get("top_ocupacion", [])
-        fieldnames = ["id_evento", "nombre_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
+        fieldnames = ["id_evento", "nombre_evento", "fecha_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
     elif tipo == "dashboard_eventos":
         data = data_completa.get("dashboard_eventos", [])
         fieldnames = ["id_evento", "nombre_evento", "fecha_evento", "responsable", "estado", "pertenencia"]
@@ -172,7 +172,7 @@ def export_reportes(
 
     elif tipo == "top_ocupacion":
         data = reporte_super.get("top_ocupacion", [])
-        fieldnames = ["id_evento", "nombre_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
+        fieldnames = ["id_evento", "nombre_evento", "fecha_evento", "cupo_maximo", "inscriptos_pagos", "reservados_no_pagos", "total_ocupado", "tasa_ocupacion", "es_pago"]
 
     elif tipo == "dashboard_eventos":
         data = reporte_super.get("dashboard_eventos", [])
