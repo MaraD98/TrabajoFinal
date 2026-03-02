@@ -9,9 +9,10 @@ interface ModalFiltroTortaProps {
   filtro: FiltroTorta | null;
   onClose: () => void;
   eventos: any[];
+  usuarioRol: number; // Sumamos el rol acá
 }
 
-export function ModalFiltroTorta({ filtro, onClose, eventos }: ModalFiltroTortaProps) {
+export function ModalFiltroTorta({ filtro, onClose, eventos, usuarioRol }: ModalFiltroTortaProps) {
 
   // Si no hay filtro seleccionado, no renderizamos nada
   if (!filtro) return null;
@@ -55,7 +56,8 @@ export function ModalFiltroTorta({ filtro, onClose, eventos }: ModalFiltroTortaP
               <tr>
                 <th>Evento</th>
                 <th>Fecha</th>
-                <th>Pertenencia</th>
+                {/* 👁️ Renderizado condicional para la columna Pertenencia */}
+                {usuarioRol < 3 && <th>Pertenencia</th>}
                 <th>{filtro.filtroKey === "tipo" ? "Tipo" : filtro.filtroKey === "dificultad" ? "Dificultad" : "Organizador"}</th>
                 <th style={{ textAlign: "center" }}>Participantes</th>
                 <th style={{ textAlign: "right" }}>Recaudación</th>
@@ -73,11 +75,16 @@ export function ModalFiltroTorta({ filtro, onClose, eventos }: ModalFiltroTortaP
                   <tr key={idx}>
                     <td style={{ fontWeight: "bold", color: "#fff" }}>{evt.nombre}</td>
                     <td>{evt.fecha_evento ? evt.fecha_evento.split('-').reverse().join('-') : "-"}</td>
-                    <td>
-                      <span style={{ color: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontWeight: "bold", fontSize: "0.85rem" }}>
-                        {evt.pertenencia || "-"}
-                      </span>
-                    </td>
+                    
+                    {/* 👁️ Renderizado condicional para la celda Pertenencia */}
+                    {usuarioRol < 3 && (
+                      <td>
+                        <span style={{ color: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontWeight: "bold", fontSize: "0.85rem" }}>
+                          {evt.pertenencia || "-"}
+                        </span>
+                      </td>
+                    )}
+
                     <td>{filtro.filtroKey === "tipo" ? evt.tipo : filtro.filtroKey === "dificultad" ? evt.dificultad : evt.organizador}</td>
                     
                     {/* APLICAMOS LA VARIABLE INSCRIPTOS */}

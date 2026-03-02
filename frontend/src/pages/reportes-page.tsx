@@ -691,6 +691,7 @@ export default function ReportesPage() {
           filtro={modalFiltroTorta} 
           onClose={() => setModalFiltroTorta(null)} 
           eventos={reporteData?.lista_eventos_detallada || []} 
+          usuarioRol={usuarioRol}
         />
         {/* ════════════════════════════════════════════════════════════════
             MODAL DETALLE FINANCIERO (TODOS LOS EVENTOS)
@@ -785,6 +786,7 @@ export default function ReportesPage() {
             filtro={modalFiltroTorta} 
             onClose={() => setModalFiltroTorta(null)} 
             eventos={eventosDetalle} 
+            usuarioRol={usuarioRol}
           />
 
 
