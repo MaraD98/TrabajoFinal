@@ -659,6 +659,9 @@ export default function ReportesPage() {
           usuariosPorMes={usuariosPorMes}
           mesesOrdenados={mesesOrdenados}
           maxEventosProvincia={maxEventosProvincia}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          filtroPertenencia={filtroPertenencia}
 
           // 2. Métricas - Eventos
           totalEventosGlobal={totalEventosGlobal}

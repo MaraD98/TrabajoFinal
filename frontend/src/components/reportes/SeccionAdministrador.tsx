@@ -29,119 +29,180 @@ export default function SeccionAdministrador({
   provinciaExpandida,
   setProvinciaExpandida,
   localidadExpandida,
-  setLocalidadExpandida
+  setLocalidadExpandida,
+  fechaInicio,
+  fechaFin,
+  filtroPertenencia
 }: any) {
 
   // --- Estados locales para los filtros y acordeones de esta sección ---
-  const [filtroPertenenciaAdmin, setFiltroPertenenciaAdmin] = useState('Todos');
   const [mesExpandido, setMesExpandido] = useState(null);
   const [provinciaExpandidaAdmin, setProvinciaExpandidaAdmin] = useState(null);
+
+  // Estado para manejar el ordenamiento de la tabla
+  const [ordenTabla, setOrdenTabla] = useState({ columna: 'monto_recaudado', direccion: 'desc' });
+
+  // Función para cambiar el orden cuando hacen clic en el encabezado
+  const handleOrdenar = (columna: string) => {
+    setOrdenTabla(prev => ({
+      columna,
+      direccion: prev.columna === columna && prev.direccion === 'asc' ? 'desc' : 'asc'
+    }));
+  };
   
 
   return (
     <div className="seccion-administrador-container">
-      {/* ── Tarjetas Admin ────────────────────────────────── */}
+
       {(usuarioRol === 1) && (
         <>
-          <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
-            {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
-            <TarjetasMetricas
-              // Props Eventos
-              totalEventosGlobal={totalEventosGlobal}
-              eventosFuturos={eventosFuturos}
-              eventosPasados={eventosPasados}
-              eventosPropiosCount={eventosPropiosCount}
-              eventosExternosCount={eventosExternosCount}
-              onAbrirModalEventos={() => setModalEventosGlobal(true)}
-
-              // Props Participantes
-              totalConfirmadas={totalConfirmadas}
-              totalPendientes={totalPendientes}
-              promedioParticipantes={promedioParticipantes}
-              ocupacionGlobal={ocupacionGlobal}
-              onAbrirModalParticipantes={() => setModalParticipantes(true)}
-
-              // Props Financiera
-              usuarioRol={usuarioRol}
-              totalRecaudadoGlobal={totalRecaudadoGlobal}
-              cantidadGratuitos={cantidadGratuitos}
-              cantidadPagos={cantidadPagos}
-              recaudadoPropios={recaudadoPropios}
-              recaudadoExternos={recaudadoExternos}
-              onAbrirModalFinanciero={() => setModalFinanciero(true)}
-            />
-          </div>
-
+        
           {/* ═════════════════════════════════════════════════════════════════════
-              TOP 10 DE EVENTOS POR RECAUDACIÓN (Actualizado)
+              RANKING COMPLETO DE EVENTOS POR RECAUDACIÓN
           ═════════════════════════════════════════════════════════════════════ */}
-          <div className="reportes-card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3>🏆 Top 10 Eventos por Recaudación</h3>
-              <select 
-                value={filtroPertenenciaAdmin} 
-                onChange={(e) => setFiltroPertenenciaAdmin(e.target.value)}
-                style={{ padding: "6px", borderRadius: "5px", backgroundColor: "#1e293b", color: "#fff", border: "1px solid #334155" }}
-              >
-                <option value="Todos">Mostrar Todos</option>
-                <option value="Propio">Solo Propios</option>
-                <option value="Externo">Solo Externos</option>
-              </select>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "20px" }}>
+            <div className="grafico-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3>🏆 Ranking de eventos por recaudación</h3>
+              <span style={{ fontSize: '0.9rem', color: '#94a3b8', backgroundColor: '#334155', padding: '4px 12px', borderRadius: '20px' }}>
+                {/* Filtramos la lista antes de contar el length */}
+                  Mostrando {
+                      reporteData?.top_10_recaudacion?.filter((evt: any) => {
+                          const pertenenciaNormalizada = evt.pertenencia?.toLowerCase();
+                          const filtroNormalizado = filtroPertenencia?.toLowerCase().replace(/s$/, "");
+                          const pasaPertenencia = !filtroPertenencia || filtroPertenencia === "todos" || pertenenciaNormalizada === filtroNormalizado;
+                          const pasaFechaInicio = !fechaInicio || evt.fecha_evento >= fechaInicio;
+                          const pasaFechaFin = !fechaFin || evt.fecha_evento <= fechaFin;
+                          return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+                      }).length || 0
+                  } eventos
+              </span>
             </div>
             
-            <div style={{ overflowX: "auto" }}>
-              <table className="tabla-reportes-custom">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "center" }}>Posición</th>
-                    <th>Evento</th>
-                    <th>Pertenencia</th>
-                    <th style={{ textAlign: "center" }}>Valor Unitario</th>
-                    <th style={{ textAlign: "center" }}>Cupo</th>
-                    <th style={{ textAlign: "right" }}>Recaudación</th>
-                    <th style={{ textAlign: "center" }}>Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(reporteData?.top_10_recaudacion || [])
-                    .filter((e: any) => filtroPertenenciaAdmin === 'Todos' || e.pertenencia === filtroPertenenciaAdmin)
-                    .slice(0, 10)
-                    .map((evt: any, index: number) => (
-                      <tr key={evt.id}>
-                        <td style={{ textAlign: "center", fontWeight: "900", color: index < 3 ? "#fbbf24" : "#cbd5e1", fontSize: "1.1rem" }}>
-                          #{index + 1}
-                        </td>
-                        <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
-                        <td>
-                          <span className="badge-tipo" style={{ backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563" }}>
-                            {evt.pertenencia}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          ${evt.costo_participacion.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ textAlign: "center", fontWeight: "bold" }}>
-                          <span style={{ color: "#3b82f6" }}>{evt.reservas_totales}</span> 
-                          <span style={{ color: "#64748b" }}> / {evt.cupo_maximo || "∞"}</span>
-                        </td>
-                        <td style={{ textAlign: "right", fontWeight: "bold", color: "#4ade80" }}>
-                          ${evt.monto_recaudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td style={{ textAlign: "center" }}>
-                          <button 
-                            onClick={() => setModalAdminEvento(evt)}
-                            style={{ padding: "6px 12px", backgroundColor: "#3b82f6", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold", transition: "0.2s" }}
-                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#2563eb"}
-                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "#3b82f6"}
-                          >
-                            Ver más
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+            <div className="grafico-card__body">
+              {/* Mantenemos el maxHeight para que tenga scroll interno si son muchos */}
+              <div style={{ maxHeight: "600px", overflowY: "auto", overflowX: "auto", border: "1px solid #334155", borderRadius: "8px" }}>
+                <table className="tabla-reportes-custom">
+                  <thead style={{ position: "sticky", top: 0, backgroundColor: "#1e293b", zIndex: 10 }}>
+                    <tr>
+                      <th style={{ textAlign: "center" }}>Pos.</th>
+                      
+                      <th onClick={() => handleOrdenar('nombre')} style={{ cursor: "pointer", userSelect: "none" }}>
+                        Evento {ordenTabla.columna === 'nombre' ? (ordenTabla.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                      </th>
+                      
+                      <th onClick={() => handleOrdenar('pertenencia')} style={{ cursor: "pointer", userSelect: "none" }}>
+                        Pertenencia {ordenTabla.columna === 'pertenencia' ? (ordenTabla.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                      </th>
+                      
+                      <th onClick={() => handleOrdenar('costo_participacion')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                        Valor Unit. {ordenTabla.columna === 'costo_participacion' ? (ordenTabla.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                      </th>
+                      
+                      <th onClick={() => handleOrdenar('reservas_totales')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                        Inscriptos {ordenTabla.columna === 'reservas_totales' ? (ordenTabla.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                      </th>
+                      
+                      <th onClick={() => handleOrdenar('monto_recaudado')} style={{ textAlign: "right", cursor: "pointer", userSelect: "none" }}>
+                        Recaudación {ordenTabla.columna === 'monto_recaudado' ? (ordenTabla.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                      </th>
+                      
+                      <th style={{ textAlign: "center" }}>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(reporteData?.top_10_recaudacion || [])
+                        .filter((evt: any) => {
+                          // 1. Lógica de Pertenencia
+                          // Normalizamos a minúsculas y quitamos la 's' final para comparar "propio" con "propios"
+                          const pertenenciaNormalizada = evt.pertenencia?.toLowerCase(); // "propio" o "externo"
+                          const filtroNormalizado = filtroPertenencia?.toLowerCase().replace(/s$/, ""); // "todos", "propio", "externo"
+
+                          const pasaPertenencia = 
+                            !filtroPertenencia || 
+                            filtroPertenencia === "todos" || 
+                            pertenenciaNormalizada === filtroNormalizado;
+
+                          // 2. Lógica de Fechas
+                          // evt.fecha_evento viene del back como "YYYY-MM-DD" (según tu servicio Python)
+                          // fechaInicio viene del input como "YYYY-MM-DD"
+                          const fechaEvt = evt.fecha_evento; // String "2024-05-20"
+                          
+                          const pasaFechaInicio = !fechaInicio || fechaEvt >= fechaInicio;
+                          const pasaFechaFin = !fechaFin || fechaEvt <= fechaFin;
+
+                          // Retornamos la combinación de todos los filtros
+                          return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+                        })
+                      .sort((a: any, b: any) => {
+                        let valorA = a[ordenTabla.columna];
+                        let valorB = b[ordenTabla.columna];
+                        if (typeof valorA === 'string') {
+                          return ordenTabla.direccion === 'asc' 
+                            ? valorA.localeCompare(valorB) 
+                            : valorB.localeCompare(valorA);
+                        }
+                        return ordenTabla.direccion === 'asc' ? valorA - valorB : valorB - valorA;
+                      })
+                      .map((evt: any, index: number) => (
+                        <tr key={evt.id} style={{ borderBottom: "1px solid #1e293b" }}>
+                          <td style={{ 
+                            textAlign: "center", 
+                            fontWeight: "900", 
+                            color: index < 3 ? "#fbbf24" : "#94a3b8", // Oro para los primeros 3, gris para el resto
+                            fontSize: index < 3 ? "1.2rem" : "1rem" 
+                          }}>
+                            #{index + 1}
+                          </td>
+                          <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
+                          <td>
+                            <span className="badge-tipo" style={{ 
+                              backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.8rem"
+                            }}>
+                              {evt.pertenencia}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            ${evt.costo_participacion.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ textAlign: "center", fontWeight: "bold" }}>
+                            <span style={{ color: "#3b82f6" }}>{evt.reservas_totales}</span> 
+                            <span style={{ color: "#64748b", fontSize: '0.85rem' }}> / {evt.cupo_maximo || "∞"}</span>
+                          </td>
+                          <td style={{ textAlign: "right", fontWeight: "bold", color: "#4ade80" }}>
+                            ${evt.monto_recaudado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <button 
+                              onClick={() => setModalAdminEvento(evt)}
+                              className="btn-ver-mas" 
+                              style={{ 
+                                backgroundColor: "transparent", 
+                                color: "#3b82f6", 
+                                border: "1px solid #3b82f6",
+                                padding: "4px 10px",
+                                borderRadius: "4px",
+                                cursor: "pointer"
+                              }}
+                            >
+                              Detalles
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
+            {/* Mensaje de estado vacío */}
+            {(!reporteData?.top_10_recaudacion || reporteData.top_10_recaudacion.length === 0) && (
+                <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+                    No hay datos de recaudación disponibles.
+                </div>
+            )}
           </div>
 
           {/* ═════════════════════════════════════════════════════════════════════
@@ -488,6 +549,41 @@ export default function SeccionAdministrador({
                 )}
     
           </div>
+        
+        {/* ── Tarjetas Admin ────────────────────────────────── */}
+      
+          <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
+            {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
+            <TarjetasMetricas
+              // Props Eventos
+              totalEventosGlobal={totalEventosGlobal}
+              eventosFuturos={eventosFuturos}
+              eventosPasados={eventosPasados}
+              eventosPropiosCount={eventosPropiosCount}
+              eventosExternosCount={eventosExternosCount}
+              onAbrirModalEventos={() => setModalEventosGlobal(true)}
+
+              // Props Participantes
+              totalConfirmadas={totalConfirmadas}
+              totalPendientes={totalPendientes}
+              promedioParticipantes={promedioParticipantes}
+              ocupacionGlobal={ocupacionGlobal}
+              onAbrirModalParticipantes={() => setModalParticipantes(true)}
+
+              // Props Financiera
+              usuarioRol={usuarioRol}
+              totalRecaudadoGlobal={totalRecaudadoGlobal}
+              cantidadGratuitos={cantidadGratuitos}
+              cantidadPagos={cantidadPagos}
+              recaudadoPropios={recaudadoPropios}
+              recaudadoExternos={recaudadoExternos}
+              onAbrirModalFinanciero={() => setModalFinanciero(true)}
+            />
+          </div>
+
+
+
+
         </>
       )}
     </div>

@@ -198,11 +198,11 @@ class ReporteService:
         tendencias_ubicacion.sort(key=lambda x: x["total_eventos"], reverse=True)
 
         # 4. Top 10 Recaudación
-        top_10_recaudacion = sorted(
+        recaudacion_por_evento = sorted(
             [e for e in lista_eventos_detallada if e["estado"] in [3, 4]], 
             key=lambda x: x["monto_recaudado"], 
             reverse=True
-        )[:10]
+        )
 
         # 5. Usuarios Nuevos (Clientes y Org Externas)
         usuarios_nuevos_query = db.query(Usuario).filter(Usuario.id_rol.in_([3, 4])).all()
@@ -257,7 +257,7 @@ class ReporteService:
             "recaudacion_total": round(total_recaudado, 2),
             "total_reservas_recibidas": total_reservas_recibidas,
             "tendencias_ubicacion_completa": tendencias_ubicacion,
-            "top_10_recaudacion": top_10_recaudacion,
+            "top_10_recaudacion": recaudacion_por_evento, # Mantenemos el nombre de la clave para no romper el front, pero con la lista completa
             "usuarios_nuevos": usuarios_nuevos
         }
 
