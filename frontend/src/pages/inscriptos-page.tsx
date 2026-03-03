@@ -23,6 +23,7 @@ interface Reserva {
   id_reserva: number;
   usuario: Usuario;
   evento: Evento;
+  monto: number; // <-- Cambiamos precio por monto para que coincida con el Back
 }
 
 const PanelInscriptos: React.FC = () => {
@@ -118,7 +119,8 @@ const PanelInscriptos: React.FC = () => {
                     id_evento: eventoData.id_evento || 0,
                     nombre_evento: eventoData.nombre_evento || "Evento Desconocido",
                     fecha_evento: fechaReal,
-                }
+                },
+                monto: item.monto || 0 // Mapeamos el 'monto' del Service
             };
         });
         setReservas(reservasMapeadas);
@@ -132,6 +134,7 @@ const PanelInscriptos: React.FC = () => {
       setLoading(false);
     }
   };
+  
 
   const handleBuscar = () => {
     setFiltrosAplicados({ busqueda: inputBusqueda, fechaInicio: inputFechaInicio, fechaFin: inputFechaFin });
@@ -164,6 +167,8 @@ const PanelInscriptos: React.FC = () => {
 
     return coincideBusqueda && cumpleInicio && cumpleFin;
   });
+  // --- CÁLCULO DEL TOTAL (Después de filtrar) ---
+  const totalRecaudado = inscriptosFiltrados.reduce((acc, current) => acc + current.monto, 0);
 
   const handleExportarCSV = () => {
     const cabeceras = ["ID", "Nombre", "Apellido", "Email", "Evento", "Fecha Carrera"];
@@ -195,9 +200,13 @@ const PanelInscriptos: React.FC = () => {
              <button className="btn-action btn-csv" onClick={handleExportarCSV} title="Exportar a Excel/CSV">📂</button>
              <button className="btn-action btn-print" onClick={handleImprimir} title="Imprimir Listado">🖨️</button>
              
-             <div className="badge-count">
-                 Total: {inscriptosFiltrados.length}
-             </div>
+            <div className="badge-count" style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                  {/* Aquí es donde "leemos" las variables para que TS esté feliz */}
+                  <span>Inscriptos: <b>{inscriptosFiltrados.length}</b></span>
+                  <span style={{ color: '#2ecc71', borderLeft: '1px solid #ddd', paddingLeft: '15px' }}>
+                      Recaudado: <b>${totalRecaudado.toLocaleString('es-AR')}</b>
+                  </span>
+            </div>
         </div>
       </div>
 
