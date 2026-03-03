@@ -29,16 +29,9 @@ export default function SeccionAdministrador({
   exportando,
   handleExportarCSV,
   renderGraficoTorta,
-  tendenciasFiltradas,
-  tabTendencias,
-  setTabTendencias,
   filtroTipoTendencias,
   setFiltroTipoTendencias,
   TIPOS_EVENTO,
-  provinciaExpandida,
-  setProvinciaExpandida,
-  localidadExpandida,
-  setLocalidadExpandida,
   fechaInicio,
   fechaFin,
   filtroPertenencia
@@ -50,6 +43,7 @@ export default function SeccionAdministrador({
   const [ordenEventos, setOrdenEventos] = useState({ columna: 'monto_recaudado', direccion: 'desc' });
   const [ordenUsuarios, setOrdenUsuarios] = useState({ columna: 'dia', direccion: 'asc' });
   const [provinciaExpandidaAdmin, setProvinciaExpandidaAdmin] = useState(null);
+  const [localidadExpandidaAdmin, setLocalidadExpandidaAdmin] = useState<string | null>(null);
 
   // --- LÓGICA DE ORDENAMIENTO ---
   const handleOrdenarMaster = (columna: any, tipoTabla: any) => {
@@ -82,6 +76,39 @@ const aplicarFiltrosUsuarios = (lista: any[]) => {
     const pasaFechaFin = !fechaFin || fechaUsuarioISO <= fechaFin;
 
     return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+  });
+};
+
+// --- FUNCIÓN PARA APLICAR FILTROS A LA LISTA DE EVENTOS ---
+const aplicarFiltrosEventos = (listaEventos: any[]) => {
+  if (!listaEventos) return [];
+  return listaEventos.filter((evento: any) => {
+    // 1. Filtro de Pertenencia
+    const esPropio = evento.pertenencia === "Propio";
+    const pasaPertenencia = 
+      !filtroPertenencia || 
+      filtroPertenencia === "todos" || 
+      (filtroPertenencia === "propios" && esPropio) || 
+      (filtroPertenencia === "externos" && !esPropio);
+
+    // 2. Filtro de Fechas
+    let pasaFechaInicio = true;
+    let pasaFechaFin = true;
+    if (evento.fecha_evento) {
+      let fechaEventoISO = evento.fecha_evento;
+      // Si viene como DD/MM/YYYY, la pasamos a YYYY-MM-DD
+      if (evento.fecha_evento.includes('/')) {
+        const [d, m, a] = evento.fecha_evento.split('/');
+        fechaEventoISO = `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+      }
+      if (fechaInicio && fechaEventoISO < fechaInicio) pasaFechaInicio = false;
+      if (fechaFin && fechaEventoISO > fechaFin) pasaFechaFin = false;
+    }
+
+    // 3. NUEVO: Filtro de Tipo de Evento
+    const pasaTipo = !filtroTipoTendencias || evento.tipo === filtroTipoTendencias;
+
+    return pasaPertenencia && pasaFechaInicio && pasaFechaFin && pasaTipo;
   });
 };
 
@@ -483,77 +510,335 @@ const datosGrafico = (mesesOrdenados || [])
 
           </div>
 
-          {/* ═════════════════════════════════════════════════════════════════════
-              NUEVO MAPA DE CALOR: DENSIDAD POR PROVINCIA (Unificado y Visual)
+         {/* ═════════════════════════════════════════════════════════════════════
+            DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
-          <div className="reportes-card" style={{ marginTop: "40px", marginBottom: "40px" }}>
-            <div style={{ marginBottom: "20px" }}>
-              <h3>📍 Mapa de Densidad por Provincia</h3>
-              <p style={{ color: "#94a3b8", fontSize: "0.9rem", margin: 0 }}>
-                Medidor de concentración de eventos. Hacé clic en un evento para ver sus detalles completos.
-              </p>
+
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px" }}>
+            
+            <div className="grafico-card__header">
+              <div>
+                <h3 style={{ margin: 0 }}>📍 Distribución Geográfica de Eventos</h3>
+                <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: "5px" }}>
+                  Analizá en qué provincias se concentra la mayor cantidad de eventos según tus filtros actuales. Hacé clic para ver el detalle.
+                </p>
+              </div>
+              
+              {/* Selector de Tipo de Evento */}
+              <select
+                value={filtroTipoTendencias || ""}
+                onChange={(e) => setFiltroTipoTendencias(e.target.value)}
+                style={{
+                  padding: "8px 14px",
+                  background: "#0d0d0d",
+                  border: "1px solid #334155",
+                  borderRadius: "6px",
+                  color: "#fff",
+                  fontSize: "0.9rem",
+                  cursor: "pointer",
+                  outline: "none"
+                }}
+              >
+                <option value="">🚴 Todos los Tipos</option>
+                {TIPOS_EVENTO?.map((t: string) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px" }}>
               {reporteData?.tendencias_ubicacion_completa?.map((prov: any, index: any) => {
-                const porcentajeCalor = (prov.total_eventos / (maxEventosProvincia || 1)) * 100;
-                const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos);
+                
+                const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos || []);
+                const eventosFiltrados = aplicarFiltrosEventos(todosEventosProvincia);
+                const totalFiltrado = eventosFiltrados.length;
+
+                if (totalFiltrado === 0 && (fechaInicio || fechaFin || filtroPertenencia !== "todos" || filtroTipoTendencias)) {
+                  return null;
+                }
+
+                const calculoCalor = (totalFiltrado / (maxEventosProvincia || 1)) * 100;
+                const porcentajeCalor = calculoCalor > 100 ? 100 : calculoCalor; 
 
                 return (
                   <div key={index} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", overflow: "hidden" }}>
                     
-                    {/* Fila clickeable principal con la BARRA DE CALOR de fondo */}
+                    {/* ─────────────────────────────────────────────────────────
+                        HEADER DE PROVINCIA (clickeable)
+                    ───────────────────────────────────────────────────────── */}
                     <div 
                       onClick={() => setProvinciaExpandidaAdmin(provinciaExpandidaAdmin === prov.provincia ? null : prov.provincia)}
-                      style={{ position: "relative", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", zIndex: 1 }}
+                      style={{ 
+                        position: "relative", 
+                        padding: "10px 15px", 
+                        display: "flex", 
+                        justifyContent: "space-between", 
+                        alignItems: "center", 
+                        cursor: "pointer", 
+                        zIndex: 1,
+                        transition: "background-color 0.2s"
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#1e293b"}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
                     >
-                      <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${porcentajeCalor}%`, backgroundColor: porcentajeCalor > 70 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)", zIndex: -1, transition: "width 1s" }}></div>
+                      {/* Barra de calor de fondo */}
+                      <div style={{ 
+                        position: "absolute", 
+                        left: 0, 
+                        top: 0, 
+                        height: "100%", 
+                        width: `${porcentajeCalor}%`, 
+                        backgroundColor: porcentajeCalor > 70 ? "rgba(239, 68, 68, 0.2)" : "rgba(245, 158, 11, 0.2)", 
+                        zIndex: -1, 
+                        transition: "width 0.5s ease-in-out" 
+                      }}></div>
                       
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <span style={{ fontSize: "1.2rem" }}>{porcentajeCalor > 70 ? "🔥" : "🗺️"}</span>
-                        <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.1rem" }}>{prov.provincia}</h4>
+                        <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.1rem" }}>{prov.provincia.toUpperCase()}</h4>
                       </div>
                       
                       <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                        <strong style={{ color: porcentajeCalor > 70 ? "#ef4444" : "#fbbf24" }}>{prov.total_eventos} Eventos</strong>
-                        <span style={{ color: "#94a3b8" }}>{provinciaExpandidaAdmin === prov.provincia ? "▲" : "▼"}</span>
+                        <strong style={{ color: porcentajeCalor > 70 ? "#ef4444" : "#fbbf24" }}>
+                          {totalFiltrado} {totalFiltrado === 1 ? "Evento" : "Eventos"}
+                        </strong>
+                        <span style={{ 
+                          color: "#94a3b8", 
+                          transition: "transform 0.3s", 
+                          transform: provinciaExpandidaAdmin === prov.provincia ? "rotate(180deg)" : "rotate(0deg)" 
+                        }}>▼</span>
                       </div>
                     </div>
 
-                    {/* Desplegable con los eventos */}
+                    {/* ─────────────────────────────────────────────────────────
+                        PANEL DE LOCALIDADES (solo visible si provincia expandida)
+                    ───────────────────────────────────────────────────────── */}
                     {provinciaExpandidaAdmin === prov.provincia && (
-                      <div style={{ padding: "15px 20px", borderTop: "1px solid #334155", backgroundColor: "#1e293b" }}>
-                        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
-                          {todosEventosProvincia.map((evento: any, i: any) => (
-                            <li 
-                              key={i} 
-                              onClick={() => setModalAdminEvento(evento)}
-                              style={{ backgroundColor: "#0f172a", padding: "10px", borderRadius: "6px", display: "flex", justifyContent: "space-between", cursor: "pointer", border: "1px solid #334155" }}
-                              onMouseOver={(e) => e.currentTarget.style.borderColor = "#3b82f6"}
-                              onMouseOut={(e) => e.currentTarget.style.borderColor = "#334155"}
-                            >
-                              <div>
-                                <strong style={{ color: "#e2e8f0" }}>{evento.nombre}</strong>
-                                <span style={{ color: "#94a3b8", fontSize: "0.85rem", marginLeft: "10px" }}>{evento.tipo}</span>
+                      <div style={{ 
+                        padding: "10px 20px 20px 20px", 
+                        borderTop: "1px solid #334155", 
+                        backgroundColor: "#1e293b" 
+                      }}>
+                        
+                        {/* Contador de localidades */}
+                        <div style={{ 
+                          marginBottom: "10px", 
+                          fontStyle: "italic"
+                        }}>
+                          📍 {prov.localidades.filter((loc: any) => aplicarFiltrosEventos(loc.eventos || []).length > 0).length} localidades con eventos
+                        </div>
+
+                        {/* Iteramos sobre las localidades de la provincia */}
+                        {prov.localidades.map((loc: any, li: number) => {
+                          const eventosLocFiltrados = aplicarFiltrosEventos(loc.eventos || []);
+                          if (eventosLocFiltrados.length === 0) return null;
+
+                          // Crear key única para esta localidad
+                          const localidadKey = `${prov.provincia}-${loc.localidad}`;
+
+                          return (
+                            <div key={li} style={{ 
+                              marginBottom: "5px",
+                              backgroundColor: "#0f172a",
+                              border: "1px solid #334155",
+                              borderRadius: "6px",
+                              overflow: "hidden"
+                            }}>
+                              
+                              {/* ─────────────────────────────────────────────────────────
+                                  HEADER DE LOCALIDAD (clickeable)
+                              ───────────────────────────────────────────────────────── */}
+                              <div 
+                                onClick={() => setLocalidadExpandidaAdmin(
+                                  localidadExpandidaAdmin === localidadKey ? null : localidadKey
+                                )}
+                                style={{ 
+                                  display: "flex", 
+                                  justifyContent: "space-between", 
+                                  alignItems: "center", 
+                                  padding: "12px 15px",
+                                  cursor: "pointer",
+                                  transition: "background-color 0.2s"
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = "#1a1f2e"}
+                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  {/* Flecha indicadora */}
+                                  <span style={{ 
+                                    color: "#94a3b8", 
+                                    fontSize: "0.7rem",
+                                    transition: "transform 0.3s",
+                                    transform: localidadExpandidaAdmin === localidadKey ? "rotate(90deg)" : "rotate(0deg)",
+                                    display: "inline-block"
+                                  }}>▶</span>
+                                  
+                                  <span style={{ fontWeight: 500, color: "#e0e0e0", fontSize: "0.95rem" }}>
+                                    {loc.localidad}
+                                  </span>
+                                </div>
+                                
+                                <span style={{ 
+                                  color: "#4ade80", 
+                                  fontSize: "0.85rem", 
+                                  fontWeight: "bold",
+                                  backgroundColor: "rgba(74, 222, 128, 0.1)",
+                                  padding: "4px 10px",
+                                  borderRadius: "4px"
+                                }}>
+                                  {eventosLocFiltrados.length} {eventosLocFiltrados.length === 1 ? "evento" : "eventos"}
+                                </span>
                               </div>
-                              <span style={{ color: evento.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563", fontSize: "0.85rem", fontWeight: "bold" }}>
-                                {evento.pertenencia}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+
+                              {/* ─────────────────────────────────────────────────────────
+                                  LISTA DE EVENTOS (solo visible si localidad expandida)
+                              ───────────────────────────────────────────────────────── */}
+                              {localidadExpandidaAdmin === localidadKey && (
+                                <div style={{ 
+                                  padding: "10px 15px 15px 15px",
+                                  borderTop: "1px solid #334155",
+                                  backgroundColor: "#0a0e1a"
+                                }}>
+                                  <ul style={{ 
+                                    margin: 0, 
+                                    padding: 0, 
+                                    listStyle: "none", 
+                                    display: "flex", 
+                                    flexDirection: "column", 
+                                    gap: "5px" 
+                                  }}>
+                                    {eventosLocFiltrados.map((evento: any, ei: number) => (
+                                      <li 
+                                        key={ei} 
+                                        onClick={(e) => {
+                                          e.stopPropagation(); // Evitar que se cierre la localidad
+                                          setModalAdminEvento(evento);
+                                        }}
+                                        style={{ 
+                                          backgroundColor: "#1e293b", 
+                                          padding: "5px 15px", 
+                                          borderRadius: "6px", 
+                                          display: "flex", 
+                                          justifyContent: "space-between", 
+                                          alignItems: "center", 
+                                          cursor: "pointer", 
+                                          border: "1px solid #334155", 
+                                          transition: "all 0.2s"
+                                        }}
+                                        onMouseOver={(e) => {
+                                          e.currentTarget.style.borderColor = "#3b82f6";
+                                          e.currentTarget.style.transform = "translateX(4px)";
+                                          e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.15)";
+                                        }}
+                                        onMouseOut={(e) => {
+                                          e.currentTarget.style.borderColor = "#334155";
+                                          e.currentTarget.style.transform = "translateX(0)";
+                                          e.currentTarget.style.boxShadow = "none";
+                                        }}
+                                      >
+                                        <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                                          <strong style={{ color: "#e2e8f0", fontSize: "0.95rem" }}>
+                                            {evento.nombre}
+                                          </strong>
+                                          <div style={{ 
+                                            display: "flex", 
+                                            gap: "12px", 
+                                            fontSize: "0.80rem", 
+                                            color: "#94a3b8",
+                                            flexWrap: "wrap"
+                                          }}>
+                                            <span style={{ 
+                                              background: "#252525", 
+                                              padding: "3px 8px", 
+                                              borderRadius: "4px", 
+                                              color: "#a78bfa",
+                                              fontWeight: 500
+                                            }}>
+                                              {evento.tipo}
+                                            </span>
+                                            {evento.fecha && (
+                                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                                📅 {evento.fecha}
+                                              </span>
+                                            )}
+                                            {evento.distancia_km && (
+                                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                                🚴 {evento.distancia_km} km
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <span 
+                                          style={{ 
+                                            backgroundColor: evento.pertenencia === "Propio" 
+                                              ? "rgba(139, 92, 246, 0.2)" 
+                                              : "rgba(75, 85, 99, 0.2)",
+                                            color: evento.pertenencia === "Propio" ? "#a78bfa" : "#9ca3af", 
+                                            padding: "6px 12px", 
+                                            borderRadius: "4px",
+                                            fontSize: "0.80rem", 
+                                            fontWeight: "bold",
+                                            whiteSpace: "nowrap"
+                                          }}
+                                        >
+                                          {evento.pertenencia}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {/* Mensaje si no hay localidades visibles */}
+                        {prov.localidades.every((loc: any) => aplicarFiltrosEventos(loc.eventos || []).length === 0) && (
+                          <p style={{ 
+                            color: "#94a3b8", 
+                            fontSize: "0.9rem", 
+                            textAlign: "center", 
+                            padding: "20px",
+                            fontStyle: "italic"
+                          }}>
+                            No hay eventos que coincidan con los filtros en esta provincia.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
+
+              {/* Mensaje si no hay provincias visibles */}
+              {reporteData?.tendencias_ubicacion_completa?.every((prov: any) => {
+                const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos || []);
+                const eventosFiltrados = aplicarFiltrosEventos(todosEventosProvincia);
+                return eventosFiltrados.length === 0 && (fechaInicio || fechaFin || filtroPertenencia !== "todos" || filtroTipoTendencias);
+              }) && (
+                <div style={{ 
+                  textAlign: "center", 
+                  padding: "40px 20px",
+                  color: "#94a3b8"
+                }}>
+                  <p style={{ fontSize: "3rem", margin: "0 0 10px 0" }}>🗺️</p>
+                  <p style={{ fontSize: "1.1rem", fontWeight: 500, margin: "0 0 5px 0", color: "#e2e8f0" }}>
+                    No hay eventos que coincidan con los filtros
+                  </p>
+                  <p style={{ fontSize: "0.9rem", margin: 0 }}>
+                    Intentá ajustar los criterios de búsqueda
+                  </p>
+                </div>
+              )}
             </div>
+          </div>
+
 
             {/* ════════════════════════════════════════════════════════════════
                     ADMIN — Gráficos del sistema
                 ════════════════════════════════════════════════════════════════ */}
                 <div className="reportes-graficos" style={{ marginTop: '2rem' }}>
-                    {usuarioRol === 1 && (reporteData?.eventos_por_tipo ?? []).length > 0 && (
+                    {usuarioRol <= 2 && (reporteData?.eventos_por_tipo ?? []).length > 0 && (
                     <div className="grafico-card">
                         <div className="grafico-card__header">
                         <h3>🏃‍♂️ Eventos por Tipo</h3>
@@ -593,132 +878,7 @@ const datosGrafico = (mesesOrdenados || [])
                 </div>
                 {/* fin .reportes-graficos */}
 
-                {/* ════════════════════════════════════════════════════════════════
-                    TENDENCIAS POR UBICACIÓN
-                ════════════════════════════════════════════════════════════════ */}
-                {tendenciasFiltradas?.length > 0 && (
-                    <div className="grafico-card grafico-card--wide" style={{ marginTop: "30px" }}>
-                    <div className="grafico-card__header">
-                        <h3>🗺️ Tendencias por Ubicación — Análisis de Mercado (Top 10)</h3>
-                        <p style={{ fontSize: "0.8rem", color: "#888", marginTop: "5px" }}>
-                        Datos globales del sistema para análisis estratégico de zonas con mayor actividad.
-                        </p>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "10px", padding: "15px 20px", borderBottom: "1px solid #333", flexWrap: "wrap", alignItems: "center" }}>
-                        {(["activos", "pasados"]).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setTabTendencias(tab)}
-                            style={{
-                            padding: "8px 16px",
-                            background: tabTendencias === tab ? "#4ade80" : "transparent",
-                            border: `2px solid ${tabTendencias === tab ? "#4ade80" : "#666"}`,
-                            borderRadius: "6px",
-                            color: tabTendencias === tab ? "#000" : "#fff",
-                            fontWeight: "bold",
-                            cursor: "pointer",
-                            transition: "all 0.2s",
-                            }}
-                        >
-                            {tab === "activos" ? "📈 Eventos Activos" : "📊 Eventos Pasados"}
-                        </button>
-                        ))}
-
-                        <select
-                        value={filtroTipoTendencias}
-                        onChange={(e) => setFiltroTipoTendencias(e.target.value)}
-                        style={{
-                            padding: "8px 14px",
-                            background: "#0d0d0d",
-                            border: "2px solid #666",
-                            borderRadius: "6px",
-                            color: "#fff",
-                            fontSize: "0.9rem",
-                            cursor: "pointer",
-                        }}
-                        >
-                        <option value="">🚴 Todos los Tipos</option>
-                        {TIPOS_EVENTO?.map((t: any) => (
-                            <option key={t} value={t}>{t}</option>
-                        ))}
-                        </select>
-                    </div>
-
-                    <div className="grafico-card__body" style={{ padding: "20px" }}>
-                        {tendenciasFiltradas
-                        .sort((a: any, b: any) => b.total_eventos - a.total_eventos)
-                        .slice(0, 10)
-                        .map((prov: any, idx: any) => (
-                            <div key={idx} style={{ marginBottom: "15px", border: "1px solid #333", borderRadius: "8px", overflow: "hidden" }}>
-                            <div
-                                onClick={() => setProvinciaExpandida(provinciaExpandida === prov.provincia ? null : prov.provincia)}
-                                style={{ padding: "15px", background: "#252525", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderLeft: "4px solid #4ade80" }}
-                            >
-                                <span style={{ fontWeight: "bold", fontSize: "1.1rem" }}>{prov.provincia.toUpperCase()}</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                                <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#4ade80" }}>
-                                    {prov.localidades.reduce((s: any, loc: any) => s + loc.eventos.length, 0)} eventos
-                                </span>
-                                <span style={{ transition: "transform 0.3s", transform: provinciaExpandida === prov.provincia ? "rotate(180deg)" : "rotate(0deg)" }}>
-                                    ▼
-                                </span>
-                                </div>
-                            </div>
-
-                            {provinciaExpandida === prov.provincia && (
-                                <div style={{ padding: "10px 20px", background: "#1a1a1a" }}>
-                                {prov.localidades.map((loc: any, li: any) => {
-                                    const locKey = `${prov.provincia}-${loc.localidad}`;
-                                    return (
-                                    <div key={li} style={{ marginBottom: "10px" }}>
-                                        <div
-                                        onClick={() => setLocalidadExpandida(localidadExpandida === locKey ? null : locKey)}
-                                        style={{ padding: "12px", background: "#2d2d2d", borderRadius: "6px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", border: "1px solid #444" }}
-                                        >
-                                        <span style={{ fontWeight: 500, color: "#e0e0e0" }}>{loc.localidad}</span>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                            <span style={{ color: "#4ade80", fontWeight: "bold" }}>{loc.eventos.length} eventos</span>
-                                            <span style={{ fontSize: "0.8rem", color: "#888" }}>{localidadExpandida === locKey ? "▲" : "▼"}</span>
-                                        </div>
-                                        </div>
-
-                                        {localidadExpandida === locKey && (
-                                        <div style={{ marginTop: "5px", marginLeft: "20px" }}>
-                                            {loc.eventos.map((evt: any, ei: any) => (
-                                            <div key={ei} style={{ padding: "10px 14px", background: "#1a1a1a", marginBottom: "5px", borderRadius: "6px", fontSize: "0.85rem", border: "1px solid #2a2a2a", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                                                <span style={{ color: "#e0e0e0", fontWeight: 500 }}>{evt.nombre}</span>
-                                                <div style={{ display: "flex", gap: "16px", color: "#888", flexWrap: "wrap", fontSize: "0.82rem" }}>
-                                                <span style={{ background: "#252525", padding: "2px 8px", borderRadius: "4px", color: "#a78bfa" }}>{evt.tipo}</span>
-                                                <span>🚴 {evt.distancia_km} km</span>
-                                                <span>📅 {new Date(evt.fecha_evento).toLocaleDateString("es-AR")}</span>
-                                                <span style={{ color: evt.estado === 3 ? "#4ade80" : "#60a5fa", fontWeight: "bold" }}>
-                                                    {evt.estado === 3 ? "● Activo" : "● Finalizado"}
-                                                </span>
-                                                </div>
-                                            </div>
-                                            ))}
-                                        </div>
-                                        )}
-                                    </div>
-                                    );
-                                })}
-                                </div>
-                            )}
-                            </div>
-                        ))}
-                        {tendenciasFiltradas?.length === 0 && (
-                        <p className="no-data">
-                            No hay eventos {tabTendencias === "activos" ? "activos" : "finalizados"} para mostrar
-                            {filtroTipoTendencias ? ` del tipo "${filtroTipoTendencias}"` : ""}.
-                        </p>
-                        )}
-                    </div>
-                    </div>
-                )}
-    
-          </div>
-        
+            
         {/* ── Tarjetas Admin ────────────────────────────────── */}
       
           <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>

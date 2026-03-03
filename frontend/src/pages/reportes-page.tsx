@@ -78,10 +78,7 @@ export default function ReportesPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   // Tendencias
-  const [tabTendencias, setTabTendencias] = useState<"activos" | "pasados">("activos");
   const [filtroTipoTendencias, setFiltroTipoTendencias] = useState<string>("");
-  const [provinciaExpandida, setProvinciaExpandida] = useState<string | null>(null);
-  const [localidadExpandida, setLocalidadExpandida] = useState<string | null>(null);
 
   // Recaudación
   const [busquedaEvento, setBusquedaEvento] = useState<string>("");
@@ -433,21 +430,7 @@ export default function ReportesPage() {
     (s: number, item: DetalleRecaudacion) => s + item.monto, 0
   );
 
-  const tendenciasFiltradas = (reporteData?.tendencias_ubicacion ?? [])
-    .map((prov: any) => ({
-      ...prov,
-      localidades: prov.localidades
-        .map((loc: any) => ({
-          ...loc,
-          eventos: loc.eventos.filter((evt: any) => {
-            const me = tabTendencias === "activos" ? evt.estado === 3 : evt.estado === 4;
-            const mt = filtroTipoTendencias === "" || evt.tipo === filtroTipoTendencias;
-            return me && mt;
-          }),
-        }))
-        .filter((loc: any) => loc.eventos.length > 0),
-    }))
-    .filter((prov: any) => prov.localidades.length > 0);
+
 
   // ── Guards de render ──────────────────────────────────────────────────────
   if (loadingAuth || loading) {
@@ -694,16 +677,9 @@ export default function ReportesPage() {
           exportando={exportando}
           handleExportarCSV={handleExportarCSV}
           renderGraficoTorta={renderGraficoTorta}
-          tendenciasFiltradas={tendenciasFiltradas}
-          tabTendencias={tabTendencias}
-          setTabTendencias={setTabTendencias}
           filtroTipoTendencias={filtroTipoTendencias}
           setFiltroTipoTendencias={setFiltroTipoTendencias}
           TIPOS_EVENTO={TIPOS_EVENTO}
-          provinciaExpandida={provinciaExpandida}
-          setProvinciaExpandida={setProvinciaExpandida}
-          localidadExpandida={localidadExpandida}
-          setLocalidadExpandida={setLocalidadExpandida}
         />
 
         
