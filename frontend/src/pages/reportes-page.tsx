@@ -78,10 +78,7 @@ export default function ReportesPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   // Tendencias
-  const [tabTendencias, setTabTendencias] = useState<"activos" | "pasados">("activos");
   const [filtroTipoTendencias, setFiltroTipoTendencias] = useState<string>("");
-  const [provinciaExpandida, setProvinciaExpandida] = useState<string | null>(null);
-  const [localidadExpandida, setLocalidadExpandida] = useState<string | null>(null);
 
   // Recaudación
   const [busquedaEvento, setBusquedaEvento] = useState<string>("");
@@ -133,6 +130,8 @@ export default function ReportesPage() {
   // Estados para el Filtro Global de Fechas
   const [fechaInicio, setFechaInicio] = useState<string>("");
   const [fechaFin, setFechaFin] = useState<string>("");
+  const [filtroPertenencia, setFiltroPertenencia] = useState("todos");
+
 
   // ── Label helpers ─────────────────────────────────────────────────────────
   const getNombreEstado = (id: number) =>
@@ -438,21 +437,7 @@ export default function ReportesPage() {
     (s: number, item: DetalleRecaudacion) => s + item.monto, 0
   );
 
-  const tendenciasFiltradas = (reporteData?.tendencias_ubicacion ?? [])
-    .map((prov: any) => ({
-      ...prov,
-      localidades: prov.localidades
-        .map((loc: any) => ({
-          ...loc,
-          eventos: loc.eventos.filter((evt: any) => {
-            const me = tabTendencias === "activos" ? evt.estado === 3 : evt.estado === 4;
-            const mt = filtroTipoTendencias === "" || evt.tipo === filtroTipoTendencias;
-            return me && mt;
-          }),
-        }))
-        .filter((loc: any) => loc.eventos.length > 0),
-    }))
-    .filter((prov: any) => prov.localidades.length > 0);
+
 
   // ── Guards de render ──────────────────────────────────────────────────────
   if (loadingAuth || loading) {
@@ -591,35 +576,67 @@ export default function ReportesPage() {
         </div>
         </div>
 
-        {/* --- FILTRO GLOBAL DE FECHAS --- */}
-      <div style={{ marginTop: "20px", display: "flex", gap: "15px", alignItems: "center", backgroundColor: "#1e1e1e", padding: "15px", borderRadius: "8px", border: "1px solid #333" }}>
-        <span style={{ fontWeight: "bold", color: "#d7d7d7" }}>Filtrar reportes por fecha:</span>
-        <div>
-          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Desde:</label>
-          <input 
-            type="date" 
-            value={fechaInicio} 
-            onChange={(e) => setFechaInicio(e.target.value)}
-            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
-          />
+      {/* --- FILTRO GLOBAL DE FECHAS Y PERTENENCIA --- */}
+      <div className="grafico-card grafico-card--wide" style={{ marginBottom: "20px" }}>
+        
+        <div className="grafico-card__header">
+          <h3>🎛️ Filtros Generales de Reportes</h3>
+          
+          {(fechaInicio || fechaFin || (usuarioRol < 3 && filtroPertenencia !== "todos")) && (
+            <button 
+              onClick={() => { 
+                setFechaInicio(""); 
+                setFechaFin(""); 
+                if (usuarioRol < 3) setFiltroPertenencia("todos"); 
+              }}
+              className="btn-export"
+              style={{ backgroundColor: "#e63946", color: "white", borderColor: "#e63946" }}
+            >
+              ✖ Limpiar Filtros
+            </button>
+          )}
         </div>
-        <div>
-          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Hasta:</label>
-          <input 
-            type="date" 
-            value={fechaFin} 
-            onChange={(e) => setFechaFin(e.target.value)}
-            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
-          />
+
+        <div className="grafico-card__body" style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-end" }}>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label className="stat-card__label">Fecha Desde</label>
+            <input 
+              type="date" 
+              value={fechaInicio} 
+              onChange={(e) => setFechaInicio(e.target.value)}
+              // Mantuve los estilos del input por si no tenés una clase "filter-input" todavía
+              style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff", outline: "none" }}
+            />
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label className="stat-card__label">Fecha Hasta</label>
+            <input 
+              type="date" 
+              value={fechaFin} 
+              onChange={(e) => setFechaFin(e.target.value)}
+              style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff", outline: "none" }}
+            />
+          </div>
+
+          {/* 👁️ Filtro de Pertenencia SOLO para roles 1 y 2 */}
+          {usuarioRol < 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <label className="stat-card__label">Origen del Evento</label>
+              <select
+                value={filtroPertenencia}
+                onChange={(e) => setFiltroPertenencia(e.target.value)}
+                className="filter-select"
+              >
+                <option value="todos">Todos los eventos</option>
+                <option value="propios">Propios (Empresa)</option>
+                <option value="externos">Externos (Organizadores)</option>
+              </select>
+            </div>
+          )}
+          
         </div>
-        {(fechaInicio || fechaFin) && (
-          <button 
-            onClick={() => { setFechaInicio(""); setFechaFin(""); }}
-            style={{ padding: "8px 15px", backgroundColor: "#e63946", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
-          >
-            Limpiar Filtros
-          </button>
-        )}
       </div>
 
         {/* ─── Renderizado por Rol ─── */}
@@ -632,6 +649,9 @@ export default function ReportesPage() {
           usuariosPorMes={usuariosPorMes}
           mesesOrdenados={mesesOrdenados}
           maxEventosProvincia={maxEventosProvincia}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          filtroPertenencia={filtroPertenencia}
 
           // 2. Métricas - Eventos
           totalEventosGlobal={totalEventosGlobal}
@@ -664,16 +684,9 @@ export default function ReportesPage() {
           exportando={exportando}
           handleExportarCSV={handleExportarCSV}
           renderGraficoTorta={renderGraficoTorta}
-          tendenciasFiltradas={tendenciasFiltradas}
-          tabTendencias={tabTendencias}
-          setTabTendencias={setTabTendencias}
           filtroTipoTendencias={filtroTipoTendencias}
           setFiltroTipoTendencias={setFiltroTipoTendencias}
           TIPOS_EVENTO={TIPOS_EVENTO}
-          provinciaExpandida={provinciaExpandida}
-          setProvinciaExpandida={setProvinciaExpandida}
-          localidadExpandida={localidadExpandida}
-          setLocalidadExpandida={setLocalidadExpandida}
         />
 
         
