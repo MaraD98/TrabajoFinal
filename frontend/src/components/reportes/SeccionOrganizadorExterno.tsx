@@ -59,7 +59,7 @@ export function SeccionOrganizadorExterno({
 
   const [motivoModal, setMotivoModal] = useState<string | null>(null);
 
-  if (usuarioRol > 3) return null;
+  if (usuarioRol !== 3) return null;
 
   // 1. Extraemos los tipos de eventos ÚNICOS que realmente tenés creados para el select
   const eventosTotales = reporteData?.lista_eventos_detallada ?? [];
