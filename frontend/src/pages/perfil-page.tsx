@@ -26,7 +26,9 @@ interface Inscripcion {
     ubicacion: string;
     fecha_evento: string;
     hora_evento: string | null;
+    monto: number;
     costo: number;
+    detalle_baja: string | null;
 }
 
 // --- COMPONENTE CUENTA REGRESIVA ---
@@ -95,6 +97,28 @@ export default function PerfilPage() {
     const [isEditing, setIsEditing] = useState(false); 
     const [isChangingPass, setIsChangingPass] = useState(false); 
     const [isLoading, setIsLoading] = useState(true); // <-- Agrega este
+    // Agregá esto arriba junto con tus otros useState
+    const [busqueda, setBusqueda] = useState("");
+    const [filtroEstado, setFiltroEstado] = useState("");
+
+    // Helpers para formatear números
+    const fmt = (val:any) => new Intl.NumberFormat("es-AR").format(val);
+    const fmtPeso = (val:any) => new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(val);
+
+    // Lógica de filtrado adaptada a tu objeto (nombre_evento y estado_reserva)
+    const filtradas = inscripciones.filter((ins) => {
+        const coincideBusqueda = ins.nombre_evento?.toLowerCase().includes(busqueda.toLowerCase());
+        const coincideEstado = !filtroEstado || ins.estado_reserva === filtroEstado;
+        return coincideBusqueda && coincideEstado;
+    });
+
+    // Estadísticas adaptadas a tus datos
+    const stats = [
+        { label: "Total Inscripciones", value: fmt(inscripciones.length), color: "#4ade80" },
+        { label: "Confirmadas", value: fmt(inscripciones.filter(i => i.estado_reserva === 'Confirmada').length), color: "#60a5fa" },
+        { label: "Pendientes", value: fmt(inscripciones.filter(i => i.estado_reserva === 'Pendiente').length), color: "#fbbf24" },
+        { label: "Total Gastado", value: fmtPeso(inscripciones.filter(i => i.estado_reserva === 'Confirmada') .reduce((acc, curr: any) => acc + (Number(curr.monto) || Number(curr.costo) || 0), 0)), color: "#a78bfa" },
+    ];
 
     const [editForm, setEditForm] = useState({
         nombre_y_apellido: '',
@@ -240,41 +264,50 @@ useEffect(() => {
     };
 
     const handleCancelarReserva = async (id_reserva: number) => {
-        if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
-            return;
-        }
+    if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
+        return;
+    }
 
-        const token = getToken();
+    const token = getToken();
+    const inscripcionesPrevias = [...inscripciones];
+
+    try {
+        // 1. ACTUALIZACIÓN OPTIMISTA: 
+        // En lugar de .filter (que la borra), usamos .map para cambiarle el estado visualmente
+        setInscripciones(prev => prev.map(ins => 
+            ins.id_reserva === id_reserva 
+                ? { ...ins, estado_reserva: 'Cancelada',
+                    motivo_cancelacion: "Cancelada por el usuario"
+                 } 
+                : ins
+        ));
         
-        // 1. Guardamos una copia por si algo falla (para revertir)
-        const inscripcionesPrevias = [...inscripciones];
+        setSuccessMsg("Procesando cancelación...");
 
-        try {
-            // 2. ACTUALIZACIÓN OPTIMISTA: 
-            // Quitamos la reserva de la vista ANTES de la respuesta del servidor
-            setInscripciones(prev => prev.filter(ins => ins.id_reserva !== id_reserva));
-            setSuccessMsg("Procesando cancelación...");
+        // 2. CAMBIO DE MÉTODO: 
+        // Usamos PATCH o PUT en lugar de DELETE para que la fila no desaparezca de la DB
+        await axios.patch(`${apiUrl}/inscripciones/${id_reserva}`, 
+            { estado_reserva: 'Cancelada',
+                motivo_cancelacion: "Cancelada por el usuario"
+             }, // Le mandamos el nuevo estado al servidor
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-            await axios.delete(`${apiUrl}/inscripciones/${id_reserva}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+        setSuccessMsg("Reserva cancelada correctamente.");
+        setTimeout(() => setSuccessMsg(null), 3000);
 
-            // 3. Si llega acá, todo salió bien
-            setSuccessMsg("Reserva cancelada correctamente.");
-            setTimeout(() => setSuccessMsg(null), 3000);
-
-        } catch (err: any) {
-            console.error("Error al cancelar:", err);
-            
-            // 4. REVERSIÓN: Si el servidor falla, devolvemos la reserva a la lista
-            setInscripciones(inscripcionesPrevias);
-            
-            const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
-            setError(mensaje);
-            setSuccessMsg(null);
-            setTimeout(() => setError(null), 4000);
-        }
-    };
+    } catch (err: any) {
+        console.error("Error al cancelar:", err);
+        
+        // 3. REVERSIÓN: Si falla, volvemos al estado anterior
+        setInscripciones(inscripcionesPrevias);
+        
+        const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
+        setError(mensaje);
+        setSuccessMsg(null);
+        setTimeout(() => setError(null), 4000);
+    }
+};
 
     const handlePagar = async (ins: Inscripcion) => {
     const token = getToken();
@@ -283,7 +316,7 @@ useEffect(() => {
         const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, {
             id_reserva: ins.id_reserva,
             nombre_evento: ins.nombre_evento,
-            precio: ins.costo
+            precio: ins.monto
         }, {
             headers: { Authorization: `Bearer ${token}` }
         });
@@ -300,12 +333,33 @@ useEffect(() => {
 
     const getEstadoColor = (estado: string) => {
         switch(estado) {
-            case 'Pendiente de Pago': return '#ffbb00';
-            case 'Confirmado': return '#ccff00';
-            case 'Cancelado': return '#ff4444';
+            case 'Pendiente': return '#ffbb00';
+            case 'Confirmada': return '#2ead39';
+            case 'Cancelada': return '#ff4444';
             default: return '#fff';
         }
     };
+
+    function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+    return (
+        <div
+        style={{
+            background: "#1a1a1a",
+            padding: "16px",
+            borderRadius: "12px",
+            border: `1px solid ${color}44`,
+            flex: "1 1 200px",
+        }}
+        >
+        <p style={{ margin: 0, fontSize: "0.75rem", color: "#888", textTransform: "uppercase" }}>
+            {label}
+        </p>
+        <p style={{ margin: "4px 0 0", fontSize: "1.2rem", fontWeight: "bold", color: "#fff" }}>
+            {value}
+        </p>
+        </div>
+    );
+    }
 
     return (
         <div>
@@ -497,116 +551,162 @@ useEffect(() => {
                 )}
 
                 {/* PESTAÑA: INSCRIPCIONES */}
-                {activeTab === 'inscripciones' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        
-                        {/* 1. MIENTRAS CARGA: Mostramos el spinner */}
-                        {isLoading ? (
-                            <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                                <div style={{ 
-                                    border: '4px solid rgba(255,255,255,0.1)', 
-                                    borderTop: '4px solid #ccff00', 
-                                    borderRadius: '50%', 
-                                    width: '40px', 
-                                    height: '40px', 
-                                    animation: 'spin 1s linear infinite',
-                                    margin: '0 auto 15px'
-                                }}></div>
-                                <p style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '1rem' }}>Cargando inscripciones...</p>
-                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                            </div>
-                        ) : (
-                            /* 2. CUANDO TERMINA DE CARGAR: Evaluamos si hay datos o no */
-                            <>
-                                {inscripciones.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#888' }}>
-                                        <p>No te has inscripto a ningún evento todavía.</p>
-                                        
-                                        {/* Usamos HashLink en lugar de button + navigate */}
-                                        <HashLink 
-                                            smooth 
-                                            to="/#eventos" 
-                                            style={{ 
-                                                display: 'inline-block',
-                                                marginTop: '10px', 
-                                                padding: '8px 16px', 
-                                                background: '#ccff00', 
-                                                color: '#000',
-                                                textDecoration: 'none',
-                                                border: 'none', 
-                                                borderRadius: '4px', 
-                                                fontWeight: 'bold', 
-                                                cursor: 'pointer' 
-                                            }}
-                                        >
-                                            EXPLORAR EVENTOS
-                                        </HashLink>
-                                    </div>
-                                ) : (
-                                    inscripciones.map((ins) => (
-                                        <div key={ins.id_reserva} style={{ 
-                                            background: '#0d0d0d', 
-                                            border: '1px solid #333', 
-                                            borderRadius: '8px', 
-                                            padding: '15px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '10px'
-                                        }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>{ins.nombre_evento}</h3>
-                                                <span style={{ 
-                                                    background: 'rgba(255,255,255,0.1)', 
-                                                    color: getEstadoColor(ins.estado_reserva), 
-                                                    padding: '4px 8px', 
-                                                    borderRadius: '4px', 
-                                                    fontSize: '0.8rem',
-                                                    fontWeight: 'bold',
-                                                    border: `1px solid ${getEstadoColor(ins.estado_reserva)}`
-                                                }}>
-                                                    {ins.estado_reserva}
-                                                </span>
-                                            </div>
-                                            
-                                            {ins.estado_reserva === 'Pendiente de Pago' && (
-                                                <div style={{ marginBottom: '10px' }}>
-                                                    <ContadorPago fechaReserva={ins.fecha_reserva} />
-                                                </div>
-                                            )}
-
-                                            <div style={{ fontSize: '0.9rem', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                                <div>📅 {ins.fecha_evento}</div>
-                                                <div>📍 {ins.ubicacion}</div>
-                                                <div style={{ color: '#ccff00', fontWeight: 'bold' }}>💲 ${ins.costo}</div>
-                                            </div>
-
-                                            <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                                                {ins.estado_reserva === 'Pendiente de Pago' && (
-                                                    <>
-                                                        {ins.costo > 0 && (
-                                                            <button 
-                                                                onClick={() => handlePagar(ins)}
-                                                                style={{ background: '#009ee3', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
-                                                            >
-                                                                💳 PAGAR AHORA
-                                                            </button>
-                                                        )}
-                                                        <button 
-                                                            onClick={() => handleCancelarReserva(ins.id_reserva)}
-                                                            style={{ background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', padding: '6px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
-                                                        >
-                                                            ✕ CANCELAR RESERVA
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </>
-                        )}
+{activeTab === 'inscripciones' && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        
+        {/* 1. MIENTRAS CARGA: Mostramos el spinner */}
+        {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                <div style={{ 
+                    border: '4px solid rgba(255,255,255,0.1)', 
+                    borderTop: '4px solid #ccff00', 
+                    borderRadius: '50%', 
+                    width: '40px', 
+                    height: '40px', 
+                    animation: 'spin 1s linear infinite',
+                    margin: '0 auto 15px'
+                }}></div>
+                <p style={{ color: '#ccff00', fontWeight: 'bold', fontSize: '1rem' }}>Cargando inscripciones...</p>
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            </div>
+        ) : (
+            /* 2. CUANDO TERMINA DE CARGAR: Evaluamos si hay datos o no */
+            <>
+                {inscripciones.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#888' }}>
+                        <p>No te has inscripto a ningún evento todavía.</p>
+                        <HashLink 
+                            smooth 
+                            to="/#eventos" 
+                            style={{ 
+                                display: 'inline-block',
+                                marginTop: '10px', 
+                                padding: '8px 16px', 
+                                background: '#ccff00', 
+                                color: '#000',
+                                textDecoration: 'none',
+                                border: 'none', 
+                                borderRadius: '4px', 
+                                fontWeight: 'bold', 
+                                cursor: 'pointer' 
+                            }}
+                        >
+                            EXPLORAR EVENTOS
+                        </HashLink>
                     </div>
-                )}
+                ) : (
+                    <>
+                        {/* ─── Tarjetas de Resumen ─── */}
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "16px" }}>
+                            {stats.map(s => <StatCard key={s.label} {...s} />)}
+                        </div>
+
+                        {/* ─── Contenedor Principal con Filtros ─── */}
+                        <div className="grafico-card grafico-card--wide" style={{ background: "#1a1a1a", borderRadius: "16px", border: "1px solid #333", padding: "24px" }}>
+                            
+                            <div className="grafico-card__header" style={{ marginBottom: "16px" }}>
+                                <h3 style={{ margin: 0, fontSize: "1.2rem", color: "#fff" }}>🎟️ Mis Inscripciones</h3>
+                            </div>
+                            
+                            <div className="grafico-card__body">
+                                {/* Filtros */}
+                                <div style={{ display: "flex", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
+                                    <input 
+                                        type="text" 
+                                        className="reportes-input" 
+                                        placeholder="🔍 Buscar evento..." 
+                                        value={busqueda} 
+                                        onChange={e => setBusqueda(e.target.value)} 
+                                        style={{ padding: "10px", borderRadius: "8px", border: "1px solid #444", background: "#252525", color: "#fff", flex: "1 1 200px" }}
+                                    />
+                                    <select 
+                                        value={filtroEstado} 
+                                        onChange={e => setFiltroEstado(e.target.value)}
+                                        style={{ padding: "10px", borderRadius: "8px", border: "1px solid #444", background: "#252525", color: "#fff" }}
+                                    >
+                                        <option value="">Todos los estados</option>
+                                        <option value="Pendiente">Pendiente de Pago</option>
+                                        <option value="Confirmada">Confirmada</option>
+                                        <option value="Cancelada">Cancelada</option>
+                                    </select>
+                                </div>
+
+                                {/* Contenedores Originales mapeando 'filtradas' en lugar de 'inscripciones' */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    {filtradas.length > 0 ? (
+                                        filtradas.map((ins) => (
+                                            <div key={ins.id_reserva} style={{ 
+                                                background: '#0d0d0d', 
+                                                border: '1px solid #333', 
+                                                borderRadius: '8px', 
+                                                padding: '15px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '10px'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>    
+                                                    <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>{ins.nombre_evento}</h3>
+                                                    <span style={{ 
+                                                        background: 'rgba(255,255,255,0.1)', 
+                                                        color: getEstadoColor(ins.estado_reserva), 
+                                                        padding: '4px 8px', 
+                                                        borderRadius: '4px', 
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 'bold',
+                                                        border: `1px solid ${getEstadoColor(ins.estado_reserva)}`
+                                                    }}>
+                                                        {ins.estado_reserva}
+                                                    </span>
+                                                </div>
+                                                
+                                                {ins.estado_reserva === 'Pendiente' && (
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <ContadorPago fechaReserva={ins.fecha_reserva} />
+                                                    </div>
+                                                )}
+
+                                                <div style={{ fontSize: '0.9rem', color: '#aaa', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                    <div>📅 {ins.fecha_evento}</div>
+                                                    <div>📍 {ins.ubicacion}</div>
+                                                    <div style={{ color: '#ccff00', fontWeight: 'bold' }}>💲 ${ins.costo}</div>
+                                                </div>
+                                                 
+                                                <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                                    {ins.estado_reserva === 'Pendiente' && (
+                                                        <>
+                                                            {ins.costo > 0 && (
+                                                                <button 
+                                                                    onClick={() => handlePagar(ins)}
+                                                                    style={{ background: '#009ee3', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                                >
+                                                                    💳 PAGAR AHORA
+                                                                </button>
+                                                            )}
+                                                            <button 
+                                                                onClick={() => handleCancelarReserva(ins.id_reserva)}
+                                                                style={{ background: 'transparent', color: '#ff4444', border: '1px solid #ff4444', padding: '6px 12px', borderRadius: '4px', fontSize: '0.8rem', cursor: 'pointer', fontWeight: 'bold' }}
+                                                            >
+                                                                ✕ CANCELAR RESERVA
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : (
+                                                <p style={{ color: "#888", textAlign: "center", padding: "20px" }}>
+                                                    No se encontraron inscripciones con esos filtros.
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                            )}
+                        </>
+                    )}
+                </div>
+            )}
             </div> {/* Cierre del contenedor blanco/gris principal */}
             <Footer />
         </div> 
