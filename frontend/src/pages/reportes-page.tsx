@@ -751,7 +751,7 @@ export default function ReportesPage() {
             modal={modalDashboard} 
             onClose={() => setModalDashboard({ isOpen: false, title: "", data: [] })} 
           />
-        {usuarioRol < 2 && (
+        {usuarioRol <= 2 && (
             <SeccionSupervisor 
                 handleExportarCSV={handleExportarCSV}
                 handleChartClick={handleChartClick}
