@@ -263,41 +263,50 @@ useEffect(() => {
     };
 
     const handleCancelarReserva = async (id_reserva: number) => {
-        if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
-            return;
-        }
+    if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
+        return;
+    }
 
-        const token = getToken();
+    const token = getToken();
+    const inscripcionesPrevias = [...inscripciones];
+
+    try {
+        // 1. ACTUALIZACIÓN OPTIMISTA: 
+        // En lugar de .filter (que la borra), usamos .map para cambiarle el estado visualmente
+        setInscripciones(prev => prev.map(ins => 
+            ins.id_reserva === id_reserva 
+                ? { ...ins, estado_reserva: 'Cancelada',
+                    motivo_cancelacion: "Cancelada por el usuario"
+                 } 
+                : ins
+        ));
         
-        // 1. Guardamos una copia por si algo falla (para revertir)
-        const inscripcionesPrevias = [...inscripciones];
+        setSuccessMsg("Procesando cancelación...");
 
-        try {
-            // 2. ACTUALIZACIÓN OPTIMISTA: 
-            // Quitamos la reserva de la vista ANTES de la respuesta del servidor
-            setInscripciones(prev => prev.filter(ins => ins.id_reserva !== id_reserva));
-            setSuccessMsg("Procesando cancelación...");
+        // 2. CAMBIO DE MÉTODO: 
+        // Usamos PATCH o PUT en lugar de DELETE para que la fila no desaparezca de la DB
+        await axios.patch(`${apiUrl}/inscripciones/${id_reserva}`, 
+            { estado_reserva: 'Cancelada',
+                motivo_cancelacion: "Cancelada por el usuario"
+             }, // Le mandamos el nuevo estado al servidor
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-            await axios.delete(`${apiUrl}/inscripciones/${id_reserva}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+        setSuccessMsg("Reserva cancelada correctamente.");
+        setTimeout(() => setSuccessMsg(null), 3000);
 
-            // 3. Si llega acá, todo salió bien
-            setSuccessMsg("Reserva cancelada correctamente.");
-            setTimeout(() => setSuccessMsg(null), 3000);
-
-        } catch (err: any) {
-            console.error("Error al cancelar:", err);
-            
-            // 4. REVERSIÓN: Si el servidor falla, devolvemos la reserva a la lista
-            setInscripciones(inscripcionesPrevias);
-            
-            const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
-            setError(mensaje);
-            setSuccessMsg(null);
-            setTimeout(() => setError(null), 4000);
-        }
-    };
+    } catch (err: any) {
+        console.error("Error al cancelar:", err);
+        
+        // 3. REVERSIÓN: Si falla, volvemos al estado anterior
+        setInscripciones(inscripcionesPrevias);
+        
+        const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
+        setError(mensaje);
+        setSuccessMsg(null);
+        setTimeout(() => setError(null), 4000);
+    }
+};
 
     const handlePagar = async (ins: Inscripcion) => {
     const token = getToken();
@@ -660,7 +669,7 @@ useEffect(() => {
                                                     <div>📍 {ins.ubicacion}</div>
                                                     <div style={{ color: '#ccff00', fontWeight: 'bold' }}>💲 ${ins.costo}</div>
                                                 </div>
-
+                                                 
                                                 <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                                     {ins.estado_reserva === 'Pendiente' && (
                                                         <>
