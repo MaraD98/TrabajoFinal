@@ -300,7 +300,6 @@ class ReporteService:
             .filter(*filtros)
             .group_by(Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol)
             .order_by(text("recaudacion_total DESC"))
-            .limit(10)
             .all()
         )
 
@@ -323,6 +322,7 @@ class ReporteService:
             db.query(
                 Evento.id_evento,
                 Evento.nombre_evento,
+                Evento.fecha_evento,
                 Evento.cupo_maximo,
                 Evento.costo_participacion,
                 func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("inscriptos_pagos"),
@@ -332,7 +332,7 @@ class ReporteService:
             .filter(Evento.cupo_maximo > 0)
             .filter(Evento.id_estado.in_([3, 4]))
             .filter(*filtros)
-            .group_by(Evento.id_evento)
+            .group_by(Evento.id_evento, Evento.fecha_evento)
             .all()
         )
 
@@ -347,6 +347,7 @@ class ReporteService:
             top_ocupacion.append({
                 "id_evento": row.id_evento,
                 "nombre_evento": row.nombre_evento,
+                "fecha_evento": row.fecha_evento.isoformat() if row.fecha_evento else None,
                 "cupo_maximo": cupo,
                 "inscriptos_pagos": inscriptos,
                 "reservados_no_pagos": reservados,
@@ -356,7 +357,6 @@ class ReporteService:
             })
         
         top_ocupacion.sort(key=lambda x: x["tasa_ocupacion"], reverse=True)
-        top_ocupacion = top_ocupacion[:10]
 
         # ── 3. Dashboard Eventos del Sistema (Nuevo) ──
         # Traemos todos los eventos desglosados para que el front arme los gráficos
