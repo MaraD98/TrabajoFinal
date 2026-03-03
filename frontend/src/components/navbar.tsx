@@ -143,7 +143,7 @@ export const Navbar = () => {
                                 <Link to="/mis-eventos" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>
                                     📅 Mis Eventos Creados
                                 </Link>
-                                <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>📊 Reportes y Estadísticas</Link>
+                                <Link to="/reportes" className="dropdown-item" onClick={() => setIsDropdownOpen(false)}>📊 Módulo de Reportes</Link>
                                 
                                 <div className="dropdown-divider"></div>
                                 
