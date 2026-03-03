@@ -300,7 +300,6 @@ class ReporteService:
             .filter(*filtros)
             .group_by(Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol)
             .order_by(text("recaudacion_total DESC"))
-            .limit(10)
             .all()
         )
 
@@ -358,7 +357,6 @@ class ReporteService:
             })
         
         top_ocupacion.sort(key=lambda x: x["tasa_ocupacion"], reverse=True)
-        top_ocupacion = top_ocupacion[:10]
 
         # ── 3. Dashboard Eventos del Sistema (Nuevo) ──
         # Traemos todos los eventos desglosados para que el front arme los gráficos

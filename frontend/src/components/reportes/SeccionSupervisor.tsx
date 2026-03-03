@@ -25,9 +25,7 @@ interface SeccionSupervisorProps {
 
     // --- Tabla: Organizadores ---
     sortConfigOrg: { key: OrganizadorKey | null; direction: 'asc' | 'desc' | null };
-    handleSortOrg: (key: OrganizadorKey) => void;
-    filtroRolOrg: string;                                
-    setFiltroRolOrg: (valor: string) => void;           
+    handleSortOrg: (key: OrganizadorKey) => void;           
     organizadoresFiltrados: any[];                       
     sortedOrganizadores: any[];
 
@@ -46,9 +44,7 @@ export function SeccionSupervisor({
     evtSist,
     handleChartClick,
     handleSortOrg,
-    sortConfigOrg,
-    filtroRolOrg,               
-    setFiltroRolOrg,            
+    sortConfigOrg,            
     organizadoresFiltrados,
     handleSortOcupacion,
     sortConfigOcupacion,
@@ -66,6 +62,7 @@ export function SeccionSupervisor({
         eventosFiltrados = eventosFiltrados.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
     }
     const [organizadorModal, setOrganizadorModal] = useState<any | null>(null);
+    console.log("organizadorModal actual:", organizadorModal);
     const [hoveredBar, setHoveredBar] = useState<string | null>(null);
     const [eventoModal, setEventoModal] = useState<any | null>(null); // Para el Modal Termómetro
     // 👇 3. CALCULAMOS LOS DATOS DEL GRÁFICO CON LA DATA YA FILTRADA 👇
@@ -126,7 +123,7 @@ export function SeccionSupervisor({
                     {/* TÍTULO ACTUALIZADO */}
                     <h3>📊 Distribución de Eventos por Estado y Origen</h3>
                     <p style={{ fontSize: "14px", color: "#d7d7d7", marginTop: "5px" }}>
-                        Muestra el volumen de eventos según su estado operativo y procedencia.
+                        Muestra el volumen de eventos según su estado y procedencia.
                     </p>
                     <button onClick={() => handleExportarCSV("dashboard_eventos")} className="btn-export">
                         📥 Exportar Todo (CSV)
@@ -194,7 +191,7 @@ export function SeccionSupervisor({
                         border: "1px solid #334155" 
                     }}>
                         <p style={{ fontSize: "0.9rem", margin: "0 0 8px 0", color: "#e2e8f0" }}>
-                            <strong style={{ color: "#8b5cf6" }}>🟣 Origen Propio:</strong> Eventos creados y gestionados directamente por la administración del sistema.
+                            <strong style={{ color: "#8b5cf6" }}>🟣 Origen Propio:</strong> Eventos creados directamente por la administración del sistema.
                         </p>
                         <p style={{ fontSize: "0.9rem", margin: 0, color: "#e2e8f0" }}>
                             <strong style={{ color: "#f59e0b" }}>🟠 Origen Externo:</strong> Eventos publicados por usuarios u organizaciones externas a la plataforma.
@@ -211,21 +208,12 @@ export function SeccionSupervisor({
                     {/* EL NUEVO TÍTULO */}
                     <h3>🏆 Ranking de Organizadores por Rendimiento</h3>
                     <p style={{ fontSize: "14px", color: "#d7d7d7" }}>
-                        Top 10 usuarios con mayor volumen de recaudación y eventos.
+                        Ranquing de usuarios con mayor volumen de recaudación y eventos.
                     </p>
                 </div>
             
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>    
-                    <select 
-                        value={filtroRolOrg}
-                        onChange={(e) => setFiltroRolOrg(e.target.value)}
-                        style={{ padding: "6px 12px", borderRadius: "6px", background: "#1e293b", color: "#fff", border: "1px solid #334155", fontSize: "0.85rem" }}
-                    >
-                        <option value="todos">👥 Todos los roles</option>
-                        <option value="Organización Externa">🏢 Organización Externa</option>
-                        <option value="Administrador">👑 Administrador</option>
-                        <option value="Supervisor">🛡️ Supervisor</option>
-                    </select>
+                    
 
                     <button onClick={() => handleExportarCSV("analisis_organizadores")} className="btn-export">
                         📥 Exportar CSV
@@ -234,28 +222,28 @@ export function SeccionSupervisor({
             </div>
 
             <div className="grafico-card__body">
-                <div className="table-responsive">
+                <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
                     <table className="tabla-reportes-custom">
                         <thead>
                             <tr>
                                 {/* LOS ENCABEZADOS AHORA SON CLICKEABLES PARA ORDENAR */}
-                                <th onClick={() => handleSortOrg('organizador')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                <th onClick={() => handleSortOrg('organizador')} style={{ cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Organizador {sortConfigOrg.key === 'organizador' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
-                                <th>Email</th>
-                                <th onClick={() => handleSortOrg('rol')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                <th style={{ position: "sticky", top: 0 }}>Email</th>
+                                <th onClick={() => handleSortOrg('rol')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Rol {sortConfigOrg.key === 'rol' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
-                                <th onClick={() => handleSortOrg('total_eventos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                <th onClick={() => handleSortOrg('total_eventos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Total Eventos {sortConfigOrg.key === 'total_eventos' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
-                                <th onClick={() => handleSortOrg('activos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                <th onClick={() => handleSortOrg('activos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Activos {sortConfigOrg.key === 'activos' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
-                                <th onClick={() => handleSortOrg('finalizados')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                <th onClick={() => handleSortOrg('finalizados')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Finalizados {sortConfigOrg.key === 'finalizados' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
-                                <th onClick={() => handleSortOrg('recaudacion_total')} style={{ textAlign: "right", cursor: "pointer", userSelect: "none" }}>
+                                <th onClick={() => handleSortOrg('recaudacion_total')} style={{ textAlign: "right", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                     Recaudación Total {sortConfigOrg.key === 'recaudacion_total' ? (sortConfigOrg.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                 </th>
                             </tr>
@@ -267,7 +255,10 @@ export function SeccionSupervisor({
                                     {/* 1. ORGANIZADOR (Clickeable para el modal) */}
                                     <td 
                                         style={{ fontWeight: "bold", cursor: "pointer", color: "#60a5fa", textDecoration: "underline" }}
-                                        onClick={() => setOrganizadorModal(org)}
+                                        onClick={() => {
+                                            console.log("Hiciste clic en:", org.organizador);
+                                            setOrganizadorModal(org);
+                                        }}
                                         title="Ver ficha de rendimiento"
                                     >
                                         {org.organizador}
@@ -349,27 +340,27 @@ export function SeccionSupervisor({
                 </div>
 
                 <div className="grafico-card__body">
-                    <div className="table-responsive">
+                    <div className="table-responsive" style={{ maxHeight: "400px", overflowY: "auto" }}>
                         <table className="tabla-reportes-custom">
                             <thead>
                                 <tr>
-                                    <th onClick={() => handleSortOcupacion('nombre_evento')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('nombre_evento')} style={{ cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Evento {sortConfigOcupacion.key === 'nombre_evento' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
                                     {/* AGREGAMOS EL TÍTULO DE FECHA AQUÍ */}
-                                    <th onClick={() => handleSortOcupacion('fecha_evento')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('fecha_evento')} style={{ cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Fecha {sortConfigOcupacion.key === 'fecha_evento' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
-                                    <th onClick={() => handleSortOcupacion('es_pago')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('es_pago')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Tipo {sortConfigOcupacion.key === 'es_pago' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
-                                    <th onClick={() => handleSortOcupacion('inscriptos_pagos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('inscriptos_pagos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Inscriptos {sortConfigOcupacion.key === 'inscriptos_pagos' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
-                                    <th onClick={() => handleSortOcupacion('cupo_maximo')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('cupo_maximo')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Cupo Max {sortConfigOcupacion.key === 'cupo_maximo' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
-                                    <th onClick={() => handleSortOcupacion('tasa_ocupacion')} style={{ cursor: "pointer", userSelect: "none" }}>
+                                    <th onClick={() => handleSortOcupacion('tasa_ocupacion')} style={{ cursor: "pointer", userSelect: "none", position: "sticky", top: 0 }}>
                                         Ocupación {sortConfigOcupacion.key === 'tasa_ocupacion' ? (sortConfigOcupacion.direction === 'asc' ? '🔼' : '🔽') : '↕️'}
                                     </th>
                                 </tr>
@@ -439,10 +430,12 @@ export function SeccionSupervisor({
                 onClose={() => setEventoModal(null)} 
             />
         {/* Modal de Ficha del Organizador */}
+        {organizadorModal && (
             <ModalPerfilOrganizador 
                 organizador={organizadorModal} 
                 onClose={() => setOrganizadorModal(null)} 
             />
+        )}
     </div> 
 
     );

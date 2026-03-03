@@ -102,7 +102,7 @@ export default function ReportesPage() {
   type OrganizadorKey = "organizador" | "total_eventos" | "activos" | "finalizados" | "recaudacion_total" | "rol";
 
   const [sortConfigOrg, setSortConfigOrg] = useState<{ key: OrganizadorKey | null, direction: 'asc' | 'desc' | null }>({ key: 'recaudacion_total', direction: 'desc' });
-  const [filtroRolOrg, setFiltroRolOrg] = useState<string>('todos'); // <-- NUEVO ESTADO PARA EL FILTRO
+  const [filtroRolOrg] = useState<string>('todos'); // <-- NUEVO ESTADO PARA EL FILTRO
 
   // Mantenemos tu modalDashboard intacto:
   const [modalDashboard, setModalDashboard] = useState<{ isOpen: boolean, title: string, data: any[] }>({ isOpen: false, title: "", data: [] });
@@ -741,9 +741,7 @@ export default function ReportesPage() {
                 sortConfigOcupacion={sortConfigOcupacion}
                 ocupacionFiltrada={ocupacionFiltrada}
                 filtroOcupacion={filtroOcupacion}
-                setFiltroOcupacion={setFiltroOcupacion}
-                filtroRolOrg={filtroRolOrg}               
-                setFiltroRolOrg={setFiltroRolOrg}         
+                setFiltroOcupacion={setFiltroOcupacion}         
                 organizadoresFiltrados={sortedOrganizadores} 
                 
             />
