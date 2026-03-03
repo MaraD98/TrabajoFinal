@@ -149,6 +149,7 @@ class InscripcionService:
         # MANDAMOS EL MAIL EN SEGUNDO PLANO
         background_tasks.add_task(
             enviar_correo_reserva,
+            enviar_correo_cancelacion_reserva,
             email_destino=usuario_actual.email,
             nombre_usuario=usuario_actual.nombre_y_apellido,
             evento=evento.nombre_evento,
@@ -159,6 +160,7 @@ class InscripcionService:
         if hasattr(usuario_actual, 'telefono') and usuario_actual.telefono:
             background_tasks.add_task(
                 enviar_whatsapp_reserva,
+                enviar_whatsapp_cancelacion_evento,
                 telefono=usuario_actual.telefono,
                 nombre_usuario=usuario_actual.nombre_y_apellido,
                 evento=evento.nombre_evento,

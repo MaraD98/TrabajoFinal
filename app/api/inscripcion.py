@@ -127,22 +127,19 @@ def confirmar_pago(
     )
 
 # ============ CANCELAR INSCRIPCIÓN (Usuario o Admin) ============
-@router.delete(
-    "/{id_inscripcion}",
-    summary="Cancelar una inscripción y liberar cupo",
-    status_code=status.HTTP_204_NO_CONTENT
-)
+
+@router.patch("/{inscripcion_id}")
 def cancelar_inscripcion(
-    id_inscripcion: int,
-    background_tasks: BackgroundTasks, # <--- 1. Agregamos esto
+    inscripcion_id: int,
+    datos: dict, 
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user), # <-- Faltaba esta coma
+    background_tasks: BackgroundTasks = BackgroundTasks() # <-- CAMBIO CLAVE: Sin Depends
 ):
-    # 2. Se lo pasamos al servicio
-    InscripcionService.cancelar_inscripcion(
+    # Ahora sí llamamos al servicio con todos los parámetros
+    return InscripcionService.cancelar_inscripcion( 
         db=db, 
-        id_inscripcion=id_inscripcion, 
-        usuario_actual=current_user,
-        background_tasks=background_tasks # <--- 3. Crucial pasarlo
+        id_inscripcion=inscripcion_id, 
+        usuario_actual=current_user, 
+        background_tasks=background_tasks
     )
-    return

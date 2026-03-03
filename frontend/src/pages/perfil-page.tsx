@@ -26,6 +26,7 @@ interface Inscripcion {
     ubicacion: string;
     fecha_evento: string;
     hora_evento: string | null;
+    monto: number;
     costo: number;
     detalle_baja: string | null;
 }
@@ -116,7 +117,7 @@ export default function PerfilPage() {
         { label: "Total Inscripciones", value: fmt(inscripciones.length), color: "#4ade80" },
         { label: "Confirmadas", value: fmt(inscripciones.filter(i => i.estado_reserva === 'Confirmada').length), color: "#60a5fa" },
         { label: "Pendientes", value: fmt(inscripciones.filter(i => i.estado_reserva === 'Pendiente').length), color: "#fbbf24" },
-        { label: "Total Gastado", value: fmtPeso(inscripciones.reduce((acc, curr) => acc + (curr.costo || 0), 0)), color: "#a78bfa" },
+        { label: "Total Gastado", value: fmtPeso(inscripciones.filter(i => i.estado_reserva === 'Confirmada') .reduce((acc, curr: any) => acc + (Number(curr.monto) || Number(curr.costo) || 0), 0)), color: "#a78bfa" },
     ];
 
     const [editForm, setEditForm] = useState({
@@ -315,7 +316,7 @@ useEffect(() => {
         const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, {
             id_reserva: ins.id_reserva,
             nombre_evento: ins.nombre_evento,
-            precio: ins.costo
+            precio: ins.monto
         }, {
             headers: { Authorization: `Bearer ${token}` }
         });
@@ -643,7 +644,7 @@ useEffect(() => {
                                                 flexDirection: 'column',
                                                 gap: '10px'
                                             }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>    
                                                     <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>{ins.nombre_evento}</h3>
                                                     <span style={{ 
                                                         background: 'rgba(255,255,255,0.1)', 
