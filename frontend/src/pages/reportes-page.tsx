@@ -193,7 +193,7 @@ export default function ReportesPage() {
   const usuarioRol = user?.id_rol || 0;
 
   // Estado para el Modal de Detalles de Gráficos de Torta
-  const [modalFiltroTorta, setModalFiltroTorta] = useState<{ titulo: string, filtroKey: string, valor: string } | null>(null);
+  const [modalFiltroTorta, setModalFiltroTorta] = useState<{ titulo: string; filtroKey: string; valor: string; dataFiltrada?: any[] } | null>(null);
   const [modalAdminEvento, setModalAdminEvento] = useState<any | null>(null);
   // Estado para el Modal de Análisis Financiero
   const [modalFinanciero, setModalFinanciero] = useState<boolean>(false);
@@ -343,7 +343,7 @@ export default function ReportesPage() {
   };
 
 // ── Gráficos ──────────────────────────────────────────────────────────────
-  const renderGraficoTorta = (datos: any[], keyName: string, valName: string, tituloModal: string) => {
+  const renderGraficoTorta = (datos: any[], keyName: string, valName: string, tituloModal: string, listaEventos?: any[]) => {
     if (!datos || datos.length === 0) return <p className="no-data">No hay datos suficientes para mostrar.</p>;
   
     const datosOrdenados = [...datos].sort((a, b) => Number(b[valName]) - Number(a[valName]));
@@ -351,7 +351,6 @@ export default function ReportesPage() {
     const colores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
   
     return (
-      // Centramos un contenedor que no pase de los 600px para que no se separen tanto
       <div style={{ width: "100%", height: "250px", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: "550px", height: "100%" }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -367,7 +366,15 @@ export default function ReportesPage() {
                 onClick={(data) => {
                   const valorClickeado = data?.payload ? data.payload[keyName] : data[keyName];
                   if (valorClickeado) {
-                    setModalFiltroTorta({ titulo: tituloModal, filtroKey: keyName, valor: valorClickeado });
+                    setModalFiltroTorta({ 
+                      titulo: tituloModal, 
+                      filtroKey: keyName, 
+                      valor: valorClickeado, 
+                      // 🔥 ACÁ ESTÁ LA MAGIA: Si nos pasaron la lista de eventos, la filtramos por la categoría clickeada
+                      dataFiltrada: listaEventos 
+                        ? listaEventos.filter(e => String(e[keyName]) === String(valorClickeado))
+                        : [] 
+                    });
                   }
                 }}
                 style={{ cursor: 'pointer', outline: "none" }}
@@ -490,6 +497,8 @@ export default function ReportesPage() {
   const promedioParticipantes = totalEventosGlobal > 0 ? Math.round(totalConfirmadas / totalEventosGlobal) : 0;
   const cupoTotalSistema = eventosDetalle.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
   const ocupacionGlobal = cupoTotalSistema > 0 ? ((totalConfirmadas / cupoTotalSistema) * 100).toFixed(1) : "0";
+
+
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div className="reportes-page">
@@ -703,7 +712,9 @@ export default function ReportesPage() {
         <ModalFiltroTorta 
           filtro={modalFiltroTorta} 
           onClose={() => setModalFiltroTorta(null)} 
-          eventos={reporteData?.lista_eventos_detallada || []} 
+          
+          // 👇 Prioriza dataFiltrada, si no existe usa la lista detallada
+          eventos={modalFiltroTorta?.dataFiltrada || reporteData?.lista_eventos_detallada || []} 
           usuarioRol={usuarioRol}
         />
         {/* ════════════════════════════════════════════════════════════════
@@ -740,7 +751,7 @@ export default function ReportesPage() {
             modal={modalDashboard} 
             onClose={() => setModalDashboard({ isOpen: false, title: "", data: [] })} 
           />
-        {usuarioRol === 2 && (
+        {usuarioRol < 2 && (
             <SeccionSupervisor 
                 handleExportarCSV={handleExportarCSV}
                 handleChartClick={handleChartClick}
