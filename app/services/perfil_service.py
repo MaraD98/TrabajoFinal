@@ -66,13 +66,30 @@ class PerfilService:
         # 2. Procesamos la lógica de presentación (Mapeo)
         for reserva, evento in resultados_crud:
             
-            # Lógica de negocio: Traducción de estados
+            # Lógica de negocio: Traducción de estados (Corregida)
             estado_texto = "Desconocido"
-            if reserva.id_estado_reserva == 1: estado_texto = "Pendiente de Pago"
-            elif reserva.id_estado_reserva == 2: estado_texto = "Confirmado"
-            elif reserva.id_estado_reserva == 3: estado_texto = "Rechazado"
-            elif reserva.id_estado_reserva == 5: estado_texto = "Cancelado"
+            if reserva.id_estado_reserva == 1: 
+                estado_texto = "Pendiente"  # Antes decia "Pendiente de Pago"
+            elif reserva.id_estado_reserva == 2: 
+                estado_texto = "Confirmada" # Corregido a femenino como tu DB
+            elif reserva.id_estado_reserva == 3: 
+                estado_texto = "Cancelada"  # Corregido: ID 3 es Cancelada, no Rechazado
+            elif reserva.id_estado_reserva == 4: 
+                estado_texto = "Expirada"
 
+            # --- LÓGICA DE DETALLE DE CANCELACIÓN ---
+            detalle_baja = None
+            if reserva.id_estado_reserva == 3:
+                from app.models.eliminacion_models import EliminacionEvento
+                eliminacion = db.query(EliminacionEvento).filter(
+                    EliminacionEvento.id_evento == evento.id_evento
+                ).first()
+                if eliminacion:
+                    detalle_baja = f"Evento cancelado por el organizador: {eliminacion.motivo_eliminacion}"
+                else:
+                    detalle_baja = "Cancelada por el usuario"
+            # ----------------------------------------
+            
             item = {
                 "id_reserva": reserva.id_reserva,
                 "fecha_reserva": reserva.fecha_reserva,
@@ -84,7 +101,8 @@ class PerfilService:
                 "fecha_evento": evento.fecha_evento,
                 # Verifica si el objeto evento tiene hora, si no, null
                 "hora_evento": str(evento.hora_evento) if hasattr(evento, 'hora_evento') and evento.hora_evento else None,
-                "costo": evento.costo_participacion
+                "costo": evento.costo_participacion,
+                "detalle_baja": detalle_baja
             }
             lista_inscripciones.append(item)
             

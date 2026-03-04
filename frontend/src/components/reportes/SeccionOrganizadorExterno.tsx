@@ -14,7 +14,7 @@ interface SeccionOrganizadorExternoProps {
   handleSort: (key: string) => void;
   si: (key: string) => React.ReactNode;
   // Gráficos y Exportación
-  renderGraficoTorta: (data: any[], dataKey: string, nameKey: string, tooltipLabel: string) => React.ReactNode;
+  renderGraficoTorta: (data: any[], dataKey: string, nameKey: string, tooltipLabel: string, listaEventos: any[]) => React.ReactNode;
   handleExportarCSV: (tipo: string) => void;
   // Filtros de Recaudación
   totalRecaudacionFiltrado: number;
@@ -59,7 +59,7 @@ export function SeccionOrganizadorExterno({
 
   const [motivoModal, setMotivoModal] = useState<string | null>(null);
 
-  if (usuarioRol > 3) return null;
+  if (usuarioRol !== 3) return null;
 
   // 1. Extraemos los tipos de eventos ÚNICOS que realmente tenés creados para el select
   const eventosTotales = reporteData?.lista_eventos_detallada ?? [];
@@ -290,7 +290,7 @@ export function SeccionOrganizadorExterno({
               </button>
             </div>
             <div className="grafico-card__body">
-              {renderGraficoTorta(datosTortaFiltrados, "tipo", "cantidad", "Inscriptos")}
+              {renderGraficoTorta(datosTortaFiltrados, "tipo", "cantidad", "Inscriptos", eventosParaTorta)}
               <div className="insight-text" style={{ marginTop: "20px" }}>
                 {categoriaGanadora ? (
                   <>💡 Tu categoría con más inscriptos es <strong>{categoriaGanadora}</strong>.</>

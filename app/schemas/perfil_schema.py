@@ -67,6 +67,7 @@ class MiInscripcionResponse(BaseModel):
     fecha_evento: date
     hora_evento: Optional[str] = None # Opcional si lo tienes
     costo: Decimal
+    detalle_baja: Optional[str] = None  
 
 # 👇 AGREGAR ESTO — convierte la fecha al mostrarla
     @field_serializer('fecha_evento')

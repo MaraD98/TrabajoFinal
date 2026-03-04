@@ -7,6 +7,7 @@ from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.eliminacion_models import EliminacionEvento  # ✅ IMPORTAR AQUÍ
 from app.email import enviar_correo_cancelacion_evento
+from app.whatsapp import enviar_whatsapp_cancelacion_evento
 
 # ============================================================================
 # CONSTANTES
@@ -311,7 +312,7 @@ class EliminacionService:
         }
 
    # ========================================================================
-    # NOTIFICAR INSCRITOS
+    # NOTIFICAR INSCRITOS (CORREGIDO PARA WHATSAPP)
     # ========================================================================
     @staticmethod
     def _notificar_inscritos(
@@ -321,10 +322,12 @@ class EliminacionService:
         id_eliminacion: int
     ) -> None:
         """
-        Notifica a todos los inscritos que el evento fue cancelado (Consola + Email).
+        Notifica a todos los inscritos que el evento fue cancelado.
+        Corrección: Busca el teléfono en la tabla 'contacto' mediante SQL directo.
         """
+        from sqlalchemy import text # Importar para la query manual
+
         # 1. Buscamos las reservas ACTIVAS (Pendientes 1 y Confirmadas 2)
-        # ❌ Cambiamos el filtro genérico por el específico de tu base
         reservas = db.query(ReservaEvento).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2])
@@ -335,10 +338,65 @@ class EliminacionService:
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
             return
         
-        # 2. Encabezado en consola
+        # ✅ FIX: CANCELAR LAS RESERVAS ANTES DE NOTIFICAR
+        for reserva in reservas:
+            reserva.id_estado_reserva = 3  # Cancelada
+        db.flush()
+        # -----------------------------------------------
+        
         print(f"\n{'='*70}")
-        print(f"[NOTIFICACIONES] Enviando a {len(reservas)} participantes...")
+        print(f"[NOTIFICACIONES] Procesando {len(reservas)} participantes...")
         print(f"{'='*70}")
+        
+        count = 0
+        for reserva in reservas:
+            participante = reserva.usuario 
+            if not participante:
+                continue
+
+            # --- A. ENVÍO DE EMAIL ---
+            if participante.email:
+                try:
+                    enviar_correo_cancelacion_evento(
+                        email_destino=participante.email,
+                        nombre_evento=evento.nombre_evento,
+                        motivo=motivo
+                    )
+                    print(f"  ✉️  Email enviado a: {participante.email}")
+                except Exception as e:
+                    print(f"  ❌ Error Email a {participante.email}: {e}")
+
+            # --- B. ENVÍO DE WHATSAPP (CORREGIDO) ---
+            try:
+                # Buscamos el tel directamente en la tabla contacto
+                query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                res_tel = db.execute(query_tel, {"id_u": reserva.id_usuario}).fetchone()
+                tel_real = res_tel[0] if res_tel else None
+
+                if tel_real:
+                    enviar_whatsapp_cancelacion_evento(
+                        telefono=tel_real,
+                        nombre_evento=evento.nombre_evento,
+                        motivo=motivo
+                    )
+                    print(f"  📱 WhatsApp enviado a: {tel_real}")
+                else:
+                    print(f"  ⚠️ Sin teléfono en tabla 'contacto' para usuario {reserva.id_usuario}")
+            except Exception as e:
+                print(f"  ❌ Error WhatsApp para usuario {reserva.id_usuario}: {e}")
+
+            count += 1
+            print(f"  {'-'*60}")
+        
+        # Marcar como notificado en la BD
+        try:
+            eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
+        except Exception as e:
+            print(f"⚠️ Error al marcar notificación como enviada: {e}")
+
+        print(f"{'='*70}")
+        print(f"[✅ OK] {count} participantes procesados")
+        print(f"{'='*70}\n")
         
         # 3. Datos del organizador para el log
         organizador = db.query(Usuario).filter(
@@ -349,7 +407,7 @@ class EliminacionService:
 
         count = 0
         for reserva in reservas:
-            # Usamos la relación 'usuario' que ya viene cargada en la reserva
+
             participante = reserva.usuario 
             
             if participante and participante.email:
@@ -376,12 +434,31 @@ class EliminacionService:
                     print(f"     {'-'*60}")
                 except Exception as e:
                     print(f"  ❌ Error enviando mail a {participante.email}: {e}")
+                    
+                    # --- ✅ NUEVO: ENVÍO DE WHATSAPP ---
+                if hasattr(participante, 'telefono') and participante.telefono:
+                    try:
+                        # Llamamos a la función de whatsapp.py
+                        enviar_whatsapp_cancelacion_evento(
+                            telefono=participante.telefono,
+                            nombre_evento=evento.nombre_evento,
+                            motivo=motivo
+                        )
+                        print(f"  📱 WhatsApp enviado a: {participante.telefono}")
+                    except Exception as e:
+                        print(f"  ❌ Error WhatsApp a {participante.telefono}: {e}")
+
+                count += 1
+                print(f"  ✅ Procesado: {participante.email if participante.email else 'Sin Email'}")
+                print(f"  {'-'*60}")
         
-        # 4. Finalizamos proceso
+        # Finalizamos proceso
         eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
         print(f"{'='*70}")
-        print(f"[✅ OK] {count} notificaciones procesadas")
+        print(f"[✅ OK] {count} notificaciones (Email/WhatsApp) procesadas")
         print(f"{'='*70}\n")
+
+
     # ========================================================================
     # CONSULTAS
     # ========================================================================

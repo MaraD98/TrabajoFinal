@@ -78,10 +78,7 @@ export default function ReportesPage() {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   // Tendencias
-  const [tabTendencias, setTabTendencias] = useState<"activos" | "pasados">("activos");
   const [filtroTipoTendencias, setFiltroTipoTendencias] = useState<string>("");
-  const [provinciaExpandida, setProvinciaExpandida] = useState<string | null>(null);
-  const [localidadExpandida, setLocalidadExpandida] = useState<string | null>(null);
 
   // Recaudación
   const [busquedaEvento, setBusquedaEvento] = useState<string>("");
@@ -99,11 +96,16 @@ export default function ReportesPage() {
   };
 
   // Estados exclusivos para Supervisor
-  const [sortConfigOrg, setSortConfigOrg] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'recaudacion_total', direction: 'desc' });
+  type OrganizadorKey = "organizador" | "total_eventos" | "activos" | "finalizados" | "recaudacion_total" | "rol";
+
+  const [sortConfigOrg, setSortConfigOrg] = useState<{ key: OrganizadorKey | null, direction: 'asc' | 'desc' | null }>({ key: 'recaudacion_total', direction: 'desc' });
+  const [filtroRolOrg] = useState<string>('todos'); // <-- NUEVO ESTADO PARA EL FILTRO
+
+  // Mantenemos tu modalDashboard intacto:
   const [modalDashboard, setModalDashboard] = useState<{ isOpen: boolean, title: string, data: any[] }>({ isOpen: false, title: "", data: [] });
 
   // Función para ordenar la tabla de Organizadores Externos
-  const handleSortOrg = (key: string) => {
+  const handleSortOrg = (key: OrganizadorKey) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfigOrg.key === key && sortConfigOrg.direction === 'desc') {
       direction = 'asc';
@@ -111,7 +113,15 @@ export default function ReportesPage() {
     setSortConfigOrg({ key, direction });
   };
 
-  const sortedOrganizadores = [...(reporteData?.analisis_organizadores || [])].sort((a: any, b: any) => {
+  // 1. Primero filtramos por rol
+  let organizadoresFiltrados = reporteData?.analisis_organizadores || [];
+  if (filtroRolOrg !== 'todos') {
+    organizadoresFiltrados = organizadoresFiltrados.filter((org: any) => org.rol === filtroRolOrg);
+  }
+
+  // 2. Luego ordenamos la lista que ya filtramos
+  const sortedOrganizadores = [...organizadoresFiltrados].sort((a: any, b: any) => {
+    if (!sortConfigOrg.key) return 0;
     if (a[sortConfigOrg.key] < b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? -1 : 1;
     if (a[sortConfigOrg.key] > b[sortConfigOrg.key]) return sortConfigOrg.direction === 'asc' ? 1 : -1;
     return 0;
@@ -120,6 +130,8 @@ export default function ReportesPage() {
   // Estados para el Filtro Global de Fechas
   const [fechaInicio, setFechaInicio] = useState<string>("");
   const [fechaFin, setFechaFin] = useState<string>("");
+  const [filtroPertenencia, setFiltroPertenencia] = useState("todos");
+
 
   // ── Label helpers ─────────────────────────────────────────────────────────
   const getNombreEstado = (id: number) =>
@@ -127,7 +139,8 @@ export default function ReportesPage() {
 
   // --- Ordenamiento para la tabla de Ocupación ---
   const [sortConfigOcupacion, setSortConfigOcupacion] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'tasa_ocupacion', direction: 'desc' });
-
+  const [filtroOcupacion, setFiltroOcupacion] = useState<'todos' | 'riesgo' | 'exito'>('todos');
+  
   const handleSortOcupacion = (key: string) => {
     let direction: 'asc' | 'desc' = 'desc';
     if (sortConfigOcupacion.key === key && sortConfigOcupacion.direction === 'desc') {
@@ -141,6 +154,11 @@ export default function ReportesPage() {
     if (a[sortConfigOcupacion.key] > b[sortConfigOcupacion.key]) return sortConfigOcupacion.direction === 'asc' ? 1 : -1;
     return 0;
   });
+  const ocupacionFiltrada = sortedOcupacion.filter(evt => {
+    if (filtroOcupacion === 'riesgo') return evt.tasa_ocupacion < 40;
+    if (filtroOcupacion === 'exito') return evt.tasa_ocupacion >= 40;
+    return true;
+});
 
   // Funciones para procesar el Dashboard
   const evtSist = reporteData?.dashboard_eventos || [];
@@ -159,18 +177,6 @@ export default function ReportesPage() {
     }
   });
 
-  const barData = [
-    { name: 'Activos', Propios: statsSist.Activo.Propios, Externos: statsSist.Activo.Externos },
-    { name: 'Finalizados', Propios: statsSist.Finalizado.Propios, Externos: statsSist.Finalizado.Externos },
-    { name: 'Eliminados', Propios: statsSist.Cancelado.Propios, Externos: statsSist.Cancelado.Externos },
-  ];
-
-  const pieData = [
-    { name: 'Activos', value: statsSist.Activo.Total, color: '#4ade80' },
-    { name: 'Finalizados', value: statsSist.Finalizado.Total, color: '#3b82f6' },
-    { name: 'Eliminados', value: statsSist.Cancelado.Total, color: '#ef4444' }
-  ];
-
   const handleChartClick = (estadoFiltroPlural: string, tipoFiltro: string | null = null) => {
     // Reconvertimos el plural visual al singular del backend para poder filtrar la tabla del modal
     const estadoSingular = estadoFiltroPlural === 'Activos' ? 'Activo' : estadoFiltroPlural === 'Finalizados' ? 'Finalizado' : 'Cancelado';
@@ -187,7 +193,7 @@ export default function ReportesPage() {
   const usuarioRol = user?.id_rol || 0;
 
   // Estado para el Modal de Detalles de Gráficos de Torta
-  const [modalFiltroTorta, setModalFiltroTorta] = useState<{ titulo: string, filtroKey: string, valor: string } | null>(null);
+  const [modalFiltroTorta, setModalFiltroTorta] = useState<{ titulo: string; filtroKey: string; valor: string; dataFiltrada?: any[] } | null>(null);
   const [modalAdminEvento, setModalAdminEvento] = useState<any | null>(null);
   // Estado para el Modal de Análisis Financiero
   const [modalFinanciero, setModalFinanciero] = useState<boolean>(false);
@@ -337,7 +343,7 @@ export default function ReportesPage() {
   };
 
 // ── Gráficos ──────────────────────────────────────────────────────────────
-  const renderGraficoTorta = (datos: any[], keyName: string, valName: string, tituloModal: string) => {
+  const renderGraficoTorta = (datos: any[], keyName: string, valName: string, tituloModal: string, listaEventos?: any[]) => {
     if (!datos || datos.length === 0) return <p className="no-data">No hay datos suficientes para mostrar.</p>;
   
     const datosOrdenados = [...datos].sort((a, b) => Number(b[valName]) - Number(a[valName]));
@@ -345,7 +351,6 @@ export default function ReportesPage() {
     const colores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
   
     return (
-      // Centramos un contenedor que no pase de los 600px para que no se separen tanto
       <div style={{ width: "100%", height: "250px", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: "550px", height: "100%" }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -361,7 +366,15 @@ export default function ReportesPage() {
                 onClick={(data) => {
                   const valorClickeado = data?.payload ? data.payload[keyName] : data[keyName];
                   if (valorClickeado) {
-                    setModalFiltroTorta({ titulo: tituloModal, filtroKey: keyName, valor: valorClickeado });
+                    setModalFiltroTorta({ 
+                      titulo: tituloModal, 
+                      filtroKey: keyName, 
+                      valor: valorClickeado, 
+                      // 🔥 ACÁ ESTÁ LA MAGIA: Si nos pasaron la lista de eventos, la filtramos por la categoría clickeada
+                      dataFiltrada: listaEventos 
+                        ? listaEventos.filter(e => String(e[keyName]) === String(valorClickeado))
+                        : [] 
+                    });
                   }
                 }}
                 style={{ cursor: 'pointer', outline: "none" }}
@@ -431,21 +444,7 @@ export default function ReportesPage() {
     (s: number, item: DetalleRecaudacion) => s + item.monto, 0
   );
 
-  const tendenciasFiltradas = (reporteData?.tendencias_ubicacion ?? [])
-    .map((prov: any) => ({
-      ...prov,
-      localidades: prov.localidades
-        .map((loc: any) => ({
-          ...loc,
-          eventos: loc.eventos.filter((evt: any) => {
-            const me = tabTendencias === "activos" ? evt.estado === 3 : evt.estado === 4;
-            const mt = filtroTipoTendencias === "" || evt.tipo === filtroTipoTendencias;
-            return me && mt;
-          }),
-        }))
-        .filter((loc: any) => loc.eventos.length > 0),
-    }))
-    .filter((prov: any) => prov.localidades.length > 0);
+
 
   // ── Guards de render ──────────────────────────────────────────────────────
   if (loadingAuth || loading) {
@@ -498,6 +497,8 @@ export default function ReportesPage() {
   const promedioParticipantes = totalEventosGlobal > 0 ? Math.round(totalConfirmadas / totalEventosGlobal) : 0;
   const cupoTotalSistema = eventosDetalle.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
   const ocupacionGlobal = cupoTotalSistema > 0 ? ((totalConfirmadas / cupoTotalSistema) * 100).toFixed(1) : "0";
+
+
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div className="reportes-page">
@@ -584,35 +585,67 @@ export default function ReportesPage() {
         </div>
         </div>
 
-        {/* --- FILTRO GLOBAL DE FECHAS --- */}
-      <div style={{ marginTop: "20px", display: "flex", gap: "15px", alignItems: "center", backgroundColor: "#1e1e1e", padding: "15px", borderRadius: "8px", border: "1px solid #333" }}>
-        <span style={{ fontWeight: "bold", color: "#d7d7d7" }}>Filtrar reportes por fecha:</span>
-        <div>
-          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Desde:</label>
-          <input 
-            type="date" 
-            value={fechaInicio} 
-            onChange={(e) => setFechaInicio(e.target.value)}
-            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
-          />
+      {/* --- FILTRO GLOBAL DE FECHAS Y PERTENENCIA --- */}
+      <div className="grafico-card grafico-card--wide" style={{ marginBottom: "20px" }}>
+        
+        <div className="grafico-card__header">
+          <h3>🎛️ Filtros Generales de Reportes</h3>
+          
+          {(fechaInicio || fechaFin || (usuarioRol < 3 && filtroPertenencia !== "todos")) && (
+            <button 
+              onClick={() => { 
+                setFechaInicio(""); 
+                setFechaFin(""); 
+                if (usuarioRol < 3) setFiltroPertenencia("todos"); 
+              }}
+              className="btn-export"
+              style={{ backgroundColor: "#e63946", color: "white", borderColor: "#e63946" }}
+            >
+              ✖ Limpiar Filtros
+            </button>
+          )}
         </div>
-        <div>
-          <label style={{ marginRight: "10px", fontSize: "0.9rem", color: "#aaa" }}>Hasta:</label>
-          <input 
-            type="date" 
-            value={fechaFin} 
-            onChange={(e) => setFechaFin(e.target.value)}
-            style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff" }}
-          />
+
+        <div className="grafico-card__body" style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-end" }}>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label className="stat-card__label">Fecha Desde</label>
+            <input 
+              type="date" 
+              value={fechaInicio} 
+              onChange={(e) => setFechaInicio(e.target.value)}
+              // Mantuve los estilos del input por si no tenés una clase "filter-input" todavía
+              style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff", outline: "none" }}
+            />
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label className="stat-card__label">Fecha Hasta</label>
+            <input 
+              type="date" 
+              value={fechaFin} 
+              onChange={(e) => setFechaFin(e.target.value)}
+              style={{ padding: "8px", borderRadius: "5px", border: "1px solid #444", backgroundColor: "#2a2a2a", color: "#fff", outline: "none" }}
+            />
+          </div>
+
+          {/* 👁️ Filtro de Pertenencia SOLO para roles 1 y 2 */}
+          {usuarioRol < 3 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <label className="stat-card__label">Origen del Evento</label>
+              <select
+                value={filtroPertenencia}
+                onChange={(e) => setFiltroPertenencia(e.target.value)}
+                className="filter-select"
+              >
+                <option value="todos">Todos los eventos</option>
+                <option value="propios">Propios (Empresa)</option>
+                <option value="externos">Externos (Organizadores)</option>
+              </select>
+            </div>
+          )}
+          
         </div>
-        {(fechaInicio || fechaFin) && (
-          <button 
-            onClick={() => { setFechaInicio(""); setFechaFin(""); }}
-            style={{ padding: "8px 15px", backgroundColor: "#e63946", color: "white", border: "none", borderRadius: "5px", cursor: "pointer" }}
-          >
-            Limpiar Filtros
-          </button>
-        )}
       </div>
 
         {/* ─── Renderizado por Rol ─── */}
@@ -625,6 +658,9 @@ export default function ReportesPage() {
           usuariosPorMes={usuariosPorMes}
           mesesOrdenados={mesesOrdenados}
           maxEventosProvincia={maxEventosProvincia}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          filtroPertenencia={filtroPertenencia}
 
           // 2. Métricas - Eventos
           totalEventosGlobal={totalEventosGlobal}
@@ -657,16 +693,9 @@ export default function ReportesPage() {
           exportando={exportando}
           handleExportarCSV={handleExportarCSV}
           renderGraficoTorta={renderGraficoTorta}
-          tendenciasFiltradas={tendenciasFiltradas}
-          tabTendencias={tabTendencias}
-          setTabTendencias={setTabTendencias}
           filtroTipoTendencias={filtroTipoTendencias}
           setFiltroTipoTendencias={setFiltroTipoTendencias}
           TIPOS_EVENTO={TIPOS_EVENTO}
-          provinciaExpandida={provinciaExpandida}
-          setProvinciaExpandida={setProvinciaExpandida}
-          localidadExpandida={localidadExpandida}
-          setLocalidadExpandida={setLocalidadExpandida}
         />
 
         
@@ -683,7 +712,9 @@ export default function ReportesPage() {
         <ModalFiltroTorta 
           filtro={modalFiltroTorta} 
           onClose={() => setModalFiltroTorta(null)} 
-          eventos={reporteData?.lista_eventos_detallada || []} 
+          
+          // 👇 Prioriza dataFiltrada, si no existe usa la lista detallada
+          eventos={modalFiltroTorta?.dataFiltrada || reporteData?.lista_eventos_detallada || []} 
           usuarioRol={usuarioRol}
         />
         {/* ════════════════════════════════════════════════════════════════
@@ -720,20 +751,23 @@ export default function ReportesPage() {
             modal={modalDashboard} 
             onClose={() => setModalDashboard({ isOpen: false, title: "", data: [] })} 
           />
-        {usuarioRol === 2 && (
+        {usuarioRol <= 2 && (
             <SeccionSupervisor 
                 handleExportarCSV={handleExportarCSV}
-                barData={barData}
-                pieData={pieData}
                 handleChartClick={handleChartClick}
+                fechaInicio={fechaInicio} 
+                fechaFin={fechaFin}
                 evtSist={evtSist}
                 handleSortOrg={handleSortOrg}
                 sortConfigOrg={sortConfigOrg}
                 sortedOrganizadores={sortedOrganizadores}
                 handleSortOcupacion={handleSortOcupacion}
                 sortConfigOcupacion={sortConfigOcupacion}
-                sortedOcupacion={sortedOcupacion}
-                reporteData={reporteData}
+                ocupacionFiltrada={ocupacionFiltrada}
+                filtroOcupacion={filtroOcupacion}
+                setFiltroOcupacion={setFiltroOcupacion}         
+                organizadoresFiltrados={sortedOrganizadores} 
+                
             />
         )}
 

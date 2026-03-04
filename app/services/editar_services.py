@@ -10,7 +10,10 @@ from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_audit
 from datetime import datetime
 from app.email import enviar_correo_modificacion_evento
 from app.models.registro_models import ReservaEvento  
+from app.whatsapp import enviar_whatsapp_modificacion_evento
 import json
+from sqlalchemy import text
+
 
 ID_ESTADO_PUBLICADO = 3
 
@@ -136,22 +139,38 @@ class EditarEventoService:
         db.commit()
         db.refresh(evento)
         
-        # 1. Buscamos a los inscriptos (Pendientes 1 y Confirmados 2)
         inscriptos = db.query(ReservaEvento).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2])
         ).all()
 
-        # 2. Notificamos a cada uno por mail
         for reser in inscriptos:
             if reser.usuario and reser.usuario.email:
-                enviar_correo_modificacion_evento(
-                    email_destino=reser.usuario.email,
-                    nombre_evento=evento.nombre_evento,
-                    id_evento=evento.id_evento,
-                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
-                )
+                # 1. Mail
+                try:
+                    enviar_correo_modificacion_evento(
+                        email_destino=reser.usuario.email,
+                        nombre_evento=evento.nombre_evento,
+                        id_evento=evento.id_evento,
+                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    )
+                except Exception as e:
+                    print(f"⚠️ Error Mail: {e}")
     
+                # 2. WhatsApp (Consulta directa a la tabla contacto)
+                try:
+                    query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                    res_tel = db.execute(query_tel, {"id_u": reser.id_usuario}).fetchone()
+                    tel_real = res_tel[0] if res_tel else None
+
+                    if tel_real:
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=tel_real,
+                            nombre_evento=evento.nombre_evento
+                        )
+                except Exception as e:
+                    print(f"❌ Error WhatsApp: {e}")
+
         # 3. Devolvemos la respuesta detallada (la que venía de Main)
         return {
             "mensaje": "[AUTO-APROBADO] Cambios aplicados directamente por Admin/Supervisor",
@@ -319,21 +338,37 @@ class EditarEventoService:
         db.commit()
         db.refresh(evento)
      
-        # 🚀 CORRECCIÓN AQUÍ: Filtramos por reservas Pendientes (1) y Confirmadas (2)
         inscriptos = db.query(ReservaEvento).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2]) 
         ).all()
 
         for reser in inscriptos:
-            # Validamos que exista la relación con el usuario y tenga email
             if reser.usuario and reser.usuario.email:
-                enviar_correo_modificacion_evento(
-                    email_destino=reser.usuario.email,
-                    nombre_evento=evento.nombre_evento,
-                    id_evento=evento.id_evento,
-                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
-                )
+                # Mail
+                try:
+                    enviar_correo_modificacion_evento(
+                        email_destino=reser.usuario.email,
+                        nombre_evento=evento.nombre_evento,
+                        id_evento=evento.id_evento,
+                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    )
+                except Exception as e:
+                    print(f"⚠️ Error Mail: {e}")
+
+                # WhatsApp (Query directa)
+                try:
+                    query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                    res_tel = db.execute(query_tel, {"id_u": reser.id_usuario}).fetchone()
+                    tel_real = res_tel[0] if res_tel else None
+
+                    if tel_real:
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=tel_real,
+                            nombre_evento=evento.nombre_evento
+                        )
+                except Exception as e:
+                    print(f"❌ Error WhatsApp: {e}")
         
         return {
             "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
@@ -579,26 +614,53 @@ class EditarEventoService:
         # 6. Guardar todo en auditoría
         guardar_cambios_auditoria(db, evento, historial, cambios_realizados)
 
-        # 👇 AGREGADO: Notificar a inscriptos (Pendientes 1 y Confirmados 2)
+        # 👇 Notificar a inscriptos (Pendientes 1 y Confirmados 2)
         try:
-            from app.models.registro_models import ReservaEvento  # Aseguramos import local si es necesario
+            from app.models.registro_models import ReservaEvento
+            from sqlalchemy import text # Importante para la query manual
+            
             inscriptos = db.query(ReservaEvento).filter(
                 ReservaEvento.id_evento == evento.id_evento,
                 ReservaEvento.id_estado_reserva.in_([1, 2])
             ).all()
 
             for reser in inscriptos:
+                # 1. Bloque de Mail (Este ya te andaba bien)
                 if reser.usuario and reser.usuario.email:
-                    enviar_correo_modificacion_evento(
-                        email_destino=reser.usuario.email,
-                        nombre_evento=evento.nombre_evento,
-                        id_evento=evento.id_evento,
-                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
-                    )
-            print(f"✅ Notificaciones enviadas a {len(inscriptos)} usuarios desde edición directa.")
+                    try:
+                        enviar_correo_modificacion_evento(
+                            email_destino=reser.usuario.email,
+                            nombre_evento=evento.nombre_evento,
+                            id_evento=evento.id_evento,
+                            fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                        )
+                    except Exception as e:
+                        print(f"⚠️ Error mail: {e}")
+
+                # 2. ✅ WhatsApp corregido para tu BD (buscando en tabla 'contacto')
+                try:
+                    # Buscamos el tel en la tabla donde sí está
+                    query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                    res_tel = db.execute(query_tel, {"id_u": reser.id_usuario}).fetchone()
+                    tel_real = res_tel[0] if res_tel else None
+
+                    if tel_real:
+                        print(f"📱 Intentando WhatsApp para: {tel_real}")
+                        enviar_whatsapp_modificacion_evento(
+                            telefono=tel_real,
+                            nombre_evento=evento.nombre_evento
+                        )
+                    else:
+                        print(f"🚫 El usuario {reser.id_usuario} no tiene teléfono en la tabla contacto.")
+                except Exception as e:
+                    print(f"❌ Error al buscar o enviar WhatsApp: {e}")
+
+            print(f"✅ Proceso de notificaciones finalizado.")
+
         except Exception as e:
-            print(f"⚠️ Error al enviar correos en edición directa: {e}")
+            print(f"⚠️ Error al obtener inscriptos o procesar la lista: {e}")
         
+        # El return va afuera de todo el bloque de notificaciones
         return {
             "success": True,
             "message": f"Evento actualizado correctamente. {len(cambios_realizados)} cambio(s) aplicado(s).",

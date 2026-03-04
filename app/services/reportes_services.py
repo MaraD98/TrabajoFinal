@@ -198,11 +198,11 @@ class ReporteService:
         tendencias_ubicacion.sort(key=lambda x: x["total_eventos"], reverse=True)
 
         # 4. Top 10 Recaudación
-        top_10_recaudacion = sorted(
+        recaudacion_por_evento = sorted(
             [e for e in lista_eventos_detallada if e["estado"] in [3, 4]], 
             key=lambda x: x["monto_recaudado"], 
             reverse=True
-        )[:10]
+        )
 
         # 5. Usuarios Nuevos (Clientes y Org Externas)
         usuarios_nuevos_query = db.query(Usuario).filter(Usuario.id_rol.in_([3, 4])).all()
@@ -257,7 +257,7 @@ class ReporteService:
             "recaudacion_total": round(total_recaudado, 2),
             "total_reservas_recibidas": total_reservas_recibidas,
             "tendencias_ubicacion_completa": tendencias_ubicacion,
-            "top_10_recaudacion": top_10_recaudacion,
+            "top_10_recaudacion": recaudacion_por_evento, # Mantenemos el nombre de la clave para no romper el front, pero con la lista completa
             "usuarios_nuevos": usuarios_nuevos
         }
 
@@ -300,7 +300,6 @@ class ReporteService:
             .filter(*filtros)
             .group_by(Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol)
             .order_by(text("recaudacion_total DESC"))
-            .limit(10)
             .all()
         )
 
@@ -323,6 +322,7 @@ class ReporteService:
             db.query(
                 Evento.id_evento,
                 Evento.nombre_evento,
+                Evento.fecha_evento,
                 Evento.cupo_maximo,
                 Evento.costo_participacion,
                 func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("inscriptos_pagos"),
@@ -332,7 +332,7 @@ class ReporteService:
             .filter(Evento.cupo_maximo > 0)
             .filter(Evento.id_estado.in_([3, 4]))
             .filter(*filtros)
-            .group_by(Evento.id_evento)
+            .group_by(Evento.id_evento, Evento.fecha_evento)
             .all()
         )
 
@@ -347,6 +347,7 @@ class ReporteService:
             top_ocupacion.append({
                 "id_evento": row.id_evento,
                 "nombre_evento": row.nombre_evento,
+                "fecha_evento": row.fecha_evento.isoformat() if row.fecha_evento else None,
                 "cupo_maximo": cupo,
                 "inscriptos_pagos": inscriptos,
                 "reservados_no_pagos": reservados,
@@ -356,7 +357,6 @@ class ReporteService:
             })
         
         top_ocupacion.sort(key=lambda x: x["tasa_ocupacion"], reverse=True)
-        top_ocupacion = top_ocupacion[:10]
 
         # ── 3. Dashboard Eventos del Sistema (Nuevo) ──
         # Traemos todos los eventos desglosados para que el front arme los gráficos
@@ -423,11 +423,15 @@ class ReporteService:
                 TipoEvento.nombre.label("tipo_nombre"),
                 func.count(ReservaEvento.id_reserva).label("total_reservas"),
                 EliminacionEvento.motivo_eliminacion.label("motivo_eliminacion"),
+                NivelDificultad.nombre.label("dificultad_nombre"), # <--- AGREGADO
+                Usuario.id_rol.label("id_rol_creador")             # <--- AGREGADO
             )
             .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad) # <--- AGREGADO
+            .join(Usuario, Evento.id_usuario == Usuario.id_usuario)                            # <--- AGREGADO
             .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
             .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
-            .group_by(Evento.id_evento, TipoEvento.nombre, EliminacionEvento.motivo_eliminacion)
+            .group_by(Evento.id_evento, TipoEvento.nombre, EliminacionEvento.motivo_eliminacion, NivelDificultad.nombre, Usuario.id_rol) # <--- AGREGADO AL GROUP BY
         )
 
         # ARREGLO 1: Armamos la base sin filtro de Popularidad por tipo
@@ -483,6 +487,9 @@ class ReporteService:
                 "descripcion": e.descripcion or "",
                 "ubicacion_completa": e.ubicacion or "",
                 "motivo": e.motivo_eliminacion,
+                # ✅ ¡AHORA SÍ, LA MAGIA!
+                "dificultad": e.dificultad_nombre or "Sin Dificultad",
+                "pertenencia": "Propio" if e.id_rol_creador in [1, 2] else "Externo",
             }
             for e in eventos_query
         ]
