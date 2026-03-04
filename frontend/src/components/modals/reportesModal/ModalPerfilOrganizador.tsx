@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X } from "lucide-react"; // La mantenemos porque se usa para borrar las notas chiquitas
+import { X } from "lucide-react"; 
 
 interface ModalPerfilOrganizadorProps {  
   organizador?: any; 
@@ -11,14 +11,16 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
   const [activeTab, setActiveTab] = useState<string>('perfil');
   const [noteInput, setNoteInput] = useState<string>('');
   const [notas, setNotas] = useState([
-    { id: 1, author: 'Admin Laura', date: '15 feb 2026', text: 'Jonathan canceló 2 eventos seguidos en diciembre por baja ocupación. Hablar con él sobre estrategias de difusión antes de que cree nuevos eventos.' }
+    { id: 1, author: 'Admin', date: '15 feb 2026', text: 'El organizador externo canceló 2 eventos seguidos en diciembre por baja ocupación. Hablar con él sobre estrategias de difusión antes de que cree nuevos eventos.' }
   ]);
   const [selectedCat, setSelectedCat] = useState<string>('gold');
+  
+  // --- NUEVO ESTADO PARA OCULTAR/MOSTRAR EL GLOSARIO ---
+  const [showGlossary, setShowGlossary] = useState<boolean>(false);
 
   useEffect(() => {
     if (organizador) {
       setTimeout(() => setAnimate(true), 100);
-      // Si el organizador es interno y estaba en la pestaña de categoría, lo movemos a perfil
       if ((organizador.rol === 'Administrador' || organizador.rol === 'Supervisor') && activeTab === 'categoria') {
         setActiveTab('perfil');
       }
@@ -29,10 +31,8 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
 
   if (!organizador) return null;
 
-  // --- 1. LÓGICA INTERNO VS EXTERNO BASADA EN EL ROL ---
   const isInternal = organizador.rol === 'Administrador' || organizador.rol === 'Supervisor'; 
 
-  // --- 2. CONECTAMOS LOS DATOS REALES DEL OBJETO ---
   const stats = { 
     activos: Number(organizador.activos) || 0, 
     finalizados: Number(organizador.finalizados) || 0, 
@@ -40,20 +40,18 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
     recaudacion: Number(organizador.recaudacion_total) || 0 
   };
   
-  // Calculamos los cancelados/bajas por descarte
   const cancelados = stats.total_eventos - stats.activos - stats.finalizados;
-  
-  // Calculamos las tasas
   const totalCerrados = stats.finalizados + cancelados;
   const tasaExito = totalCerrados > 0 ? Math.round((stats.finalizados / totalCerrados) * 100) : 0;
-  // Solo mostramos alerta roja si hay eventos cerrados y la tasa es menor al 50%
   const isAlertaRoja = tasaExito < 50 && totalCerrados > 0; 
 
-  // --- 3. COLORES THEME Y VARIABLES DINÁMICAS ---
-  const colorGold = "#f59e0b"; // Naranja/Dorado para Socio Gold
-  const colorAlert = "#ef4444"; // Rojo
-  const colorSuccess = "#10b981"; // Verde
-  const colorInternal = "#3b82f6"; // Azul para equipo interno
+  // Ganancia real: 100% internos, 10% externos
+  const gananciaPlataforma = isInternal ? stats.recaudacion : stats.recaudacion * 0.10;
+
+  const colorGold = "#f59e0b"; 
+  const colorAlert = "#ef4444"; 
+  const colorSuccess = "#10b981"; 
+  const colorInternal = "#3b82f6"; 
 
   const badgeBg = isInternal ? `rgba(59, 130, 246, 0.1)` : `rgba(245, 158, 11, 0.1)`;
   const badgeBorder = isInternal ? `rgba(59, 130, 246, 0.3)` : `rgba(245, 158, 11, 0.3)`;
@@ -109,19 +107,18 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
           .btn-internal:hover { box-shadow: 0 8px 28px rgba(59,130,246,0.5); }
 
           .tab-btn { flex: 1; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+          
+          .glosario-btn:hover { background: rgba(255,255,255,0.05) !important; }
         `}
       </style>
 
       <div className="custom-modal" style={{ background: "#12141f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "24px", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", position: "relative", boxShadow: "0 40px 80px rgba(0,0,0,0.6)", opacity: animate ? 1 : 0, transform: animate ? "translateY(0) scale(1)" : "translateY(32px) scale(0.97)", transition: "all 0.4s", fontFamily: "'DM Sans', sans-serif" }}>
         
-        {/* BOTÓN CERRAR SUPERIOR CON LA X DE TEXTO */}
         <button onClick={onClose} style={{ position: "absolute", top: "24px", right: "24px", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}>
           <span style={{ color: "#ffffff", fontSize: "16px", fontWeight: "bold", lineHeight: 1 }}>✕</span>
         </button>
 
-        {/* HEADER */}
         <div style={{ padding: "28px 28px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          {/* INSIGNIA DINÁMICA */}
           <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: badgeBg, border: `1px solid ${badgeBorder}`, borderRadius: "100px", padding: "4px 12px 4px 8px", marginBottom: "14px" }}>
             <span>{badgeIcon}</span>
             <p style={{ fontSize: "11px", fontWeight: 600, color: badgeColor, textTransform: "uppercase", margin: 0 }}>{badgeText}</p>
@@ -131,8 +128,6 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
           
           <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>
             <span>✉️ {organizador.email || 'Sin email'}</span>
-            
-            {/* Solo mostramos el rango si es EXTERNO */}
             {!isInternal && (
               <>
                 <span style={{ display: "inline-block", width: "4px", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "50%" }}></span>
@@ -142,31 +137,16 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
           </div>
         </div>
 
-        {/* TABS (Se oculta Categoría si es interno) */}
         <div style={{ padding: "20px 28px 10px" }}>
           <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.04)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <button 
-              onClick={() => setActiveTab('perfil')}
-              className="tab-btn" 
-              style={{ background: activeTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'perfil' ? '#fff' : 'rgba(255,255,255,0.4)' }}
-            >
+            <button onClick={() => setActiveTab('perfil')} className="tab-btn" style={{ background: activeTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'perfil' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
               📊 Perfil
             </button>
-            <button 
-              onClick={() => setActiveTab('notas')}
-              className="tab-btn" 
-              style={{ background: activeTab === 'notas' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'notas' ? '#fff' : 'rgba(255,255,255,0.4)' }}
-            >
+            <button onClick={() => setActiveTab('notas')} className="tab-btn" style={{ background: activeTab === 'notas' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'notas' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
               📝 Notas {notas.length > 0 && <span style={{ background: "rgba(255,255,255,0.15)", padding: "2px 6px", borderRadius: "10px", fontSize: "10px" }}>{notas.length}</span>}
             </button>
-            
-            {/* Solo mostramos el tab de categoría si es externo */}
             {!isInternal && (
-              <button 
-                onClick={() => setActiveTab('categoria')}
-                className="tab-btn" 
-                style={{ background: activeTab === 'categoria' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'categoria' ? '#fff' : 'rgba(255,255,255,0.4)' }}
-              >
+              <button onClick={() => setActiveTab('categoria')} className="tab-btn" style={{ background: activeTab === 'categoria' ? 'rgba(255,255,255,0.1)' : 'transparent', color: activeTab === 'categoria' ? '#fff' : 'rgba(255,255,255,0.4)' }}>
                 🏅 Categoría
               </button>
             )}
@@ -174,8 +154,6 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
         </div>
 
         <div style={{ paddingBottom: "20px" }}>
-
-          {/* PANEL 1: PERFIL */}
           {activeTab === 'perfil' && (
             <div style={{ animation: "fadeIn 0.3s ease" }}>
               
@@ -196,12 +174,12 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "rgba(255,255,255,0.06)", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                       <span style={{ fontSize: "14px", marginBottom: "2px" }}>💰</span>
-                      <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: colorSuccess }}>${(stats.recaudacion / 1000).toFixed(0)}k</span>
+                      <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: colorSuccess }}>${(gananciaPlataforma / 1000).toFixed(1)}k</span>
                       <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Histórico Real</span>
                   </div>
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                       <span style={{ fontSize: "14px", marginBottom: "2px" }}>📈</span>
-                      <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: isInternal ? colorInternal : colorGold }}>${stats.finalizados > 0 ? Math.round((stats.recaudacion / stats.finalizados) / 1000).toFixed(0) : 0}k</span>
+                      <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: isInternal ? colorInternal : colorGold }}>${stats.finalizados > 0 ? (gananciaPlataforma / stats.finalizados / 1000).toFixed(1) : 0}k</span>
                       <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Promedio Éxito</span>
                   </div>
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
@@ -210,6 +188,35 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
                       <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Tasa Comercial</span>
                   </div>
               </div>
+
+              {/* --- ACORDEÓN: GLOSARIO DE MÉTRICAS --- */}
+              <div style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                <button 
+                  className="glosario-btn"
+                  onClick={() => setShowGlossary(!showGlossary)}
+                  style={{ 
+                    width: "100%", background: "rgba(0,0,0,0.1)", border: "none", padding: "12px 28px", 
+                    display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer",
+                    transition: "background 0.2s"
+                  }}
+                >
+                  <span style={{ fontSize: "11px", fontWeight: "bold", color: "rgba(255,255,255,0.6)" }}>📖 VER GLOSARIO DE MÉTRICAS</span>
+                  <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", transform: showGlossary ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.3s ease" }}>
+                    ▼
+                  </span>
+                </button>
+
+                {showGlossary && (
+                  <div style={{ padding: "0 28px 16px", background: "rgba(0,0,0,0.1)", animation: "fadeIn 0.3s ease" }}>
+                    <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "rgba(255,255,255,0.5)", display: "flex", flexDirection: "column", gap: "6px", lineHeight: 1.4 }}>
+                      <li><strong style={{color:"#fff"}}>Histórico Real:</strong> Ganancia NETA para nuestra plataforma. <span style={{color: badgeColor}}>{isInternal ? 'Por ser un evento propio, se contabiliza el 100% de lo recaudado.' : 'Por ser organizador externo, se contabiliza solo el 10% de comisión.'}</span></li>
+                      <li><strong style={{color:"#fff"}}>Promedio Éxito:</strong> Lo que ganamos en promedio por cada evento finalizado.</li>
+                      <li><strong style={{color:"#fff"}}>Tasa Comercial:</strong> Porcentaje de eventos finalizados con éxito vs los que se cancelaron.</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+              {/* --------------------------------------- */}
 
               <div style={{ padding: "20px 28px 10px" }}>
                 <p style={{ fontFamily: "'Syne', sans-serif", fontSize: "11px", fontWeight: 700, color: "rgba(255,255,255,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", margin: "0 0 12px 0" }}>Desglose de Eventos</p>

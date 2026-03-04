@@ -5,6 +5,7 @@ import { useAuth } from '../context/auth-context';
 import { Footer } from "../components/footer";
 import { Navbar } from '../components/navbar';
 import { HashLink } from 'react-router-hash-link';
+import ConfirmModal from '../components/modals/ConfirmModal';
 
 // --- INTERFACES ---
 interface UserProfile {
@@ -31,6 +32,13 @@ interface Inscripcion {
     detalle_baja: string | null;
 }
 
+// --- HELPER TIMEZONE (mismo fix que en AlertaPagosPendientes) ---
+function parsearFechaUTC(fechaStr: string): Date {
+    if (!fechaStr) return new Date(0);
+    const yaTimezone = /[Z+]/.test(fechaStr.slice(-6));
+    return new Date(yaTimezone ? fechaStr : fechaStr + 'Z');
+}
+
 // --- COMPONENTE CUENTA REGRESIVA ---
 const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
     const [tiempoRestante, setTiempoRestante] = useState("");
@@ -39,9 +47,9 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
     
     useEffect(() => {
         const calcularTiempo = () => {
-            const fechaInicio = new Date(fechaReserva).getTime();
+            const fechaInicio = parsearFechaUTC(fechaReserva).getTime();
             const fechaLimite = fechaInicio + (72 * 60 * 60 * 1000);
-            const ahora = new Date().getTime();
+            const ahora = Date.now();
             const diferencia = fechaLimite - ahora;
 
             if (diferencia <= 0) {
@@ -54,26 +62,24 @@ const ContadorPago = ({ fechaReserva }: { fechaReserva: string }) => {
             const minutos = Math.floor((diferencia % (1000 * 60 * 60)) / (1000 * 60));
             const segundos = Math.floor((diferencia % (1000 * 60)) / 1000);
 
-            const hStr = horas < 10 ? `0${horas}` : horas;
-            const mStr = minutos < 10 ? `0${minutos}` : minutos;
-            const sStr = segundos < 10 ? `0${segundos}` : segundos;
+            const hStr = String(horas).padStart(2, '0');
+            const mStr = String(minutos).padStart(2, '0');
+            const sStr = String(segundos).padStart(2, '0');
 
             setTiempoRestante(`${hStr}:${mStr}:${sStr}`);
-
-            if (horas < 1) {
-                setColor("#ff4444");
-            } else {
-                setColor("#ccff00");
-            }
+            setColor(horas < 1 ? "#ff4444" : "#ccff00");
         };
 
         const intervalo = setInterval(calcularTiempo, 1000);
-        calcularTiempo(); 
-
+        calcularTiempo();
         return () => clearInterval(intervalo);
     }, [fechaReserva]);
 
-    if (expiro) return <div style={{ color: '#ff4444', fontWeight: 'bold', marginTop: '5px', fontSize: '0.9rem' }}>⚠️ Reserva vencida</div>;
+    if (expiro) return (
+        <div style={{ color: '#ff4444', fontWeight: 'bold', marginTop: '5px', fontSize: '0.9rem' }}>
+            ⚠️ Reserva vencida
+        </div>
+    );
 
     return (
         <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#ccc', background: 'rgba(255,255,255,0.05)', padding: '5px 10px', borderRadius: '4px', display: 'inline-block' }}>
@@ -88,7 +94,7 @@ export default function PerfilPage() {
     
     const [perfil, setPerfil] = useState<UserProfile | null>(null);
     const [inscripciones, setInscripciones] = useState<Inscripcion[]>([]);
-    
+    const [confirmModal, setConfirmModal] = useState<{ show: boolean; id_reserva: number | null }>({ show: false, id_reserva: null });
 
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -264,50 +270,51 @@ useEffect(() => {
     };
 
     const handleCancelarReserva = async (id_reserva: number) => {
-    if (!window.confirm("¿Estás seguro de que deseas cancelar esta reserva?")) {
-        return;
-    }
+        setConfirmModal({ show: true, id_reserva });
+    };
 
-    const token = getToken();
-    const inscripcionesPrevias = [...inscripciones];
+    const confirmarCancelacion = async () => {
+        const id_reserva = confirmModal.id_reserva!;
+        setConfirmModal({ show: false, id_reserva: null });
 
-    try {
-        // 1. ACTUALIZACIÓN OPTIMISTA: 
-        // En lugar de .filter (que la borra), usamos .map para cambiarle el estado visualmente
-        setInscripciones(prev => prev.map(ins => 
-            ins.id_reserva === id_reserva 
-                ? { ...ins, estado_reserva: 'Cancelada',
+        const token = getToken();
+        const inscripcionesPrevias = [...inscripciones];
+
+        try {
+            // 1. ACTUALIZACIÓN OPTIMISTA: 
+            // En lugar de .filter (que la borra), usamos .map para cambiarle el estado visualmente
+            setInscripciones(prev => prev.map(ins => 
+                ins.id_reserva === id_reserva 
+                    ? { ...ins, estado_reserva: 'Cancelada', detalle_baja: 'Cancelada por el usuario' } 
+                    : ins
+            ));
+            
+            setSuccessMsg("Procesando cancelación...");
+
+            // 2. CAMBIO DE MÉTODO: 
+            // Usamos PATCH o PUT en lugar de DELETE para que la fila no desaparezca de la DB
+            await axios.patch(`${apiUrl}/inscripciones/${id_reserva}`, 
+                { estado_reserva: 'Cancelada',
                     motivo_cancelacion: "Cancelada por el usuario"
-                 } 
-                : ins
-        ));
-        
-        setSuccessMsg("Procesando cancelación...");
+                 }, // Le mandamos el nuevo estado al servidor
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
 
-        // 2. CAMBIO DE MÉTODO: 
-        // Usamos PATCH o PUT en lugar de DELETE para que la fila no desaparezca de la DB
-        await axios.patch(`${apiUrl}/inscripciones/${id_reserva}`, 
-            { estado_reserva: 'Cancelada',
-                motivo_cancelacion: "Cancelada por el usuario"
-             }, // Le mandamos el nuevo estado al servidor
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+            setSuccessMsg("Reserva cancelada correctamente.");
+            setTimeout(() => setSuccessMsg(null), 3000);
 
-        setSuccessMsg("Reserva cancelada correctamente.");
-        setTimeout(() => setSuccessMsg(null), 3000);
-
-    } catch (err: any) {
-        console.error("Error al cancelar:", err);
-        
-        // 3. REVERSIÓN: Si falla, volvemos al estado anterior
-        setInscripciones(inscripcionesPrevias);
-        
-        const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
-        setError(mensaje);
-        setSuccessMsg(null);
-        setTimeout(() => setError(null), 4000);
-    }
-};
+        } catch (err: any) {
+            console.error("Error al cancelar:", err);
+            
+            // 3. REVERSIÓN: Si falla, volvemos al estado anterior
+            setInscripciones(inscripcionesPrevias);
+            
+            const mensaje = err.response?.data?.detail || "No se pudo cancelar la reserva.";
+            setError(mensaje);
+            setSuccessMsg(null);
+            setTimeout(() => setError(null), 4000);
+        }
+    };
 
     const handlePagar = async (ins: Inscripcion) => {
     const token = getToken();
@@ -658,6 +665,24 @@ useEffect(() => {
                                                         {ins.estado_reserva}
                                                     </span>
                                                 </div>
+
+                                                {/* ✅ MOTIVO DE CANCELACIÓN */}
+                                                {ins.estado_reserva === 'Cancelada' && ins.detalle_baja && (
+                                                    <div style={{
+                                                        padding: '8px 12px',
+                                                        background: 'rgba(255, 68, 68, 0.08)',
+                                                        border: '1px solid rgba(255, 68, 68, 0.25)',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.8rem',
+                                                        color: '#ff8888',
+                                                        display: 'flex',
+                                                        gap: '6px',
+                                                        alignItems: 'flex-start'
+                                                    }}>
+                                                        <span>ℹ️</span>
+                                                        <span>{ins.detalle_baja}</span>
+                                                    </div>
+                                                )}
                                                 
                                                 {ins.estado_reserva === 'Pendiente' && (
                                                     <div style={{ marginBottom: '10px' }}>
@@ -670,7 +695,7 @@ useEffect(() => {
                                                     <div>📍 {ins.ubicacion}</div>
                                                     <div style={{ color: '#ccff00', fontWeight: 'bold' }}>💲 ${ins.costo}</div>
                                                 </div>
-                                                 
+
                                                 <div style={{ marginTop: '5px', borderTop: '1px solid #222', paddingTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                                                     {ins.estado_reserva === 'Pendiente' && (
                                                         <>
@@ -710,6 +735,16 @@ useEffect(() => {
             </div> {/* Cierre del contenedor blanco/gris principal */}
             <Footer />
         </div> 
+        <ConfirmModal
+            show={confirmModal.show}
+            title="Cancelar Reserva"
+            message="¿Estás seguro de que deseas cancelar esta reserva? Esta acción no se puede deshacer."
+            confirmText="Sí, cancelar"
+            cancelText="Volver"
+            type="danger"
+            onConfirm={confirmarCancelacion}
+            onCancel={() => setConfirmModal({ show: false, id_reserva: null })}
+        />
        </div> 
     );
 }

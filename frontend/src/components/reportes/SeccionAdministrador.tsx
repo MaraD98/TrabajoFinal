@@ -539,7 +539,7 @@ const datosGrafico = (mesesOrdenados || [])
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
 
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px", display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "600px"}}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px", overflow: "hidden", maxHeight: "800px"}}>
             
             <div className="grafico-card__header" style={{ flexShrink: 0 }}>
               <div>
@@ -586,7 +586,7 @@ const datosGrafico = (mesesOrdenados || [])
                 const porcentajeCalor = calculoCalor > 100 ? 100 : calculoCalor; 
 
                 return (
-                  <div key={index} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px", overflow: "hidden" }}>
+                  <div key={index} style={{ backgroundColor: "#0f172a", border: "1px solid #334155", borderRadius: "8px" }}>
                     
                     {/* ─────────────────────────────────────────────────────────
                         HEADER DE PROVINCIA (clickeable)

@@ -73,7 +73,7 @@ export function ModalTermometro({ evento, onClose }: ModalTermometroProps) {
         } else if (ocupacion < 50 && diasRestantes <= 7) {
             iconoDiagnostico = "⚠️";
             tituloDiagnostico = "Alerta de baja ocupación";
-            textoDiagnostico = `A solo ${diasRestantes} días del evento, la ocupación es baja (${ocupacion}%). Se requiere acción comercial inmediata para evitar pérdidas.`;
+            textoDiagnostico = `Con ${diasRestantes} días restantes y solo el ${ocupacion}% de ocupación, el evento está en zona de alerta. Sin acciones activas, es poco probable llegar al 100%. Se recomienda actuar esta semana.`;
             colorDiagnostico = "#f59e0b"; // Amarillo/Naranja
         } else if (ocupacion < 30 && diasRestantes <= 15) {
              iconoDiagnostico = "⚠️";
@@ -84,7 +84,7 @@ export function ModalTermometro({ evento, onClose }: ModalTermometroProps) {
              // ACÁ REEMPLAZAMOS EL "EN DESARROLLO" POR TU TEXTO EXACTO DINÁMICO
              iconoDiagnostico = "⚠️";
              tituloDiagnostico = "Diagnóstico automático";
-             textoDiagnostico = `Con ${diasRestantes} días restantes y solo el ${ocupacion}% de ocupación, el evento está en zona de alerta. Sin acciones activas, es poco probable llegar al 100%. Se recomienda actuar esta semana.`;
+             textoDiagnostico = `A solo ${diasRestantes} días del evento, la ocupación es baja (${ocupacion}%). Se requiere acción comercial inmediata para evitar pérdidas.`;
              colorDiagnostico = "#f59e0b";
         }
     } else {

@@ -54,7 +54,7 @@ def obtener_registro_eliminacion(db: Session, id_evento: int) -> EliminacionEven
 # ============================================================================
 # CAMBIAR ESTADOS DE EVENTOS
 # ============================================================================
-def cancelar_evento(db: Session, id_evento: int, motivo: str = "Evento cancelado") -> Evento:
+def cancelar_evento(db: Session, id_evento: int) -> Evento:
     """
     Cambia el evento a estado 5 y guarda el motivo en las reservas.
     """
@@ -71,7 +71,6 @@ def cancelar_evento(db: Session, id_evento: int, motivo: str = "Evento cancelado
             ReservaEvento.id_estado_reserva.in_([1, 2])
         ).update({
             "id_estado_reserva": 3,
-            "detalle_baja": motivo  # Esto es lo que lee el Front después
         }, synchronize_session=False)
         
         db.flush()
