@@ -18,6 +18,7 @@ import { ModalFiltroTorta } from "../components/modals/reportesModal/ModalFiltro
 import { ModalAdminEvento } from "../components/modals/reportesModal/ModalAdminEvento";
 import { ModalSupervisor } from "../components/modals/reportesModal/ModalSupervisor";
 import { SeccionSupervisor } from "../components/reportes/SeccionSupervisor";
+import { ModalListaEventos } from "../components/modals/reportesModal/ModalListaEventos";
 // Componentes para sección Organizador Externo
 import { SeccionOrganizadorExterno } from "../components/reportes/SeccionOrganizadorExterno";
 // Componentes para sección Cliente
@@ -73,6 +74,7 @@ export default function ReportesPage() {
   const [exportando, setExportando] = useState<string | null>(null);
   const [estadoAbierto, setEstadoAbierto] = useState<number | null>(null);
   const [eventoDetalle, setEventoDetalle] = useState<DetalleRecaudacion | null>(null);
+  const [listaEventosFiltro, setListaEventosFiltro] = useState<'Propio' | 'Externo' | null>(null);
 
   // Sort tabla de solicitudes
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
@@ -353,7 +355,7 @@ export default function ReportesPage() {
     return (
       <div style={{ width: "100%", height: "250px", display: "flex", justifyContent: "center" }}>
         <div style={{ width: "100%", maxWidth: "550px", height: "100%" }}>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
                 data={datosOrdenados}
@@ -474,14 +476,45 @@ export default function ReportesPage() {
       </div>
     );
   }
-
-  // 💰 CÁLCULOS FINANCIEROS GLOBALES
+  // 💰 CÁLCULOS FINANCIEROS GLOBALES (Ingresos Netos)
   const eventosDetalle = reporteData?.lista_eventos_detallada || [];
-  const totalRecaudadoGlobal = eventosDetalle.reduce((acc, ev) => acc + (Number(ev.monto_recaudado) || 0), 0);
-  const recaudadoPropios = eventosDetalle.filter((ev) => ev.pertenencia === "Propio").reduce((acc, ev) => acc + (Number(ev.monto_recaudado) || 0), 0);
-  const recaudadoExternos = eventosDetalle.filter((ev) => ev.pertenencia === "Externo").reduce((acc, ev) => acc + (Number(ev.monto_recaudado) || 0), 0);
-  const cantidadGratuitos = eventosDetalle.filter((ev) => Number(ev.costo_participacion) === 0).length;
+  console.log("Primer evento:", eventosDetalle[0]);
+  // Función para limpiar montos (por si viene "$16.000")
+  const limpiarMonto = (valor: any): number => {
+    if (typeof valor === 'number') return valor;
+    if (!valor) return 0;
+    const limpio = valor.toString().replace(/\./g, '').replace('$', '').replace(',', '.').trim();
+    return parseFloat(limpio) || 0;
+  };
+
+  let recaudadoPropios = 0;
+  let recaudadoExternos = 0;
+
+  eventosDetalle.forEach((ev: any) => {
+    const costo = limpiarMonto(ev.costo_participacion);
+    // Usamos los pagantes reales
+   const pagantes = Number(ev.reservas) || 0;
+    const recaudacionDelEvento = costo * pagantes;
+
+    if (ev.pertenencia === "Propio") {
+      recaudadoPropios += recaudacionDelEvento; // Plataforma se queda con el 100%
+    } else if (ev.pertenencia === "Externo") {
+      recaudadoExternos += (recaudacionDelEvento * 0.10); // Plataforma se queda con el 10% (Comisión)
+    }
+  });
+
+  // El total real que entra a la plataforma
+  const totalRecaudadoGlobal = recaudadoPropios + recaudadoExternos;
+
+  const cantidadGratuitos = eventosDetalle.filter((ev: any) => limpiarMonto(ev.costo_participacion) === 0).length;
   const cantidadPagos = eventosDetalle.length - cantidadGratuitos;
+  // 👥 CÁLCULOS: PARTICIPANTES Y AUDIENCIA
+  const ocupacionData = reporteData?.top_ocupacion || [];
+  const totalConfirmadas = ocupacionData.reduce((acc: number, ev: any) => acc + (Number(ev.inscriptos_pagos) || 0), 0);
+  const totalPendientes = ocupacionData.reduce((acc: number, ev: any) => acc + (Number(ev.reservados_no_pagos) || 0), 0);
+  const cupoTotalSistema = ocupacionData.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
+  const promedioParticipantes = ocupacionData.length > 0 ? Math.round(totalConfirmadas / ocupacionData.length) : 0;
+  const ocupacionGlobal = cupoTotalSistema > 0 ? ((totalConfirmadas / cupoTotalSistema) * 100).toFixed(1) : "0";
   // 📅 CÁLCULOS: EVENTOS GLOBALES
   const totalEventosGlobal = eventosDetalle.length;
   const hoyStr = new Date().toISOString().split('T')[0];
@@ -490,16 +523,7 @@ export default function ReportesPage() {
   const eventosPropiosCount = eventosDetalle.filter((ev: any) => ev.pertenencia === "Propio").length;
   const eventosExternosCount = eventosDetalle.filter((ev: any) => ev.pertenencia === "Externo").length;
 
-  // 👥 CÁLCULOS: PARTICIPANTES Y AUDIENCIA
-  const totalConfirmadas = eventosDetalle.reduce((acc: number, ev: any) => acc + (Number(ev.inscripciones_confirmadas) || 0), 0);
-  const totalReservas = eventosDetalle.reduce((acc: number, ev: any) => acc + (Number(ev.reservas_totales) || 0), 0);
-  const totalPendientes = Math.max(0, totalReservas - totalConfirmadas); // Los que reservaron pero no pagaron/confirmaron
-  const promedioParticipantes = totalEventosGlobal > 0 ? Math.round(totalConfirmadas / totalEventosGlobal) : 0;
-  const cupoTotalSistema = eventosDetalle.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
-  const ocupacionGlobal = cupoTotalSistema > 0 ? ((totalConfirmadas / cupoTotalSistema) * 100).toFixed(1) : "0";
-
-
-  // ── JSX ───────────────────────────────────────────────────────────────────
+    // ── JSX ───────────────────────────────────────────────────────────────────
   return (
     <div className="reportes-page">
       <Navbar />
@@ -668,6 +692,8 @@ export default function ReportesPage() {
           eventosPasados={eventosPasados}
           eventosPropiosCount={eventosPropiosCount}
           eventosExternosCount={eventosExternosCount}
+          onVerPropios={() => setListaEventosFiltro('Propio')}
+          onVerExternos={() => setListaEventosFiltro('Externo')}
 
           // 3. Métricas - Participantes
           totalConfirmadas={totalConfirmadas}
@@ -677,10 +703,10 @@ export default function ReportesPage() {
 
           // 4. Métricas - Financiero
           totalRecaudadoGlobal={totalRecaudadoGlobal}
-          cantidadGratuitos={cantidadGratuitos}
-          cantidadPagos={cantidadPagos}
           recaudadoPropios={recaudadoPropios}
           recaudadoExternos={recaudadoExternos}
+          cantidadGratuitos={cantidadGratuitos}
+          cantidadPagos={cantidadPagos}
 
           // 5. Funciones para abrir Modales (estados que viven en ReportesPage)
           setModalEventosGlobal={setModalEventosGlobal}
@@ -729,9 +755,23 @@ export default function ReportesPage() {
             MODAL 1: DIRECTORIO GLOBAL DE EVENTOS
         ════════════════════════════════════════════════════════════════ */}
         <ModalEventosGlobal 
-          isOpen={modalEventosGlobal} 
+          isOpen={modalEventosGlobal} // (O el nombre de tu estado que lo abre)
           onClose={() => setModalEventosGlobal(false)} 
-          eventos={eventosDetalle} 
+          totalEventosGlobal={totalEventosGlobal}
+          eventosFuturos={eventosFuturos}
+          eventosPasados={eventosPasados}
+          eventosPropiosCount={eventosPropiosCount}
+          eventosExternosCount={eventosExternosCount}
+        />
+        {/* ════════════════════════════════════════════════════════════════
+            MODAL VIEJO RESCATADO (La tabla al tocar la lupa 🔍)
+        ════════════════════════════════════════════════════════════════ */}
+        <ModalListaEventos 
+          isOpen={listaEventosFiltro !== null}
+          onClose={() => setListaEventosFiltro(null)}
+          // Filtramos automáticamente según el botón que tocó:
+          eventos={eventosDetalle.filter((e: any) => e.pertenencia === listaEventosFiltro)}
+          titulo={`Listado de Eventos ${listaEventosFiltro === 'Propio' ? 'Propios' : 'Externos'}`}
         />
 
         {/* ════════════════════════════════════════════════════════════════
