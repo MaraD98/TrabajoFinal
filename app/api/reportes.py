@@ -20,12 +20,19 @@ def obtener_reportes(
     uid = current_user.id_usuario
 
     if rol == 1:
-        # El Admin recibe su dashboard + la vista detallada global
+        # 1. Traemos la data del Admin
         data_admin = ReporteService.reportes_admin(db, anio=anio, mes=mes)
+        
+        # 2. Traemos la data del Supervisor (para que vea los gráficos de ocupación, etc)
+        data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes)
+        
+        # 3. Traemos la data detallada
         data_detallada = ReporteService.reportes_organizacion_externa(db, uid, rol)
-        return {**data_admin, **data_detallada} # Fusionamos los diccionarios
+        
+        # 4. Fusionamos todo (los 3 diccionarios) y lo mandamos
+        return {**data_super, **data_admin, **data_detallada}
     
-    elif rol == 2:
+    elif rol <= 2:
         # El Supervisor recibe su dashboard + la vista detallada global
         data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes)
         data_detallada = ReporteService.reportes_organizacion_externa(db, uid, rol)
@@ -62,7 +69,7 @@ def export_reportes(
         "usuarios_por_rol": [1],
         "eventos_por_tipo": [1, 2, 3], 
         "eventos_por_dificultad": [1, 2], 
-        "solicitudes_externas": [2],
+        "solicitudes_externas": [1,2],
         "mis_eventos_total": [3,4],
         "mis_eventos_por_estado": [1,2,3,4],
         "eventos_por_ubicacion": [1,2],
@@ -74,7 +81,7 @@ def export_reportes(
         "analisis_organizadores": [1, 2],  
         "top_ocupacion": [1, 2],
         "dashboard_eventos": [1, 2],       
-        "solicitudes_externas": [2],
+        "solicitudes_externas": [1,2],
         "mis_inscripciones": [4],
         # Nuevos agregados para que admin/super puedan exportarlos:
         "lista_eventos_detallada": [1, 2, 3],
@@ -91,8 +98,12 @@ def export_reportes(
     # 2. Obtención de datos centralizada y combinada
     data_completa = {}
     if rol == 1:
-        data_completa = {**ReporteService.reportes_admin(db), **ReporteService.reportes_organizacion_externa(db, uid, rol)}
-    elif rol == 2:
+        data_completa = {
+            **ReporteService.reportes_supervisor(db, uid), # <-- AGREGAR ESTO
+            **ReporteService.reportes_admin(db), 
+            **ReporteService.reportes_organizacion_externa(db, uid, rol)
+        }
+    elif rol <= 2:
         data_completa = {**ReporteService.reportes_supervisor(db, uid), **ReporteService.reportes_organizacion_externa(db, uid, rol)}
     elif rol == 3:
         data_completa = ReporteService.reportes_organizacion_externa(db, uid, rol)
@@ -163,7 +174,7 @@ def export_reportes(
         fieldnames = ["ubicacion", "cantidad"]
         
     # Nuevos exportables del Supervisor
-    if current_user.id_rol == 2:
+    if current_user.id_rol <= 2:
         reporte_super = ReporteService.reportes_supervisor(db, current_user.id_usuario)
         
     if tipo == "analisis_organizadores":

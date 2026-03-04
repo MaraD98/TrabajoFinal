@@ -112,6 +112,30 @@ const aplicarFiltrosEventos = (listaEventos: any[]) => {
   });
 };
 
+// 1. Agarramos la lista completa de eventos (puede llamarse lista_eventos_detallada o lista_eventos según el endpoint)
+  const eventosBase = reporteData?.lista_eventos_detallada || reporteData?.lista_eventos || [];
+  
+  // 2. La pasamos por tus filtros de fecha y pertenencia
+  const eventosFiltradosParaGraficos = aplicarFiltrosEventos(eventosBase);
+
+  // 3. Contamos los Tipos dinámicamente
+  const datosGraficoTipoDinámico = eventosFiltradosParaGraficos.reduce((acc, evento) => {
+    const tipo = evento.tipo || "Sin Tipo";
+    const existente = acc.find((item: any) => item.tipo === tipo);
+    if (existente) existente.cantidad += 1;
+    else acc.push({ tipo, cantidad: 1 });
+    return acc;
+  }, []);
+
+  // 4. Contamos las Dificultades dinámicamente
+  const datosGraficoDificultadDinámico = eventosFiltradosParaGraficos.reduce((acc, evento) => {
+    const dificultad = evento.dificultad || "Sin Dificultad";
+    const existente = acc.find((item: any) => item.dificultad === dificultad);
+    if (existente) existente.cantidad += 1;
+    else acc.push({ dificultad, cantidad: 1 });
+    return acc;
+  }, []);
+
 // 2. SEGUNDO: El gráfico usa la función que ya está creada arriba
 const datosGrafico = (mesesOrdenados || [])
   .map((mesStr: string) => {
@@ -255,22 +279,21 @@ const datosGrafico = (mesesOrdenados || [])
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <button 
-                              onClick={() => setModalAdminEvento(evt)}
-                              className="btn-ver-mas" 
-                              style={{ 
-                                backgroundColor: "transparent", 
-                                color: "#3b82f6", 
-                                border: "1px solid #3b82f6",
-                                padding: "4px 10px",
-                                borderRadius: "4px",
-                                cursor: "pointer"
-                              }}
-                            >
-                              Detalles
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                                onClick={() => setModalFiltroTorta({ 
+                                  titulo: "Todos los Tipos", 
+                                  filtroKey: "tipo", 
+                                  valor: "TODOS",
+                                  // 👇 LE INYECTAMOS LA DATA YA FILTRADA AL ESTADO DEL MODAL 👇
+                                  dataFiltrada: eventosFiltradosParaGraficos 
+                                })} 
+                                className="btn-export" 
+                                style={{ backgroundColor: "#3b82f6", color: "#fff" }}
+                              >
+                                Ver Detalles
+                              </button>
+                              </td>
+                            </tr>
+                          ))}
                   </tbody>
                 </table>
               </div>
@@ -290,7 +313,7 @@ const datosGrafico = (mesesOrdenados || [])
           <div style={{ display: "flex", gap: "20px", marginTop: "40px", flexWrap: "wrap", alignItems: "stretch" }}>
             
             {/* LADO IZQUIERDO: Tabla Detallada Conectada */}
-            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column", maxHeight: "550px" }}>
               
 
               {!mesExpandido ? (
@@ -366,7 +389,7 @@ const datosGrafico = (mesesOrdenados || [])
               </div>
             </div>
           ) : (
-                <><div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <><div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <div>
                         <h3 style={{ margin: 0 }}>Registros del {mesExpandido}</h3>
@@ -382,6 +405,7 @@ const datosGrafico = (mesesOrdenados || [])
                       </button>
                     </div>
 
+                      <div style={{ flex: 1,minHeight: "0", overflowY: "auto", paddingRight: "5px" }}>
                       <table className="tabla-reportes-custom">
                         <thead>
                           <tr>
@@ -443,6 +467,7 @@ const datosGrafico = (mesesOrdenados || [])
                           
                         </tbody>
                       </table>
+                     </div>
                     </div></>
               )}
               
@@ -514,9 +539,9 @@ const datosGrafico = (mesesOrdenados || [])
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
 
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px" }}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px", display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "600px"}}>
             
-            <div className="grafico-card__header">
+            <div className="grafico-card__header" style={{ flexShrink: 0 }}>
               <div>
                 <h3 style={{ margin: 0 }}>📍 Distribución Geográfica de Eventos</h3>
                 <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: "5px" }}>
@@ -546,7 +571,7 @@ const datosGrafico = (mesesOrdenados || [])
               </select>
             </div>
 
-            <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px" }}>
+            <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px", flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px" }}>
               {reporteData?.tendencias_ubicacion_completa?.map((prov: any, index: any) => {
                 
                 const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos || []);
@@ -834,49 +859,91 @@ const datosGrafico = (mesesOrdenados || [])
           </div>
 
 
-            {/* ════════════════════════════════════════════════════════════════
-                    ADMIN — Gráficos del sistema
-                ════════════════════════════════════════════════════════════════ */}
-                <div className="reportes-graficos" style={{ marginTop: '2rem' }}>
-                    {usuarioRol <= 2 && (reporteData?.eventos_por_tipo ?? []).length > 0 && (
-                    <div className="grafico-card">
-                        <div className="grafico-card__header">
-                        <h3>🏃‍♂️ Eventos por Tipo</h3>
-                        <div style={{ display: "flex", gap: "10px" }}>
-                            <button onClick={() => setModalFiltroTorta({ titulo: "Todos los Tipos", filtroKey: "tipo", valor: "TODOS" })} className="btn-export" style={{ backgroundColor: "#3b82f6", color: "#fff" }}>
-                            Ver Detalles
-                            </button>
-                            <button data-html2canvas-ignore="true" disabled={exportando === "eventos_por_tipo"} onClick={() => handleExportarCSV("eventos_por_tipo")} className="btn-export">
-                            {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
-                            </button>
-                        </div>
-                        </div>
-                        <div className="grafico-card__body">
-                        {renderGraficoTorta(reporteData?.eventos_por_tipo ?? [], "tipo", "cantidad", "Detalle por Tipo")}
-                        </div>
-                    </div>
-                    )}
+        {/* ════════════════════════════════════════════════════════════════
+                            ADMIN — Gráficos del sistema
+            ════════════════════════════════════════════════════════════════ */}
+        <div className="reportes-graficos" style={{ marginTop: '2rem' }}>
+            
+            {/* Gráfico de Tipos */}
+            {usuarioRol <= 2 && datosGraficoTipoDinámico.length > 0 && (() => {
+                // 1. Calculamos cuál es el tipo con más cantidad para el insight
+                const tipoGanador = [...datosGraficoTipoDinámico].sort((a, b) => b.cantidad - a.cantidad)[0]?.tipo;
 
-                    {usuarioRol <= 2 && (reporteData?.eventos_por_dificultad ?? []).length > 0 && (
+                return (
                     <div className="grafico-card">
                         <div className="grafico-card__header">
-                        <h3>🧗 Eventos por Dificultad</h3>
-                        <div style={{ display: "flex", gap: "10px" }}>
-                            <button onClick={() => setModalFiltroTorta({ titulo: "Todas las Dificultades", filtroKey: "dificultad", valor: "TODOS" })} className="btn-export" style={{ backgroundColor: "#3b82f6", color: "#fff" }}>
-                            Ver Detalles
-                            </button>
-                            <button data-html2canvas-ignore="true" disabled={exportando === "eventos_por_dificultad"} onClick={() => handleExportarCSV("eventos_por_dificultad")} className="btn-export">
-                            {exportando === "eventos_por_dificultad" ? "..." : "📥 CSV"}
-                            </button>
-                        </div>
+                            {/* Agregamos el div para separar texto de botones y pusimos el parrafito gris */}
+                            <div style={{ flex: 1 }}>
+                                <h3>🏃‍♂️ Eventos por Tipo</h3>
+                                <p style={{ fontSize: "13px", color: "#d7d7d7", marginTop: "4px" }}>
+                                    Cantidad total de eventos en el sistema según su categoría.
+                                </p>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                                <button onClick={() => setModalFiltroTorta({ titulo: "Todos los Tipos", filtroKey: "tipo", valor: "TODOS" })} className="btn-export" style={{ backgroundColor: "#3b82f6", color: "#fff" }}>
+                                    Ver Detalles
+                                </button>
+                                <button data-html2canvas-ignore="true" disabled={exportando === "eventos_por_tipo"} onClick={() => handleExportarCSV("eventos_por_tipo")} className="btn-export">
+                                    {exportando === "eventos_por_tipo" ? "..." : "📥 CSV"}
+                                </button>
+                            </div>
                         </div>
                         <div className="grafico-card__body">
-                        {renderGraficoTorta(reporteData?.eventos_por_dificultad ?? [], "dificultad", "cantidad", "Detalle por Dificultad")}
+                            {renderGraficoTorta(datosGraficoTipoDinámico, "tipo", "cantidad", "Detalle por Tipo")}
+                            
+                            {/* Acá sumamos el mensaje del foquito 💡 */}
+                            <div className="insight-text" style={{ marginTop: "20px" }}>
+                                {tipoGanador ? (
+                                    <>💡 La categoría con más eventos registrados es <strong>{tipoGanador}</strong>.</>
+                                ) : (
+                                    "💡 No hay eventos en este rango de fechas para determinar una tendencia."
+                                )}
+                            </div>
                         </div>
                     </div>
-                    )}
-                </div>
-                {/* fin .reportes-graficos */}
+                );
+            })()}
+
+            {/* Gráfico de Dificultad */}
+            {usuarioRol <= 2 && datosGraficoDificultadDinámico.length > 0 && (() => {
+                // 1. Calculamos cuál es la dificultad con más cantidad para el insight
+                const dificultadGanadora = [...datosGraficoDificultadDinámico].sort((a, b) => b.cantidad - a.cantidad)[0]?.dificultad;
+
+                return (
+                    <div className="grafico-card">
+                        <div className="grafico-card__header">
+                            <div style={{ flex: 1 }}>
+                                <h3>🧗 Eventos por Dificultad</h3>
+                                <p style={{ fontSize: "13px", color: "#d7d7d7", marginTop: "4px" }}>
+                                    Distribución de los eventos según su nivel de exigencia física.
+                                </p>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                                <button onClick={() => setModalFiltroTorta({ titulo: "Todas las Dificultades", filtroKey: "dificultad", valor: "TODOS" })} className="btn-export" style={{ backgroundColor: "#3b82f6", color: "#fff" }}>
+                                    Ver Detalles
+                                </button>
+                                <button data-html2canvas-ignore="true" disabled={exportando === "eventos_por_dificultad"} onClick={() => handleExportarCSV("eventos_por_dificultad")} className="btn-export">
+                                    {exportando === "eventos_por_dificultad" ? "..." : "📥 CSV"}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="grafico-card__body">
+                            {renderGraficoTorta(datosGraficoDificultadDinámico, "dificultad", "cantidad", "Detalle por Dificultad")}
+                            
+                            {/* Acá sumamos el mensaje del foquito 💡 */}
+                            <div className="insight-text" style={{ marginTop: "20px" }}>
+                                {dificultadGanadora ? (
+                                    <>💡 La dificultad predominante en el sistema es <strong>{dificultadGanadora}</strong>.</>
+                                ) : (
+                                    "💡 No hay eventos en este rango de fechas para determinar una tendencia."
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+        </div>
 
             
         {/* ── Tarjetas Admin ────────────────────────────────── */}
