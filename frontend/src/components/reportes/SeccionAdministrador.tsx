@@ -64,11 +64,17 @@ export default function SeccionAdministrador({
 const aplicarFiltrosUsuarios = (lista: any[]) => {
   if (!lista) return [];
   return lista.filter((u: any) => {
-    // 1. Filtro de Pertenencia
-    const rolNormalizado = u.rol === "Organización Externa" ? "externos" : "propios";
+    // 1. Filtro de Pertenencia (CORREGIDO)
+    let rolNormalizado = "todos";
+    if (u.rol === "Organización Externa" || u.rol === "Cliente") {
+      rolNormalizado = "externos";
+    } else if (u.rol === "Administrador" || u.rol === "Supervisor") {
+      rolNormalizado = "propios";
+    }
+
     const pasaPertenencia = !filtroPertenencia || filtroPertenencia === "todos" || rolNormalizado === filtroPertenencia;
 
-    // 2. Filtro de Fechas (Conversión de DD/MM/YYYY a YYYY-MM-DD para comparar strings)
+    // 2. Filtro de Fechas
     const [d, m, a] = u.fecha_creacion.split('/');
     const fechaUsuarioISO = `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     
@@ -447,7 +453,7 @@ const datosGrafico = (mesesOrdenados || [])
                                   <div style={{ fontSize: "0.85rem", color: "#94a3b8" }}>{u.email}</div>
                                 </td>
                                 <td>
-                                  <span className="badge-tipo" style={{ backgroundColor: u.rol === "Organización Externa" ? "#f97316" : "#0ea5e9" }}>
+                                  <span className="badge-tipo" style={{ backgroundColor: u.rol === "Organización Externa" ? "#f97316" : u.rol === "Administrador" ? "#6a128d" : u.rol === "Supervisor" ? "#1a810d" : "#0ea5e9" }}>
                                     {u.rol}
                                   </span>
                                 </td>
@@ -484,9 +490,11 @@ const datosGrafico = (mesesOrdenados || [])
                   const statsDias: any = {};
                   filtradosMes.forEach(u => {
                     const dia = u.fecha_creacion.split('/')[0];
-                    if (!statsDias[dia]) statsDias[dia] = { clientes: 0, organizaciones: 0 };
+                    if (!statsDias[dia]) statsDias[dia] = { clientes: 0, organizaciones: 0, administradores: 0, supervisores: 0 };
                     if (u.rol === "Cliente") statsDias[dia].clientes++;
-                    else statsDias[dia].organizaciones++;
+                    else if (u.rol === "Organizador Externo") statsDias[dia].organizaciones++;
+                    else if (u.rol === "Administrador") statsDias[dia].administradores++;
+                    else if (u.rol === "Supervisor") statsDias[dia].supervisores++;
                   });
 
                   if (filtradosMes.length === 0 && (fechaInicio || fechaFin || filtroPertenencia !== "todos")) return null;
@@ -519,7 +527,13 @@ const datosGrafico = (mesesOrdenados || [])
                                   <span style={{ color: "#0ea5e9" }}><strong>{stats.clientes}</strong> Clientes</span>
                                 )}
                                 {stats.organizaciones > 0 && (
-                                  <span style={{ color: "#f97316" }}><strong>{stats.organizaciones}</strong> Org.</span>
+                                  <span style={{ color: "#f97316" }}><strong>{stats.organizaciones}</strong> Org. Externa</span>
+                                )}
+                                {stats.administradores > 0 && (
+                                  <span style={{ color: "#6a128d" }}><strong>{stats.administradores}</strong> Administrador</span>
+                                )}
+                                {stats.supervisores > 0 && (
+                                  <span style={{ color: "#1a810d" }}><strong>{stats.supervisores}</strong> Supervisores</span>
                                 )}
                               </div>
                             </div>
@@ -1007,7 +1021,7 @@ const datosGrafico = (mesesOrdenados || [])
               <h2 style={{ margin: 0, color: '#f8fafc' }}>{modalDetalleUsuario.nombre}</h2>
               <p style={{ color: '#94a3b8', margin: '5px 0' }}>{modalDetalleUsuario.email}</p>
               <span className="badge-tipo" style={{ 
-                backgroundColor: modalDetalleUsuario.rol === "Organización Externa" ? "#f97316" : "#0ea5e9",
+                backgroundColor: modalDetalleUsuario.rol === "Organización Externa" ? "#f97316" : modalDetalleUsuario.rol === "Administrador" ? "#6a128d" : modalDetalleUsuario.rol === "Supervisor" ? "#1a810d" : "#0ea5e9",
                 padding: '4px 12px'
               }}>
                 {modalDetalleUsuario.rol}
