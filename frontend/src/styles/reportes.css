@@ -1306,9 +1306,8 @@ button:focus-visible,
    ========================================================================== */
 
 .filter-select {
-  background-color: var(--color-bg-elevated);
+  background-color: #322c2a;
   color: var(--color-text);
-  border: 2px solid var(--color-border);
   border-radius: var(--radius);
   padding: 8px 35px 8px 15px;
   font-size: 14px;

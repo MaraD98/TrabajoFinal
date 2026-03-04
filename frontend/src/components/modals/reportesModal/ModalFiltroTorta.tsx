@@ -18,27 +18,27 @@ export function ModalFiltroTorta({ filtro, onClose, eventos, usuarioRol }: Modal
   if (!filtro) return null;
 
   // Filtramos los eventos acá arriba para que el código quede más limpio
-  const eventosFiltrados = eventos.filter((e: any) => 
+  const eventosFiltrados = eventos.filter((e: any) =>
     filtro.valor === "TODOS" || e[filtro.filtroKey] === filtro.valor
   );
 
   return (
-    <div style={{ 
-      position: "fixed", top: 0, left: 0, width: "100%", height: "100%", 
-      backgroundColor: "rgba(0,0,0,0.8)", zIndex: 999999, 
+    <div style={{
+      position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+      backgroundColor: "rgba(0,0,0,0.8)", zIndex: 999999,
       display: "flex", justifyContent: "center", 
       alignItems: "flex-start", 
       paddingTop: "80px", 
       paddingBottom: "20px" 
     }}>
-      <div style={{ 
-        backgroundColor: "#0f172a", padding: "25px", borderRadius: "12px", 
+      <div style={{
+        backgroundColor: "#0f172a", padding: "25px", borderRadius: "12px",
         width: "95%", maxWidth: "900px", border: "1px solid #334155", 
-        color: "#f8fafc", boxShadow: "0 10px 25px rgba(0,0,0,0.5)", 
+        color: "#f8fafc", boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
         maxHeight: "calc(100vh - 120px)", 
         display: "flex", flexDirection: "column" 
       }}>
-          
+        
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #334155", paddingBottom: "15px", flexShrink: 0 }}>
           <div>
             <h2 style={{ margin: 0, color: "#fff" }}>{filtro.titulo}</h2>
@@ -70,7 +70,7 @@ export function ModalFiltroTorta({ filtro, onClose, eventos, usuarioRol }: Modal
                 
                 // 2. Buscamos la recaudación (si no viene, la calculamos)
                 const recaudacion = evt.monto_recaudado ?? (inscriptos * (evt.costo_participacion || 0));
-
+                
                 return (
                   <tr key={idx}>
                     <td style={{ fontWeight: "bold", color: "#fff" }}>{evt.nombre}</td>
@@ -101,14 +101,13 @@ export function ModalFiltroTorta({ filtro, onClose, eventos, usuarioRol }: Modal
               })}
             </tbody>
           </table>
-          
+
           {eventosFiltrados.length === 0 && (
-            <div style={{ textAlign: "center", padding: "30px", color: "#94a3b8" }}>
-              No hay eventos detallados que coincidan con este filtro.
+            <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
+              No hay eventos que coincidan con el filtro "{filtro.valor}".
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
