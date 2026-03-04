@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { TarjetasMetricas } from '../modals/reportesModal/TarjetasMetricas';
 import { 
   BarChart, 
   Bar, 
@@ -18,13 +17,7 @@ export default function SeccionAdministrador({
   mesesOrdenados,
   maxEventosProvincia,
   // Props de Métricas - Eventos
-  totalEventosGlobal, eventosFuturos, eventosPasados, eventosPropiosCount, eventosExternosCount,
-  // Props de Métricas - Participantes
-  totalConfirmadas, totalPendientes, promedioParticipantes, ocupacionGlobal,
-  // Props de Métricas - Financiero
-  totalRecaudadoGlobal, cantidadGratuitos, cantidadPagos, recaudadoPropios, recaudadoExternos,
-  // Funciones para abrir modales
-  setModalEventosGlobal, setModalParticipantes, setModalFinanciero, setModalAdminEvento,
+ setModalAdminEvento,
   setModalFiltroTorta,
   exportando,
   handleExportarCSV,
@@ -903,7 +896,7 @@ const datosGrafico = (mesesOrdenados || [])
                             </div>
                         </div>
                         <div className="grafico-card__body">
-                            {renderGraficoTorta(datosGraficoTipoDinámico, "tipo", "cantidad", "Detalle por Tipo")}
+                            {renderGraficoTorta(datosGraficoTipoDinámico, "tipo", "cantidad", "Eventos")}
                             
                             {/* Acá sumamos el mensaje del foquito 💡 */}
                             <div className="insight-text" style={{ marginTop: "20px" }}>
@@ -960,36 +953,7 @@ const datosGrafico = (mesesOrdenados || [])
         </div>
 
             
-        {/* ── Tarjetas Admin ────────────────────────────────── */}
-      
-          <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
-            {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
-            <TarjetasMetricas
-              // Props Eventos
-              totalEventosGlobal={totalEventosGlobal}
-              eventosFuturos={eventosFuturos}
-              eventosPasados={eventosPasados}
-              eventosPropiosCount={eventosPropiosCount}
-              eventosExternosCount={eventosExternosCount}
-              onAbrirModalEventos={() => setModalEventosGlobal(true)}
-
-              // Props Participantes
-              totalConfirmadas={totalConfirmadas}
-              totalPendientes={totalPendientes}
-              promedioParticipantes={promedioParticipantes}
-              ocupacionGlobal={ocupacionGlobal}
-              onAbrirModalParticipantes={() => setModalParticipantes(true)}
-
-              // Props Financiera
-              usuarioRol={usuarioRol}
-              totalRecaudadoGlobal={totalRecaudadoGlobal}
-              cantidadGratuitos={cantidadGratuitos}
-              cantidadPagos={cantidadPagos}
-              recaudadoPropios={recaudadoPropios}
-              recaudadoExternos={recaudadoExternos}
-              onAbrirModalFinanciero={() => setModalFinanciero(true)}
-            />
-          </div>
+        
 
         {/* ── MODAAAAAL ────────────────────────────────── */}
         {modalDetalleUsuario && (
