@@ -338,6 +338,12 @@ class EliminacionService:
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
             return
         
+        # ✅ FIX: CANCELAR LAS RESERVAS ANTES DE NOTIFICAR
+        for reserva in reservas:
+            reserva.id_estado_reserva = 3  # Cancelada
+        db.flush()
+        # -----------------------------------------------
+        
         print(f"\n{'='*70}")
         print(f"[NOTIFICACIONES] Procesando {len(reservas)} participantes...")
         print(f"{'='*70}")
