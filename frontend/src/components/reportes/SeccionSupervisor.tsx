@@ -133,7 +133,7 @@ export function SeccionSupervisor({
                 <div className="grafico-card__body">
                     {/* DEJAMOS UN SOLO GRÁFICO (100% ANCHO) */}
                     <div style={{ width: "100%", height: "400px", marginTop: "20px" }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
                                 
                                 {/* DESCRIPCIÓN EJE X */}

@@ -1,62 +1,139 @@
+import { useEffect, useState } from 'react';
 
 interface ModalEventosGlobalProps {
   isOpen: boolean;
   onClose: () => void;
-  eventos: any[];
+  totalEventosGlobal: number;
+  eventosFuturos: number;
+  eventosPasados: number;
+  eventosPropiosCount: number;
+  eventosExternosCount: number;
 }
 
-export function ModalEventosGlobal({ isOpen, onClose, eventos }: ModalEventosGlobalProps) {
+export function ModalEventosGlobal({
+  isOpen,
+  onClose,
+  totalEventosGlobal,
+  eventosFuturos,
+  eventosPasados,
+  eventosPropiosCount,
+  eventosExternosCount
+}: ModalEventosGlobalProps) {
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => setAnimate(true), 100);
+    } else {
+      setAnimate(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
-  // Calculamos hoyStr adentro del modal para que no tengas que pasarlo como prop
-  const hoyStr = new Date().toISOString().split('T')[0];
+  const totalValido = totalEventosGlobal > 0 ? totalEventosGlobal : 1;
+  const porcentajePropios = Math.round((eventosPropiosCount / totalValido) * 100);
+  const porcentajeExternos = Math.round((eventosExternosCount / totalValido) * 100);
+
+  let iconoDiagnostico = "📊";
+  let tituloDiagnostico = "Estado del Inventario";
+  let textoDiagnostico = "";
+  let colorDiagnostico = "#60a5fa";
+
+  if (totalEventosGlobal === 0) {
+    iconoDiagnostico = "⚠️";
+    tituloDiagnostico = "Plataforma sin actividad";
+    textoDiagnostico = "No hay eventos registrados. Urgente: Iniciar captación de organizadores externos.";
+    colorDiagnostico = "#ef4444";
+  } else if (eventosExternosCount > eventosPropiosCount) {
+    iconoDiagnostico = "🚀";
+    tituloDiagnostico = "Marketplace Saludable";
+    textoDiagnostico = `Excelente nivel de adopción B2B. El ${porcentajeExternos}% de los eventos son creados por agrupaciones externas.`;
+    colorDiagnostico = "#34d399";
+  } else {
+    iconoDiagnostico = "⚠️";
+    tituloDiagnostico = "Dependencia Interna Alta";
+    textoDiagnostico = `El ${porcentajePropios}% de la oferta depende de la administración. Se sugiere atraer clubes de ciclismo externos.`;
+    colorDiagnostico = "#f59e0b";
+  }
 
   return (
-    <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", zIndex: 999999, display: "flex", justifyContent: "center", alignItems: "flex-start", paddingTop: "60px", paddingBottom: "20px" }}>
-      <div style={{ backgroundColor: "#0f172a", padding: "25px", borderRadius: "12px", width: "95%", maxWidth: "1000px", border: "1px solid #3b82f6", color: "#f8fafc", boxShadow: "0 10px 30px rgba(59, 130, 246, 0.2)", maxHeight: "calc(100vh - 100px)", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(13, 15, 26, 0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(4px)", padding: "20px" }}>
+      
+      <div style={{ background: "#12141f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: "24px", width: "100%", maxWidth: "550px", position: "relative", boxShadow: "0 40px 80px rgba(0,0,0,0.6)", opacity: animate ? 1 : 0, transform: animate ? "translateY(0) scale(1)" : "translateY(32px) scale(0.97)", transition: "all 0.4s", fontFamily: "'DM Sans', sans-serif", maxHeight: "90vh", overflowY: "auto" }}>
         
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #334155", paddingBottom: "15px", flexShrink: 0 }}>
-          <div>
-            <h2 style={{ margin: 0, color: "#3b82f6", display: "flex", alignItems: "center", gap: "10px" }}>📅 Directorio Global de Eventos</h2>
-            <p style={{ margin: "5px 0 0 0", color: "#94a3b8" }}>Listado completo de todas las actividades registradas en el sistema.</p>
+        <button onClick={onClose} style={{ position: "absolute", top: "24px", right: "24px", background: "rgba(255,255,255,0.1)", border: "none", borderRadius: "50%", width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10, color: "#fff" }}>✕</button>
+
+        <div style={{ padding: "28px 28px 20px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(99, 102, 241, 0.1)", border: "1px solid rgba(99, 102, 241, 0.3)", borderRadius: "100px", padding: "4px 12px 4px 8px", marginBottom: "14px" }}>
+            <p style={{ fontSize: "11px", fontWeight: 600, color: "#818cf8", textTransform: "uppercase", margin: 0 }}>🚴‍♂️ Reporte Global</p>
           </div>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: "2rem", cursor: "pointer", color: "#94a3b8" }}>✖</button>
+          <h2 style={{ fontSize: "24px", fontWeight: 800, color: "#fff", margin: 0, fontFamily: "'Syne', sans-serif" }}>Eventos del Sistema</h2>
+          <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.4)", marginTop: "4px", margin: 0 }}>Registro general de eventos y tipo de organizador</p>
         </div>
 
-        <div style={{ overflowY: "auto", flex: 1, minHeight: 0, paddingRight: "10px" }}>
-          <table className="tabla-reportes-custom">
-            <thead style={{ position: "sticky", top: 0, backgroundColor: "#0f172a", zIndex: 10 }}>
-              <tr>
-                <th>Fecha</th>
-                <th>Evento</th>
-                <th>Organizador</th>
-                <th>Modalidad</th>
-                <th style={{ textAlign: "center" }}>Origen</th>
-                <th style={{ textAlign: "center" }}>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...eventos].sort((a, b) => new Date(b.fecha_evento).getTime() - new Date(a.fecha_evento).getTime()).map((evt: any, idx: number) => {
-                const esFuturo = evt.fecha_evento >= hoyStr;
-                return (
-                  <tr key={idx}>
-                    <td style={{ color: "#cbd5e1", whiteSpace: "nowrap" }}>{evt.fecha_evento ? evt.fecha_evento.split('-').reverse().join('-') : "-"}</td>
-                    <td style={{ fontWeight: "bold", color: "#fff" }}>{evt.nombre}</td>
-                    <td>{evt.organizador}</td>
-                    <td><span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>{evt.tipo} - {evt.dificultad}</span></td>
-                    <td style={{ textAlign: "center" }}>
-                      <span style={{ backgroundColor: evt.pertenencia === "Propio" ? "rgba(139, 92, 246, 0.2)" : "rgba(234, 179, 8, 0.2)", color: evt.pertenencia === "Propio" ? "#8b5cf6" : "#eab308", padding: "3px 8px", borderRadius: "4px", fontSize: "0.8rem", fontWeight: "bold" }}>
-                        {evt.pertenencia}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      {esFuturo ? <span style={{ color: "#3b82f6" }}>🚀 Próximo</span> : <span style={{ color: "#64748b" }}>✅ Finalizado</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ background: "#12141f", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <span style={{ fontSize: "28px", fontWeight: 800, color: "#fff", fontFamily: "'Syne', sans-serif" }}>{totalEventosGlobal}</span>
+            <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: "4px" }}>Total Histórico</span>
+          </div>
+          <div style={{ background: "#12141f", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <span style={{ fontSize: "28px", fontWeight: 800, color: "#34d399", fontFamily: "'Syne', sans-serif" }}>{eventosFuturos}</span>
+            <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: "4px" }}>Próximos</span>
+          </div>
+          <div style={{ background: "#12141f", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <span style={{ fontSize: "28px", fontWeight: 800, color: "rgba(255,255,255,0.3)", fontFamily: "'Syne', sans-serif" }}>{eventosPasados}</span>
+            <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: "4px" }}>Finalizados</span>
+          </div>
+        </div>
+
+        <div style={{ padding: "24px 28px" }}>
+          <h3 style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em" }}>Adopción de la plataforma</h3>
+          <div style={{ height: "10px", display: "flex", borderRadius: "100px", overflow: "hidden", marginBottom: "14px", background: "rgba(255,255,255,0.05)" }}>
+            <div style={{ width: `${porcentajePropios}%`, background: "#8b5cf6" }}></div>
+            <div style={{ width: `${porcentajeExternos}%`, background: "#f59e0b" }}></div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "24px" }}>
+            <span style={{ color: "#fff" }}><span style={{color:"#8b5cf6"}}>●</span> Propios: <strong>{eventosPropiosCount}</strong> ({porcentajePropios}%)</span>
+            <span style={{ color: "#fff" }}><span style={{color:"#f59e0b"}}>●</span> Externos: <strong>{eventosExternosCount}</strong> ({porcentajeExternos}%)</span>
+          </div>
+
+          <div style={{ padding: "16px", borderRadius: "12px", borderLeft: `3px solid ${colorDiagnostico}`, background: `rgba(255,255,255,0.03)`, marginBottom: "24px" }}>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <span style={{ fontSize: "20px" }}>{iconoDiagnostico}</span>
+              <div>
+                <strong style={{ display: "block", fontSize: "12px", color: colorDiagnostico, textTransform: "uppercase", marginBottom: "4px" }}>{tituloDiagnostico}</strong>
+                <p style={{ fontSize: "12px", lineHeight: 1.5, color: "rgba(255,255,255,0.5)", margin: 0 }}>{textoDiagnostico}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* DESPLEGABLE EXPLICATIVO (TIPO ACORDEÓN) */}
+          <details style={{ background: "rgba(255,255,255,0.03)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.06)", overflow: "hidden" }}>
+            <summary style={{ padding: "12px 16px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#818cf8", display: "flex", alignItems: "center", gap: "8px", listStyle: "none" }}>
+              💡 ¿Qué significan estas métricas para nuestra administración?
+            </summary>
+            <div style={{ padding: "0 16px 16px", fontSize: "12px", color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>
+              <div style={{ marginTop: "10px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
+                
+                <p style={{ margin: "0 0 10px 0" }}>
+                  <strong style={{color: "#fff"}}>• Total Histórico (El tamaño de nuestra red):</strong> 
+                  <br/>Es nuestra "chapa" y base de datos. Nos dice qué porción del mercado logramos captar desde el día 1. Un número alto es nuestro mejor argumento para convencer a marcas grandes.
+                </p>
+                
+                <p style={{ margin: "0 0 10px 0" }}>
+                  <strong style={{color: "#fff"}}>• Próximos (Nuestro "Stock" a futuro):</strong> 
+                  <br/>Es nuestra alerta temprana de ingresos. Si este número cae a cero, sabemos que el mes que viene no habrá comisiones. Nos avisa exactamente cuándo debemos levantar el teléfono para pedirle a los clubes que suban nuevas carreras.
+                </p>
+                
+                <p style={{ margin: "0" }}>
+                  <strong style={{color: "#fff"}}>• Propios vs Externos (Nuestro modelo de negocio):</strong> 
+                  <br/>Nos audita cómo estamos trabajando. Si la mayoría son eventos "Propios", seguimos siendo una productora que hace esfuerzo físico armando carreras. Si la mayoría son "Externos", logramos ser una empresa rentable que escala cobrando comisiones automáticamente.
+                </p>
+
+              </div>
+            </div>
+          </details>
         </div>
       </div>
     </div>
