@@ -423,11 +423,15 @@ class ReporteService:
                 TipoEvento.nombre.label("tipo_nombre"),
                 func.count(ReservaEvento.id_reserva).label("total_reservas"),
                 EliminacionEvento.motivo_eliminacion.label("motivo_eliminacion"),
+                NivelDificultad.nombre.label("dificultad_nombre"), # <--- AGREGADO
+                Usuario.id_rol.label("id_rol_creador")             # <--- AGREGADO
             )
             .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+            .outerjoin(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad) # <--- AGREGADO
+            .join(Usuario, Evento.id_usuario == Usuario.id_usuario)                            # <--- AGREGADO
             .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
             .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
-            .group_by(Evento.id_evento, TipoEvento.nombre, EliminacionEvento.motivo_eliminacion)
+            .group_by(Evento.id_evento, TipoEvento.nombre, EliminacionEvento.motivo_eliminacion, NivelDificultad.nombre, Usuario.id_rol) # <--- AGREGADO AL GROUP BY
         )
 
         # ARREGLO 1: Armamos la base sin filtro de Popularidad por tipo
@@ -483,6 +487,9 @@ class ReporteService:
                 "descripcion": e.descripcion or "",
                 "ubicacion_completa": e.ubicacion or "",
                 "motivo": e.motivo_eliminacion,
+                # ✅ ¡AHORA SÍ, LA MAGIA!
+                "dificultad": e.dificultad_nombre or "Sin Dificultad",
+                "pertenencia": "Propio" if e.id_rol_creador in [1, 2] else "Externo",
             }
             for e in eventos_query
         ]
