@@ -15,6 +15,7 @@ type OrganizadorKey = "organizador" | "total_eventos" | "activos" | "finalizados
 interface SeccionSupervisorProps {
     fechaInicio: string;
     fechaFin: string;
+    filtroPertenencia: string;
     // Exportación
     handleExportarCSV: (tipo: "dashboard_eventos" | "analisis_organizadores" | "top_ocupacion" | string) => void;
     
@@ -40,6 +41,7 @@ interface SeccionSupervisorProps {
 export function SeccionSupervisor({
     fechaInicio,
     fechaFin,
+    filtroPertenencia,
     handleExportarCSV,
     evtSist,
     handleChartClick,
@@ -52,7 +54,7 @@ export function SeccionSupervisor({
     filtroOcupacion,
     setFiltroOcupacion
 }: SeccionSupervisorProps) {
-    // 👇 2. APLICAMOS EL FILTRO EXACTO DE TU COMPAÑERA 👇
+    // 👇 . APLICAMOS EL FILTRO EXACTO DE TU COMPAÑERA 👇
     let eventosFiltrados = [...(evtSist || [])];
 
     if (fechaInicio) {
@@ -61,6 +63,31 @@ export function SeccionSupervisor({
     if (fechaFin) {
         eventosFiltrados = eventosFiltrados.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
     }
+
+    // 🔥 . ACÁ SUMAMOS TU FILTRO DE PERTENENCIA 🔥
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        eventosFiltrados = eventosFiltrados.filter((e: any) => {
+            if (filtroPertenencia === "propios") return e.pertenencia === "Propio";
+            if (filtroPertenencia === "externos") return e.pertenencia === "Externo";
+            return true;
+        });
+    }
+
+    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A LOS ORGANIZADORES 👇
+    // Usamos organizadoresFiltrados porque el padre ya nos manda la lista ordenada acá
+    let orgsParaMostrar = [...(organizadoresFiltrados || [])];
+
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        orgsParaMostrar = orgsParaMostrar.filter((org: any) => {
+            // Roles externos (3 y 4)
+            const esExterno = org.rol === "Organización Externa" || org.rol === "Cliente";
+            
+            if (filtroPertenencia === "propios") return !esExterno; // Deja solo Admin y Supervisor
+            if (filtroPertenencia === "externos") return esExterno;  // Deja solo Org. Externa y Cliente
+            return true;
+        });
+    }
+
     const [organizadorModal, setOrganizadorModal] = useState<any | null>(null);
     console.log("organizadorModal actual:", organizadorModal);
     const [hoveredBar, setHoveredBar] = useState<string | null>(null);
@@ -250,7 +277,7 @@ export function SeccionSupervisor({
                         </thead>
                         <tbody>
                             {/* USAMOS LA NUEVA LISTA FILTRADA Y ORDENADA */}
-                            {organizadoresFiltrados.map((org: any, idx: number) => (
+                            {orgsParaMostrar.map((org: any, idx: number) => (
                                 <tr key={idx}>
                                     {/* 1. ORGANIZADOR (Clickeable para el modal) */}
                                     <td 
@@ -424,6 +451,7 @@ export function SeccionSupervisor({
                 </div>
             </div>
         </div>
+
         {/* ════════ MODAL: TERMÓMETRO DE CONVOCATORIA ════════ */}
             <ModalTermometro 
                 evento={eventoModal} 

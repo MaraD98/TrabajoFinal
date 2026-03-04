@@ -14,27 +14,29 @@ def obtener_reportes(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
     anio: int = Query(None, description="Año para filtrar"),
-    mes: int = Query(None, description="Mes para filtrar")
+    mes: int = Query(None, description="Mes para filtrar"),
+    fecha_inicio: str = Query(None, description="Fecha de inicio (YYYY-MM-DD)"), # <-- AGREGAMOS ESTO
+    fecha_fin: str = Query(None, description="Fecha de fin (YYYY-MM-DD)")        # <-- AGREGAMOS ESTO
 ):
     rol = current_user.id_rol
     uid = current_user.id_usuario
 
     if rol == 1:
-        # 1. Traemos la data del Admin
+        # 1. Traemos la data del Admin (Intacto)
         data_admin = ReporteService.reportes_admin(db, anio=anio, mes=mes)
         
-        # 2. Traemos la data del Supervisor (para que vea los gráficos de ocupación, etc)
-        data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes)
+        # 2. Supervisor: ¡Acá le pasamos las fechas nuevas! 🔥
+        data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
         
-        # 3. Traemos la data detallada
+        # 3. Traemos la data detallada (Intacto)
         data_detallada = ReporteService.reportes_organizacion_externa(db, uid, rol)
         
         # 4. Fusionamos todo (los 3 diccionarios) y lo mandamos
         return {**data_super, **data_admin, **data_detallada}
     
     elif rol <= 2:
-        # El Supervisor recibe su dashboard + la vista detallada global
-        data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes)
+        # Supervisor: ¡Acá también le pasamos las fechas nuevas! 🔥
+        data_super = ReporteService.reportes_supervisor(db, uid, anio=anio, mes=mes, fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
         data_detallada = ReporteService.reportes_organizacion_externa(db, uid, rol)
         return {**data_super, **data_detallada}
     

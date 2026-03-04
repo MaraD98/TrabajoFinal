@@ -273,12 +273,19 @@ class ReporteService:
         }
 
     @staticmethod
-    def reportes_supervisor(db: Session, id_usuario: int, anio: int = None, mes: int = None):
+    def reportes_supervisor(db: Session, id_usuario: int, anio: int = None, mes: int = None, fecha_inicio: str = None, fecha_fin: str = None):
         filtros = []
+        # Mantengo lo viejo por si las dudas
         if anio:
             filtros.append(func.extract("year", Evento.fecha_evento) == anio)
         if mes:
             filtros.append(func.extract("month", Evento.fecha_evento) == mes)
+            
+        # Agrego el filtro nuevo exacto por día
+        if fecha_inicio:
+            filtros.append(Evento.fecha_evento >= fecha_inicio)
+        if fecha_fin:
+            filtros.append(Evento.fecha_evento <= fecha_fin)
 
         # ── 1. Análisis Organizadores Top 10 (con más detalles) ──
         reservas_confirmadas_sq = (
