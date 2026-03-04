@@ -313,7 +313,7 @@ const datosGrafico = (mesesOrdenados || [])
           <div style={{ display: "flex", gap: "20px", marginTop: "40px", flexWrap: "wrap", alignItems: "stretch" }}>
             
             {/* LADO IZQUIERDO: Tabla Detallada Conectada */}
-            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column", maxHeight: "550px" }}>
               
 
               {!mesExpandido ? (
@@ -389,7 +389,7 @@ const datosGrafico = (mesesOrdenados || [])
               </div>
             </div>
           ) : (
-                <><div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <><div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                       <div>
                         <h3 style={{ margin: 0 }}>Registros del {mesExpandido}</h3>
@@ -405,6 +405,7 @@ const datosGrafico = (mesesOrdenados || [])
                       </button>
                     </div>
 
+                      <div style={{ flex: 1,minHeight: "0", overflowY: "auto", paddingRight: "5px" }}>
                       <table className="tabla-reportes-custom">
                         <thead>
                           <tr>
@@ -466,6 +467,7 @@ const datosGrafico = (mesesOrdenados || [])
                           
                         </tbody>
                       </table>
+                     </div>
                     </div></>
               )}
               
@@ -537,9 +539,9 @@ const datosGrafico = (mesesOrdenados || [])
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
 
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px" }}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px", display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "600px"}}>
             
-            <div className="grafico-card__header">
+            <div className="grafico-card__header" style={{ flexShrink: 0 }}>
               <div>
                 <h3 style={{ margin: 0 }}>📍 Distribución Geográfica de Eventos</h3>
                 <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: "5px" }}>
@@ -569,7 +571,7 @@ const datosGrafico = (mesesOrdenados || [])
               </select>
             </div>
 
-            <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px" }}>
+            <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px", flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px" }}>
               {reporteData?.tendencias_ubicacion_completa?.map((prov: any, index: any) => {
                 
                 const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos || []);
