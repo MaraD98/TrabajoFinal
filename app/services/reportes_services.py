@@ -204,9 +204,19 @@ class ReporteService:
             reverse=True
         )
 
-        # 5. Usuarios Nuevos (Clientes y Org Externas)
-        usuarios_nuevos_query = db.query(Usuario).filter(Usuario.id_rol.in_([3, 4])).all()
+        # 5. Usuarios Nuevos (Todos los roles para que el frontend pueda filtrarlos)
+        # Agregamos los roles 1 (Admin) y 2 (Supervisor) a la lista
+        usuarios_nuevos_query = db.query(Usuario).filter(Usuario.id_rol.in_([1, 2, 3, 4])).all()
         usuarios_nuevos = []
+        
+        # Diccionario para mapear rápido el ID con el nombre en texto
+        mapa_roles = {
+            1: "Administrador",
+            2: "Supervisor",
+            3: "Organización Externa",
+            4: "Cliente"
+        }
+
         for u in usuarios_nuevos_query:
             fecha_creacion = getattr(u, 'fecha_creacion', None) or getattr(u, 'fecha_registro', None)
             
@@ -233,7 +243,8 @@ class ReporteService:
                 "id": u.id_usuario,
                 "nombre": u.nombre_y_apellido,
                 "email": getattr(u, 'email', 'Sin Email'),
-                "rol": "Organización Externa" if u.id_rol == 3 else "Cliente",
+                # Usamos el mapa para ponerle el nombre exacto que espera tu React
+                "rol": mapa_roles.get(u.id_rol, "Desconocido"), 
                 "fecha_creacion": fecha_creacion.strftime('%d/%m/%Y') if fecha_creacion else "Sin fecha",
                 "inscripciones": insc_list,
                 "cantidad_inscripciones": len(insc_list),

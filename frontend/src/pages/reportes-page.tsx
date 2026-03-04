@@ -30,6 +30,7 @@ import {
     Cell,
     Tooltip
 } from "recharts";
+import { useMemo } from 'react'; 
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface ReporteData {
@@ -201,45 +202,96 @@ export default function ReportesPage() {
   const [modalEventosGlobal, setModalEventosGlobal] = useState<boolean>(false);
   const [modalParticipantes, setModalParticipantes] = useState<boolean>(false);
   
-  // 1. Agrupar usuarios nuevos por Mes (MM/YYYY) y por Día
-  const usuariosPorMes = (reporteData?.usuarios_nuevos || []).reduce((acc: any, user: any) => {
-      const fc = user.fecha_creacion || ""; // Viene como "DD/MM/YYYY"
+
+// 1. Agrupar usuarios nuevos por Mes (MM/YYYY) y por Día (CON FILTROS APLICADOS)
+  const usuariosPorMes = useMemo(() => {
+    // A. Filtramos la lista original primero
+    const usuariosFiltrados = (reporteData?.usuarios_nuevos || []).filter((user: any) => {
+      // -- Filtro de Fechas --
+      if (fechaInicio || fechaFin) {
+        const fc = user.fecha_creacion || "";
+        const partes = fc.split('/');
+        if (partes.length === 3) {
+          // Convertimos DD/MM/YYYY a un objeto Date real para comparar
+          const fechaUser = new Date(`${partes[2]}-${partes[1]}-${partes[0]}T12:00:00`); 
+          
+          if (fechaInicio) {
+            const inicio = new Date(`${fechaInicio}T00:00:00`);
+            if (fechaUser < inicio) return false;
+          }
+          if (fechaFin) {
+            const fin = new Date(`${fechaFin}T23:59:59`);
+            if (fechaUser > fin) return false;
+          }
+        }
+      }
+
+      // -- Filtro de Pertenencia --
+      const rolUser = user.rol || "";
+      // Definimos exactamente qué rol es qué cosa
+      const esPropio = rolUser === "Administrador" || rolUser === "Supervisor";
+      const esExterno = rolUser === "Organización Externa" || rolUser === "Cliente";
+
+      if (filtroPertenencia === "propios" && !esPropio) return false;
+      if (filtroPertenencia === "externos" && !esExterno) return false;
+
+      // Si pasa los filtros, se queda
+      return true;
+    });
+
+    // B. Ahora sí, hacemos el reduce sobre la lista ya filtrada
+    return usuariosFiltrados.reduce((acc: any, user: any) => {
+      const fc = user.fecha_creacion || ""; // "DD/MM/YYYY"
       const partes = fc.split('/');
       let mesAnio = "Sin Fecha";
       let dia = "";
       
       if (partes.length === 3) {
-          mesAnio = `${partes[1]}/${partes[2]}`; // "MM/YYYY"
-          dia = partes[0]; // "DD"
+        mesAnio = `${partes[1]}/${partes[2]}`; // "MM/YYYY"
+        dia = partes[0]; // "DD"
       }
 
-      // Si el mes no existe en nuestro objeto, lo creamos
       if (!acc[mesAnio]) {
-          acc[mesAnio] = { total: 0, usuarios: [], dias: {} };
+        acc[mesAnio] = { total: 0, usuarios: [], dias: {} };
       }
       
       acc[mesAnio].total += 1;
       acc[mesAnio].usuarios.push(user);
       
-      // Contabilizamos por día
       if (dia) {
-          if (!acc[mesAnio].dias[dia]) acc[mesAnio].dias[dia] = { clientes: 0, organizaciones: 0 };
-          if (user.rol === 'Cliente') acc[mesAnio].dias[dia].clientes += 1;
-          else acc[mesAnio].dias[dia].organizaciones += 1;
+        if (!acc[mesAnio].dias[dia]) {
+          acc[mesAnio].dias[dia] = { clientes: 0, organizaciones: 0, administradores: 0, supervisores: 0 };
+        }
+        
+        // Sumamos exactamente al rol que corresponde
+        const rol = user.rol || "";
+        if (rol === 'Cliente') {
+          acc[mesAnio].dias[dia].clientes += 1;
+        } else if (rol === 'Organización Externa') {
+          acc[mesAnio].dias[dia].organizaciones += 1;
+        } else if (rol === 'Administrador') {
+          acc[mesAnio].dias[dia].administradores += 1;
+        } else if (rol === 'Supervisor') {
+          acc[mesAnio].dias[dia].supervisores += 1;
+        }
       }
       
       return acc;
-  }, {});
+    }, {});
+  }, [reporteData?.usuarios_nuevos, fechaInicio, fechaFin, filtroPertenencia]); // <- Se actualiza si tocás los filtros
 
   // Ordenar los meses de más reciente a más viejo
-  const mesesOrdenados = Object.keys(usuariosPorMes).sort((a, b) => {
-      if (a === "Sin Fecha") return 1;
-      if (b === "Sin Fecha") return -1;
-      const [mesA, anioA] = a.split('/');
-      const [mesB, anioB] = b.split('/');
-      if (anioA !== anioB) return parseInt(anioB) - parseInt(anioA);
-      return parseInt(mesB) - parseInt(mesA);
-  });
+  const mesesOrdenados = useMemo(() => {
+    return Object.keys(usuariosPorMes).sort((a, b) => {
+        if (a === "Sin Fecha") return 1;
+        if (b === "Sin Fecha") return -1;
+        const [mesA, anioA] = a.split('/');
+        const [mesB, anioB] = b.split('/');
+        if (anioA !== anioB) return parseInt(anioB) - parseInt(anioA);
+        return parseInt(mesB) - parseInt(mesA);
+    });
+  }, [usuariosPorMes]);
+
 
   // 3. Calcular el máximo de eventos en una provincia para dibujar la barra de calor
   const maxEventosProvincia = Math.max(...(reporteData?.tendencias_ubicacion_completa?.map((p: any) => p.total_eventos) || [1]));
@@ -586,7 +638,13 @@ export default function ReportesPage() {
         </div>
 
       {/* --- FILTRO GLOBAL DE FECHAS Y PERTENENCIA --- */}
-      <div className="grafico-card grafico-card--wide" style={{ marginBottom: "20px" }}>
+      <div className="grafico-card grafico-card--wide" style={{ 
+        marginBottom: "20px",
+        position: "sticky", 
+        top: "80px", 
+        zIndex: 90, 
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.6)"
+      }}>
         
         <div className="grafico-card__header">
           <h3>🎛️ Filtros Generales de Reportes</h3>
