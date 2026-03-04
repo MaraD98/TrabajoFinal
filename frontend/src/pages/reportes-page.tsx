@@ -442,7 +442,7 @@ export default function ReportesPage() {
                 formatter={(value: any, name: any) => {
                   const numValue = Number(value);
                   const porcentaje = total > 0 ? ((numValue / total) * 100).toFixed(1) : 0;
-                  return [`${numValue} inscriptos (${porcentaje}%)`, name];
+                  return [`${numValue} ${tituloModal.toLowerCase()} (${porcentaje}%)`, name];
                 }}
                 contentStyle={{ backgroundColor: "#1e1e1e", borderColor: "#444", borderRadius: "8px", color: "#fff" }}
                 itemStyle={{ color: "#fff", fontWeight: "bold" }}
