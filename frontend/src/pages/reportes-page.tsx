@@ -586,7 +586,13 @@ export default function ReportesPage() {
         </div>
 
       {/* --- FILTRO GLOBAL DE FECHAS Y PERTENENCIA --- */}
-      <div className="grafico-card grafico-card--wide" style={{ marginBottom: "20px" }}>
+      <div className="grafico-card grafico-card--wide" style={{ 
+        marginBottom: "20px",
+        position: "sticky", 
+        top: "80px", 
+        zIndex: 90, 
+        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.6)"
+      }}>
         
         <div className="grafico-card__header">
           <h3>🎛️ Filtros Generales de Reportes</h3>
