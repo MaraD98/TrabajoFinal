@@ -344,6 +344,119 @@ def enviar_correo_pago_confirmado(email_destino: str, evento: str):
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
 
+def enviar_correo_rechazo_edicion(email_destino: str, nombre_usuario: str, nombre_evento: str):
+    msg = EmailMessage()
+    msg['Subject'] = f'❌ Solicitud de Edición Rechazada: {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
+                <div style="background-color: #e63946; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff;">Edición No Aprobada</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 18px;">Hola <strong>{nombre_usuario}</strong>,</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        Te informamos que la solicitud de edición para el evento <strong>{nombre_evento}</strong> ha sido revisada y <strong>rechazada</strong> por la administración.
+                    </p>
+                    <div style="background-color: #2a2a2a; border-left: 4px solid #e63946; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #ffffff;">El evento permanecerá publicado con la información original.</p>
+                    </div>
+                    <p style="color: #cccccc; font-size: 14px;">
+                        Si tenés dudas sobre el motivo del rechazo, por favor contactate con el área de supervisión.
+                    </p>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
+
+def enviar_correo_aprobacion_edicion(email_destino: str, nombre_usuario: str, nombre_evento: str):
+    msg = EmailMessage()
+    msg['Subject'] = f'✅ Cambios Aprobados: {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
+                <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff;">¡Edición Aprobada!</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 18px;">Hola <strong>{nombre_usuario}</strong>,</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        ¡Buenas noticias! Tu solicitud de edición para el evento <strong>{nombre_evento}</strong> ha sido aprobada.
+                    </p>
+                    <div style="background-color: #2a2a2a; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #ffffff;">Los cambios ya se encuentran visibles en el calendario de eventos.</p>
+                    </div>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
+
+def enviar_correo_aprobacion_publicacion(email_destino: str, nombre_usuario: str, nombre_evento: str):
+    msg = EmailMessage()
+    msg['Subject'] = f'🚀 ¡Evento Publicado!: {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
+                </div>
+                <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #121212;">¡Tu Evento está en línea!</h1>
+                </div>
+                <div style="padding: 30px; text-align: center;">
+                    <p style="font-size: 18px;">Hola <strong>{nombre_usuario}</strong>,</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        ¡Excelentes noticias! La revisión de tu evento <strong>{nombre_evento}</strong> ha finalizado con éxito.
+                    </p>
+                    <div style="background-color: #2a2a2a; border-radius: 8px; padding: 25px; margin: 20px 0; border: 1px solid #444;">
+                        <p style="font-size: 16px; color: #ffffff; margin: 0;">
+                           ✅ <strong>Estado: Aprobado y Publicado</strong>
+                        </p>
+                        <p style="color: #cccccc; font-size: 14px; margin-top: 10px;">
+                            Ya podés encontrarlo en el calendario y empezar a recibir inscripciones.
+                        </p>
+                    </div>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
+
 # --- FUNCIÓN INTERNA DE ENVÍO ADAPTADA A SENDGRID ---
 def _ejecutar_envio(msg):
     print(f"DEBUG - Intentando envío vía SendGrid API para: {msg['To']}...")
@@ -376,3 +489,80 @@ def _ejecutar_envio(msg):
     except Exception as e:
         print(f"❌ Error en la API: {e}")
         return False
+    
+def enviar_correo_baja_aprobada(email_destino: str, nombre_usuario: str, nombre_evento: str):
+    msg = EmailMessage()
+    msg['Subject'] = f'✅ Solicitud de Baja Aprobada: {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
+                <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff;">Baja Confirmada</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 18px;">Hola <strong>{nombre_usuario}</strong>,</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        Te informamos que tu solicitud para dar de baja el evento <strong>{nombre_evento}</strong> ha sido <strong>aprobada</strong> por la administración.
+                    </p>
+                    <div style="background-color: #2a2a2a; border-left: 4px solid #4CAF50; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #ffffff;">El evento ha sido cancelado y ya no se encuentra visible en el calendario público.</p>
+                    </div>
+                    <p style="color: #cccccc; font-size: 14px;">
+                        Los participantes inscriptos han sido notificados automáticamente de la cancelación.
+                    </p>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)
+
+
+def enviar_correo_baja_rechazada(email_destino: str, nombre_usuario: str, nombre_evento: str):
+    msg = EmailMessage()
+    msg['Subject'] = f'❌ Solicitud de Baja Rechazada: {nombre_evento}'
+    msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
+    msg['To'] = email_destino
+
+    html_content = f"""
+    <html>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
+            <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
+                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
+                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
+                </div>
+                <div style="background-color: #e63946; padding: 20px; text-align: center;">
+                    <h1 style="margin: 0; color: #ffffff;">Solicitud de Baja Rechazada</h1>
+                </div>
+                <div style="padding: 30px;">
+                    <p style="font-size: 18px;">Hola <strong>{nombre_usuario}</strong>,</p>
+                    <p style="line-height: 1.6; color: #dddddd;">
+                        Tu solicitud para cancelar el evento <strong>{nombre_evento}</strong> ha sido revisada y <strong>rechazada</strong> por el administrador.
+                    </p>
+                    <div style="background-color: #2a2a2a; border-left: 4px solid #e63946; padding: 15px; margin: 20px 0;">
+                        <p style="margin: 0; color: #ffffff;">El evento continuará publicado y disponible para inscripciones.</p>
+                    </div>
+                    <p style="color: #cccccc; font-size: 14px;">
+                        Si considerás que esto es un error o tenés motivos urgentes para la baja, por favor contactate directamente con soporte técnico.
+                    </p>
+                </div>
+                <div style="background-color: #181818; padding: 20px; text-align: center; color: #666; font-size: 12px; border-top: 1px solid #333;">
+                    <p>© 2026 Wake Up Bikes - La Chacha Cicloturismo</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    """
+    msg.add_alternative(html_content, subtype='html')
+    return _ejecutar_envio(msg)

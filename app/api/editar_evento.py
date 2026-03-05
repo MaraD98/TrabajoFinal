@@ -4,7 +4,7 @@ Archivo: app/api/editar_evento.py
 
 ⚠️ CRÍTICO: Las rutas específicas DEBEN ir ANTES que las rutas con parámetros
 """
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.api.auth import get_current_user
@@ -111,7 +111,8 @@ async def editar_evento(
 async def aprobar_solicitud_edicion(
     id_evento: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Admin aprueba solicitud."""
     if current_user.id_rol not in [1, 2]:
@@ -123,7 +124,8 @@ async def aprobar_solicitud_edicion(
     return EditarEventoService.aprobar_solicitud_edicion(
         db=db, 
         id_evento=id_evento,
-        id_admin=current_user.id_usuario
+        id_admin=current_user.id_usuario,
+        background_tasks=background_tasks
     )
 
 
@@ -135,7 +137,8 @@ async def aprobar_solicitud_edicion(
 async def rechazar_solicitud_edicion(
     id_evento: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """Admin rechaza solicitud."""
     if current_user.id_rol not in [1, 2]:
@@ -147,7 +150,8 @@ async def rechazar_solicitud_edicion(
     return EditarEventoService.rechazar_solicitud_edicion(
         db=db, 
         id_evento=id_evento,
-        id_admin=current_user.id_usuario
+        id_admin=current_user.id_usuario,
+        background_tasks=background_tasks
     )
 
 

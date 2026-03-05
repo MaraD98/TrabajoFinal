@@ -5,9 +5,13 @@ from datetime import date
 from app.db.crud import eliminacion_crud
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
-from app.models.eliminacion_models import EliminacionEvento  # ✅ IMPORTAR AQUÍ
+from app.models.eliminacion_models import EliminacionEvento  
 from app.email import enviar_correo_cancelacion_evento
 from app.whatsapp import enviar_whatsapp_cancelacion_evento
+from fastapi import BackgroundTasks
+from app.email import enviar_correo_baja_aprobada, enviar_correo_baja_rechazada
+from app.whatsapp import enviar_whatsapp_baja_aprobada, enviar_whatsapp_baja_rechazada
+from sqlalchemy import text
 
 # ============================================================================
 # CONSTANTES
@@ -198,7 +202,7 @@ class EliminacionService:
     # ADMIN: APROBAR SOLICITUD DE BAJA
     # ========================================================================
     @staticmethod
-    def aprobar_baja(db: Session, id_evento: int, id_admin: int) -> dict:
+    def aprobar_baja(db: Session, id_evento: int, id_admin: int, background_tasks: BackgroundTasks) -> dict: # <--- Agregamos background_tasks
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
@@ -207,27 +211,49 @@ class EliminacionService:
         if not eliminacion:
             raise HTTPException(status_code=404, detail="No existe solicitud de baja para este evento.")
 
+        # Buscamos al dueño (organizador) para avisarle
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+
         eliminacion.motivo_eliminacion += " | [✅ APROBADO POR ADMIN]"
         eliminacion.estado_solicitud = 'aprobada'
         eliminacion_crud.cancelar_evento(db, id_evento)
+        
+        # Notificar a los corredores (tu función existente)
         EliminacionService._notificar_inscritos(
             db=db, evento=evento,
             motivo="Solicitud de baja aprobada por el administrador",
             id_eliminacion=eliminacion.id_eliminacion
         )
+        
         db.commit()
+
+        # ✅ NUEVO: Notificar al ORGANIZADOR que su baja fue aceptada
+        if organizador and organizador.id_usuario != id_admin:
+            if organizador.email:
+                background_tasks.add_task(
+                    enviar_correo_baja_aprobada,
+                    email_destino=organizador.email,
+                    nombre_usuario=organizador.nombre_y_apellido,
+                    nombre_evento=evento.nombre_evento
+                )
+            
+            # WhatsApp (opcional, siguiendo tu lógica anterior)
+            try:
+                res_tel = db.execute(text("SELECT telefono FROM contacto WHERE id_usuario = :id_u"), {"id_u": organizador.id_usuario}).fetchone()
+                if res_tel and res_tel[0]:
+                    background_tasks.add_task(enviar_whatsapp_baja_aprobada, telefono=res_tel[0], nombre_evento=evento.nombre_evento)
+            except: pass
 
         return {
             "mensaje": "Solicitud de baja aprobada. Evento cancelado y participantes notificados.",
             "id_evento": id_evento,
             "estado_nuevo": "Cancelado"
         }
-
     # ========================================================================
     # ADMIN: RECHAZAR SOLICITUD DE BAJA
     # ========================================================================
     @staticmethod
-    def rechazar_baja(db: Session, id_evento: int) -> dict:
+    def rechazar_baja(db: Session, id_evento: int, background_tasks: BackgroundTasks) -> dict: # <--- Agregamos background_tasks
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
@@ -236,8 +262,26 @@ class EliminacionService:
         if not eliminacion:
             raise HTTPException(status_code=404, detail="No existe solicitud de baja para este evento.")
 
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+
         eliminacion_crud.rechazar_registro_eliminacion(db, id_evento)
         db.commit()
+
+        # ✅ NUEVO: Notificar al ORGANIZADOR que su pedido de baja fue RECHAZADO
+        if organizador:
+            if organizador.email:
+                background_tasks.add_task(
+                    enviar_correo_baja_rechazada,
+                    email_destino=organizador.email,
+                    nombre_usuario=organizador.nombre_y_apellido,
+                    nombre_evento=evento.nombre_evento
+                )
+            # WhatsApp Rechazo
+            try:
+                res_tel = db.execute(text("SELECT telefono FROM contacto WHERE id_usuario = :id_u"), {"id_u": organizador.id_usuario}).fetchone()
+                if res_tel and res_tel[0]:
+                    background_tasks.add_task(enviar_whatsapp_baja_rechazada, telefono=res_tel[0], nombre_evento=evento.nombre_evento)
+            except: pass
 
         return {
             "mensaje": "Solicitud de baja rechazada. El evento continúa publicado.",
