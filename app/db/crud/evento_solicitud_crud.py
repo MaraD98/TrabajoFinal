@@ -6,6 +6,7 @@ from app.models.auth_models import Usuario
 from app.schemas.evento_solicitud_schema import SolicitudPublicacionCreate, RevisionSolicitud
 from datetime import date
 from typing import Optional
+from sqlalchemy.orm import defer
 
 # Importaciones para Bajas
 from app.models.registro_models import Evento
@@ -135,23 +136,39 @@ class Solicitud_PublicacionCRUD:
 
     @staticmethod
     def obtener_solicitudes_por_usuario(db: Session, id_usuario: int) -> list[SolicitudPublicacion]:
-        solicitudes = (
-            db.query(SolicitudPublicacion)
+        resultados = (
+            db.query(SolicitudPublicacion, TipoEvento, NivelDificultad, Usuario)
+            # 🚀 LA MAGIA: Le decimos que NO traiga estas columnas pesadas
+            .options(
+                defer(SolicitudPublicacion.ruta_coordenadas),
+                defer(SolicitudPublicacion.descripcion) # Podés sumar la descripción si es muy larga
+            )
+            .join(TipoEvento, SolicitudPublicacion.id_tipo == TipoEvento.id_tipo)
+            .join(NivelDificultad, SolicitudPublicacion.id_dificultad == NivelDificultad.id_dificultad)
+            .join(Usuario, SolicitudPublicacion.id_usuario == Usuario.id_usuario)
             .filter(SolicitudPublicacion.id_usuario == id_usuario)
             .order_by(desc(SolicitudPublicacion.fecha_solicitud))
             .all()
         )
         
-        for sol in solicitudes:
-            sol.tipo_evento = db.query(TipoEvento).filter(TipoEvento.id_tipo == sol.id_tipo).first()
-            sol.nivel_dificultad = db.query(NivelDificultad).filter(NivelDificultad.id_dificultad == sol.id_dificultad).first()
-            sol.usuario = db.query(Usuario).filter(Usuario.id_usuario == sol.id_usuario).first()
-        
-        return solicitudes
+        solicitudes_finales = []
+        for solicitud, tipo, dificultad, usuario in resultados:
+            solicitud.tipo_evento = tipo
+            solicitud.nivel_dificultad = dificultad
+            solicitud.usuario = usuario
+            solicitudes_finales.append(solicitud)
+            
+        return solicitudes_finales
 
     @staticmethod
     def listar_solicitudes(db: Session, usuario_solicitante: Usuario, id_estado_solicitud: Optional[int] = None, skip: int = 0, limit: int = 100) -> dict:
-        query = db.query(SolicitudPublicacion)
+        # Preparamos la consulta con los JOINs
+        query = (
+            db.query(SolicitudPublicacion, TipoEvento, NivelDificultad, Usuario)
+            .join(TipoEvento, SolicitudPublicacion.id_tipo == TipoEvento.id_tipo)
+            .join(NivelDificultad, SolicitudPublicacion.id_dificultad == NivelDificultad.id_dificultad)
+            .join(Usuario, SolicitudPublicacion.id_usuario == Usuario.id_usuario)
+        )
         
         es_admin_o_supervisor = usuario_solicitante.id_rol in [1, 2]
         if not es_admin_o_supervisor:
@@ -160,45 +177,58 @@ class Solicitud_PublicacionCRUD:
         if id_estado_solicitud:
             query = query.filter(SolicitudPublicacion.id_estado_solicitud == id_estado_solicitud)
             
+        # Contamos el total ANTES de paginar
         total = query.count()
-        solicitudes = query.order_by(desc(SolicitudPublicacion.fecha_solicitud)).offset(skip).limit(limit).all()
         
-        for sol in solicitudes:
-            sol.tipo_evento = db.query(TipoEvento).filter(TipoEvento.id_tipo == sol.id_tipo).first()
-            sol.nivel_dificultad = db.query(NivelDificultad).filter(NivelDificultad.id_dificultad == sol.id_dificultad).first()
-            sol.usuario = db.query(Usuario).filter(Usuario.id_usuario == sol.id_usuario).first()
+        # Paginamos y traemos los datos
+        resultados = query.order_by(desc(SolicitudPublicacion.fecha_solicitud)).offset(skip).limit(limit).all()
         
-        return {"total": total, "solicitudes": solicitudes}
+        solicitudes_finales = []
+        for solicitud, tipo, dificultad, usuario in resultados:
+            solicitud.tipo_evento = tipo
+            solicitud.nivel_dificultad = dificultad
+            solicitud.usuario = usuario
+            solicitudes_finales.append(solicitud)
+        
+        return {"total": total, "solicitudes": solicitudes_finales}
     
     @staticmethod
     def obtener_solicitudes_pendientes(db: Session) -> list[SolicitudPublicacion]:
-        solicitudes = (
-            db.query(SolicitudPublicacion)
+        resultados = (
+            db.query(SolicitudPublicacion, TipoEvento, NivelDificultad, Usuario)
+            .join(TipoEvento, SolicitudPublicacion.id_tipo == TipoEvento.id_tipo)
+            .join(NivelDificultad, SolicitudPublicacion.id_dificultad == NivelDificultad.id_dificultad)
+            .join(Usuario, SolicitudPublicacion.id_usuario == Usuario.id_usuario)
             .filter(SolicitudPublicacion.id_estado_solicitud == 2)
             .order_by(desc(SolicitudPublicacion.fecha_solicitud))
             .all()
         )
         
-        for sol in solicitudes:
-            sol.usuario = db.query(Usuario).filter(Usuario.id_usuario == sol.id_usuario).first()
-            sol.tipo_evento = db.query(TipoEvento).filter(TipoEvento.id_tipo == sol.id_tipo).first()
-            sol.nivel_dificultad = db.query(NivelDificultad).filter(NivelDificultad.id_dificultad == sol.id_dificultad).first()
-        
-        return solicitudes
+        solicitudes_finales = []
+        for solicitud, tipo, dificultad, usuario in resultados:
+            solicitud.tipo_evento = tipo
+            solicitud.nivel_dificultad = dificultad
+            solicitud.usuario = usuario
+            solicitudes_finales.append(solicitud)
+            
+        return solicitudes_finales
 
     @staticmethod
     def obtener_solicitudes_aprobadas(db: Session) -> list[SolicitudPublicacion]:
-        solicitudes = (
-            db.query(SolicitudPublicacion)
+        resultados = (
+            db.query(SolicitudPublicacion, Usuario)
+            .join(Usuario, SolicitudPublicacion.id_usuario == Usuario.id_usuario)
             .filter(SolicitudPublicacion.id_estado_solicitud == 3)
             .order_by(desc(SolicitudPublicacion.fecha_evento))
             .all()
         )
         
-        for sol in solicitudes:
-            sol.usuario = db.query(Usuario).filter(Usuario.id_usuario == sol.id_usuario).first()
-        
-        return solicitudes
+        solicitudes_finales = []
+        for solicitud, usuario in resultados:
+            solicitud.usuario = usuario
+            solicitudes_finales.append(solicitud)
+            
+        return solicitudes_finales
 
     @staticmethod
     def actualizar_estado_solicitud(db: Session, id_solicitud: int, revision: RevisionSolicitud) -> Optional[SolicitudPublicacion]:

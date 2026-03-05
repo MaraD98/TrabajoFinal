@@ -211,44 +211,52 @@ def resumen_mis_eventos(
     current_user = Depends(get_current_user)
 ):
     from datetime import date
+    from sqlalchemy import or_
     from app.models.registro_models import Evento
     from app.models.evento_solicitud_models import SolicitudPublicacion
     from app.models.solicitud_edicion_models import SolicitudEdicionEvento
     from app.models.eliminacion_models import EliminacionEvento
 
     hoy = date.today()
+    user_id = current_user.id_usuario
 
-    # Eventos del usuario (excluye depurados)
-    eventos = db.query(Evento).filter(
-        Evento.id_usuario == current_user.id_usuario,
-        Evento.id_estado != 6
-    ).all()
+    # 🚀 OPTIMIZADO: Solo le pedimos a la BD un número (COUNT), no los registros completos
+    activos = db.query(Evento).filter(
+        Evento.id_usuario == user_id,
+        Evento.id_estado == 3,
+        Evento.fecha_evento >= hoy
+    ).count()
 
-    activos = sum(1 for e in eventos 
-                  if e.id_estado == 3 and e.fecha_evento >= hoy)
-    historial = sum(1 for e in eventos 
-                    if e.id_estado in [4, 5] or (e.id_estado == 3 and e.fecha_evento < hoy))
+    historial = db.query(Evento).filter(
+        Evento.id_usuario == user_id,
+        or_(
+            Evento.id_estado.in_([4, 5]),
+            (Evento.id_estado == 3) & (Evento.fecha_evento < hoy)
+        )
+    ).count()
 
-    # Solicitudes de publicación
-    solicitudes = db.query(SolicitudPublicacion).filter(
-        SolicitudPublicacion.id_usuario == current_user.id_usuario
-    ).all()
+    borradores = db.query(SolicitudPublicacion).filter(
+        SolicitudPublicacion.id_usuario == user_id,
+        SolicitudPublicacion.id_estado_solicitud == 1
+    ).count()
 
-    borradores = sum(1 for s in solicitudes if s.id_estado_solicitud == 1)
-    pendientes_aprobacion = sum(1 for s in solicitudes if s.id_estado_solicitud == 2)
+    pendientes_aprobacion = db.query(SolicitudPublicacion).filter(
+        SolicitudPublicacion.id_usuario == user_id,
+        SolicitudPublicacion.id_estado_solicitud == 2
+    ).count()
 
-    # IDs de eventos del usuario para filtrar ediciones y eliminaciones
-    ids_eventos = [e.id_evento for e in eventos]
+    # Usamos una subquery muy ligera para los IDs
+    ids_eventos_query = db.query(Evento.id_evento).filter(Evento.id_usuario == user_id)
 
     pendientes_edicion = db.query(SolicitudEdicionEvento).filter(
-        SolicitudEdicionEvento.id_evento.in_(ids_eventos),
+        SolicitudEdicionEvento.id_evento.in_(ids_eventos_query),
         SolicitudEdicionEvento.aprobada == None
-    ).count() if ids_eventos else 0
+    ).count()
 
     pendientes_eliminacion = db.query(EliminacionEvento).filter(
-        EliminacionEvento.id_evento.in_(ids_eventos),
+        EliminacionEvento.id_evento.in_(ids_eventos_query),
         EliminacionEvento.estado_solicitud == 'pendiente'
-    ).count() if ids_eventos else 0
+    ).count()
 
     return {
         "activos": activos,
@@ -259,7 +267,7 @@ def resumen_mis_eventos(
     
 @router.get(
     "/mis-eventos",
-    response_model=List[EventoResponse],
+    response_model=None,  # 🚀 MAGIA ACÁ: Apagamos Pydantic para evitar consultas N+1
     summary="Listar solo los eventos creados por el usuario actual"
 )
 def read_mis_eventos(
@@ -269,12 +277,18 @@ def read_mis_eventos(
     current_user = Depends(get_current_user)
 ):
     """Lista los eventos del usuario logueado"""
-    return EventoService.listar_eventos_por_usuario(
+    
+    # 🚀 Llamamos DIRECTO a la función optimizada del CRUD que me pasaste antes
+    from app.db.crud import registro_crud 
+    
+    eventos = registro_crud.get_eventos_por_usuario(
         db=db,
         id_usuario=current_user.id_usuario,
         skip=skip,
         limit=limit
     )
+    
+    return eventos
 
 @router.get(
     "/buscar",

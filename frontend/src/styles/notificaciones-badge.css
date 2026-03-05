@@ -132,7 +132,7 @@
 }
 
 .dropdown-item.unread {
-  background-color: #6b6b6b; 
+  background-color: #161616; 
   border-left: 3px solid #dbf72c;
 }
 
@@ -152,7 +152,7 @@
 
 .dropdown-item.unread .item-mensaje {
   font-weight: 600;
-  color: #3e4555; 
+  color: #c9c3c3; 
 }
 
 .item-dot {
@@ -166,7 +166,7 @@
 
 .item-fecha {
   font-size: 0.75rem;
-  color: #888;
+  color: #b3b1b1;
 }
 .dropdown-empty {
   padding: 20px;
