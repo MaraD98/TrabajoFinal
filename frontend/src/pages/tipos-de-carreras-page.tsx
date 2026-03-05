@@ -68,7 +68,7 @@ export const TiposCarrerasPage = () => {
             </div>
             <h3>{cat.titulo}</h3>
             <p>{cat.descripcion}</p>
-            <Link to={`/calendario?tipo=${cat.id}`} className="card-link">
+            <Link to={`/?tipo=${cat.id}`} className="card-link">
               Ver Eventos de {cat.titulo.split(' ')[0]} →
             </Link>
           </div>

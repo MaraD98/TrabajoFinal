@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import '../styles/inicio.css'; 
 import { buscarEventosConFiltros, obtenerCatalogosParaFiltros, type FiltrosEventos } from '../services/eventos';
 import { Navbar } from '../components/navbar'; 
@@ -88,12 +88,33 @@ export default function InicioPage() {
         return '#666'; 
     };
 
+    const location = useLocation();
+    const TIPO_ID_MAP: Record<string, number> = {
+    ruta: 1,
+    mtb: 2,
+    rural: 3,
+    gravel: 4,
+    cicloturismo: 5,
+    entrenamiento: 6,
+    };
+
     // ============================================================================
     // ✅ CARGA INICIAL
     // ============================================================================
     useEffect(() => {
-        cargarCatalogos();
-        cargarEventos(); 
+        cargarCatalogos(); // ← Sin cambios
+
+        const params = new URLSearchParams(location.search);
+        const tipoParam = params.get("tipo");
+        const tipoId = tipoParam ? TIPO_ID_MAP[tipoParam] : undefined;
+
+        if (tipoId) {
+            setTipoSeleccionado(tipoId);
+            setMostrarFiltros(true);
+            cargarEventosConTipo(tipoId); // ← Si viene con filtro de tipo
+        } else {
+            cargarEventos(); // ← Igual que antes, sin cambios
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -149,6 +170,40 @@ export default function InicioPage() {
             setLoading(false);
         }
     };
+    
+    const cargarEventosConTipo = async (tipoId: number) => {
+    setLoading(true);
+    try {
+        const resultado = await buscarEventosConFiltros({ id_tipo: tipoId });
+        const eventosFiltrados = resultado.eventos || [];
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+
+        const eventosProcesados = eventosFiltrados
+            .filter((evento: Evento) => {
+                const fechaEvento = parsearFechaDD_MM_YYYY(evento.fecha_evento);
+                return fechaEvento && fechaEvento >= hoy;
+            })
+            .sort((a: Evento, b: Evento) => {
+                const fechaA = parsearFechaDD_MM_YYYY(a.fecha_evento)?.getTime() || 0;
+                const fechaB = parsearFechaDD_MM_YYYY(b.fecha_evento)?.getTime() || 0;
+                return fechaA - fechaB;
+            });
+
+        setEventos(eventosProcesados);
+        setTotalEventos(resultado.total);
+        setMensajeResultado(resultado.mensaje);
+
+        setTimeout(() => {
+            document.getElementById('eventos')?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+    } catch (err) {
+        console.error(err);
+        setError('No se pudieron cargar los eventos.');
+    } finally {
+        setLoading(false);
+    }
+};
 
     const aplicarFiltros = async () => {
     await cargarEventos(); // Esperamos a que la función asíncrona termine
