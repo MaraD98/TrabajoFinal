@@ -17,12 +17,6 @@ export default function SeccionAdministrador({
   usuariosPorMes,
   mesesOrdenados,
   maxEventosProvincia,
-  // Props de Métricas - Eventos
-  totalEventosGlobal, eventosFuturos, eventosPasados, eventosPropiosCount, eventosExternosCount,
-  // Props de Métricas - Participantes
-  totalConfirmadas, totalPendientes, promedioParticipantes, ocupacionGlobal,
-  // Props de Métricas - Financiero
-  totalRecaudadoGlobal, cantidadGratuitos, cantidadPagos, recaudadoPropios, recaudadoExternos,
   // Funciones para abrir modales
   setModalEventosGlobal, setModalParticipantes, setModalFinanciero, setModalAdminEvento,
   setModalFiltroTorta,
@@ -37,6 +31,8 @@ export default function SeccionAdministrador({
   filtroPertenencia,
   onVerPropios,    
   onVerExternos,
+  eventosDetalle,
+  ocupacionData,
 }: any) {
 
   // --- ESTADOS ---
@@ -161,6 +157,70 @@ const datosGrafico = (mesesOrdenados || [])
     };
   })
   .sort((a: any, b: any) => a.sortValue - b.sortValue);
+
+  // ══════════════════════════════════════════════════
+// CÁLCULOS DE MÉTRICAS CON FILTROS APLICADOS
+// ══════════════════════════════════════════════════
+
+const limpiarMonto = (valor: any): number => {
+  if (typeof valor === 'number') return valor;
+  if (!valor) return 0;
+  const limpio = valor.toString().replace(/\./g, '').replace('$', '').replace(',', '.').trim();
+  return parseFloat(limpio) || 0;
+};
+
+// Filtramos eventos detalle por fecha y pertenencia
+const eventosDetalleFiltrados = (eventosDetalle || []).filter((ev: any) => {
+  const esPropio = ev.pertenencia === "Propio";
+  const pasaPertenencia =
+    !filtroPertenencia ||
+    filtroPertenencia === "todos" ||
+    (filtroPertenencia === "propios" && esPropio) ||
+    (filtroPertenencia === "externos" && !esPropio);
+
+  let pasaFechaInicio = true;
+  let pasaFechaFin = true;
+  if (ev.fecha_evento) {
+    const fechaISO = ev.fecha_evento.includes('/')
+      ? (() => { const [d, m, a] = ev.fecha_evento.split('/'); return `${a}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; })()
+      : ev.fecha_evento;
+    if (fechaInicio && fechaISO < fechaInicio) pasaFechaInicio = false;
+    if (fechaFin && fechaISO > fechaFin) pasaFechaFin = false;
+  }
+
+  return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+});
+
+// Métricas de Eventos filtradas
+const totalEventosGlobalFiltrado = eventosDetalleFiltrados.length;
+const hoyStr = new Date().toISOString().split('T')[0];
+const eventosFuturosFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.fecha_evento >= hoyStr && ev.fecha_evento !== "Sin fecha").length;
+const eventosPasadosFiltrado = totalEventosGlobalFiltrado - eventosFuturosFiltrado;
+const eventosPropiosCountFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.pertenencia === "Propio").length;
+const eventosExternosCountFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.pertenencia === "Externo").length;
+
+// Métricas Financieras filtradas
+let recaudadoPropiosFiltrado = 0;
+let recaudadoExternosFiltrado = 0;
+eventosDetalleFiltrados.forEach((ev: any) => {
+  const costo = limpiarMonto(ev.costo_participacion);
+  const pagantes = Number(ev.reservas) || 0;
+  const recaudacion = costo * pagantes;
+  if (ev.pertenencia === "Propio") recaudadoPropiosFiltrado += recaudacion;
+  else if (ev.pertenencia === "Externo") recaudadoExternosFiltrado += recaudacion * 0.10;
+});
+const totalRecaudadoGlobalFiltrado = recaudadoPropiosFiltrado + recaudadoExternosFiltrado;
+const cantidadGratuitosFiltrado = eventosDetalleFiltrados.filter((ev: any) => limpiarMonto(ev.costo_participacion) === 0).length;
+const cantidadPagosFiltrado = eventosDetalleFiltrados.length - cantidadGratuitosFiltrado;
+
+// Métricas de Ocupación filtradas (filtramos top_ocupacion por nombre de evento)
+const nombresEventosFiltrados = new Set(eventosDetalleFiltrados.map((ev: any) => ev.nombre));
+const ocupacionFiltrada = (ocupacionData || []).filter((ev: any) => nombresEventosFiltrados.has(ev.nombre_evento));
+const totalConfirmadasFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.inscriptos_pagos) || 0), 0);
+const totalPendientesFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.reservados_no_pagos) || 0), 0);
+const cupoTotalFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
+const promedioParticipantesFiltrado = ocupacionFiltrada.length > 0 ? Math.round(totalConfirmadasFiltrado / ocupacionFiltrada.length) : 0;
+const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltrado / cupoTotalFiltrado) * 100).toFixed(1) : "0";
 
   return (
     <div className="seccion-administrador-container">
@@ -966,34 +1026,33 @@ const datosGrafico = (mesesOrdenados || [])
           <div style={{ display: "flex", gap: "20px",marginTop: '2rem', flexWrap: "wrap" }}>
             {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
             <TarjetasMetricas
-              // Props Eventos
-              totalEventosGlobal={totalEventosGlobal}
-              eventosFuturos={eventosFuturos}
-              eventosPasados={eventosPasados}
-              eventosPropiosCount={eventosPropiosCount}
-              eventosExternosCount={eventosExternosCount}
-              onAbrirModalEventos={() => setModalEventosGlobal(true)}
-              onVerPropios={onVerPropios}
-              onVerExternos={onVerExternos}
+            // Props Eventos — AHORA FILTRADOS
+            totalEventosGlobal={totalEventosGlobalFiltrado}
+            eventosFuturos={eventosFuturosFiltrado}
+            eventosPasados={eventosPasadosFiltrado}
+            eventosPropiosCount={eventosPropiosCountFiltrado}
+            eventosExternosCount={eventosExternosCountFiltrado}
+            onAbrirModalEventos={() => setModalEventosGlobal(true)}
+            onVerPropios={onVerPropios}
+            onVerExternos={onVerExternos}
 
-              // Props Participantes
-              totalConfirmadas={totalConfirmadas}
-              totalPendientes={totalPendientes}
-              promedioParticipantes={promedioParticipantes}
-              ocupacionGlobal={ocupacionGlobal}
-              onAbrirModalParticipantes={() => setModalParticipantes(true)}
+            // Props Participantes — AHORA FILTRADOS
+            totalConfirmadas={totalConfirmadasFiltrado}
+            totalPendientes={totalPendientesFiltrado}
+            promedioParticipantes={promedioParticipantesFiltrado}
+            ocupacionGlobal={ocupacionGlobalFiltrado}
+            onAbrirModalParticipantes={() => setModalParticipantes(true)}
 
-              // Props Financiera
-              usuarioRol={usuarioRol}
-              totalRecaudadoGlobal={totalRecaudadoGlobal}
-              cantidadGratuitos={cantidadGratuitos}
-              cantidadPagos={cantidadPagos}
-              recaudadoPropios={recaudadoPropios}
-              recaudadoExternos={recaudadoExternos}
-              onAbrirModalFinanciero={() => setModalFinanciero(true)}
-            />
-          </div>
-
+            // Props Financiera — AHORA FILTRADOS
+            usuarioRol={usuarioRol}
+            totalRecaudadoGlobal={totalRecaudadoGlobalFiltrado}
+            cantidadGratuitos={cantidadGratuitosFiltrado}
+            cantidadPagos={cantidadPagosFiltrado}
+            recaudadoPropios={recaudadoPropiosFiltrado}
+            recaudadoExternos={recaudadoExternosFiltrado}
+            onAbrirModalFinanciero={() => setModalFinanciero(true)}
+          />
+        </div>
         {/* ── MODAAAAAL ────────────────────────────────── */}
         {modalDetalleUsuario && (
         <div style={{
