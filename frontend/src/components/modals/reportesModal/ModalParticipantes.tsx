@@ -84,16 +84,16 @@ export function ModalParticipantes({ isOpen, onClose, eventos }: ModalParticipan
                   Evento {sortIcon("nombre_evento")}
                 </th>
                 <th onClick={() => handleSort("reservados_no_pagos")} style={{ textAlign: "center", ...thStyle("reservados_no_pagos") }}>
-                  Reservas sin pago {sortIcon("reservados_no_pagos")}
+                  Reservas pendientes {sortIcon("reservados_no_pagos")}
                 </th>
                 <th onClick={() => handleSort("inscriptos_pagos")} style={{ textAlign: "center", ...thStyle("inscriptos_pagos") }}>
-                  Confirmados {sortIcon("inscriptos_pagos")}
+                  Inscriptos {sortIcon("inscriptos_pagos")}
                 </th>
                 <th onClick={() => handleSort("cupo_maximo")} style={{ textAlign: "center", ...thStyle("cupo_maximo") }}>
                   Cupo Max {sortIcon("cupo_maximo")}
                 </th>
                 <th onClick={() => handleSort("tasa_ocupacion")} style={{ textAlign: "right", ...thStyle("tasa_ocupacion") }}>
-                  Nivel de Ocupación {sortIcon("tasa_ocupacion")}
+                  Ocupación {sortIcon("tasa_ocupacion")}
                 </th>
               </tr>
             </thead>

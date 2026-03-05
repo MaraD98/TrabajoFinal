@@ -796,6 +796,8 @@ export default function ReportesPage() {
           filtroTipoTendencias={filtroTipoTendencias}
           setFiltroTipoTendencias={setFiltroTipoTendencias}
           TIPOS_EVENTO={TIPOS_EVENTO}
+          eventosDetalle={reporteData?.lista_eventos_detallada || []}
+          ocupacionData={reporteData?.top_ocupacion || []}
         />
 
         

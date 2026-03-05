@@ -62,16 +62,16 @@ export function ModalFinanciero({ isOpen, onClose, eventos }: ModalFinancieroPro
                   Estado {sortIcon("_estado")}
                 </th>
                 <th onClick={() => handleSort("costo_participacion")} style={{ textAlign: "center", ...thStyle("costo_participacion") }}>
-                  Ticket ($) {sortIcon("costo_participacion")}
+                  Valor Unit. ($) {sortIcon("costo_participacion")}
                 </th>
                 <th onClick={() => handleSort("cupo_maximo")} style={{ textAlign: "center", ...thStyle("cupo_maximo") }}>
                   Cupo Máx. {sortIcon("cupo_maximo")}
                 </th>
                 <th onClick={() => handleSort("reservas")} style={{ textAlign: "center", ...thStyle("reservas") }}>
-                  Cupos Pagos {sortIcon("reservas")}
+                  Inscriptos {sortIcon("reservas")}
                 </th>
-                <th onClick={() => handleSort("_montoCalculado")} style={{ textAlign: "right", color: sortCol === "_montoCalculado" ? "#fbbf24" : "#fbbf24", ...thStyle("_montoCalculado") }}>
-                  Ingreso Neto {sortIcon("_montoCalculado")}
+                <th onClick={() => handleSort("_montoCalculado")} style={{ textAlign: "right", color: sortCol === "_montoCalculado" ?  "#4ade80" : "#4aed80", ...thStyle("_montoCalculado") }}>
+                  Recaudacion Total {sortIcon("_montoCalculado")}
                 </th>
               </tr>
             </thead>
@@ -97,7 +97,7 @@ export function ModalFinanciero({ isOpen, onClose, eventos }: ModalFinancieroPro
                     
                     // Calculamos el estado comparando fechas
                     const estado = (!evt.fecha_evento || evt.fecha_evento === "Sin fecha" || evt.fecha_evento >= hoyStr) 
-                      ? "Activo" 
+                      ? "Proximo" 
                       : "Finalizado";
 
                     return { ...evt, _montoCalculado: montoCalculado, _estado: estado };
@@ -140,8 +140,8 @@ export function ModalFinanciero({ isOpen, onClose, eventos }: ModalFinancieroPro
                       {/* CELDA DE ESTADO */}
                       <td style={{ textAlign: "center" }}>
                         <span style={{
-                          backgroundColor: evt._estado === "Activo" ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
-                          color: evt._estado === "Activo" ? "#10b981" : "#94a3b8",
+                          backgroundColor: evt._estado === "Proximo" ? "rgba(16, 185, 129, 0.1)" : "rgba(148, 163, 184, 0.1)",
+                          color: evt._estado === "Proximo" ? "#10b981" : "#94a3b8",
                           padding: "4px 8px", 
                           borderRadius: "4px", 
                           fontSize: "0.85rem",
@@ -149,7 +149,7 @@ export function ModalFinanciero({ isOpen, onClose, eventos }: ModalFinancieroPro
                           display: "inline-block",
                           minWidth: "90px"
                         }}>
-                          {evt._estado === "Activo" ? "🟢 Activo" : "🏁 Finalizado"}
+                          {evt._estado === "Proximo" ? "🟢 Proximo" : "🏁 Finalizado"}
                         </span>
                       </td>
 

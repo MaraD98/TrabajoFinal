@@ -15,7 +15,7 @@ export const OfertaOrganizadoresPage = () => {
           <h2 className="org-subtitle">TODOS LOS EVENTOS EN UN SOLO LUGAR.</h2>
           <p className="org-description">
             La plataforma definitiva para gestionar, promocionar y llenar el cupo de tu próxima carrera.
-            Deja el Excel, pásate a WAKE UP BIKES.
+            Llevá tu organización al siguiente nivel. ¡Sumate a la comunidad WakeUp!
           </p>
           <div className="org-actions">
             <Link to="/publicar-evento" className="btn-primary-org">
