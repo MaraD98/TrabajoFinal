@@ -15,6 +15,7 @@ type OrganizadorKey = "organizador" | "total_eventos" | "activos" | "finalizados
 interface SeccionSupervisorProps {
     fechaInicio: string;
     fechaFin: string;
+    filtroPertenencia: string;
     // Exportación
     handleExportarCSV: (tipo: "dashboard_eventos" | "analisis_organizadores" | "top_ocupacion" | string) => void;
     
@@ -40,6 +41,7 @@ interface SeccionSupervisorProps {
 export function SeccionSupervisor({
     fechaInicio,
     fechaFin,
+    filtroPertenencia,
     handleExportarCSV,
     evtSist,
     handleChartClick,
@@ -52,7 +54,7 @@ export function SeccionSupervisor({
     filtroOcupacion,
     setFiltroOcupacion
 }: SeccionSupervisorProps) {
-    // 👇 2. APLICAMOS EL FILTRO EXACTO DE TU COMPAÑERA 👇
+    // 👇 . APLICAMOS EL FILTRO EXACTO DE TU COMPAÑERA 👇
     let eventosFiltrados = [...(evtSist || [])];
 
     if (fechaInicio) {
@@ -61,6 +63,43 @@ export function SeccionSupervisor({
     if (fechaFin) {
         eventosFiltrados = eventosFiltrados.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
     }
+
+    // 🔥 . ACÁ SUMAMOS TU FILTRO DE PERTENENCIA 🔥
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        eventosFiltrados = eventosFiltrados.filter((e: any) => {
+            if (filtroPertenencia === "propios") return e.pertenencia === "Propio";
+            if (filtroPertenencia === "externos") return e.pertenencia === "Externo";
+            return true;
+        });
+    }
+
+    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A LOS ORGANIZADORES 👇
+    // Usamos organizadoresFiltrados porque el padre ya nos manda la lista ordenada acá
+    let orgsParaMostrar = [...(organizadoresFiltrados || [])];
+
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        orgsParaMostrar = orgsParaMostrar.filter((org: any) => {
+            // Roles externos (3 y 4)
+            const esExterno = org.rol === "Organización Externa" || org.rol === "Cliente";
+            
+            if (filtroPertenencia === "propios") return !esExterno; // Deja solo Admin y Supervisor
+            if (filtroPertenencia === "externos") return esExterno;  // Deja solo Org. Externa y Cliente
+            return true;
+        });
+    }
+
+    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A TOP OCUPACIÓN 👇
+    let ocupacionParaMostrar = [...(ocupacionFiltrada || [])];
+
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        ocupacionParaMostrar = ocupacionParaMostrar.filter((evt: any) => {
+            if (filtroPertenencia === "propios") return evt.pertenencia === "Propio";
+            if (filtroPertenencia === "externos") return evt.pertenencia === "Externo";
+            return true;
+        });
+    }
+    
+
     const [organizadorModal, setOrganizadorModal] = useState<any | null>(null);
     console.log("organizadorModal actual:", organizadorModal);
     const [hoveredBar, setHoveredBar] = useState<string | null>(null);
@@ -115,7 +154,7 @@ export function SeccionSupervisor({
         return null;
     };
     return (
-        <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ marginTop: "2 em", display: "flex", flexDirection: "column", gap: "24px" }}>
                 
             {/* 1. DISTRIBUCIÓN DE EVENTOS POR ESTADO Y ORIGEN */}
             <div className="grafico-card grafico-card--wide">
@@ -133,7 +172,7 @@ export function SeccionSupervisor({
                 <div className="grafico-card__body">
                     {/* DEJAMOS UN SOLO GRÁFICO (100% ANCHO) */}
                     <div style={{ width: "100%", height: "400px", marginTop: "20px" }}>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={300}>
                             <BarChart data={barData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
                                 
                                 {/* DESCRIPCIÓN EJE X */}
@@ -250,7 +289,7 @@ export function SeccionSupervisor({
                         </thead>
                         <tbody>
                             {/* USAMOS LA NUEVA LISTA FILTRADA Y ORDENADA */}
-                            {organizadoresFiltrados.map((org: any, idx: number) => (
+                            {orgsParaMostrar.map((org: any, idx: number) => (
                                 <tr key={idx}>
                                     {/* 1. ORGANIZADOR (Clickeable para el modal) */}
                                     <td 
@@ -366,7 +405,7 @@ export function SeccionSupervisor({
                                 </tr>
                             </thead>
                             <tbody>
-                                {ocupacionFiltrada.map((evt: any, i: number) => {
+                                {ocupacionParaMostrar.map((evt: any, i: number) => {
                                     const colorBarra = evt.tasa_ocupacion < 40 ? "#ef4444" : "#4ade80";
                                     return (
                                         <tr key={i}>
@@ -416,7 +455,7 @@ export function SeccionSupervisor({
                                 })}
                             </tbody>
                         </table>
-                        {ocupacionFiltrada.length === 0 && (
+                        {ocupacionParaMostrar.length === 0 && (
                             <p className="no-data" style={{ padding: "20px", textAlign: "center", color: "#94a3b8" }}>
                                 No hay eventos que coincidan con este filtro.
                             </p>
@@ -424,6 +463,7 @@ export function SeccionSupervisor({
                 </div>
             </div>
         </div>
+
         {/* ════════ MODAL: TERMÓMETRO DE CONVOCATORIA ════════ */}
             <ModalTermometro 
                 evento={eventoModal} 

@@ -160,9 +160,17 @@ export async function register(usuarioData: any) {
  * Obtiene el reporte general basado en el rol del usuario (token).
  * Soporta filtros opcionales de año y mes para roles Admin/Supervisor.
  */
-export async function getReporteGeneral(token: string, anio?: number, mes?: number) {
+export async function getReporteGeneral(
+  token: string, 
+  fecha_inicio?: string, 
+  fecha_fin?: string,
+  anio?: number, 
+  mes?: number
+) {
   const res = await api.get('/reportes/', { 
-    params: { anio, mes }, 
+    // Al ponerlos acá, axios arma la URL solito: /reportes/?fecha_inicio=...&fecha_fin=...
+    // Si alguno es undefined, axios directamente lo ignora y no lo manda, ¡así que no rompe nada!
+    params: { anio, mes, fecha_inicio, fecha_fin }, 
     headers: { Authorization: `Bearer ${token}` },
   });
   return res.data;
