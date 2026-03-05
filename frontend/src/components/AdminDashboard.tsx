@@ -402,12 +402,38 @@ const AdminDashboard: React.FC = () => {
     return res;
   };
 
-  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], ...campos: string[]): T[] => {
+  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[]): T[] => {
     if (!searchTerm) return lista;
-    const q = searchTerm.toLowerCase();
-    return lista.filter(item =>
-      campos.some(campo => String(item[campo] ?? '').toLowerCase().includes(q))
-    );
+    const q = searchTerm.toLowerCase().trim();
+
+    return lista.filter(item => {
+      // Función recursiva que busca en cada rinconcito del objeto
+      const buscarEnValores = (valor: any): boolean => {
+        if (valor === null || valor === undefined) return false;
+        
+        // Si es un objeto (ej: el objeto "usuario" que tiene el email), nos metemos adentro
+        if (typeof valor === 'object') {
+          return Object.values(valor).some(v => buscarEnValores(v));
+        }
+
+        const strValor = String(valor).toLowerCase();
+
+        // Chequeo especial para las fechas:
+        // Si el string parece una fecha ISO (tiene guiones), intentamos formatearla para comparar
+        if (strValor.includes('-') && !isNaN(Date.parse(strValor))) {
+          try {
+            const fechaFormateada = formatFecha(strValor as string).toLowerCase();
+            if (fechaFormateada.includes(q)) return true;
+          } catch (e) { /* ignorar error si no se pudo formatear */ }
+        }
+
+        // Búsqueda de texto normal
+        return strValor.includes(q);
+      };
+
+      // Le pasamos el item completo a nuestra función exploradora
+      return buscarEnValores(item);
+    });
   };
 
   const esRestaurable = (estado: string) => normalize(estado)=== 'eliminado';
@@ -477,7 +503,7 @@ const currentActivos = activosFiltrados.slice(indexOfFirstActivo, indexOfLastAct
 // Paginación Pendientes: Altas
 const [currentPageAltas, setCurrentPageAltas] = useState(1);
 const itemsPerPageAltas = 10;
-const altasFiltradas = filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud');
+const altasFiltradas = filtrarPorSearch(altaSort.sorted);
 const totalPagesAltas = Math.ceil(altasFiltradas.length / itemsPerPageAltas);
 const indexOfLastAlta = currentPageAltas * itemsPerPageAltas;
 const indexOfFirstAlta = indexOfLastAlta - itemsPerPageAltas;
@@ -486,7 +512,7 @@ const currentAltas = altasFiltradas.slice(indexOfFirstAlta, indexOfLastAlta);
 // Paginación Pendientes: Ediciones
 const [currentPageEdiciones, setCurrentPageEdiciones] = useState(1);
 const itemsPerPageEdiciones = 10;
-const edicionesFiltradas = filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud');
+const edicionesFiltradas = filtrarPorSearch(edicionSort.sorted);
 const totalPagesEdiciones = Math.ceil(edicionesFiltradas.length / itemsPerPageEdiciones);
 const indexOfLastEdicion = currentPageEdiciones * itemsPerPageEdiciones;
 const indexOfFirstEdicion = indexOfLastEdicion - itemsPerPageEdiciones;
@@ -495,7 +521,7 @@ const currentEdiciones = edicionesFiltradas.slice(indexOfFirstEdicion, indexOfLa
 // Paginación Pendientes: Bajas
 const [currentPageBajas, setCurrentPageBajas] = useState(1);
 const itemsPerPageBajas = 10;
-const bajasFiltradas = filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud');
+const bajasFiltradas = filtrarPorSearch(bajaSort.sorted);
 const totalPagesBajas = Math.ceil(bajasFiltradas.length / itemsPerPageBajas);
 const indexOfLastBaja = currentPageBajas * itemsPerPageBajas;
 const indexOfFirstBaja = indexOfLastBaja - itemsPerPageBajas;
@@ -513,7 +539,7 @@ const currentHistorial = historialFiltrado.slice(indexOfFirstHistorialItem, inde
 // Paginación Pagos
 const [currentPagePagos, setCurrentPagePagos] = useState(1);
 const itemsPerPagePagos = 10;
-const pagosFiltrados = filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion');
+const pagosFiltrados = filtrarPorSearch(pagosSort.sorted);
 const totalPagesPagos = Math.ceil(pagosFiltrados.length / itemsPerPagePagos);
 const indexOfLastPago = currentPagePagos * itemsPerPagePagos;
 const indexOfFirstPago = indexOfLastPago - itemsPerPagePagos;
@@ -522,7 +548,7 @@ const currentPagos = pagosFiltrados.slice(indexOfFirstPago, indexOfLastPago);
 // Paginación Inscriptos
 const [currentPageInscriptos, setCurrentPageInscriptos] = useState(1);
 const itemsPerPageInscriptos = 10;
-const inscriptosFiltrados = filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion');
+const inscriptosFiltrados = filtrarPorSearch(inscriptosSort.sorted);
 const totalPagesInscriptos = Math.ceil(inscriptosFiltrados.length / itemsPerPageInscriptos);
 const indexOfLastInscripto = currentPageInscriptos * itemsPerPageInscriptos;
 const indexOfFirstInscripto = indexOfLastInscripto - itemsPerPageInscriptos;
