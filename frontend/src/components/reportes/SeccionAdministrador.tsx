@@ -8,7 +8,7 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
-  Cell 
+  Cell
 } from 'recharts';
 
 export default function SeccionAdministrador({
@@ -34,7 +34,9 @@ export default function SeccionAdministrador({
   TIPOS_EVENTO,
   fechaInicio,
   fechaFin,
-  filtroPertenencia
+  filtroPertenencia,
+  onVerPropios,    
+  onVerExternos,
 }: any) {
 
   // --- ESTADOS ---
@@ -331,7 +333,7 @@ const datosGrafico = (mesesOrdenados || [])
               </div>
               
               <div style={{ flex: 1, width: '100%', minHeight: '350px' }}>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart 
                     data={datosGrafico} 
                     /* Agregamos márgenes para que las etiquetas de los ejes no se corten */
@@ -962,7 +964,7 @@ const datosGrafico = (mesesOrdenados || [])
             
         {/* ── Tarjetas Admin ────────────────────────────────── */}
       
-          <div style={{ display: "flex", gap: "20px", marginBottom: "40px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "20px", marginBottom: "40px",marginTop: "60px", flexWrap: "wrap" }}>
             {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
             <TarjetasMetricas
               // Props Eventos
@@ -972,6 +974,8 @@ const datosGrafico = (mesesOrdenados || [])
               eventosPropiosCount={eventosPropiosCount}
               eventosExternosCount={eventosExternosCount}
               onAbrirModalEventos={() => setModalEventosGlobal(true)}
+              onVerPropios={onVerPropios}
+              onVerExternos={onVerExternos}
 
               // Props Participantes
               totalConfirmadas={totalConfirmadas}
