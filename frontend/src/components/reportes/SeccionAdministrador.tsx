@@ -171,7 +171,7 @@ const datosGrafico = (mesesOrdenados || [])
           {/* ═════════════════════════════════════════════════════════════════════
               RANKING COMPLETO DE EVENTOS POR RECAUDACIÓN
           ═════════════════════════════════════════════════════════════════════ */}
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "20px" }}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: '2rem' }}>
             <div className="grafico-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>🏆 Ranking de eventos por recaudación</h3>
               <span style={{ fontSize: '0.9rem', color: '#94a3b8', backgroundColor: '#334155', padding: '4px 12px', borderRadius: '20px' }}>
@@ -318,7 +318,7 @@ const datosGrafico = (mesesOrdenados || [])
           {/* ═════════════════════════════════════════════════════════════════════
               NUEVO REPORTE: REGISTRO DE USUARIOS NUEVOS (CONECTADO)
           ═════════════════════════════════════════════════════════════════════ */}
-          <div style={{ display: "flex", gap: "20px", marginTop: "40px", flexWrap: "wrap", alignItems: "stretch" }}>
+          <div style={{ display: "flex", gap: "20px", marginTop: '2rem', flexWrap: "wrap", alignItems: "stretch" }}>
             
             {/* LADO IZQUIERDO: Tabla Detallada Conectada */}
             <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column", maxHeight: "550px" }}>
@@ -555,7 +555,7 @@ const datosGrafico = (mesesOrdenados || [])
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
 
-          <div className="grafico-card grafico-card--wide" style={{ marginTop: "40px", marginBottom: "40px", overflow: "hidden", maxHeight: "800px"}}>
+          <div className="grafico-card grafico-card--wide" style={{ marginTop: '2rem', overflow: "hidden", maxHeight: "800px"}}>
             
             <div className="grafico-card__header" style={{ flexShrink: 0 }}>
               <div>
@@ -964,7 +964,7 @@ const datosGrafico = (mesesOrdenados || [])
             
         {/* ── Tarjetas Admin ────────────────────────────────── */}
       
-          <div style={{ display: "flex", gap: "20px", marginBottom: "40px",marginTop: "60px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "20px",marginTop: '2rem', flexWrap: "wrap" }}>
             {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
             <TarjetasMetricas
               // Props Eventos

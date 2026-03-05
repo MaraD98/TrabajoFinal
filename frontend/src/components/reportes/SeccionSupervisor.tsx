@@ -154,7 +154,7 @@ export function SeccionSupervisor({
         return null;
     };
     return (
-        <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ marginTop: "2 em", display: "flex", flexDirection: "column", gap: "24px" }}>
                 
             {/* 1. DISTRIBUCIÓN DE EVENTOS POR ESTADO Y ORIGEN */}
             <div className="grafico-card grafico-card--wide">

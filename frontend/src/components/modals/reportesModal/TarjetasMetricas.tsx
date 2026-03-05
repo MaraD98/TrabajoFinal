@@ -57,7 +57,7 @@ export function TarjetasMetricas({
 
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "20px", width: "100%", marginBottom: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "20px", width: "100%" }}>
         
         {/* TARJETA 1: GESTIÓN DE EVENTOS */}
         <div className="grafico-card" style={{ margin: 0 }}>
@@ -211,7 +211,7 @@ export function TarjetasMetricas({
 
       {/* TARJETA 3: ANÁLISIS FINANCIERO GLOBAL (Condicional por rol) */}
       {usuarioRol <= 2 && (
-        <div className="grafico-card" style={{ width: "100%", marginBottom: "20px" }}>
+        <div className="grafico-card" style={{ width: "100%" }}>
           <div className="grafico-card__header">
             <h3>💰 REGISTRO DE INGRESOS</h3>
             <button
