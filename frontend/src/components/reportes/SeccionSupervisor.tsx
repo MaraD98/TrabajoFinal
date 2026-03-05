@@ -88,6 +88,18 @@ export function SeccionSupervisor({
         });
     }
 
+    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A TOP OCUPACIÓN 👇
+    let ocupacionParaMostrar = [...(ocupacionFiltrada || [])];
+
+    if (filtroPertenencia && filtroPertenencia !== "todos") {
+        ocupacionParaMostrar = ocupacionParaMostrar.filter((evt: any) => {
+            if (filtroPertenencia === "propios") return evt.pertenencia === "Propio";
+            if (filtroPertenencia === "externos") return evt.pertenencia === "Externo";
+            return true;
+        });
+    }
+    
+
     const [organizadorModal, setOrganizadorModal] = useState<any | null>(null);
     console.log("organizadorModal actual:", organizadorModal);
     const [hoveredBar, setHoveredBar] = useState<string | null>(null);
@@ -393,7 +405,7 @@ export function SeccionSupervisor({
                                 </tr>
                             </thead>
                             <tbody>
-                                {ocupacionFiltrada.map((evt: any, i: number) => {
+                                {ocupacionParaMostrar.map((evt: any, i: number) => {
                                     const colorBarra = evt.tasa_ocupacion < 40 ? "#ef4444" : "#4ade80";
                                     return (
                                         <tr key={i}>
@@ -443,7 +455,7 @@ export function SeccionSupervisor({
                                 })}
                             </tbody>
                         </table>
-                        {ocupacionFiltrada.length === 0 && (
+                        {ocupacionParaMostrar.length === 0 && (
                             <p className="no-data" style={{ padding: "20px", textAlign: "center", color: "#94a3b8" }}>
                                 No hay eventos que coincidan con este filtro.
                             </p>
