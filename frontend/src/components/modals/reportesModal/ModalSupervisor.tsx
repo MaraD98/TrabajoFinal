@@ -33,8 +33,8 @@ export function ModalSupervisor({ modal, onClose }: ModalSupervisorProps) {
               <tr>
                 <th style={{ color: "#f8fafc" }}>Evento</th>
                 <th style={{ color: "#f8fafc" }}>Fecha</th>
-                <th style={{ color: "#f8fafc" }}>Responsable</th>
-                <th style={{ color: "#f8fafc" }}>Pertenencia</th>
+                <th style={{ color: "#f8fafc" }}>Organizador</th>
+                <th style={{ color: "#f8fafc" }}>Origen</th>
               </tr>
             </thead>
             <tbody>

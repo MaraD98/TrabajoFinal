@@ -75,7 +75,7 @@ export function ModalEventosGlobal({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1px", background: "rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <div style={{ background: "#12141f", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
             <span style={{ fontSize: "28px", fontWeight: 800, color: "#fff", fontFamily: "'Syne', sans-serif" }}>{totalEventosGlobal}</span>
-            <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: "4px" }}>Total Histórico</span>
+            <span style={{ fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", marginTop: "4px" }}>Total Eventos</span>
           </div>
           <div style={{ background: "#12141f", padding: "20px", display: "flex", flexDirection: "column", alignItems: "center" }}>
             <span style={{ fontSize: "28px", fontWeight: 800, color: "#34d399", fontFamily: "'Syne', sans-serif" }}>{eventosFuturos}</span>
@@ -117,18 +117,18 @@ export function ModalEventosGlobal({
               <div style={{ marginTop: "10px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "10px" }}>
                 
                 <p style={{ margin: "0 0 10px 0" }}>
-                  <strong style={{color: "#fff"}}>• Total Histórico (El tamaño de nuestra red):</strong> 
-                  <br/>Es nuestra "chapa" y base de datos. Nos dice qué porción del mercado logramos captar desde el día 1. Un número alto es nuestro mejor argumento para convencer a marcas grandes.
+                  <strong style={{color: "#fff"}}>• Total Eventos (Crecimiento de la plataforma):</strong> 
+                  <br/>Refleja la cantidad histórica de eventos registrados desde el inicio. Un número alto demuestra que el sistema tiene uso real y nos da un buen respaldo para generar confianza ante nuevos clubes o posibles patrocinadores.
                 </p>
                 
                 <p style={{ margin: "0 0 10px 0" }}>
-                  <strong style={{color: "#fff"}}>• Próximos (Nuestro "Stock" a futuro):</strong> 
-                  <br/>Es nuestra alerta temprana de ingresos. Si este número cae a cero, sabemos que el mes que viene no habrá comisiones. Nos avisa exactamente cuándo debemos levantar el teléfono para pedirle a los clubes que suban nuevas carreras.
+                  <strong style={{color: "#fff"}}>• Próximos (Actividad a futuro):</strong> 
+                  <br/>Es nuestro indicador principal de ingresos. Si este número baja, sabemos que en los próximos meses entrará menos dinero por comisiones, lo que nos avisa a tiempo que debemos atraer nuevas carreras al sistema.
                 </p>
                 
                 <p style={{ margin: "0" }}>
-                  <strong style={{color: "#fff"}}>• Propios vs Externos (Nuestro modelo de negocio):</strong> 
-                  <br/>Nos audita cómo estamos trabajando. Si la mayoría son eventos "Propios", seguimos siendo una productora que hace esfuerzo físico armando carreras. Si la mayoría son "Externos", logramos ser una empresa rentable que escala cobrando comisiones automáticamente.
+                  <strong style={{color: "#fff"}}>• Propios vs Externos (Modelo de trabajo):</strong> 
+                  <br/>Nos muestra cómo estamos ganando dinero. Si predominan los eventos "Propios", significa que dependemos de nuestro propio esfuerzo y recursos para organizar carreras. Si predominan los "Externos", logramos que el sistema trabaje por nosotros, generando comisiones de forma automática.
                 </p>
 
               </div>

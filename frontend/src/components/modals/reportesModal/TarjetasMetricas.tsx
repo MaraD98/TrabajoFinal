@@ -64,7 +64,7 @@ export function TarjetasMetricas({
           <div className="grafico-card__header">
             <h3>📅 Total Eventos del Sistema</h3>
             <button onClick={onAbrirModalEventos} className="btn-export" style={{ backgroundColor: "#3b82f6", color: "#fff", border: "none", padding: "8px 15px", borderRadius: "6px", cursor: "pointer", fontWeight: "bold" }}>
-              Ver Directorio
+              Ver Análisis
             </button>
           </div>
           <div className="grafico-card__body" style={{ flexDirection: "column", gap: "15px", display: "flex", padding: "20px" }}>
