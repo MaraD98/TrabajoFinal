@@ -6,8 +6,12 @@ from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.evento_solicitud_models import SolicitudPublicacion
 from datetime import date, timedelta
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from typing import Union
+from sqlalchemy import text # Para la consulta del teléfono
+from app.email import enviar_correo_aprobacion_publicacion
+from app.whatsapp import enviar_whatsapp_aprobacion_publicacion
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 
 class EventoSolicitudService:
@@ -42,6 +46,7 @@ class EventoSolicitudService:
         solicitud: Union[SolicitudPublicacionCreate, SolicitudBorradorCreate],
         id_usuario: int,
         id_rol: int,
+        background_tasks: BackgroundTasks,
         enviar: bool = True
     ):
         """
@@ -85,7 +90,8 @@ class EventoSolicitudService:
             return EventoSolicitudService._auto_aprobar_solicitud(
                 db=db,
                 solicitud=nueva_solicitud,
-                id_admin=id_usuario
+                id_admin=id_usuario,
+                background_tasks=background_tasks
             )
 
         return nueva_solicitud
@@ -170,6 +176,21 @@ class EventoSolicitudService:
             db.refresh(solicitud)
             db.refresh(nuevo_evento)
             solicitud.evento_creado_id = nuevo_evento.id_evento
+            
+            #Notificación interna para el Admin/Supervisor
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=id_admin,
+                id_estado_solicitud=None,
+                mensaje=f"✅ ¡Evento '{solicitud.nombre_evento}' creado y publicado automáticamente!"
+            )
+
+        # FILTRO INTELIGENTE: Si el admin crea su propio evento, NO se manda mail/whatsapp
+            if int(solicitud.id_usuario) != int(id_admin):
+                # Aquí podrías llamar a las funciones de notificación si fuera necesario, 
+                # pero en auto-aprobación normalmente el admin es el dueño.
+                pass
+
             return solicitud
         except Exception as e:
             db.rollback()
@@ -199,7 +220,7 @@ class EventoSolicitudService:
         return Solicitud_PublicacionCRUD.enviar_solicitud(db, id_solicitud)
 
     @staticmethod
-    def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int):
+    def aprobar_solicitud_y_publicar(db: Session, id_solicitud: int, id_admin: int, background_tasks: BackgroundTasks):
         solicitud = db.query(SolicitudPublicacion).filter(
             SolicitudPublicacion.id_solicitud == id_solicitud
         ).first()
@@ -208,6 +229,9 @@ class EventoSolicitudService:
             raise HTTPException(status_code=404, detail="Solicitud no encontrada")
         if solicitud.id_estado_solicitud == 3:
             raise HTTPException(status_code=400, detail="Esta solicitud ya fue aprobada")
+
+        # Buscamos al dueño de la solicitud (organizador)
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == solicitud.id_usuario).first()
 
         solicitud.id_estado_solicitud = 3
         solicitud.observaciones_admin = f"Aprobado por Admin ID {id_admin}"
@@ -224,7 +248,7 @@ class EventoSolicitudService:
             lat=solicitud.lat,
             lng=solicitud.lng,
             cupo_maximo=solicitud.cupo_maximo,
-            id_estado=3,
+            id_estado=3, # Estado Publicado
             distancia_km=solicitud.distancia_km,
             ruta_coordenadas=solicitud.ruta_coordenadas,
         )
@@ -234,7 +258,46 @@ class EventoSolicitudService:
             db.add(solicitud)
             db.commit()
             db.refresh(nuevo_evento)
+            db.refresh(solicitud)
+            
+            
+
+            # ✅ NOTIFICAR AL ORGANIZADOR
+            if organizador:
+                
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=organizador.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"🚀 ¡Tu evento '{solicitud.nombre_evento}' ha sido aprobado y ya está publicado!"
+                )
+                
+                # 1. Enviar Email
+                if organizador.email:
+                    background_tasks.add_task(
+                        enviar_correo_aprobacion_publicacion,
+                        email_destino=organizador.email,
+                        nombre_usuario=organizador.nombre_y_apellido,
+                        nombre_evento=solicitud.nombre_evento
+                    )
+                
+                # 2. Enviar WhatsApp
+                try:
+                    query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                    res_tel = db.execute(query_tel, {"id_u": organizador.id_usuario}).fetchone()
+                    tel_org = res_tel[0] if res_tel else None
+                    
+                    if tel_org:
+                        background_tasks.add_task(
+                            enviar_whatsapp_aprobacion_publicacion,
+                            telefono=tel_org,
+                            nombre_evento=solicitud.nombre_evento
+                        )
+                except Exception as e:
+                    print(f"❌ Error al obtener teléfono para WhatsApp: {e}")
+
             return solicitud
+            
         except Exception as e:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Error al publicar evento: {str(e)}")

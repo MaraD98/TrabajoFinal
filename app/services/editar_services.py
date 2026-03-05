@@ -1,18 +1,38 @@
-from sqlalchemy.orm import Session
-from fastapi import HTTPException, status
-from app.models.registro_models import Evento
+import json
+from datetime import datetime
+from sqlalchemy import text
+from sqlalchemy.orm import Session, joinedload
+from fastapi import BackgroundTasks, HTTPException, status 
+
+
+# --- MODELOS ---
+from app.models.registro_models import Evento, ReservaEvento
 from app.models.solicitud_edicion_models import SolicitudEdicionEvento
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
-from app.models.auth_models import Usuario
+from app.models.auth_models import Usuario, Contacto
+from app.models.inscripcion_models import ReservaEvento
+
+# --- SCHEMAS ---
 from app.schemas.editar_schema import EventoEditar
+
+# --- CRUDS ---
 from app.db.crud import solicitud_edicion_crud
 from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_auditoria
-from datetime import datetime
-from app.email import enviar_correo_modificacion_evento
-from app.models.registro_models import ReservaEvento  
-from app.whatsapp import enviar_whatsapp_modificacion_evento
-import json
-from sqlalchemy import text
+from app.db.crud.notificacion_crud import NotificacionCRUD
+
+# --- EMAILS ---
+from app.email import (
+    enviar_correo_modificacion_evento,
+    enviar_correo_rechazo_edicion, 
+    enviar_correo_aprobacion_edicion
+)
+
+# --- WHATSAPP ---
+from app.whatsapp import (
+    enviar_whatsapp_modificacion_evento,
+    enviar_whatsapp_rechazo_edicion, 
+    enviar_whatsapp_aprobacion_edicion
+)
 
 
 ID_ESTADO_PUBLICADO = 3
@@ -268,11 +288,140 @@ class EditarEventoService:
     # ========================================================================
     
     @staticmethod
-    def aprobar_solicitud_edicion(db: Session, id_evento: int, id_admin: int):
+    def aprobar_solicitud_edicion(db: Session, id_evento: int, id_admin: int, background_tasks: BackgroundTasks):
         """
         Admin aprueba solicitud de edición.
-        Aplica cambios y mantiene evento en estado 3.
+        Aplica cambios, notifica a inscriptos y al organizador.
         """
+        from sqlalchemy import text
+        
+        solicitud = solicitud_edicion_crud.obtener_solicitud_pendiente(db=db, id_evento=id_evento)
+        
+        if not solicitud:
+            raise HTTPException(status_code=404, detail="No hay solicitud pendiente")
+
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+        # Buscamos al organizador (quien envió la solicitud)
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == solicitud.id_usuario).first()
+
+        # --- (Lógica de aplicación de cambios igual a la tuya) ---
+        cambios_raw = solicitud.cambios_propuestos
+        cambios = json.loads(cambios_raw) if isinstance(cambios_raw, str) else cambios_raw
+
+        for campo, valores in cambios.items():
+            setattr(evento, campo, valores.get("valor_real") or valores.get("nuevo"))
+
+        # Auditoría e Historial
+        historial = HistorialEdicionEvento(
+            id_evento=evento.id_evento,
+            id_usuario=solicitud.id_usuario,
+            fecha_edicion=datetime.now()
+        )
+        db.add(historial)
+        db.flush()
+
+        for campo, valores in cambios.items():
+            db.add(DetalleCambioEvento(
+                id_historial_edicion=historial.id_historial_edicion,
+                campo_modificado=campo,
+                valor_anterior=str(valores["anterior"]),
+                valor_nuevo=str(valores["nuevo"])
+            ))
+
+        solicitud_edicion_crud.aprobar_solicitud(db=db, solicitud=solicitud, id_admin=id_admin)
+        db.commit()
+        db.refresh(evento)
+
+        # 1. 👇 NOTIFICAR A LOS INSCRIPTOS
+        # Usamos joinedload para traer el contacto de cada inscripto de una vez
+        inscriptos = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(
+            ReservaEvento.id_evento == evento.id_evento,
+            ReservaEvento.id_estado_reserva.in_([1, 2]) 
+        ).all()
+        
+        for reser in inscriptos:
+            if reser.usuario:
+                # --- ✅ NOTIFICACIÓN NAVBAR ---
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=reser.usuario.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"📝 El evento '{evento.nombre_evento}' en el que estás inscripto ha sido actualizado."
+                )
+
+                # --- ✅ MAIL INSCRIPTO ---
+                if reser.usuario.email:
+                    background_tasks.add_task(
+                        enviar_correo_modificacion_evento,
+                        email_destino=reser.usuario.email,
+                        nombre_evento=evento.nombre_evento,
+                        id_evento=evento.id_evento,
+                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    )
+
+                # --- ✅ WHATSAPP INSCRIPTO ---
+                # Usamos la relación que definimos en el modelo
+                if reser.usuario.contacto and reser.usuario.contacto.telefono:
+                    background_tasks.add_task(
+                        enviar_whatsapp_modificacion_evento,
+                        telefono=str(reser.usuario.contacto.telefono),
+                        nombre_evento=evento.nombre_evento
+                    )
+
+        # 2. ✅ NUEVO: NOTIFICAR AL ORGANIZADOR (Dueño de la solicitud)
+        if organizador:
+            
+            # --- ✅ NUEVO: NOTIFICACIÓN NAVBAR PARA ORGANIZADOR ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"✨ Los cambios solicitados para tu evento '{evento.nombre_evento}' han sido aprobados."
+            )
+            
+            # Mail Organizador
+            if organizador.email:
+                background_tasks.add_task(
+                    enviar_correo_aprobacion_edicion,
+                    email_destino=organizador.email,
+                    nombre_usuario=organizador.nombre_y_apellido,
+                    nombre_evento=evento.nombre_evento
+                )
+            
+            # WhatsApp Organizador
+            try:
+                query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                res_tel = db.execute(query_tel, {"id_u": organizador.id_usuario}).fetchone()
+                tel_org = res_tel[0] if res_tel else None
+                
+                if tel_org:
+                    background_tasks.add_task(
+                        enviar_whatsapp_aprobacion_edicion,
+                        telefono=tel_org,
+                        nombre_evento=evento.nombre_evento
+                    )
+            except Exception as e:
+                print(f"❌ Error WhatsApp Organizador: {e}")
+
+        return {
+            "mensaje": "Solicitud aprobada y notificaciones enviadas.",
+            "id_evento": evento.id_evento,
+            "nombre_evento": evento.nombre_evento
+        }
+    # ========================================================================
+    # RECHAZAR SOLICITUD (ADMIN)
+    # ========================================================================
+    
+    @staticmethod
+    def rechazar_solicitud_edicion(db: Session, id_evento: int, id_admin: int, background_tasks: BackgroundTasks):
+        """
+        Admin rechaza solicitud. Evento permanece sin cambios.
+        Notifica al organizador por Email y WhatsApp.
+        """
+        from sqlalchemy import text # Para la query del teléfono
+
         solicitud = solicitud_edicion_crud.obtener_solicitud_pendiente(
             db=db, 
             id_evento=id_evento
@@ -284,100 +433,75 @@ class EditarEventoService:
                 detail="No hay solicitud de edición pendiente para este evento"
             )
 
+        # 1. Obtener evento y el usuario organizador (dueño de la solicitud)
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
-        if not evento:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Evento no encontrado"
-            )
+        usuario_organizador = db.query(Usuario).filter(Usuario.id_usuario == solicitud.id_usuario).first()
 
-        # ✅ FIX 2: cambios_propuestos es Text (string), manejar ambos casos por si acaso
-        cambios_raw = solicitud.cambios_propuestos
-        if isinstance(cambios_raw, str):
-            try:
-                cambios = json.loads(cambios_raw)
-            except json.JSONDecodeError:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Error al parsear cambios propuestos"
-                )
-        else:
-            cambios = cambios_raw  # ya es dict (por si SQLAlchemy lo deserializó)
-
-        # Aplicar cambios al evento
-        # Tras el round-trip JSON, valor_real viene como string → usar "nuevo"
-        for campo, valores in cambios.items():
-            setattr(evento, campo, valores.get("valor_real") or valores.get("nuevo"))
-
-        # Registrar en historial
-        historial = HistorialEdicionEvento(
-            id_evento=evento.id_evento,
-            id_usuario=solicitud.id_usuario,
-            fecha_edicion=datetime.now()
-        )
-        db.add(historial)
-        db.flush()
-
-        # Registrar detalles
-        for campo, valores in cambios.items():
-            detalle = DetalleCambioEvento(
-                id_historial_edicion=historial.id_historial_edicion,
-                campo_modificado=campo,
-                valor_anterior=valores["anterior"],
-                valor_nuevo=valores["nuevo"]
-            )
-            db.add(detalle)
-
-        # Marcar solicitud como aprobada
-        solicitud_edicion_crud.aprobar_solicitud(
+        # 2. Marcar solicitud como rechazada en la DB
+        solicitud_edicion_crud.rechazar_solicitud(
             db=db, 
             solicitud=solicitud, 
             id_admin=id_admin
         )
-
+        
+        # --- ✅ NUEVO: NOTIFICACIÓN INTERNA (NAVBAR) ---
+        # Lo hacemos antes del commit o justo después para asegurar que se guarde
+        if usuario_organizador:
+            nombre_evento_notif = evento.nombre_evento if evento else "tu evento"
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=usuario_organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"❌ La solicitud de edición para el evento '{nombre_evento_notif}' fue rechazada por la administración."
+            )
+        
         db.commit()
-        db.refresh(evento)
-     
-        inscriptos = db.query(ReservaEvento).filter(
-            ReservaEvento.id_evento == evento.id_evento,
-            ReservaEvento.id_estado_reserva.in_([1, 2]) 
-        ).all()
 
-        for reser in inscriptos:
-            if reser.usuario and reser.usuario.email:
-                # Mail
+        # =============================================================================
+        # BLOQUE DE NOTIFICACIONES AL ORGANIZADOR
+        # =============================================================================
+        if usuario_organizador:
+            nombre_evento = evento.nombre_evento if evento else "tu evento"
+            
+            # --- A. Notificación por Email ---
+            if usuario_organizador.email:
                 try:
-                    enviar_correo_modificacion_evento(
-                        email_destino=reser.usuario.email,
-                        nombre_evento=evento.nombre_evento,
-                        id_evento=evento.id_evento,
-                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    # Usamos background_tasks para no frenar la respuesta de la API
+                    background_tasks.add_task(
+                        enviar_correo_rechazo_edicion, # Asegurate de tener esta función en tu app.email
+                        email_destino=usuario_organizador.email,
+                        nombre_usuario=usuario_organizador.nombre_y_apellido,
+                        nombre_evento=nombre_evento
                     )
                 except Exception as e:
-                    print(f"⚠️ Error Mail: {e}")
+                    print(f"⚠️ Error al programar mail de rechazo: {e}")
 
-                # WhatsApp (Query directa)
-                try:
-                    query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
-                    res_tel = db.execute(query_tel, {"id_u": reser.id_usuario}).fetchone()
-                    tel_real = res_tel[0] if res_tel else None
+            # --- B. Notificación por WhatsApp ---
+            try:
+                # Buscamos el tel en la tabla 'contacto' como en tu ejemplo
+                query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
+                res_tel = db.execute(query_tel, {"id_u": usuario_organizador.id_usuario}).fetchone()
+                tel_real = res_tel[0] if res_tel else None
 
-                    if tel_real:
-                        enviar_whatsapp_modificacion_evento(
-                            telefono=tel_real,
-                            nombre_evento=evento.nombre_evento
-                        )
-                except Exception as e:
-                    print(f"❌ Error WhatsApp: {e}")
-        
+                if tel_real:
+                    background_tasks.add_task(
+                        enviar_whatsapp_rechazo_edicion, # Asegurate de tenerla en app.whatsapp
+                        telefono=tel_real,
+                        nombre_evento=nombre_evento
+                    )
+                else:
+                    print(f"🚫 El organizador {usuario_organizador.id_usuario} no tiene teléfono registrado.")
+            except Exception as e:
+                print(f"❌ Error al procesar WhatsApp de rechazo: {e}")
+        # =============================================================================
+
         return {
-            "mensaje": "Solicitud de edición aprobada exitosamente. Cambios aplicados al evento.",
-            "id_evento": evento.id_evento,
-            "nombre_evento": evento.nombre_evento,
-            "cambios_aplicados": list(cambios.keys())
+            "mensaje": "Solicitud de edición rechazada. Se ha notificado al organizador.",
+            "id_evento": id_evento,
+            "nombre_evento": evento.nombre_evento if evento else "Desconocido"
         }
     # ========================================================================
-    # RECHAZAR SOLICITUD (ADMIN)
+    # ✅ CORREGIDO: OBTENER MIS SOLICITUDES CON MULTIMEDIA
     # ========================================================================
     
     @staticmethod

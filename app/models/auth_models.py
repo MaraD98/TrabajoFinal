@@ -19,6 +19,7 @@ class Usuario(Base):
     contrasenia = Column(String(200), nullable=False)
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
     id_rol = Column(Integer, ForeignKey("rol.id_rol"), nullable=False)
+    contacto = relationship("Contacto", back_populates="usuario", uselist=False)
 
 class Contacto(Base):
     __tablename__ = "contacto"
@@ -28,6 +29,7 @@ class Contacto(Base):
     direccion = Column(String(255))
     enlace_redes = Column(String(255))
     otro_contacto = Column(String(255))
+    usuario = relationship("Usuario", back_populates="contacto")
 
 
     

@@ -66,3 +66,48 @@ def enviar_whatsapp_cancelacion_evento(telefono: str, nombre_evento: str, motivo
         f"Motivo: {motivo}"
     )
     return _ejecutar_envio_whatsapp(telefono, texto)
+
+def enviar_whatsapp_rechazo_edicion(telefono: str, nombre_evento: str):
+    texto = (
+        f"❌ *SOLICITUD DE EDICIÓN RECHAZADA*\n\n"
+        f"Hola, te informamos que los cambios propuestos para el evento: *{nombre_evento}* "
+        f"han sido rechazados por la administración.\n\n"
+        f"El evento se mantendrá publicado con la información actual."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
+
+def enviar_whatsapp_aprobacion_edicion(telefono: str, nombre_evento: str):
+    texto = (
+        f"✅ *CAMBIOS APROBADOS*\n\n"
+        f"¡Buenas noticias! Tu solicitud de edición para el evento: *{nombre_evento}* "
+        f"ha sido aprobada y ya está actualizada en la plataforma."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
+
+def enviar_whatsapp_aprobacion_publicacion(telefono: str, nombre_evento: str):
+    texto = (
+        f"🚀 *¡EVENTO PUBLICADO!*\n\n"
+        f"¡Felicidades! Tu solicitud para el evento: *{nombre_evento}* ha sido aprobada. "
+        f"Ya se encuentra visible en el calendario para que los ciclistas se inscriban."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
+
+# --- FUNCIONES DE BAJA (ORGANIZADOR) ---
+
+def enviar_whatsapp_baja_aprobada(telefono: str, nombre_evento: str):
+    texto = (
+        f"✅ *SOLICITUD DE BAJA APROBADA*\n\n"
+        f"Hola, te informamos que tu solicitud para dar de baja el evento: *{nombre_evento}* "
+        f"ha sido aprobada.\n\n"
+        f"El evento ha sido cancelado y los inscritos ya han sido notificados."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
+
+def enviar_whatsapp_baja_rechazada(telefono: str, nombre_evento: str):
+    texto = (
+        f"❌ *SOLICITUD DE BAJA RECHAZADA*\n\n"
+        f"Hola, te informamos que tu pedido de baja para el evento: *{nombre_evento}* "
+        f"ha sido revisado y *rechazado* por la administración.\n\n"
+        f"El evento continuará publicado en el calendario."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
