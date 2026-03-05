@@ -21,6 +21,10 @@ class PagoRequest(BaseModel):
     nombre_evento: str
     precio: float
 
+    # Esto ayuda a que si mandas un string "1500.50", lo convierta a float solo
+    class Config:
+        coerce_numbers_to_str = True
+
 @router.post("/crear_preferencia")
 async def crear_preferencia(datos: PagoRequest):
     try:
