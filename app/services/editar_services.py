@@ -503,6 +503,43 @@ class EditarEventoService:
     # ========================================================================
     # ✅ CORREGIDO: OBTENER MIS SOLICITUDES CON MULTIMEDIA
     # ========================================================================
+    @staticmethod
+    def rechazar_solicitud_edicion(db: Session, id_evento: int, id_admin: int):
+        """
+        Admin rechaza solicitud. Evento permanece sin cambios.
+        """
+        solicitud = solicitud_edicion_crud.obtener_solicitud_pendiente(
+            db=db, 
+            id_evento=id_evento
+        )
+        
+        if not solicitud:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="No hay solicitud de edición pendiente para este evento"
+            )
+
+        # Obtener evento para nombre
+        evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
+
+        # Marcar solicitud como rechazada
+        solicitud_edicion_crud.rechazar_solicitud(
+            db=db, 
+            solicitud=solicitud, 
+            id_admin=id_admin
+        )
+
+        db.commit()
+
+        return {
+            "mensaje": "Solicitud de edición rechazada. El evento permanece sin cambios.",
+            "id_evento": id_evento,
+            "nombre_evento": evento.nombre_evento if evento else "Desconocido"
+        }
+
+    # ========================================================================
+    # ✅ CORREGIDO: OBTENER MIS SOLICITUDES CON MULTIMEDIA
+    # ========================================================================
     
     @staticmethod
     def obtener_mis_solicitudes_edicion(db: Session, id_usuario: int):
