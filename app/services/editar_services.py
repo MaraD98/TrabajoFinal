@@ -1,14 +1,16 @@
 import json
 from datetime import datetime
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from fastapi import BackgroundTasks, HTTPException, status 
+
 
 # --- MODELOS ---
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.solicitud_edicion_models import SolicitudEdicionEvento
 from app.models.editar_models import HistorialEdicionEvento, DetalleCambioEvento
-from app.models.auth_models import Usuario
+from app.models.auth_models import Usuario, Contacto
+from app.models.inscripcion_models import ReservaEvento
 
 # --- SCHEMAS ---
 from app.schemas.editar_schema import EventoEditar
@@ -330,15 +332,18 @@ class EditarEventoService:
         db.commit()
         db.refresh(evento)
 
-        # 1. 👇 NOTIFICAR A LOS INSCRIPTOS (Tu lógica actual)
-        inscriptos = db.query(ReservaEvento).filter(
+        # 1. 👇 NOTIFICAR A LOS INSCRIPTOS
+        # Usamos joinedload para traer el contacto de cada inscripto de una vez
+        inscriptos = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2]) 
         ).all()
         
         for reser in inscriptos:
             if reser.usuario:
-                # --- ✅ NUEVO: NOTIFICACIÓN NAVBAR PARA INSCRIPTO ---
+                # --- ✅ NOTIFICACIÓN NAVBAR ---
                 NotificacionCRUD.create_notificacion(
                     db=db,
                     id_usuario=reser.usuario.id_usuario,
@@ -346,16 +351,24 @@ class EditarEventoService:
                     mensaje=f"📝 El evento '{evento.nombre_evento}' en el que estás inscripto ha sido actualizado."
                 )
 
-        for reser in inscriptos:
-            if reser.usuario and reser.usuario.email:
-                background_tasks.add_task(
-                    enviar_correo_modificacion_evento,
-                    email_destino=reser.usuario.email,
-                    nombre_evento=evento.nombre_evento,
-                    id_evento=evento.id_evento,
-                    fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
-                )
-            # WhatsApp inscriptos... (lo mismo con background_tasks)
+                # --- ✅ MAIL INSCRIPTO ---
+                if reser.usuario.email:
+                    background_tasks.add_task(
+                        enviar_correo_modificacion_evento,
+                        email_destino=reser.usuario.email,
+                        nombre_evento=evento.nombre_evento,
+                        id_evento=evento.id_evento,
+                        fecha_url=evento.fecha_evento.strftime('%Y-%m-%d')
+                    )
+
+                # --- ✅ WHATSAPP INSCRIPTO ---
+                # Usamos la relación que definimos en el modelo
+                if reser.usuario.contacto and reser.usuario.contacto.telefono:
+                    background_tasks.add_task(
+                        enviar_whatsapp_modificacion_evento,
+                        telefono=str(reser.usuario.contacto.telefono),
+                        nombre_evento=evento.nombre_evento
+                    )
 
         # 2. ✅ NUEVO: NOTIFICAR AL ORGANIZADOR (Dueño de la solicitud)
         if organizador:

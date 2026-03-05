@@ -7,6 +7,7 @@ from app.db.crud.notificacion_crud import NotificacionCRUD
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.eliminacion_models import EliminacionEvento  
+from sqlalchemy.orm import Session, joinedload  
 from app.email import enviar_correo_cancelacion_evento
 from app.whatsapp import enviar_whatsapp_cancelacion_evento
 from fastapi import BackgroundTasks
@@ -216,6 +217,14 @@ class EliminacionService:
         # Buscamos al dueño (organizador) para avisarle
         organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
 
+        # Notificar a los corredores (tu función existente)
+        EliminacionService._notificar_inscritos(
+            db=db, evento=evento,
+            motivo="Solicitud de baja aprobada por el administrador",
+            id_eliminacion=eliminacion.id_eliminacion,
+            background_tasks=background_tasks
+        )
+
         eliminacion.motivo_eliminacion += " | [✅ APROBADO POR ADMIN]"
         eliminacion.estado_solicitud = 'aprobada'
         eliminacion_crud.cancelar_evento(db, id_evento)
@@ -229,12 +238,6 @@ class EliminacionService:
                 mensaje=f"✅ Tu solicitud de baja para el evento '{evento.nombre_evento}' ha sido aprobada."
             )
         
-        # Notificar a los corredores (tu función existente)
-        EliminacionService._notificar_inscritos(
-            db=db, evento=evento,
-            motivo="Solicitud de baja aprobada por el administrador",
-            id_eliminacion=eliminacion.id_eliminacion
-        )
         
         db.commit()
 
@@ -384,16 +387,17 @@ class EliminacionService:
         db: Session,
         evento: Evento,
         motivo: str,
-        id_eliminacion: int
+        id_eliminacion: int,
+        background_tasks: BackgroundTasks 
     ) -> None:
         """
         Notifica a todos los inscritos que el evento fue cancelado.
-        Corrección: Busca el teléfono en la tabla 'contacto' mediante SQL directo.
+        Usa background_tasks para no bloquear el servidor.
         """
-        from sqlalchemy import text # Importar para la query manual
-
-        # 1. Buscamos las reservas ACTIVAS (Pendientes 1 y Confirmadas 2)
-        reservas = db.query(ReservaEvento).filter(
+        # 1. Buscamos las reservas ACTIVAS cargando Usuario y Contacto de una vez
+        reservas = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2])
         ).all()
@@ -402,25 +406,20 @@ class EliminacionService:
             print(f"[INFO] Evento '{evento.nombre_evento}' no tiene inscripciones activas.")
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
             return
-        
-        # ✅ FIX: CANCELAR LAS RESERVAS ANTES DE NOTIFICAR
-        for reserva in reservas:
-            reserva.id_estado_reserva = 3  # Cancelada
-        db.flush()
-        # -----------------------------------------------
-        
+
         print(f"\n{'='*70}")
         print(f"[NOTIFICACIONES] Procesando {len(reservas)} participantes...")
         print(f"{'='*70}")
         
-        count = 0
         for reserva in reservas:
             participante = reserva.usuario 
             if not participante:
                 continue
+
+            # A. CAMBIAR ESTADO A CANCELADA (3)
+            reserva.id_estado_reserva = 3
             
-            # --- ✅ NUEVO: NOTIFICACIÓN INTERNA (NAVBAR) ---
-            # Se agrega aquí para que cada ciclista la vea al loguearse en la web
+            # B. NOTIFICACIÓN INTERNA (NAVBAR)
             try:
                 NotificacionCRUD.create_notificacion(
                     db=db,
@@ -429,112 +428,40 @@ class EliminacionService:
                     mensaje=f"📢 IMPORTANTE: El evento '{evento.nombre_evento}' ha sido cancelado. Motivo: {motivo}."
                 )
             except Exception as e:
-                print(f"  ⚠️ Error al crear notificación interna para usuario {participante.id_usuario}: {e}")
+                print(f"  ⚠️ Error notificación interna usuario {participante.id_usuario}: {e}")
 
-            # --- A. ENVÍO DE EMAIL ---
+            # C. ENVÍO DE EMAIL (Vía Background Task)
             if participante.email:
-                try:
-                    enviar_correo_cancelacion_evento(
-                        email_destino=participante.email,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    print(f"  ✉️  Email enviado a: {participante.email}")
-                except Exception as e:
-                    print(f"  ❌ Error Email a {participante.email}: {e}")
+                background_tasks.add_task(
+                    enviar_correo_cancelacion_evento,
+                    email_destino=participante.email,
+                    nombre_evento=evento.nombre_evento,
+                    motivo=motivo
+                )
+                print(f"  ✉️  Email encolado para: {participante.email}")
 
-            # --- B. ENVÍO DE WHATSAPP (CORREGIDO) ---
-            try:
-                # Buscamos el tel directamente en la tabla contacto
-                query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
-                res_tel = db.execute(query_tel, {"id_u": reserva.id_usuario}).fetchone()
-                tel_real = res_tel[0] if res_tel else None
+            # D. ENVÍO DE WHATSAPP (Vía Background Task usando la relación)
+            if participante.contacto and participante.contacto.telefono:
+                tel_real = participante.contacto.telefono
+                background_tasks.add_task(
+                    enviar_whatsapp_cancelacion_evento,
+                    telefono=str(tel_real),
+                    nombre_evento=evento.nombre_evento,
+                    motivo=motivo
+                )
+                print(f"  📱 WhatsApp encolado para: {tel_real}")
+            else:
+                print(f"  ⚠️ Usuario {participante.id_usuario} sin teléfono en tabla contacto.")
 
-                if tel_real:
-                    enviar_whatsapp_cancelacion_evento(
-                        telefono=tel_real,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    print(f"  📱 WhatsApp enviado a: {tel_real}")
-                else:
-                    print(f"  ⚠️ Sin teléfono en tabla 'contacto' para usuario {reserva.id_usuario}")
-            except Exception as e:
-                print(f"  ❌ Error WhatsApp para usuario {reserva.id_usuario}: {e}")
-
-            count += 1
-            print(f"  {'-'*60}")
-        
-        # Marcar como notificado en la BD
+        # Guardamos cambios de estado y marcamos como notificado
+        db.flush() 
         try:
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
+            print(f"[✅ OK] Proceso de notificación completado.")
         except Exception as e:
             print(f"⚠️ Error al marcar notificación como enviada: {e}")
 
-        print(f"{'='*70}")
-        print(f"[✅ OK] {count} participantes procesados")
         print(f"{'='*70}\n")
-        
-        # 3. Datos del organizador para el log
-        organizador = db.query(Usuario).filter(
-            Usuario.id_usuario == evento.id_usuario
-        ).first()
-        
-        contacto = organizador.email if organizador else "soporte@wakeupbikes.com"
-
-        count = 0
-        for reserva in reservas:
-
-            participante = reserva.usuario 
-            
-            if participante and participante.email:
-                try:
-                    # --- AQUÍ MANDAMOS EL MAIL REAL ---
-                    # ✅ Se pasa el 'motivo' que cargó el admin o el usuario
-                    enviado = enviar_correo_cancelacion_evento(
-                        email_destino=participante.email,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    
-                    # --- LOGS DE CONSOLA (Mantenemos tus prints) ---
-                    if enviado:
-                        status_envio = "[ENVIADO]"
-                        count += 1
-                    else:
-                        status_envio = "[ERROR EN ENVÍO]"
-                    
-                    print(f"  ✉️  → {participante.email} {status_envio}")
-                    print(f"     📧 Asunto: EVENTO CANCELADO - {evento.nombre_evento}")
-                    print(f"     📝 Motivo: {motivo}")
-                    print(f"     📞 Contacto: {contacto}")
-                    print(f"     {'-'*60}")
-                except Exception as e:
-                    print(f"  ❌ Error enviando mail a {participante.email}: {e}")
-                    
-                    # --- ✅ NUEVO: ENVÍO DE WHATSAPP ---
-                if hasattr(participante, 'telefono') and participante.telefono:
-                    try:
-                        # Llamamos a la función de whatsapp.py
-                        enviar_whatsapp_cancelacion_evento(
-                            telefono=participante.telefono,
-                            nombre_evento=evento.nombre_evento,
-                            motivo=motivo
-                        )
-                        print(f"  📱 WhatsApp enviado a: {participante.telefono}")
-                    except Exception as e:
-                        print(f"  ❌ Error WhatsApp a {participante.telefono}: {e}")
-
-                count += 1
-                print(f"  ✅ Procesado: {participante.email if participante.email else 'Sin Email'}")
-                print(f"  {'-'*60}")
-        
-        # Finalizamos proceso
-        eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
-        print(f"{'='*70}")
-        print(f"[✅ OK] {count} notificaciones (Email/WhatsApp) procesadas")
-        print(f"{'='*70}\n")
-
 
     # ========================================================================
     # CONSULTAS
