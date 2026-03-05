@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from datetime import date
 
 from app.db.crud import eliminacion_crud
+from app.db.crud.notificacion_crud import NotificacionCRUD
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
 from app.models.eliminacion_models import EliminacionEvento  
@@ -12,6 +13,7 @@ from fastapi import BackgroundTasks
 from app.email import enviar_correo_baja_aprobada, enviar_correo_baja_rechazada
 from app.whatsapp import enviar_whatsapp_baja_aprobada, enviar_whatsapp_baja_rechazada
 from sqlalchemy import text
+
 
 # ============================================================================
 # CONSTANTES
@@ -218,6 +220,15 @@ class EliminacionService:
         eliminacion.estado_solicitud = 'aprobada'
         eliminacion_crud.cancelar_evento(db, id_evento)
         
+        # --- NOTIFICACIÓN INTERNA (NAVBAR) ---
+        if organizador:
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"✅ Tu solicitud de baja para el evento '{evento.nombre_evento}' ha sido aprobada."
+            )
+        
         # Notificar a los corredores (tu función existente)
         EliminacionService._notificar_inscritos(
             db=db, evento=evento,
@@ -265,6 +276,16 @@ class EliminacionService:
         organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
 
         eliminacion_crud.rechazar_registro_eliminacion(db, id_evento)
+        
+        # --- NOTIFICACIÓN INTERNA (NAVBAR) ---
+        if organizador:
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"❌ Tu solicitud de baja para el evento '{evento.nombre_evento}' fue rechazada por la administración."
+            )
+        
         db.commit()
 
         # ✅ NUEVO: Notificar al ORGANIZADOR que su pedido de baja fue RECHAZADO
@@ -397,6 +418,18 @@ class EliminacionService:
             participante = reserva.usuario 
             if not participante:
                 continue
+            
+            # --- ✅ NUEVO: NOTIFICACIÓN INTERNA (NAVBAR) ---
+            # Se agrega aquí para que cada ciclista la vea al loguearse en la web
+            try:
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=participante.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"📢 IMPORTANTE: El evento '{evento.nombre_evento}' ha sido cancelado. Motivo: {motivo}."
+                )
+            except Exception as e:
+                print(f"  ⚠️ Error al crear notificación interna para usuario {participante.id_usuario}: {e}")
 
             # --- A. ENVÍO DE EMAIL ---
             if participante.email:

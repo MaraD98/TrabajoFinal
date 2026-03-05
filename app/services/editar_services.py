@@ -16,6 +16,7 @@ from app.schemas.editar_schema import EventoEditar
 # --- CRUDS ---
 from app.db.crud import solicitud_edicion_crud
 from app.db.crud.editar_crud import obtener_evento_por_id, guardar_cambios_auditoria
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 # --- EMAILS ---
 from app.email import (
@@ -334,6 +335,16 @@ class EditarEventoService:
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2]) 
         ).all()
+        
+        for reser in inscriptos:
+            if reser.usuario:
+                # --- ✅ NUEVO: NOTIFICACIÓN NAVBAR PARA INSCRIPTO ---
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=reser.usuario.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"📝 El evento '{evento.nombre_evento}' en el que estás inscripto ha sido actualizado."
+                )
 
         for reser in inscriptos:
             if reser.usuario and reser.usuario.email:
@@ -348,6 +359,15 @@ class EditarEventoService:
 
         # 2. ✅ NUEVO: NOTIFICAR AL ORGANIZADOR (Dueño de la solicitud)
         if organizador:
+            
+            # --- ✅ NUEVO: NOTIFICACIÓN NAVBAR PARA ORGANIZADOR ---
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"✨ Los cambios solicitados para tu evento '{evento.nombre_evento}' han sido aprobados."
+            )
+            
             # Mail Organizador
             if organizador.email:
                 background_tasks.add_task(
@@ -410,6 +430,18 @@ class EditarEventoService:
             solicitud=solicitud, 
             id_admin=id_admin
         )
+        
+        # --- ✅ NUEVO: NOTIFICACIÓN INTERNA (NAVBAR) ---
+        # Lo hacemos antes del commit o justo después para asegurar que se guarde
+        if usuario_organizador:
+            nombre_evento_notif = evento.nombre_evento if evento else "tu evento"
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=usuario_organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"❌ La solicitud de edición para el evento '{nombre_evento_notif}' fue rechazada por la administración."
+            )
+        
         db.commit()
 
         # =============================================================================

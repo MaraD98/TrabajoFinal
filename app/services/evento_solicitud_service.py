@@ -11,6 +11,7 @@ from typing import Union
 from sqlalchemy import text # Para la consulta del teléfono
 from app.email import enviar_correo_aprobacion_publicacion
 from app.whatsapp import enviar_whatsapp_aprobacion_publicacion
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 
 class EventoSolicitudService:
@@ -175,6 +176,14 @@ class EventoSolicitudService:
             db.refresh(solicitud)
             db.refresh(nuevo_evento)
             solicitud.evento_creado_id = nuevo_evento.id_evento
+            
+            #Notificación interna para el Admin/Supervisor
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=id_admin,
+                id_estado_solicitud=None,
+                mensaje=f"✅ ¡Evento '{solicitud.nombre_evento}' creado y publicado automáticamente!"
+            )
 
         # FILTRO INTELIGENTE: Si el admin crea su propio evento, NO se manda mail/whatsapp
             if int(solicitud.id_usuario) != int(id_admin):
@@ -250,9 +259,19 @@ class EventoSolicitudService:
             db.commit()
             db.refresh(nuevo_evento)
             db.refresh(solicitud)
+            
+            
 
             # ✅ NOTIFICAR AL ORGANIZADOR
             if organizador:
+                
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=organizador.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"🚀 ¡Tu evento '{solicitud.nombre_evento}' ha sido aprobado y ya está publicado!"
+                )
+                
                 # 1. Enviar Email
                 if organizador.email:
                     background_tasks.add_task(
