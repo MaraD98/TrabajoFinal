@@ -240,6 +240,9 @@ const AdminDashboard: React.FC = () => {
     setInputModal({ show: true, title, message, value: '', onConfirm, type });
   const hideInputModal = () => setInputModal({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
 
+  // BUG QUE NO SE MUESTRA EL DETALLE DE ALTA
+const [detalleAltaModal, setDetalleAltaModal] = useState<{ show: boolean; solicitud: any | null }>({ show: false, solicitud: null });
+
   useEffect(() => {
     cargarDatos();
     setSearchTerm('');
@@ -482,6 +485,23 @@ const AdminDashboard: React.FC = () => {
     return `${dia}-${mes}-${anio}`;
   };
 
+  // Diccionario para las Dificultades
+const DIFICULTADES_MAP: Record<number, string> = {
+  1: 'Básico',
+  2: 'Intermedio',
+  3: 'Avanzado'
+};
+
+// Diccionario para los Tipos de Evento
+const TIPOS_MAP: Record<number, string> = {
+  1: 'Ciclismo de Ruta',
+  2: 'Mountain Bike (MTB)',
+  3: 'Rural Bike',
+  4: 'Gravel',
+  5: 'Cicloturismo', 
+  6: 'Entrenamiento / Social' 
+};
+
   // CONSTANTES Y FILTRADOS PARA PAGINACIÓN -----------------------------------------------------
   // 1. Primero filtramos
 const activosFiltrados = activosSort.sorted.filter(e => {
@@ -615,6 +635,9 @@ const currentInscriptos = inscriptosFiltrados.slice(indexOfFirstInscripto, index
                 <table className="data-table-admin">
                     <thead>
                       <tr>
+                        <th style={{ ...altaSort.thStyle('id_solicitud'), width: '60px' }} onClick={() => altaSort.toggle('id_solicitud')}>
+                          ID{altaSort.arrow('id_solicitud')}
+                        </th>
                         <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
                         <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
                         <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Solicitante{altaSort.arrow('id_usuario')}</th>
@@ -631,20 +654,35 @@ const currentInscriptos = inscriptosFiltrados.slice(indexOfFirstInscripto, index
                       ) : (
                         currentAltas.map(s => (
                           <tr key={s.id_solicitud}>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{ color: '#888', fontWeight: 'bold' }}>#{s.id_solicitud}</span>
+                            </td>
                             <td style={{ textAlign: 'left', fontWeight: 600 }}>
-                              <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
+                              <small style={{ color: '#888' }}>{s.nombre_evento}</small>
                             </td>
                             <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
                             <td style={{ textAlign: 'left' }}><small>{s.usuario?.email || `#${s.id_usuario}`}</small></td>
                             <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud || '') || '—'}</small></td>
                             <td style={{ textAlign: 'left' }}>
                               <small style={{ color: '#a8a8a8' }}>
-                                {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
-                                {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
+                                {/* Usamos una validación simple: si existe el ID, buscamos en el MAP */}
+                                {s.nombre_tipo || (s.id_tipo ? TIPOS_MAP[s.id_tipo] : null) || `Tipo #${s.id_tipo ?? '?'}`}
+                                
+                                {' · '}
+                                
+                                {/* Lo mismo para dificultad */}
+                                {s.nombre_dificultad || (s.id_dificultad ? DIFICULTADES_MAP[s.id_dificultad] : null) || `Dif. #${s.id_dificultad ?? '?'}`}
                               </small>
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleAltaId(s.id_solicitud)} title="Ver detalles del evento" style={{ marginRight: '6px' }}>👁️</button>
+                              <button 
+                                  className="btn-ver-detalle-admin" 
+                                  onClick={() => setDetalleAltaModal({ show: true, solicitud: s })} 
+                                  title="Ver detalles de la solicitud" 
+                                  style={{ marginRight: '6px' }}
+                                >
+                                  👁️
+                                </button>
                               <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
                               <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
                             </td>
@@ -1233,6 +1271,83 @@ const currentInscriptos = inscriptosFiltrados.slice(indexOfFirstInscripto, index
           onSuccess={() => { showToast('Evento actualizado correctamente', 'success'); cargarDatos(); }}
           onShowToast={showToast}
         />
+      )}
+      
+      {/* MODAL PARA DETALLES DE SOLICITUD DE ALTA */}
+      {detalleAltaModal.show && detalleAltaModal.solicitud && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div className="modal-content" style={{ backgroundColor: '#111', color: '#fff', border: '1px solid #333', borderRadius: '12px', width: '90%', maxWidth: '500px', overflow: 'hidden' }}>
+            
+            {/* Header */}
+            <div className="modal-header" style={{ borderBottom: '2px solid #ccff00', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ color: '#ccff00', textTransform: 'uppercase', margin: 0, fontSize: '14px', letterSpacing: '1px', fontWeight: 'bold' }}>
+                DETALLE DE LA SOLICITUD #{detalleAltaModal.solicitud.id_solicitud}
+              </h3>
+              <button onClick={() => setDetalleAltaModal({ show: false, solicitud: null })} style={{ background: 'none', border: 'none', color: '#888', fontSize: '20px', cursor: 'pointer' }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="modal-body" style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
+              <h2 style={{ marginTop: 0, marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>
+                {detalleAltaModal.solicitud.nombre_evento}
+              </h2>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
+                <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>📅 FECHA</span>
+                <strong style={{ fontSize: '16px' }}>{formatFecha(detalleAltaModal.solicitud.fecha_evento)}</strong>
+              </div>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
+                <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>📍 UBICACIÓN</span>
+                <strong style={{ fontSize: '14px' }}>{detalleAltaModal.solicitud.ubicacion || 'No especificada'}</strong>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                {/* SECCIÓN TIPO ACTUALIZADA */}
+                <div style={{ flex: 1, background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>🏷️ TIPO</span>
+                  <strong style={{ color: '#ccff00' }}>
+                    {detalleAltaModal.solicitud.nombre_tipo || 
+                     (detalleAltaModal.solicitud.id_tipo ? TIPOS_MAP[detalleAltaModal.solicitud.id_tipo] : null) || 
+                     `Tipo #${detalleAltaModal.solicitud.id_tipo}`}
+                  </strong>
+                </div>
+
+                {/* SECCIÓN DIFICULTAD ACTUALIZADA */}
+                <div style={{ flex: 1, background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>⚡ DIFICULTAD</span>
+                  <strong style={{ color: '#20c997' }}>
+                    {detalleAltaModal.solicitud.nombre_dificultad || 
+                     (detalleAltaModal.solicitud.id_dificultad ? DIFICULTADES_MAP[detalleAltaModal.solicitud.id_dificultad] : null) || 
+                     `Dif. #${detalleAltaModal.solicitud.id_dificultad}`}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                <span style={{ color: '#ccff00', fontSize: '12px', display: 'block', marginBottom: '10px', fontWeight: 'bold', letterSpacing: '1px' }}>📝 DESCRIPCIÓN</span>
+                <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', color: '#ccc' }}>
+                  {detalleAltaModal.solicitud.descripcion || 'El solicitante no incluyó una descripción detallada.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer" style={{ padding: '15px 20px', textAlign: 'center' }}>
+              <button
+                onClick={() => setDetalleAltaModal({ show: false, solicitud: null })}
+                style={{ width: '100%', padding: '12px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+              >
+                CERRAR
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* Modal detalle evento (activos, historial y también altas) */}
