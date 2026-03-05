@@ -1,9 +1,12 @@
+from typing import Optional
+
 from sqlalchemy.orm import Session
 from app.models.registro_models import Evento, EventoMultimedia, TipoEvento, NivelDificultad
+from app.models.auth_models import Usuario
 from app.schemas.registro_schema import EventoCreate
 from datetime import date
-from sqlalchemy import or_, func
-from typing import Optional
+from sqlalchemy import or_, desc, asc
+from sqlalchemy.orm import joinedload
 
 # ============================================================================
 # CONSTANTES DE ESTADO
@@ -12,47 +15,29 @@ ID_ESTADO_BORRADOR = 1
 ID_ESTADO_PUBLICADO = 3
 ID_ESTADO_FINALIZADO = 4
 ID_ESTADO_CANCELADO = 5
-ID_ESTADO_DEPURADO = 6  # ✅ ANTES ERA 7, AHORA ES 6
+ID_ESTADO_DEPURADO = 6
 ID_ROL_ADMINISTRADOR = 1
 ID_ROL_SUPERVISOR = 2
 
 # ============================================================================
-# FUNCIÓN AUXILIAR: Normalizar texto para búsqueda sin acentos
-# ============================================================================
-def normalizar_texto(texto: str) -> str:
-    """
-    Remueve acentos y convierte a minúsculas para búsqueda flexible.
-    'Córdoba' → 'cordoba'
-    'São Paulo' → 'sao paulo'
-    """
-    import unicodedata
-    texto_nfd = unicodedata.normalize('NFD', texto)
-    sin_acentos = ''.join(char for char in texto_nfd if unicodedata.category(char) != 'Mn')
-    return sin_acentos.lower()
-
-# ============================================================================
-# FUNCIÓN AUXILIAR: Actualizar eventos pasados automáticamente
+# FUNCIÓN AUXILIAR: Actualizar eventos pasados automáticamente (¡OPTIMIZADA!)
 # ============================================================================
 def actualizar_eventos_finalizados(db: Session):
     """
     Cambia el estado de eventos publicados cuya fecha ya pasó a FINALIZADO (4).
-    Se ejecuta antes de cada consulta para mantener la base de datos actualizada.
+    🚀 Optimizada: Usa "Bulk Update" directo en la base de datos sin usar bucles for.
     """
     hoy = date.today()
     
-    eventos_pasados = db.query(Evento).filter(
+    # Hacemos la actualización masiva de un solo golpe
+    filas_actualizadas = db.query(Evento).filter(
         Evento.id_estado == ID_ESTADO_PUBLICADO,
         Evento.fecha_evento < hoy
-    ).all()
+    ).update({"id_estado": ID_ESTADO_FINALIZADO}, synchronize_session=False)
     
-    if eventos_pasados:
-        print(f"🔄 [AUTO-UPDATE] Finalizando {len(eventos_pasados)} eventos pasados...")
-        for evento in eventos_pasados:
-            evento.id_estado = ID_ESTADO_FINALIZADO
-            print(f"  ✅ Evento '{evento.nombre_evento}' ({evento.fecha_evento}) → FINALIZADO")
-        
+    if filas_actualizadas > 0:
         db.commit()
-        print(f"✅ [AUTO-UPDATE] {len(eventos_pasados)} eventos actualizados")
+        print(f"✅ [AUTO-UPDATE] {filas_actualizadas} eventos pasados a FINALIZADO")
 
 # ============================================================================
 # CREATE (Crear)
@@ -86,55 +71,62 @@ def create_evento(db: Session, evento: EventoCreate, user_id: int, id_estado_fin
 def get_eventos(db: Session, skip: int = 0, limit: int = 100):
     """
     Devuelve solo eventos PUBLICADOS y FUTUROS (fecha_evento >= hoy).
-    ✅ Actualiza automáticamente eventos pasados a FINALIZADO antes de consultar.
     """
-    from app.models.auth_models import Usuario
-    # 1. Actualizar eventos pasados a FINALIZADO
     actualizar_eventos_finalizados(db)
-    
-    # 2. Obtener fecha actual
     hoy = date.today()
     
-   # 3. Consultar eventos con JOIN a Usuario para obtener email
     resultados = (
-        db.query(Evento, Usuario.email)
+        db.query(Evento, Usuario.email, TipoEvento, NivelDificultad)
         .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
+        .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+        .join(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad)
+        .options(joinedload(Evento.multimedia))
         .filter(Evento.id_estado == ID_ESTADO_PUBLICADO)
         .filter(Evento.fecha_evento >= hoy)
-        .order_by(Evento.fecha_evento.asc())
+        .order_by(asc(Evento.fecha_evento))
         .offset(skip)
         .limit(limit)
         .all()
     )
     
-    # 4. Agregar email_usuario a cada evento
     eventos = []
-    for evento, email in resultados:
+    for evento, email, tipo, dificultad in resultados:
         evento.email_usuario = email
+        evento.tipo_evento = tipo
+        evento.nivel_dificultad = dificultad
         eventos.append(evento)
     
     return eventos
 
 def get_eventos_por_usuario(db: Session, id_usuario: int, skip: int = 0, limit: int = 100):
     """
-    Devuelve TODOS los eventos de un usuario (incluyendo pasados y borradores).
-    No filtra por fecha porque el usuario puede querer ver su historial.
+    Devuelve TODOS los eventos de un usuario.
+    🚀 Optimizada con todos los JOINs necesarios.
     """
-    return (
-        db.query(Evento)
+    resultados = (
+        db.query(Evento, TipoEvento, NivelDificultad)
+        .join(TipoEvento, Evento.id_tipo == TipoEvento.id_tipo)
+        .join(NivelDificultad, Evento.id_dificultad == NivelDificultad.id_dificultad)
+        .options(joinedload(Evento.multimedia))
         .filter(Evento.id_usuario == id_usuario)
-        .order_by(Evento.fecha_evento.desc())
+        .order_by(desc(Evento.fecha_evento))
         .offset(skip)
         .limit(limit)
         .all()
     )
+    
+    eventos_finales = []
+    for evento, tipo, dificultad in resultados:
+        evento.tipo_evento = tipo
+        evento.nivel_dificultad = dificultad
+        eventos_finales.append(evento)
+        
+    return eventos_finales
 
 def get_evento_by_id(db: Session, evento_id: int):
-    """Obtiene un evento por su ID"""
     return db.query(Evento).filter(Evento.id_evento == evento_id).first()
 
 def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
-    """Valida duplicados: mismo nombre y fecha"""
     return db.query(Evento).filter(
         Evento.nombre_evento == nombre,
         Evento.fecha_evento == fecha
@@ -144,7 +136,6 @@ def get_evento_por_nombre_y_fecha(db: Session, nombre: str, fecha: date):
 # UPDATE (Actualizar)
 # ============================================================================
 def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
-    """Actualiza un evento existente"""
     db_evento = db.query(Evento).filter(Evento.id_evento == evento_id).first()
     if db_evento:
         db_evento.nombre_evento = evento_data.nombre_evento
@@ -168,7 +159,6 @@ def update_evento(db: Session, evento_id: int, evento_data: EventoCreate):
 # MULTIMEDIA
 # ============================================================================
 def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
-    """Crea un registro de multimedia para un evento"""
     nuevo_registro = EventoMultimedia(
         id_evento=id_evento,
         url_archivo=url,
@@ -180,7 +170,7 @@ def create_multimedia(db: Session, id_evento: int, url: str, tipo: str):
     return nuevo_registro
 
 # ============================================================================
-# FILTRADO AVANZADO (HU 7.1 a 7.10)
+# FILTRADO AVANZADO (HU 7.1 a 7.10) (¡OPTIMIZADO!)
 # ============================================================================
 def filtrar_eventos_avanzado(
     db: Session,
@@ -195,18 +185,12 @@ def filtrar_eventos_avanzado(
     limit: int = 50
 ):
     """
-    Filtra eventos publicados según múltiples criterios combinables.
-    ✅ Solo muestra eventos FUTUROS (fecha_evento >= hoy)
-    ✅ Actualiza automáticamente eventos pasados a FINALIZADO
+    🚀 Optimizada: Se delegó toda la búsqueda a la base de datos (ilike)
+    en lugar de descargar todos los registros a la memoria de Python.
     """
-    
-    # 1. Actualizar eventos pasados
     actualizar_eventos_finalizados(db)
-    
-    # 2. Obtener fecha actual
     hoy = date.today()
     
-    # 3. BASE QUERY: Solo eventos PUBLICADOS y FUTUROS
     query = db.query(Evento).filter(
         Evento.id_estado == ID_ESTADO_PUBLICADO,
         Evento.fecha_evento >= hoy
@@ -214,7 +198,6 @@ def filtrar_eventos_avanzado(
     
     filtros_aplicados = {}
     
-    # 4. FILTRO POR FECHA
     if fecha_exacta:
         query = query.filter(Evento.fecha_evento == fecha_exacta)
         filtros_aplicados['fecha_exacta'] = str(fecha_exacta)
@@ -226,69 +209,31 @@ def filtrar_eventos_avanzado(
             query = query.filter(Evento.fecha_evento <= fecha_hasta)
             filtros_aplicados['fecha_hasta'] = str(fecha_hasta)
     
-    # 5. FILTRO POR UBICACIÓN
+    # Búsqueda en SQL directa usando ilike (insensible a mayúsculas/minúsculas)
     if ubicacion:
-        ubicacion_normalizada = normalizar_texto(ubicacion)
-        eventos_temp = query.all()
-        eventos_filtrados = [
-            e for e in eventos_temp 
-            if ubicacion_normalizada in normalizar_texto(e.ubicacion)
-        ]
-        
-        if eventos_filtrados:
-            ids_filtrados = [e.id_evento for e in eventos_filtrados]
-            query = query.filter(Evento.id_evento.in_(ids_filtrados))
-        else:
-            query = query.filter(Evento.id_evento == -1)
-        
+        query = query.filter(Evento.ubicacion.ilike(f"%{ubicacion}%"))
         filtros_aplicados['ubicacion'] = ubicacion
     
-    # 6. FILTRO POR TIPO
     if id_tipo:
         query = query.filter(Evento.id_tipo == id_tipo)
         tipo = db.query(TipoEvento).filter(TipoEvento.id_tipo == id_tipo).first()
         filtros_aplicados['tipo'] = tipo.nombre if tipo else f"ID {id_tipo}"
     
-    # 7. FILTRO POR DIFICULTAD
     if id_dificultad:
         query = query.filter(Evento.id_dificultad == id_dificultad)
-        dificultad = db.query(NivelDificultad).filter(
-            NivelDificultad.id_dificultad == id_dificultad
-        ).first()
+        dificultad = db.query(NivelDificultad).filter(NivelDificultad.id_dificultad == id_dificultad).first()
         filtros_aplicados['dificultad'] = dificultad.nombre if dificultad else f"ID {id_dificultad}"
     
-    # 8. BÚSQUEDA POR NOMBRE
     if busqueda:
-        busqueda_normalizada = normalizar_texto(busqueda)
-        eventos_temp = query.all()
-        eventos_filtrados = [
-            e for e in eventos_temp 
-            if busqueda_normalizada in normalizar_texto(e.nombre_evento)
-        ]
-        
-        if eventos_filtrados:
-            ids_filtrados = [e.id_evento for e in eventos_filtrados]
-            query = query.filter(Evento.id_evento.in_(ids_filtrados))
-        else:
-            query = query.filter(Evento.id_evento == -1)
-        
+        query = query.filter(Evento.nombre_evento.ilike(f"%{busqueda}%"))
         filtros_aplicados['busqueda'] = busqueda
     
-    # 9. CONTAR TOTAL
     total = query.count()
-    
-    # 10. ORDENAR
-    query = query.order_by(Evento.fecha_evento.asc())
-    
-    # 11. PAGINAR
+    query = query.order_by(asc(Evento.fecha_evento))
     eventos = query.offset(skip).limit(limit).all()
     
-    # 12. MENSAJE
     if total == 0:
-        if filtros_aplicados:
-            mensaje = "No se encontraron eventos con los filtros seleccionados."
-        else:
-            mensaje = "No hay eventos publicados en este momento."
+        mensaje = "No se encontraron eventos con los filtros seleccionados." if filtros_aplicados else "No hay eventos publicados en este momento."
     elif total == 1:
         mensaje = "Se encontró 1 evento."
     else:
@@ -304,7 +249,6 @@ def filtrar_eventos_avanzado(
     }
 
 def obtener_catalogos_filtros(db: Session):
-    """Devuelve los catálogos para poblar los filtros."""
     tipos = db.query(TipoEvento).all()
     dificultades = db.query(NivelDificultad).all()
     
