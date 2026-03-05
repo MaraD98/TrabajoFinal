@@ -130,6 +130,15 @@ export default function MisEventosPage() {
     const [filtroActivo, setFiltroActivo] = useState<FiltroActivo | null>(null);
     const hayFiltroActivo = filtroActivo !== null;
 
+    // ── ESTADOS DE PAGINACIÓN ───────────────────────────────────
+    const [paginaActual, setPaginaActual] = useState(1);
+    const ITEMS_POR_PAGINA = 6; // Cantidad de eventos por página (podés poner 9 o 12)
+
+    // Resetear a la página 1 cada vez que cambiás de tab o usás el buscador
+    useEffect(() => { 
+        setPaginaActual(1); 
+    }, [vistaActiva, filtroHistorial, filtroPendientes, filtroActivo]);
+
     const [toast, setToast] = useState<{ mensaje: string; tipo: 'success' | 'error' | 'info' } | null>(null);
     const [modalEditar, setModalEditar] = useState(false);
     const [itemAEditar, setItemAEditar] = useState<Evento | Solicitud | null>(null);
@@ -189,26 +198,33 @@ export default function MisEventosPage() {
         setDetalleEventoId(evento.id_evento);
     };
 
-    const cargarDatos = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const [eventosData, solicitudesData, eliminacionesData, edicionesData] = await Promise.all([
-                getMisEventos(),
-                getMisSolicitudes(),
-                getMisSolicitudesEliminacion(),
-                getMisSolicitudesEdicion()
-            ]);
-            setEventos(eventosData);
-            setSolicitudes(solicitudesData);
-            setSolicitudesEliminacion(eliminacionesData);
-            setSolicitudesEdicion(edicionesData);
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Error al cargar eventos');
-        } finally {
-            setLoading(false);
-        }
-    };
+const cargarDatos = async () => {
+    try {
+        console.time('⏳ Tiempo TOTAL de las 4 APIs (PARALELO)');
+        setLoading(true);
+        setError(null);
+        
+        // Disparamos TODAS las peticiones al mismo tiempo
+        const [eventosData, solicitudesData, eliminacionesData, edicionesData] = await Promise.all([
+            getMisEventos(),
+            getMisSolicitudes(),
+            getMisSolicitudesEliminacion(),
+            getMisSolicitudesEdicion()
+        ]);
+
+        // Una vez que llegaron todas, actualizamos los estados
+        setEventos(eventosData);
+        setSolicitudes(solicitudesData);
+        setSolicitudesEliminacion(eliminacionesData);
+        setSolicitudesEdicion(edicionesData);
+
+    } catch (err: any) {
+        setError(err.response?.data?.detail || 'Error al cargar datos');
+    } finally {
+        setLoading(false);
+        console.timeEnd('⏳ Tiempo TOTAL de las 4 APIs (PARALELO)');
+    }
+};
 
     // ── FUNCIÓN DE FILTRADO ──────────────────────────────────────
     const aplicarFiltro = <T extends { nombre_evento: string; fecha_evento: string }>(lista: T[]): T[] => {
@@ -360,6 +376,48 @@ export default function MisEventosPage() {
         } catch {
             showToast('Error al enviar solicitud', 'error');
         }
+    };
+
+    // ── FUNCIONES HELPER DE PAGINACIÓN ─────────────────────────
+    const paginarLista = <T,>(lista: T[]): T[] => {
+        const indiceUltimo = paginaActual * ITEMS_POR_PAGINA;
+        const indicePrimero = indiceUltimo - ITEMS_POR_PAGINA;
+        return lista.slice(indicePrimero, indiceUltimo);
+    };
+
+    const renderPaginacion = (totalItems: number) => {
+        const totalPaginas = Math.ceil(totalItems / ITEMS_POR_PAGINA);
+        if (totalPaginas <= 1) return null;
+
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px', paddingBottom: '20px' }}>
+                <button 
+                    disabled={paginaActual === 1}
+                    onClick={() => setPaginaActual(paginaActual - 1)}
+                    style={{ padding: '8px 16px', background: paginaActual === 1 ? '#333' : '#222', color: paginaActual === 1 ? '#666' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                    Anterior
+                </button>
+                
+                {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(numero => (
+                    <button
+                        key={numero}
+                        onClick={() => setPaginaActual(numero)}
+                        style={{ padding: '8px 16px', background: paginaActual === numero ? '#ccff00' : '#222', color: paginaActual === numero ? '#000' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: 'pointer', fontWeight: paginaActual === numero ? 'bold' : 'normal' }}
+                    >
+                        {numero}
+                    </button>
+                ))}
+
+                <button 
+                    disabled={paginaActual === totalPaginas}
+                    onClick={() => setPaginaActual(paginaActual + 1)}
+                    style={{ padding: '8px 16px', background: paginaActual === totalPaginas ? '#333' : '#222', color: paginaActual === totalPaginas ? '#666' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
+                >
+                    Siguiente
+                </button>
+            </div>
+        );
     };
 
     // ── RENDERS DE CARDS ─────────────────────────────────────────
@@ -610,7 +668,12 @@ export default function MisEventosPage() {
                                 subtitle={hayFiltroActivo ? undefined : "¡Creá tu primer evento y compartilo con la comunidad!"}
                                 showCreate={!hayFiltroActivo}
                               />
-                            : <div className="grid-eventos">{eventosActivosFiltrados.map(e => renderEventoCard(e, true))}</div>
+                            : <> 
+                                <div className="grid-eventos">
+                                    {paginarLista(eventosActivosFiltrados).map(e => renderEventoCard(e, true))}
+                                </div>
+                                {renderPaginacion(eventosActivosFiltrados.length)}
+                              </>
                     )}
 
                     {/* PENDIENTES */}
@@ -636,17 +699,32 @@ export default function MisEventosPage() {
                                     {filtroPendientes === 'aprobacion' && (
                                         pendientesAprobacionFiltrados.length === 0
                                             ? <EmptyState icon="✅" title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No hay solicitudes pendientes de aprobación"} />
-                                            : <div className="grid-eventos">{pendientesAprobacionFiltrados.map(renderSolicitudCard)}</div>
+                                            : <> 
+                                                <div className="grid-eventos">
+                                                    {paginarLista(pendientesAprobacionFiltrados).map(renderSolicitudCard)}
+                                                </div>
+                                                {renderPaginacion(pendientesAprobacionFiltrados.length)}
+                                            </>
                                     )}
                                     {filtroPendientes === 'edicion' && (
                                         pendientesEdicionFiltrados.length === 0
                                             ? <EmptyState icon="✏️" title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No hay solicitudes de edición pendientes"} />
-                                            : <div className="grid-eventos">{pendientesEdicionFiltrados.map(renderSolicitudEdicionCard)}</div>
+                                            : <> 
+                                                <div className="grid-eventos">
+                                                    {paginarLista(pendientesEdicionFiltrados).map(renderSolicitudEdicionCard)}
+                                                </div>
+                                                {renderPaginacion(pendientesEdicionFiltrados.length)}
+                                            </>
                                     )}
                                     {filtroPendientes === 'eliminacion' && (
                                         pendientesEliminacionFiltrados.length === 0
                                             ? <EmptyState icon="🗑️" title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No hay solicitudes de cancelación pendientes"} />
-                                            : <div className="grid-eventos">{pendientesEliminacionFiltrados.map(renderSolicitudEliminacionCard)}</div>
+                                            : <> 
+                                                <div className="grid-eventos">
+                                                    {paginarLista(pendientesEliminacionFiltrados).map(renderSolicitudEliminacionCard)}
+                                                </div>
+                                                {renderPaginacion(pendientesEliminacionFiltrados.length)}
+                                            </>
                                     )}
                                 </>
                             )}
@@ -673,12 +751,22 @@ export default function MisEventosPage() {
                                         eventosFinalizadosFiltrados.length === 0
                                             ? <EmptyState icon="🏁" title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No hay eventos finalizados"}
                                                 subtitle={hayFiltroActivo ? undefined : "Los eventos cuya fecha ya pasó van a aparecer acá."} />
-                                            : <div className="grid-eventos">{eventosFinalizadosFiltrados.map(e => renderEventoCard(e))}</div>
+                                            : <>
+                                                <div className="grid-eventos">
+                                                    {paginarLista(eventosFinalizadosFiltrados).map(e => renderEventoCard(e))}
+                                                </div>
+                                                {renderPaginacion(eventosFinalizadosFiltrados.length)}
+                                              </>
                                     )}
                                     {filtroHistorial === 'cancelados' && (
                                         eventosCanceladosFiltrados.length === 0
                                             ? <EmptyState icon="🚫" title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No hay eventos cancelados"} />
-                                            : <div className="grid-eventos">{eventosCanceladosFiltrados.map(e => renderEventoCard(e))}</div>
+                                            : <>
+                                                <div className="grid-eventos">
+                                                    {paginarLista(eventosCanceladosFiltrados).map(e => renderEventoCard(e))}
+                                                </div>
+                                                {renderPaginacion(eventosCanceladosFiltrados.length)}
+                                              </>
                                     )}
                                 </>
                             )}
@@ -692,7 +780,12 @@ export default function MisEventosPage() {
                             ? <EmptyState icon="📝"
                                 title={hayFiltroActivo ? "No hay resultados para la búsqueda" : "No tenés borradores guardados"}
                                 subtitle={hayFiltroActivo ? undefined : "Cuando guardes un evento sin enviar, va a aparecer acá."} />
-                            : <div className="grid-eventos">{solicitudesBorradoresFiltrados.map(renderSolicitudCard)}</div>
+                            : <>
+                                <div className="grid-eventos">
+                                    {paginarLista(solicitudesBorradoresFiltrados).map(renderSolicitudCard)}
+                                </div>
+                                {renderPaginacion(solicitudesBorradoresFiltrados.length)}
+                              </>
                     )}
                 </div>
             </div>
