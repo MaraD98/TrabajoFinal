@@ -318,23 +318,32 @@ useEffect(() => {
 
     const handlePagar = async (ins: Inscripcion) => {
     const token = getToken();
+    
+    // 1. Verificamos en consola qué valores trae realmente 'ins'
+    console.log("Datos de la inscripción al pagar:", ins);
+
+    // 2. Preparamos el envío asegurando que el precio no sea null
+    const payload = {
+        id_reserva: Number(ins.id_reserva),
+        nombre_evento: String(ins.nombre_evento),
+        // Usamos monto, si es null usamos costo, si no 0
+        precio: Number(ins.monto || ins.costo || 0) 
+    };
+
     try {
-        // Llamamos al backend para crear la preferencia de Mercado Pago
-        const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, {
-            id_reserva: ins.id_reserva,
-            nombre_evento: ins.nombre_evento,
-            precio: ins.monto
-        }, {
+        const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, payload, {
             headers: { Authorization: `Bearer ${token}` }
         });
 
-        // Mercado Pago nos devuelve una URL (init_point) para pagar
         if (response.data.init_point) {
             window.location.href = response.data.init_point;
         }
     } catch (err: any) {
-        console.error("Error al iniciar el pago:", err);
-        setError("No se pudo iniciar el proceso de pago. Intenta más tarde.");
+        if (err.response?.status === 422) {
+            console.error("Detalle del error 422:", err.response.data.detail);
+            alert("Error de datos: El servidor no recibió un precio válido.");
+        }
+        setError("Error al conectar con Mercado Pago.");
     }
 };
 
