@@ -315,242 +315,6 @@ const datosGrafico = (mesesOrdenados || [])
             )}
           </div>
 
-          {/* ═════════════════════════════════════════════════════════════════════
-              NUEVO REPORTE: REGISTRO DE USUARIOS NUEVOS (CONECTADO)
-          ═════════════════════════════════════════════════════════════════════ */}
-          <div style={{ display: "flex", gap: "20px", marginTop: '2rem', flexWrap: "wrap", alignItems: "stretch" }}>
-            
-            {/* LADO IZQUIERDO: Tabla Detallada Conectada */}
-            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column", maxHeight: "550px" }}>
-              
-
-              {!mesExpandido ? (
-            /* VISTA A: DASHBOARD DE EVOLUCIÓN */
-            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-              <div style={{ textAlign: "left", marginBottom: "30px" }}>
-                <h3 style={{ margin: 0, fontSize: "1.5rem" }}>👥 Evolución de registros en el tiempo</h3>
-                <p style={{ color: "#94a3b8", marginTop: "5px" }}>Evolución mensual de nuevos usuarios en la plataforma.</p>
-              </div>
-              
-              <div style={{ flex: 1, width: '100%', minHeight: '350px' }}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart 
-                    data={datosGrafico} 
-                    /* Agregamos márgenes para que las etiquetas de los ejes no se corten */
-                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                    onClick={(data: any) => {
-                      if (data && data.activePayload) {
-                        setMesExpandido(data.activePayload[0].payload.originalName);
-                      }
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
-                    
-                    {/* EJE X: Mes / Año */}
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 12 }}
-                      label={{ 
-                        value: 'Mes / Año', 
-                        position: 'insideBottom', 
-                        offset: -20, 
-                        fill: '#64748b', 
-                        fontSize: 14,
-                        fontWeight: 'bold'
-                      }} 
-                    />
-                    
-                    {/* EJE Y: Cantidad de Usuarios */}
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 12 }}
-                      label={{ 
-                        value: 'Cantidad de Usuarios', 
-                        angle: -90, 
-                        position: 'insideLeft', 
-                        style: { textAnchor: 'middle' },
-                        fill: '#64748b',
-                        fontSize: 14,
-                        fontWeight: 'bold'
-                      }}
-                    />
-                    
-                    <Tooltip 
-                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
-                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
-                      itemStyle={{ color: '#ffffff', fontWeight: 'bold' }}
-                    />
-
-                    <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} style={{ cursor: 'pointer' }}>
-                      {datosGrafico.map((entry: any, index: number) => (
-                        <Cell 
-                          key={`cell-${index}`} 
-                          fill={entry.cantidad > 0 ? '#3b82f6' : '#1e293b'} 
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ) : (
-                <><div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                      <div>
-                        <h3 style={{ margin: 0 }}>Registros del {mesExpandido}</h3>
-                        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Haz clic en un nombre para ver su ficha técnica.</p>
-                      </div>
-                      <button
-                        onClick={() => setMesExpandido(null)}
-                        style={{ background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#334155'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
-                      >
-                        ⬅ Volver al gráfico
-                      </button>
-                    </div>
-
-                      <div style={{ flex: 1,minHeight: "0", overflowY: "auto", paddingRight: "5px" }}>
-                      <table className="tabla-reportes-custom">
-                        <thead>
-                          <tr>
-                            <th onClick={() => handleOrdenarMaster('nombre', 'usuarios')} style={{ cursor: "pointer" }}>
-                              Usuario {ordenUsuarios.columna === 'nombre' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
-                            </th>
-                            <th onClick={() => handleOrdenarMaster('rol', 'usuarios')} style={{ cursor: "pointer" }}>
-                              Rol {ordenUsuarios.columna === 'rol' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
-                            </th>
-                            <th onClick={() => handleOrdenarMaster('dia', 'usuarios')} style={{ textAlign: "center", cursor: "pointer" }}>
-                              Día {ordenUsuarios.columna === 'dia' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
-                            </th>
-                            <th style={{ textAlign: "center" }}>Actividad</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {aplicarFiltrosUsuarios(usuariosPorMes[mesExpandido]?.usuarios)
-                            .sort((a: any, b: any) => {
-                              let valA, valB;
-                              if (ordenUsuarios.columna === 'dia') {
-                                valA = parseInt(a.fecha_creacion?.split('/')[0]) || 0;
-                                valB = parseInt(b.fecha_creacion?.split('/')[0]) || 0;
-                              } else {
-                                valA = a[ordenUsuarios.columna]?.toLowerCase() || "";
-                                valB = b[ordenUsuarios.columna]?.toLowerCase() || "";
-                              }
-
-                              if (ordenUsuarios.direccion === 'asc') return valA > valB ? 1 : -1;
-                              return valA < valB ? 1 : -1;
-                            })
-                            .map((u: any, idx: any) => (
-                              <tr key={idx}>
-                                <td
-                                  onClick={() => setModalDetalleUsuario(u)} // <--- Acción para abrir modal
-                                  style={{ cursor: 'pointer', transition: '0.2s' }}
-                                  className="nombre-usuario-hover" // Puedes agregar un estilo de hover si quieres
-                                >
-                                  <div style={{ fontWeight: "bold", color: "#3b82f6" }}>{u.nombre}</div> {/* Cambié a azul para indicar link */}
-                                  <div style={{ fontSize: "0.85rem", color: "#94a3b8" }}>{u.email}</div>
-                                </td>
-                                <td>
-                                  <span className="badge-tipo" style={{ backgroundColor: u.rol === "Organización Externa" ? "#f97316" : u.rol === "Administrador" ? "#6a128d" : u.rol === "Supervisor" ? "#1a810d" : "#0ea5e9" }}>
-                                    {u.rol}
-                                  </span>
-                                </td>
-                                <td style={{ textAlign: "center", fontWeight: "bold", color: "#cbd5e1" }}>
-                                  {u.fecha_creacion ? u.fecha_creacion.split('/')[0] : "-"}
-                                </td>
-                                <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
-                                  {u.rol === "Cliente" ? (
-                                    <span><strong style={{ color: "#4ade80" }}>{u.cantidad_inscripciones}</strong> inscrip.</span>
-                                  ) : (
-                                    <span><strong style={{ color: "#8b5cf6" }}>{u.cantidad_eventos_creados}</strong> eventos</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))
-                          }
-                          
-                        </tbody>
-                      </table>
-                     </div>
-                    </div></>
-              )}
-              
-            </div>
-
-            {/* LADO DERECHO: Acordeón por Mes y Día */}
-            <div style={{ flex: "1 1 40%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "12px", border: "1px solid #334155", maxHeight: "550px", overflowY: "auto" }}>              
-              <h3 style={{ margin: "0 0 20px 0" }}>🗓️ Nuevos Registros por Mes</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", overflowY: "auto", flex: 1, paddingRight: "5px" }}>
-                {mesesOrdenados?.map((mes: string, index: number) => {
-                  const filtradosMes = aplicarFiltrosUsuarios(usuariosPorMes[mes]?.usuarios);
-                  
-                  // Re-calculamos los stats de los días solo con los filtrados
-                  const statsDias: any = {};
-                  filtradosMes.forEach(u => {
-                    const dia = u.fecha_creacion.split('/')[0];
-                    if (!statsDias[dia]) statsDias[dia] = { clientes: 0, organizaciones: 0, administradores: 0, supervisores: 0 };
-                    if (u.rol === "Cliente") statsDias[dia].clientes++;
-                    else if (u.rol === "Organizador Externo") statsDias[dia].organizaciones++;
-                    else if (u.rol === "Administrador") statsDias[dia].administradores++;
-                    else if (u.rol === "Supervisor") statsDias[dia].supervisores++;
-                  });
-
-                  if (filtradosMes.length === 0 && (fechaInicio || fechaFin || filtroPertenencia !== "todos")) return null;
-
-                  return (
-                  <div key={index} style={{ backgroundColor: "#1e293b",marginBottom: "10px", borderRadius: "8px", overflow: "hidden", border: mesExpandido === mes ? "1px solid #3b82f6" : "1px solid transparent", transition: "0.2s"}}>
-                    
-                    {/* Botón del Mes */}
-                    <div 
-                      onClick={() => setMesExpandido(mesExpandido === mes ? null : mes)}
-                      style={{ padding: "12px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderBottom: mesExpandido === mes ? "1px solid #334155" : "none" }}
-                    >
-                      <strong style={{ color: "#f8fafc", fontSize: "1.1rem" }}>{mes}</strong>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>{usuariosPorMes[mes]?.total} total</span>
-                        <span style={{ color: "#94a3b8" }}>{mesExpandido === mes ? "▲" : "▼"}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Desplegable de los Días */}
-                    {mesExpandido === mes && (
-                      <div style={{ padding: "10px 15px", backgroundColor: "#0f172a" }}>
-                        {Object.keys(usuariosPorMes[mes]?.dias || {}).sort((a,b) => parseInt(a)-parseInt(b)).map(dia => {
-                          const stats = usuariosPorMes[mes].dias[dia];
-                          return (
-                            <div key={dia} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1e293b", fontSize: "0.9rem" }}>
-                              <span style={{ color: "#cbd5e1", fontWeight: "bold" }}>Día {dia}</span>
-                              <div style={{ textAlign: "right", display: "flex", gap: "10px" }}>
-                                {stats.clientes > 0 && (
-                                  <span style={{ color: "#0ea5e9" }}><strong>{stats.clientes}</strong> Clientes</span>
-                                )}
-                                {stats.organizaciones > 0 && (
-                                  <span style={{ color: "#f97316" }}><strong>{stats.organizaciones}</strong> Org. Externa</span>
-                                )}
-                                {stats.administradores > 0 && (
-                                  <span style={{ color: "#6a128d" }}><strong>{stats.administradores}</strong> Administrador</span>
-                                )}
-                                {stats.supervisores > 0 && (
-                                  <span style={{ color: "#1a810d" }}><strong>{stats.supervisores}</strong> Supervisores</span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-                })}
-              </div>
-            </div>
-
-          </div>
-
          {/* ═════════════════════════════════════════════════════════════════════
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}
@@ -961,6 +725,241 @@ const datosGrafico = (mesesOrdenados || [])
 
         </div>
 
+          {/* ═════════════════════════════════════════════════════════════════════
+              NUEVO REPORTE: REGISTRO DE USUARIOS NUEVOS (CONECTADO)
+          ═════════════════════════════════════════════════════════════════════ */}
+          <div style={{ display: "flex", gap: "20px", marginTop: '2rem', flexWrap: "wrap", alignItems: "stretch" }}>
+            
+            {/* LADO IZQUIERDO: Tabla Detallada Conectada */}
+            <div style={{ flex: "1 1 55%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "10px", border: "1px solid #334155", minHeight: "450px", display: "flex", flexDirection: "column", maxHeight: "550px" }}>
+              
+
+              {!mesExpandido ? (
+            /* VISTA A: DASHBOARD DE EVOLUCIÓN */
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+              <div style={{ textAlign: "left", marginBottom: "30px" }}>
+                <h3 style={{ margin: 0, fontSize: "1.5rem" }}>👥 Evolución de registros en el tiempo</h3>
+                <p style={{ color: "#94a3b8", marginTop: "5px" }}>Evolución mensual de nuevos usuarios en la plataforma.</p>
+              </div>
+              
+              <div style={{ flex: 1, width: '100%', minHeight: '350px' }}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart 
+                    data={datosGrafico} 
+                    /* Agregamos márgenes para que las etiquetas de los ejes no se corten */
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                    onClick={(data: any) => {
+                      if (data && data.activePayload) {
+                        setMesExpandido(data.activePayload[0].payload.originalName);
+                      }
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                    
+                    {/* EJE X: Mes / Año */}
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      label={{ 
+                        value: 'Mes / Año', 
+                        position: 'insideBottom', 
+                        offset: -20, 
+                        fill: '#64748b', 
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                      }} 
+                    />
+                    
+                    {/* EJE Y: Cantidad de Usuarios */}
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 12 }}
+                      label={{ 
+                        value: 'Cantidad de Usuarios', 
+                        angle: -90, 
+                        position: 'insideLeft', 
+                        style: { textAnchor: 'middle' },
+                        fill: '#64748b',
+                        fontSize: 14,
+                        fontWeight: 'bold'
+                      }}
+                    />
+                    
+                    <Tooltip 
+                      cursor={{ fill: '#1e293b', opacity: 0.4 }}
+                      contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px' }}
+                      itemStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                    />
+
+                    <Bar dataKey="cantidad" radius={[6, 6, 0, 0]} style={{ cursor: 'pointer' }}>
+                      {datosGrafico.map((entry: any, index: number) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.cantidad > 0 ? '#3b82f6' : '#1e293b'} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+                <><div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <div>
+                        <h3 style={{ margin: 0 }}>Registros del {mesExpandido}</h3>
+                        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Haz clic en un nombre para ver su ficha técnica.</p>
+                      </div>
+                      <button
+                        onClick={() => setMesExpandido(null)}
+                        style={{ background: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', transition: '0.2s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#334155'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1e293b'}
+                      >
+                        ⬅ Volver al gráfico
+                      </button>
+                    </div>
+
+                      <div style={{ flex: 1,minHeight: "0", overflowY: "auto", paddingRight: "5px" }}>
+                      <table className="tabla-reportes-custom">
+                        <thead>
+                          <tr>
+                            <th onClick={() => handleOrdenarMaster('nombre', 'usuarios')} style={{ cursor: "pointer" }}>
+                              Usuario {ordenUsuarios.columna === 'nombre' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                            </th>
+                            <th onClick={() => handleOrdenarMaster('rol', 'usuarios')} style={{ cursor: "pointer" }}>
+                              Rol {ordenUsuarios.columna === 'rol' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                            </th>
+                            <th onClick={() => handleOrdenarMaster('dia', 'usuarios')} style={{ textAlign: "center", cursor: "pointer" }}>
+                              Día {ordenUsuarios.columna === 'dia' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                            </th>
+                            <th style={{ textAlign: "center" }}>Actividad</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {aplicarFiltrosUsuarios(usuariosPorMes[mesExpandido]?.usuarios)
+                            .sort((a: any, b: any) => {
+                              let valA, valB;
+                              if (ordenUsuarios.columna === 'dia') {
+                                valA = parseInt(a.fecha_creacion?.split('/')[0]) || 0;
+                                valB = parseInt(b.fecha_creacion?.split('/')[0]) || 0;
+                              } else {
+                                valA = a[ordenUsuarios.columna]?.toLowerCase() || "";
+                                valB = b[ordenUsuarios.columna]?.toLowerCase() || "";
+                              }
+
+                              if (ordenUsuarios.direccion === 'asc') return valA > valB ? 1 : -1;
+                              return valA < valB ? 1 : -1;
+                            })
+                            .map((u: any, idx: any) => (
+                              <tr key={idx}>
+                                <td
+                                  onClick={() => setModalDetalleUsuario(u)} // <--- Acción para abrir modal
+                                  style={{ cursor: 'pointer', transition: '0.2s' }}
+                                  className="nombre-usuario-hover" // Puedes agregar un estilo de hover si quieres
+                                >
+                                  <div style={{ fontWeight: "bold", color: "#3b82f6" }}>{u.nombre}</div> {/* Cambié a azul para indicar link */}
+                                  <div style={{ fontSize: "0.85rem", color: "#94a3b8" }}>{u.email}</div>
+                                </td>
+                                <td>
+                                  <span className="badge-tipo" style={{ backgroundColor: u.rol === "Organización Externa" ? "#f97316" : u.rol === "Administrador" ? "#6a128d" : u.rol === "Supervisor" ? "#1a810d" : "#0ea5e9" }}>
+                                    {u.rol}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: "center", fontWeight: "bold", color: "#cbd5e1" }}>
+                                  {u.fecha_creacion ? u.fecha_creacion.split('/')[0] : "-"}
+                                </td>
+                                <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
+                                  {u.rol === "Cliente" ? (
+                                    <span><strong style={{ color: "#4ade80" }}>{u.cantidad_inscripciones}</strong> inscrip.</span>
+                                  ) : (
+                                    <span><strong style={{ color: "#8b5cf6" }}>{u.cantidad_eventos_creados}</strong> eventos</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          }
+                          
+                        </tbody>
+                      </table>
+                     </div>
+                    </div></>
+              )}
+              
+            </div>
+
+            {/* LADO DERECHO: Acordeón por Mes y Día */}
+            <div style={{ flex: "1 1 40%", backgroundColor: "#0f172a", padding: "20px", borderRadius: "12px", border: "1px solid #334155", maxHeight: "550px", overflowY: "auto" }}>              
+              <h3 style={{ margin: "0 0 20px 0" }}>🗓️ Nuevos Registros por Mes</h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", overflowY: "auto", flex: 1, paddingRight: "5px" }}>
+                {mesesOrdenados?.map((mes: string, index: number) => {
+                  const filtradosMes = aplicarFiltrosUsuarios(usuariosPorMes[mes]?.usuarios);
+                  
+                  // Re-calculamos los stats de los días solo con los filtrados
+                  const statsDias: any = {};
+                  filtradosMes.forEach(u => {
+                    const dia = u.fecha_creacion.split('/')[0];
+                    if (!statsDias[dia]) statsDias[dia] = { clientes: 0, organizaciones: 0, administradores: 0, supervisores: 0 };
+                    if (u.rol === "Cliente") statsDias[dia].clientes++;
+                    else if (u.rol === "Organizador Externo") statsDias[dia].organizaciones++;
+                    else if (u.rol === "Administrador") statsDias[dia].administradores++;
+                    else if (u.rol === "Supervisor") statsDias[dia].supervisores++;
+                  });
+
+                  if (filtradosMes.length === 0 && (fechaInicio || fechaFin || filtroPertenencia !== "todos")) return null;
+
+                  return (
+                  <div key={index} style={{ backgroundColor: "#1e293b",marginBottom: "10px", borderRadius: "8px", overflow: "hidden", border: mesExpandido === mes ? "1px solid #3b82f6" : "1px solid transparent", transition: "0.2s"}}>
+                    
+                    {/* Botón del Mes */}
+                    <div 
+                      onClick={() => setMesExpandido(mesExpandido === mes ? null : mes)}
+                      style={{ padding: "12px 15px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderBottom: mesExpandido === mes ? "1px solid #334155" : "none" }}
+                    >
+                      <strong style={{ color: "#f8fafc", fontSize: "1.1rem" }}>{mes}</strong>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ color: "#94a3b8", fontSize: "0.9rem" }}>{usuariosPorMes[mes]?.total} total</span>
+                        <span style={{ color: "#94a3b8" }}>{mesExpandido === mes ? "▲" : "▼"}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Desplegable de los Días */}
+                    {mesExpandido === mes && (
+                      <div style={{ padding: "10px 15px", backgroundColor: "#0f172a" }}>
+                        {Object.keys(usuariosPorMes[mes]?.dias || {}).sort((a,b) => parseInt(a)-parseInt(b)).map(dia => {
+                          const stats = usuariosPorMes[mes].dias[dia];
+                          return (
+                            <div key={dia} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1e293b", fontSize: "0.9rem" }}>
+                              <span style={{ color: "#cbd5e1", fontWeight: "bold" }}>Día {dia}</span>
+                              <div style={{ textAlign: "right", display: "flex", gap: "10px" }}>
+                                {stats.clientes > 0 && (
+                                  <span style={{ color: "#0ea5e9" }}><strong>{stats.clientes}</strong> Clientes</span>
+                                )}
+                                {stats.organizaciones > 0 && (
+                                  <span style={{ color: "#f97316" }}><strong>{stats.organizaciones}</strong> Org. Externa</span>
+                                )}
+                                {stats.administradores > 0 && (
+                                  <span style={{ color: "#6a128d" }}><strong>{stats.administradores}</strong> Administrador</span>
+                                )}
+                                {stats.supervisores > 0 && (
+                                  <span style={{ color: "#1a810d" }}><strong>{stats.supervisores}</strong> Supervisores</span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+                })}
+              </div>
+            </div>
+
+          </div>
             
         {/* ── Tarjetas Admin ────────────────────────────────── */}
       
@@ -1076,8 +1075,6 @@ const datosGrafico = (mesesOrdenados || [])
             </div>
           )}
         
-
-
         </>
       )}
     </div>
