@@ -493,39 +493,48 @@ class EditarEventoService:
     
     @staticmethod
     def obtener_mis_solicitudes_edicion(db: Session, id_usuario: int):
-        """
-        ✅ CORREGIDO: Obtiene las solicitudes de edición pendientes del usuario.
-        Incluye multimedia e imagen_url del evento para mostrar la imagen correcta.
-        Retorna lista vacía si no hay solicitudes.
-        """
-        from app.models.registro_models import EventoMultimedia  # ← IMPORTAR
+        import json
+        from sqlalchemy.orm import defer
+        from app.models.registro_models import Evento, EventoMultimedia 
         
-        # Obtener solicitudes pendientes del usuario
-        solicitudes = db.query(SolicitudEdicionEvento).filter(
-            SolicitudEdicionEvento.id_usuario == id_usuario,
-            SolicitudEdicionEvento.aprobada == None  # NULL = Pendiente
-        ).all()
+        # 1. 🚀 MAGIA N°1: Traer Solicitud y Evento juntos con un JOIN (1 sola consulta)
+        #    Y le aplicamos defer para no descargar las coordenadas ni descripciones gigantes.
+        resultados = (
+            db.query(SolicitudEdicionEvento, Evento)
+            .join(Evento, SolicitudEdicionEvento.id_evento == Evento.id_evento)
+            .filter(
+                SolicitudEdicionEvento.id_usuario == id_usuario,
+                SolicitudEdicionEvento.aprobada == None 
+            )
+            .options(
+                defer(Evento.ruta_coordenadas),
+                defer(Evento.descripcion)
+            )
+            .all()
+        )
 
-        # Si no hay solicitudes, retornar lista vacía
-        if not solicitudes:
+        if not resultados:
             return []
 
+        # Extraemos los IDs de los eventos para buscar sus imágenes
+        ids_eventos = [evento.id_evento for _, evento in resultados]
+
+        # 2. 🚀 MAGIA N°2: Buscar TODA la multimedia de todos esos eventos en UNA sola consulta
+        multimedias_db = db.query(EventoMultimedia).filter(
+            EventoMultimedia.id_evento.in_(ids_eventos)
+        ).all()
+
+        # Agrupamos la multimedia en un diccionario usando Python (es rapidísimo en memoria RAM)
+        multimedia_por_evento = {}
+        for m in multimedias_db:
+            if m.id_evento not in multimedia_por_evento:
+                multimedia_por_evento[m.id_evento] = []
+            multimedia_por_evento[m.id_evento].append({"url_archivo": m.url_archivo})
+
         resultado = []
-        for solicitud in solicitudes:
-            # Obtener el evento asociado
-            evento = db.query(Evento).filter(
-                Evento.id_evento == solicitud.id_evento
-            ).first()
+        # Ahora recorremos la lista, ¡pero SIN HACER CONSULTAS A LA BD adentro del for!
+        for solicitud, evento in resultados:
             
-            if not evento:
-                continue  # Saltar si el evento no existe
-            
-            # ✅ NUEVO: Obtener multimedia del evento
-            multimedia = db.query(EventoMultimedia).filter(
-                EventoMultimedia.id_evento == evento.id_evento
-            ).all()
-            
-            # Parsear cambios propuestos — mismo fix: manejar str o dict
             cambios_raw = solicitud.cambios_propuestos
             if isinstance(cambios_raw, str):
                 try:
@@ -545,7 +554,7 @@ class EditarEventoService:
                 "cambios_propuestos": cambios,
                 "fecha_solicitud": solicitud.fecha_solicitud.isoformat() if solicitud.fecha_solicitud else None,
                 "estado": "Pendiente de aprobación",
-                "multimedia": [{"url_archivo": m.url_archivo} for m in multimedia] if multimedia else None,
+                "multimedia": multimedia_por_evento.get(evento.id_evento, None),
                 "imagen_url": None
             })
 

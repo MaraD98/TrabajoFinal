@@ -157,13 +157,14 @@ async def actualizar_solicitud_evento(
 # ============================================================================
 @router.get(
     "/mis-solicitudes",
-    response_model=list[SolicitudPublicacionResponse],
+    response_model=None, # 🚀 Apagamos Pydantic
     summary="Obtener mis solicitudes"
 )
 def obtener_mis_solicitudes(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
+    # Llama al servicio, que debería estar optimizado
     return EventoSolicitudService.obtener_mis_solicitudes(db, current_user.id_usuario)
 
 

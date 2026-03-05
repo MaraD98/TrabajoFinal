@@ -75,6 +75,10 @@ export default function InicioPage() {
     const [mensajeResultado, setMensajeResultado] = useState("");
     const [mostrarFiltros, setMostrarFiltros] = useState(false);
 
+    // ✅ NUEVO: ESTADOS PARA PAGINACIÓN
+    const [paginaActual, setPaginaActual] = useState(1);
+    const eventosPorPagina = 12; // Podés cambiarlo a 6 o 12 si preferís
+
 
     const getClaseDificultad = (dificultad?: string) => {
         const dif = dificultad?.toLowerCase() || '';
@@ -108,6 +112,7 @@ export default function InicioPage() {
     // ============================================================================
     const cargarEventos = async () => {
         setLoading(true);
+        setPaginaActual(1);
         try {
             const filtros: FiltrosEventos = {};
             
@@ -169,6 +174,7 @@ export default function InicioPage() {
         setFechaHasta("");
         setTipoSeleccionado(undefined);
         setDificultadSeleccionada(undefined);
+        setPaginaActual(1);
         
         setLoading(true);
 
@@ -232,6 +238,18 @@ export default function InicioPage() {
         const id = evento.id_tipo;
         if (IMAGENES_TIPO[id]) return IMAGENES_TIPO[id];
         return IMAGENES_TIPO.default;
+    };
+
+    // ✅ NUEVO: CÁLCULOS DE PAGINACIÓN (Justo arriba del "if (loading) return...")
+    const indexUltimoEvento = paginaActual * eventosPorPagina;
+    const indexPrimerEvento = indexUltimoEvento - eventosPorPagina;
+    const eventosPaginados = eventos.slice(indexPrimerEvento, indexUltimoEvento);
+    const totalPaginas = Math.ceil(eventos.length / eventosPorPagina);
+
+    const cambiarPagina = (numeroPagina: number) => {
+        setPaginaActual(numeroPagina);
+        // Opcional: scrollear arriba de los eventos suavemente
+        document.getElementById('eventos')?.scrollIntoView({ behavior: 'smooth' });
     };
 
     if (loading) return (
@@ -354,7 +372,7 @@ export default function InicioPage() {
                 )}
 
                 <div className="grid-eventos">
-                    {eventos.map((evento) => {
+                    {eventosPaginados.map((evento) => {
                         const fechaLimpia = evento.fecha_evento;
                         const nombreTipo = evento.nombre_tipo || NOMBRES_TIPO[evento.id_tipo] || "Evento";
                         
@@ -407,7 +425,37 @@ export default function InicioPage() {
                             </article>
                         );
                     })}
-                </div>
+                    </div>
+            {/* 👇 AGREGAR ESTA BOTONERA DE PAGINACIÓN ABAJO DE LA GRILLA 👇 */}
+                {totalPaginas > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '40px', paddingBottom: '20px' }}>
+                        <button 
+                            disabled={paginaActual === 1}
+                            onClick={() => cambiarPagina(paginaActual - 1)}
+                            style={{ padding: '8px 16px', background: paginaActual === 1 ? '#333' : '#222', color: paginaActual === 1 ? '#666' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: paginaActual === 1 ? 'not-allowed' : 'pointer' }}
+                        >
+                            Anterior
+                        </button>
+                        
+                        {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(numero => (
+                            <button
+                                key={numero}
+                                onClick={() => cambiarPagina(numero)}
+                                style={{ padding: '8px 16px', background: paginaActual === numero ? '#ccff00' : '#222', color: paginaActual === numero ? '#000' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: 'pointer', fontWeight: paginaActual === numero ? 'bold' : 'normal' }}
+                            >
+                                {numero}
+                            </button>
+                        ))}
+
+                        <button 
+                            disabled={paginaActual === totalPaginas}
+                            onClick={() => cambiarPagina(paginaActual + 1)}
+                            style={{ padding: '8px 16px', background: paginaActual === totalPaginas ? '#333' : '#222', color: paginaActual === totalPaginas ? '#666' : '#fff', border: '1px solid #444', borderRadius: '5px', cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer' }}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                )}
             </section>
 
             <Footer />

@@ -127,12 +127,7 @@ def obtener_bajas_pendientes(db: Session) -> List[dict]:
 # CONSULTAS - HISTORIAL DE ELIMINACIONES
 # ============================================================================
 def obtener_historial_eliminaciones(db: Session) -> List[dict]:
-    """
-    Obtiene todos los eventos del historial:
-    - Estado 4: Finalizados (fecha pasada)
-    - Estado 5: Cancelados (Soft Delete)
-    - Estado 6: Depurados (Hard Delete Lógico)
-    """
+    # 1. Traemos todo lo cancelado/depurado con sus usuarios en un solo JOIN
     query_con_eliminacion = (
         db.query(EliminacionEvento, Evento, Usuario)
         .join(Evento, EliminacionEvento.id_evento == Evento.id_evento)
@@ -142,9 +137,11 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
         .all()
     )
     
-    from datetime import date
+    # 2. Traemos los finalizados con su usuario ya incluido (JOIN) 
+    # 🚀 EVITAMOS EL N+1
     eventos_finalizados = (
-        db.query(Evento)
+        db.query(Evento, Usuario)
+        .outerjoin(Usuario, Evento.id_usuario == Usuario.id_usuario) # Join para traer el email
         .outerjoin(EliminacionEvento, Evento.id_evento == EliminacionEvento.id_evento)
         .filter(
             Evento.id_estado == ID_ESTADO_FINALIZADO,
@@ -156,35 +153,27 @@ def obtener_historial_eliminaciones(db: Session) -> List[dict]:
     
     resultados = []
     
-    # ✅ FIX: strftime solo con fecha, sin hora
+    # Procesar eliminados (ya optimizado)
     for elim, evento, usuario in query_con_eliminacion:
-        if evento.id_estado == ID_ESTADO_CANCELADO:
-            tipo_elim = "soft_delete"
-            estado_texto = "Eliminado"
-        elif evento.id_estado == ID_ESTADO_DEPURADO:
-            tipo_elim = "hard_delete"
-            estado_texto = "Eliminado Definitivo"
-        else:
-            tipo_elim = "otro"
-            estado_texto = f"Estado {evento.id_estado}"
+        estado_texto = "Eliminado" if evento.id_estado == ID_ESTADO_CANCELADO else "Eliminado Definitivo"
+        tipo_elim = "soft_delete" if evento.id_estado == ID_ESTADO_CANCELADO else "hard_delete"
         
         resultados.append({
             'id_evento': evento.id_evento,
             'nombre_evento': evento.nombre_evento,
-            'fecha_eliminacion': elim.fecha_eliminacion.strftime("%d-%m-%Y"),  # ✅ sin hora
+            'fecha_eliminacion': elim.fecha_eliminacion.strftime("%d-%m-%Y"),
             'motivo': elim.motivo_eliminacion,
             'estado': estado_texto,
             'eliminado_por': usuario.email if usuario else "Sistema",
             'tipo_eliminacion': tipo_elim
         })
     
-    for evento in eventos_finalizados:
-        usuario_evento = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
-        
+    # Procesar finalizados (AHORA SIN CONSULTAS DENTRO DEL FOR)
+    for evento, usuario_evento in eventos_finalizados:
         resultados.append({
             'id_evento': evento.id_evento,
             'nombre_evento': evento.nombre_evento,
-            'fecha_eliminacion': evento.fecha_evento.strftime("%d-%m-%Y"),  # ✅ sin hora
+            'fecha_eliminacion': evento.fecha_evento.strftime("%d-%m-%Y"),
             'motivo': 'Evento finalizado automáticamente (fecha pasada)',
             'estado': 'Finalizado',
             'eliminado_por': usuario_evento.email if usuario_evento else "Sistema",
