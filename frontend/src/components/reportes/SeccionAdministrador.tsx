@@ -202,7 +202,7 @@ const datosGrafico = (mesesOrdenados || [])
                       </th>
                       
                       <th onClick={() => handleOrdenarMaster('pertenencia', 'eventos')} style={{ cursor: "pointer", userSelect: "none" }}>
-                        Pertenencia {ordenEventos.columna === 'pertenencia' ? (ordenEventos.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
+                        Origen {ordenEventos.columna === 'pertenencia' ? (ordenEventos.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
                       </th>
                       
                       <th onClick={() => handleOrdenarMaster('costo_participacion', 'eventos')} style={{ textAlign: "center", cursor: "pointer", userSelect: "none" }}>
@@ -267,7 +267,7 @@ const datosGrafico = (mesesOrdenados || [])
                           <td style={{ fontWeight: "bold" }}>{evt.nombre}</td>
                           <td>
                             <span className="badge-tipo" style={{ 
-                              backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#4b5563",
+                              backgroundColor: evt.pertenencia === "Propio" ? "#8b5cf6" : "#f59e0b",
                               padding: "2px 8px",
                               borderRadius: "4px",
                               fontSize: "0.8rem"
@@ -578,7 +578,7 @@ const datosGrafico = (mesesOrdenados || [])
                                             backgroundColor: evento.pertenencia === "Propio" 
                                               ? "rgba(139, 92, 246, 0.2)" 
                                               : "rgba(75, 85, 99, 0.2)",
-                                            color: evento.pertenencia === "Propio" ? "#a78bfa" : "#9ca3af", 
+                                            color: evento.pertenencia === "Propio" ? "#a78bfa" : "#f59e0b", 
                                             padding: "6px 12px", 
                                             borderRadius: "4px",
                                             fontSize: "0.80rem", 
