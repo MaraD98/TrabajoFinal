@@ -273,88 +273,105 @@ class ReporteService:
         }
 
     @staticmethod
-    def reportes_supervisor(db: Session, id_usuario: int, anio: int = None, mes: int = None):
+    def reportes_supervisor(db: Session, id_usuario: int, anio: int = None, mes: int = None, fecha_inicio: str = None, fecha_fin: str = None):
         filtros = []
+        
+        # Filtros viejos (por si se siguen usando)
         if anio:
             filtros.append(func.extract("year", Evento.fecha_evento) == anio)
         if mes:
             filtros.append(func.extract("month", Evento.fecha_evento) == mes)
+            
+        # Filtros de fecha exacta (Le agregamos horas para que tome el día completo)
+        if fecha_inicio:
+            filtros.append(Evento.fecha_evento >= f"{fecha_inicio} 00:00:00")
+        if fecha_fin:
+            filtros.append(Evento.fecha_evento <= f"{fecha_fin} 23:59:59")
 
-        # ── 1. Análisis Organizadores Top 10 (con más detalles) ──
-        reservas_confirmadas_sq = (
+        # ── MAPA DE RESERVAS EN MEMORIA ──
+        # Traemos todas las reservas de un saque y las metemos en un diccionario súper rápido
+        reservas_agrupadas = (
             db.query(
                 ReservaEvento.id_evento,
-                func.count(ReservaEvento.id_reserva).label("cant_confirmadas")
+                func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("confirmadas"),
+                func.sum(case((ReservaEvento.id_estado_reserva == 1, 1), else_=0)).label("pendientes")
             )
-            .filter(ReservaEvento.id_estado_reserva == 2)
             .group_by(ReservaEvento.id_evento)
-            .subquery()
+            .all()
         )
+        
+        reservas_dict = {
+            r.id_evento: {
+                "confirmadas": int(r.confirmadas or 0), 
+                "pendientes": int(r.pendientes or 0)
+            } 
+            for r in reservas_agrupadas
+        }
 
-        top_organizadores_query = (
+        # ── 1. Análisis Organizadores Top 10 ──
+        # Traemos solo los eventos y armamos los totales en Python (instantáneo)
+        eventos_org = (
             db.query(
-                Usuario.id_usuario,
-                Usuario.nombre_y_apellido,
-                Usuario.email,
-                Rol.nombre_rol,
-                func.count(Evento.id_evento).label("total_eventos"),
-                func.count(case((Evento.id_estado == 3, 1))).label("activos"),
-                func.count(case((Evento.id_estado == 4, 1))).label("finalizados"),
-                func.sum(
-                    func.coalesce(reservas_confirmadas_sq.c.cant_confirmadas, 0) * func.coalesce(Evento.costo_participacion, 0)
-                ).label("recaudacion_total")
+                Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol,
+                Evento.id_evento, Evento.id_estado, Evento.costo_participacion
             )
             .join(Evento, Evento.id_usuario == Usuario.id_usuario)
             .join(Rol, Usuario.id_rol == Rol.id_rol)
-            .outerjoin(reservas_confirmadas_sq, Evento.id_evento == reservas_confirmadas_sq.c.id_evento)
             .filter(Evento.id_estado.in_([3, 4, 5]))
             .filter(*filtros)
-            .group_by(Usuario.id_usuario, Usuario.nombre_y_apellido, Usuario.email, Rol.nombre_rol)
-            .order_by(text("recaudacion_total DESC"))
             .all()
         )
 
-        analisis_organizadores = [
-            {
-                "id_usuario": row.id_usuario,
-                "organizador": row.nombre_y_apellido,
-                "email": row.email,
-                "rol": row.nombre_rol,
-                "total_eventos": row.total_eventos,
-                "activos": row.activos,
-                "finalizados": row.finalizados,
-                "recaudacion_total": float(row.recaudacion_total or 0)
-            }
-            for row in top_organizadores_query
-        ]
+        org_dict = {}
+        for row in eventos_org:
+            uid = row.id_usuario
+            if uid not in org_dict:
+                org_dict[uid] = {
+                    "id_usuario": uid, "organizador": row.nombre_y_apellido,
+                    "email": row.email, "rol": row.nombre_rol,
+                    "total_eventos": 0, "activos": 0, "finalizados": 0, "recaudacion_total": 0.0
+                }
+            
+            org_dict[uid]["total_eventos"] += 1
+            if row.id_estado == 3:
+                org_dict[uid]["activos"] += 1
+            elif row.id_estado == 4:
+                org_dict[uid]["finalizados"] += 1
+                
+            # Buscamos en el diccionario sin pegarle a la base de datos
+            confirmadas = reservas_dict.get(row.id_evento, {}).get("confirmadas", 0)
+            org_dict[uid]["recaudacion_total"] += (confirmadas * float(row.costo_participacion or 0))
 
-        # ── 2. Top Eventos por Tasa de Ocupación (Se mantiene igual) ──
-        ocupacion_query = (
+        analisis_organizadores = list(org_dict.values())
+        analisis_organizadores.sort(key=lambda x: x["recaudacion_total"], reverse=True)
+
+
+        # ── 2. Top Eventos por Tasa de Ocupación ──
+        eventos_ocupacion = (
             db.query(
-                Evento.id_evento,
-                Evento.nombre_evento,
-                Evento.fecha_evento,
-                Evento.cupo_maximo,
-                Evento.costo_participacion,
-                func.sum(case((ReservaEvento.id_estado_reserva == 2, 1), else_=0)).label("inscriptos_pagos"),
-                func.sum(case((ReservaEvento.id_estado_reserva == 1, 1), else_=0)).label("reservados_no_pagos")
+                Evento.id_evento, Evento.nombre_evento, Evento.fecha_evento,
+                Evento.cupo_maximo, Evento.costo_participacion,
+                Usuario.id_rol # <-- ACÁ ESTABA EL ERROR, NECESITAMOS EL ROL PARA SABER SI ES PROPIO/EXTERNO
             )
-            .outerjoin(ReservaEvento, Evento.id_evento == ReservaEvento.id_evento)
+            .join(Usuario, Evento.id_usuario == Usuario.id_usuario)
             .filter(Evento.cupo_maximo > 0)
             .filter(Evento.id_estado.in_([3, 4]))
             .filter(*filtros)
-            .group_by(Evento.id_evento, Evento.fecha_evento)
             .all()
         )
 
         top_ocupacion = []
-        for row in ocupacion_query:
-            inscriptos = int(row.inscriptos_pagos or 0)
-            reservados = int(row.reservados_no_pagos or 0)
+        for row in eventos_ocupacion:
+            stats = reservas_dict.get(row.id_evento, {"confirmadas": 0, "pendientes": 0})
+            inscriptos = stats["confirmadas"]
+            reservados = stats["pendientes"]
             total_ocupado = inscriptos + reservados
             cupo = int(row.cupo_maximo)
             tasa = (total_ocupado / cupo * 100) if cupo > 0 else 0
             
+            # ✅ ACÁ LE MANDAMOS LA PERTENENCIA AL FRONTEND PARA QUE PUEDA FILTRAR
+            pertenencia = "Propio" if row.id_rol in [1, 2] else "Externo"
+
             top_ocupacion.append({
                 "id_evento": row.id_evento,
                 "nombre_evento": row.nombre_evento,
@@ -364,7 +381,8 @@ class ReporteService:
                 "reservados_no_pagos": reservados,
                 "total_ocupado": total_ocupado,
                 "tasa_ocupacion": round(tasa, 2),
-                "es_pago": float(row.costo_participacion or 0) > 0
+                "es_pago": float(row.costo_participacion or 0) > 0,
+                "pertenencia": pertenencia 
             })
         
         top_ocupacion.sort(key=lambda x: x["tasa_ocupacion"], reverse=True)
@@ -398,7 +416,7 @@ class ReporteService:
                 "pertenencia": row.pertenencia
             })
 
-        # Mantenemos las solicitudes externas
+        # ── 4. Solicitudes Externas ──
         resultados_solicitudes = (
             db.query(EstadoSolicitud.nombre, func.count(SolicitudPublicacion.id_solicitud))
             .join(SolicitudPublicacion, EstadoSolicitud.id_estado_solicitud == SolicitudPublicacion.id_estado_solicitud)

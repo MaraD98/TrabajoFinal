@@ -317,18 +317,34 @@ export default function ReportesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingAuth]);
 
-  // ── Acciones ──────────────────────────────────────────────────────────────
-  const cargarReportes = async (tokenParam?: string) => {
+  // Dispara cargarReportes automáticamente cada vez que el usuario cambia la fecha
+  useEffect(() => {
+    const token = getToken();
+    if (token && !loadingAuth) {
+      // El 'true' significa "hacelo de fondo, no me pongas la pantalla de carga"
+      cargarReportes(token, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechaInicio, fechaFin]);
+  
+ // ── Acciones ──────────────────────────────────────────────────────────────
+  const cargarReportes = async (tokenParam?: string, esFiltro: boolean = false) => {
     try {
-      setLoading(true); setError(null);
+      // Solo ponemos la pantalla de carga si NO es un filtro
+      if (!esFiltro) setLoading(true); 
+      setError(null);
+
       const token = tokenParam || getToken();
       if (!token) { setError("No se encontró una sesión activa."); return; }
-      const data = await getReporteGeneral(token, undefined, undefined);
+      
+      const data = await getReporteGeneral(token, fechaInicio || undefined, fechaFin || undefined);
+      
       setReporteData(data);
     } catch (err: any) {
       setError(err?.response?.status === 401 ? "Sesión expirada. Iniciá sesión nuevamente." : "Error al cargar reportes.");
     } finally {
-      setLoading(false);
+      // Apagamos el loading solo si lo habíamos prendido
+      if (!esFiltro) setLoading(false); 
     }
   };
 
@@ -444,7 +460,7 @@ export default function ReportesPage() {
                 formatter={(value: any, name: any) => {
                   const numValue = Number(value);
                   const porcentaje = total > 0 ? ((numValue / total) * 100).toFixed(1) : 0;
-                  return [`${numValue} inscriptos (${porcentaje}%)`, name];
+                  return [`${numValue} ${tituloModal.toLowerCase()} (${porcentaje}%)`, name];
                 }}
                 contentStyle={{ backgroundColor: "#1e1e1e", borderColor: "#444", borderRadius: "8px", color: "#fff" }}
                 itemStyle={{ color: "#fff", fontWeight: "bold" }}
@@ -865,6 +881,7 @@ export default function ReportesPage() {
                 filtroOcupacion={filtroOcupacion}
                 setFiltroOcupacion={setFiltroOcupacion}         
                 organizadoresFiltrados={sortedOrganizadores} 
+                filtroPertenencia={filtroPertenencia}
                 
             />
         )}
