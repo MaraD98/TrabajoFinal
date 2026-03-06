@@ -26,7 +26,6 @@ export const NotificacionesBadge = () => {
   const cargarNotificaciones = async () => {
     try {
       const data = await getMisNotificaciones();
-      console.log("NOTIFICACIONES FRONTEND:", data);
       
       const ultimas = data
         .sort((a, b) => parsearFechaBackend(b.fecha_creacion).getTime() - parsearFechaBackend(a.fecha_creacion).getTime())

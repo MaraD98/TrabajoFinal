@@ -112,14 +112,14 @@ class SolicitudPublicacionResponse(BaseModel):
 
 # ============== Revisión admin ==============
 class RevisionSolicitud(BaseModel):
-    id_estado_solicitud: int = Field(..., ge=1, le=3)
+    id_estado_solicitud: int = Field(..., ge=1, le=4)
     observaciones_admin: Optional[str] = Field(None, max_length=1000)
 
     @field_validator('id_estado_solicitud')
     @classmethod
     def validar_estado(cls, v):
-        if v not in [1, 2, 3]:
-            raise ValueError(f'Estado debe ser 1, 2 o 3')
+        if v not in [1, 2, 3, 4]: 
+            raise ValueError('Estado debe ser 1, 2, 3 o 4')
         return v
 
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo} from 'react';
 import { TarjetasMetricas } from '../modals/reportesModal/TarjetasMetricas';
 import { 
   BarChart, 
@@ -120,7 +120,9 @@ const aplicarFiltrosEventos = (listaEventos: any[]) => {
   const eventosBase = reporteData?.lista_eventos_detallada || reporteData?.lista_eventos || [];
   
   // 2. La pasamos por tus filtros de fecha y pertenencia
-  const eventosFiltradosParaGraficos = aplicarFiltrosEventos(eventosBase);
+const eventosFiltradosParaGraficos = useMemo(() => {
+  return aplicarFiltrosEventos(eventosBase);
+}, [eventosBase, filtroPertenencia, fechaInicio, fechaFin, filtroTipoTendencias]);
 
   // 3. Contamos los Tipos dinámicamente
   const datosGraficoTipoDinámico = eventosFiltradosParaGraficos.reduce((acc, evento) => {
@@ -141,24 +143,23 @@ const aplicarFiltrosEventos = (listaEventos: any[]) => {
   }, []);
 
 // 2. SEGUNDO: El gráfico usa la función que ya está creada arriba
-const datosGrafico = (mesesOrdenados || [])
-  .map((mesStr: string) => {
-    const [mes, anio] = mesStr.split('/').map((num: any) => parseInt(num));
-    
-    // Obtenemos los usuarios y LOS FILTRAMOS ACÁ
-    const listaUsuariosMes = usuariosPorMes[mesStr]?.usuarios || [];
-    const listaFiltrada = aplicarFiltrosUsuarios(listaUsuariosMes);
+const datosGrafico = useMemo(() => {
+  return (mesesOrdenados || [])
+    .map((mesStr: string) => {
+      const listaUsuariosMes = usuariosPorMes[mesStr]?.usuarios || [];
+      const listaFiltrada = aplicarFiltrosUsuarios(listaUsuariosMes);
+      const [mes, anio] = mesStr.split('/').map((num: any) => parseInt(num));
+      return {
+        name: mesStr, 
+        cantidad: listaFiltrada.length, 
+        originalName: mesStr,
+        sortValue: (anio * 12) + mes 
+      };
+    })
+    .sort((a: any, b: any) => a.sortValue - b.sortValue);
+}, [mesesOrdenados, usuariosPorMes, filtroPertenencia, fechaInicio, fechaFin]);
 
-    return {
-      name: mesStr, 
-      cantidad: listaFiltrada.length, 
-      originalName: mesStr,
-      sortValue: (anio * 12) + mes 
-    };
-  })
-  .sort((a: any, b: any) => a.sortValue - b.sortValue);
-
-  // ══════════════════════════════════════════════════
+// ══════════════════════════════════════════════════
 // CÁLCULOS DE MÉTRICAS CON FILTROS APLICADOS
 // ══════════════════════════════════════════════════
 
@@ -170,26 +171,37 @@ const limpiarMonto = (valor: any): number => {
 };
 
 // Filtramos eventos detalle por fecha y pertenencia
-const eventosDetalleFiltrados = (eventosDetalle || []).filter((ev: any) => {
-  const esPropio = ev.pertenencia === "Propio";
-  const pasaPertenencia =
-    !filtroPertenencia ||
-    filtroPertenencia === "todos" ||
-    (filtroPertenencia === "propios" && esPropio) ||
-    (filtroPertenencia === "externos" && !esPropio);
+  const eventosDetalleFiltrados = useMemo(() => {
+    return (eventosDetalle || []).filter((ev: any) => {
+      // 1. Filtro de Pertenencia
+      const esPropio = ev.pertenencia === "Propio";
+      const pasaPertenencia =
+        !filtroPertenencia ||
+        filtroPertenencia === "todos" ||
+        (filtroPertenencia === "propios" && esPropio) ||
+        (filtroPertenencia === "externos" && !esPropio);
 
-  let pasaFechaInicio = true;
-  let pasaFechaFin = true;
-  if (ev.fecha_evento) {
-    const fechaISO = ev.fecha_evento.includes('/')
-      ? (() => { const [d, m, a] = ev.fecha_evento.split('/'); return `${a}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; })()
-      : ev.fecha_evento;
-    if (fechaInicio && fechaISO < fechaInicio) pasaFechaInicio = false;
-    if (fechaFin && fechaISO > fechaFin) pasaFechaFin = false;
-  }
+      // 2. Filtro de Fechas (Aquí es donde se definen las variables que faltaban)
+      let pasaFechaInicio = true;
+      let pasaFechaFin = true;
+      
+      if (ev.fecha_evento) {
+        // Convertimos la fecha del evento a ISO para comparar
+        const fechaISO = ev.fecha_evento.includes('/')
+          ? (() => { 
+              const [d, m, a] = ev.fecha_evento.split('/'); 
+              return `${a}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`; 
+            })()
+          : ev.fecha_evento;
 
-  return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
-});
+        if (fechaInicio && fechaISO < fechaInicio) pasaFechaInicio = false;
+        if (fechaFin && fechaISO > fechaFin) pasaFechaFin = false;
+      }
+
+      // Retornamos la combinación de todos los filtros
+      return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+    });
+  }, [eventosDetalle, filtroPertenencia, fechaInicio, fechaFin]);
 
 // Métricas de Eventos filtradas
 const totalEventosGlobalFiltrado = eventosDetalleFiltrados.length;
@@ -222,6 +234,52 @@ const cupoTotalFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc
 const promedioParticipantesFiltrado = ocupacionFiltrada.length > 0 ? Math.round(totalConfirmadasFiltrado / ocupacionFiltrada.length) : 0;
 const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltrado / cupoTotalFiltrado) * 100).toFixed(1) : "0";
 
+// 1. MEMOIZAMOS EL RANKING TOP 10
+const top10FiltradoYOrdenado = useMemo(() => {
+  if (!reporteData?.top_10_recaudacion) return [];
+  
+  return reporteData.top_10_recaudacion
+    .filter((evt: any) => {
+      const pertenenciaNormalizada = evt.pertenencia?.toLowerCase();
+      const filtroNormalizado = filtroPertenencia?.toLowerCase().replace(/s$/, "");
+      const pasaPertenencia = !filtroPertenencia || filtroPertenencia === "todos" || pertenenciaNormalizada === filtroNormalizado;
+      
+      const pasaFechaInicio = !fechaInicio || evt.fecha_evento >= fechaInicio;
+      const pasaFechaFin = !fechaFin || evt.fecha_evento <= fechaFin;
+      return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
+    })
+    .sort((a: any, b: any) => {
+      let valorA = a[ordenEventos.columna];
+      let valorB = b[ordenEventos.columna];
+      if (typeof valorA === 'string') {
+        return ordenEventos.direccion === 'asc' ? valorA.localeCompare(valorB) : valorB.localeCompare(valorA);
+      }
+      return ordenEventos.direccion === 'asc' ? valorA - valorB : valorB - valorA;
+    });
+}, [reporteData?.top_10_recaudacion, filtroPertenencia, fechaInicio, fechaFin, ordenEventos]);
+
+// 2. MEMOIZAMOS LA DISTRIBUCIÓN GEOGRÁFICA (Esto era lo más pesado)
+const distribucionGeograficaFiltrada = useMemo(() => {
+  if (!reporteData?.tendencias_ubicacion_completa) return [];
+
+  return reporteData.tendencias_ubicacion_completa.map((prov: any) => {
+    // Filtramos las localidades primero
+    const localidadesFiltradas = (prov.localidades || []).map((loc: any) => {
+      const eventosLocFiltrados = aplicarFiltrosEventos(loc.eventos || []);
+      return { ...loc, eventosFiltrados: eventosLocFiltrados };
+    }).filter((loc: any) => loc.eventosFiltrados.length > 0); // Quitamos localidades vacías
+
+    // Calculamos el total de la provincia
+    const totalProvinciaFiltrado = localidadesFiltradas.reduce((acc: number, loc: any) => acc + loc.eventosFiltrados.length, 0);
+
+    return {
+      ...prov,
+      localidadesFiltradas,
+      totalFiltrado: totalProvinciaFiltrado
+    };
+  }).filter((prov: any) => prov.totalFiltrado > 0); // Quitamos provincias sin eventos
+}, [reporteData?.tendencias_ubicacion_completa, filtroPertenencia, fechaInicio, fechaFin, filtroTipoTendencias]);
+
   return (
     <div className="seccion-administrador-container">
 
@@ -235,22 +293,12 @@ const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltra
             <div className="grafico-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3>🏆 Ranking de eventos por recaudación</h3>
               <span style={{ fontSize: '0.9rem', color: '#94a3b8', backgroundColor: '#334155', padding: '4px 12px', borderRadius: '20px' }}>
-                {/* Filtramos la lista antes de contar el length */}
-                  Mostrando {
-                      reporteData?.top_10_recaudacion?.filter((evt: any) => {
-                          const pertenenciaNormalizada = evt.pertenencia?.toLowerCase();
-                          const filtroNormalizado = filtroPertenencia?.toLowerCase().replace(/s$/, "");
-                          const pasaPertenencia = !filtroPertenencia || filtroPertenencia === "todos" || pertenenciaNormalizada === filtroNormalizado;
-                          const pasaFechaInicio = !fechaInicio || evt.fecha_evento >= fechaInicio;
-                          const pasaFechaFin = !fechaFin || evt.fecha_evento <= fechaFin;
-                          return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
-                      }).length || 0
-                  } eventos
+                {/* 👇 AQUÍ REEMPLAZAMOS EL CHOCLO DE CÓDIGO POR LA VARIABLE MEMOIZADA 👇 */}
+                Mostrando {top10FiltradoYOrdenado.length} eventos
               </span>
             </div>
             
             <div className="grafico-card__body">
-              {/* Mantenemos el maxHeight para que tenga scroll interno si son muchos */}
               <div style={{ maxHeight: "600px", overflowY: "auto", overflowX: "auto", border: "1px solid #334155", borderRadius: "8px" }}>
                 <table className="tabla-reportes-custom">
                   <thead style={{ position: "sticky", top: 0, backgroundColor: "#1e293b", zIndex: 10 }}>
@@ -281,45 +329,13 @@ const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltra
                     </tr>
                   </thead>
                   <tbody>
-                    {(reporteData?.top_10_recaudacion || [])
-                        .filter((evt: any) => {
-                          // 1. Lógica de Pertenencia
-                          // Normalizamos a minúsculas y quitamos la 's' final para comparar "propio" con "propios"
-                          const pertenenciaNormalizada = evt.pertenencia?.toLowerCase(); // "propio" o "externo"
-                          const filtroNormalizado = filtroPertenencia?.toLowerCase().replace(/s$/, ""); // "todos", "propio", "externo"
-
-                          const pasaPertenencia = 
-                            !filtroPertenencia || 
-                            filtroPertenencia === "todos" || 
-                            pertenenciaNormalizada === filtroNormalizado;
-
-                          // 2. Lógica de Fechas
-                          // evt.fecha_evento viene del back como "YYYY-MM-DD" (según tu servicio Python)
-                          // fechaInicio viene del input como "YYYY-MM-DD"
-                          const fechaEvt = evt.fecha_evento; // String "2024-05-20"
-                          
-                          const pasaFechaInicio = !fechaInicio || fechaEvt >= fechaInicio;
-                          const pasaFechaFin = !fechaFin || fechaEvt <= fechaFin;
-
-                          // Retornamos la combinación de todos los filtros
-                          return pasaPertenencia && pasaFechaInicio && pasaFechaFin;
-                        })
-                      .sort((a: any, b: any) => {
-                        let valorA = a[ordenEventos.columna];
-                        let valorB = b[ordenEventos.columna];
-                        if (typeof valorA === 'string') {
-                          return ordenEventos.direccion === 'asc' 
-                            ? valorA.localeCompare(valorB) 
-                            : valorB.localeCompare(valorA);
-                        }
-                        return ordenEventos.direccion === 'asc' ? valorA - valorB : valorB - valorA;
-                      })
-                      .map((evt: any, index: number) => (
+                    {/* 👇 AQUÍ TAMBIÉN REEMPLAZAMOS TODOS LOS FILTROS POR LA VARIABLE 👇 */}
+                    {top10FiltradoYOrdenado.map((evt: any, index: number) => (
                         <tr key={evt.id} style={{ borderBottom: "1px solid #1e293b" }}>
                           <td style={{ 
                             textAlign: "center", 
                             fontWeight: "900", 
-                            color: index < 3 ? "#fbbf24" : "#94a3b8", // Oro para los primeros 3, gris para el resto
+                            color: index < 3 ? "#fbbf24" : "#94a3b8",
                             fontSize: index < 3 ? "1.2rem" : "1rem" 
                           }}>
                             #{index + 1}
@@ -351,7 +367,6 @@ const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltra
                                   titulo: "Todos los Tipos", 
                                   filtroKey: "tipo", 
                                   valor: "TODOS",
-                                  // 👇 LE INYECTAMOS LA DATA YA FILTRADA AL ESTADO DEL MODAL 👇
                                   dataFiltrada: eventosFiltradosParaGraficos 
                                 })} 
                                 className="btn-export" 
@@ -367,14 +382,14 @@ const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltra
               </div>
             </div>
 
-            {/* Mensaje de estado vacío */}
-            {(!reporteData?.top_10_recaudacion || reporteData.top_10_recaudacion.length === 0) && (
+            {/* 👇 USAMOS LA VARIABLE PARA VER SI ESTÁ VACÍO 👇 */}
+            {top10FiltradoYOrdenado.length === 0 && (
                 <div style={{ textAlign: "center", padding: "40px", color: "#94a3b8" }}>
-                    No hay datos de recaudación disponibles.
+                    No hay datos de recaudación disponibles para estos filtros.
                 </div>
             )}
           </div>
-
+ 
          {/* ═════════════════════════════════════════════════════════════════════
             DISTRIBUCIÓN GEOGRÁFICA CON PROVINCIAS Y LOCALIDADES
           ═════════════════════════════════════════════════════════════════════ */}

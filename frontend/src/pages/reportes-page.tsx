@@ -546,7 +546,6 @@ export default function ReportesPage() {
   }
   // 💰 CÁLCULOS FINANCIEROS GLOBALES (Ingresos Netos)
   const eventosDetalle = reporteData?.lista_eventos_detallada || [];
-  console.log("Primer evento:", eventosDetalle[0]);
   // Función para limpiar montos (por si viene "$16.000")
   const limpiarMonto = (valor: any): number => {
     if (typeof valor === 'number') return valor;
