@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status, HTTPException
+from fastapi import APIRouter, Depends, Query, status, HTTPException, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -90,14 +90,15 @@ def revisar_alta(
     id_solicitud: int,
     revision: RevisionSolicitud,
     db: Session = Depends(get_db),
-    admin: Usuario = Depends(require_admin)
+    admin: Usuario = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     - Si Estado=3 (Aprobar): Publica el evento visible para todos.
     - Si Estado=4 (Rechazar): Devuelve a borrador o marca rechazado.
     """
     if revision.id_estado_solicitud == 3:
-        return EventoSolicitudService.aprobar_solicitud_y_publicar(db, id_solicitud, admin.id_usuario)
+        return EventoSolicitudService.aprobar_solicitud_y_publicar(db, id_solicitud, admin.id_usuario, background_tasks)
     else:
         return Solicitud_PublicacionCRUD.actualizar_estado_solicitud(db, id_solicitud, revision)
 
@@ -140,7 +141,8 @@ def ver_pendientes_baja(db: Session = Depends(get_db), admin: Usuario = Depends(
 def aprobar_baja_por_evento(
     id_evento: int, 
     db: Session = Depends(get_db), 
-    admin: Usuario = Depends(require_admin)
+    admin: Usuario = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     ✅ Aprueba la baja de un evento usando su ID directamente.
@@ -149,7 +151,9 @@ def aprobar_baja_por_evento(
     return EliminacionService.aprobar_baja(
         db=db, 
         id_evento=id_evento, 
-        id_admin=admin.id_usuario
+        id_admin=admin.id_usuario,
+        background_tasks=background_tasks
+        
     )
 
 
@@ -160,13 +164,14 @@ def aprobar_baja_por_evento(
 def rechazar_baja_por_evento(
     id_evento: int,
     db: Session = Depends(get_db),
-    admin: Usuario = Depends(require_admin)
+    admin: Usuario = Depends(require_admin),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     """
     ✅ Rechaza la baja usando el ID del evento directamente.
     El evento vuelve a estado 3 (Publicado).
     """
-    return EliminacionService.rechazar_baja(db=db, id_evento=id_evento)
+    return EliminacionService.rechazar_baja(db=db, id_evento=id_evento, background_tasks=background_tasks)
 
 
 # ============================================================================

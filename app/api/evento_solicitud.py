@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, Query, Request
+from fastapi import APIRouter, Depends, status, Query, Request, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
@@ -56,7 +56,8 @@ async def crear_solicitud_evento(
     request: Request,
     enviar: bool = Query(True, description="True: Enviar para revisión | False: Guardar borrador"),
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     body = await request.json()
 
@@ -84,7 +85,8 @@ async def crear_solicitud_evento(
         solicitud=solicitud,
         id_usuario=current_user.id_usuario,
         id_rol=current_user.id_rol,
-        enviar=enviar
+        enviar=enviar,
+        background_tasks=background_tasks
     )
 
 
@@ -102,7 +104,8 @@ async def actualizar_solicitud_evento(
     request: Request,
     enviar: bool = Query(False),
     db: Session = Depends(get_db),
-    current_user: Usuario = Depends(get_current_user)
+    current_user: Usuario = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     body = await request.json()
 
@@ -142,7 +145,8 @@ async def actualizar_solicitud_evento(
             resultado = EventoSolicitudService._auto_aprobar_solicitud(
                 db=db,
                 solicitud=solicitud_db,
-                id_admin=current_user.id_usuario
+                id_admin=current_user.id_usuario,
+                background_tasks=background_tasks
             )
 
     return resultado

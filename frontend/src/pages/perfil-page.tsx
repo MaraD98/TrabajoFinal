@@ -142,6 +142,48 @@ export default function PerfilPage() {
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
 
+    const fetchInscripciones = async () => {
+    const token = getToken();
+    setIsLoading(true); // Empezamos a cargar
+        try {
+            const response = await axios.get(`${apiUrl}/me/inscripciones`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setInscripciones(response.data);
+        } catch (err) {
+            console.error("Error cargando inscripciones:", err);
+        } finally {
+            setIsLoading(false); // Terminamos de cargar (sea éxito o error)
+        }
+    };
+
+    // 2. EL EFECTO PARA CAPTURAR EL PAGO (Ponelo acá)
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const status = params.get('status');
+        const paymentId = params.get('payment_id') || params.get('collection_id');
+
+        if (status === 'approved') {
+            const displayId = paymentId ? `ID: ${paymentId}` : "Exitoso";
+            setSuccessMsg(`¡Pago aprobado! (${displayId}). Tu inscripción está confirmada.`);
+            // Limpiamos la URL para que no quede el mensaje si recarga
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+            
+            // Refrescamos las inscripciones para que aparezca "Confirmada"
+            if (typeof fetchInscripciones === 'function') {
+                fetchInscripciones();
+            }
+        } else if (status === 'pending') {
+            setError("El pago está en proceso. Te avisaremos cuando se acredite.");
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+        } else if (status === 'failure') {
+            setError("El pago fue rechazado. Por favor, intenta nuevamente.");
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+        }
+    }, [location]);
+
+
+
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
@@ -189,20 +231,7 @@ useEffect(() => {
     cargarDatosIniciales();
 }, [apiUrl, getToken, navigate]);
 
-    const fetchInscripciones = async () => {
-    const token = getToken();
-    setIsLoading(true); // Empezamos a cargar
-        try {
-            const response = await axios.get(`${apiUrl}/me/inscripciones`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setInscripciones(response.data);
-        } catch (err) {
-            console.error("Error cargando inscripciones:", err);
-        } finally {
-            setIsLoading(false); // Terminamos de cargar (sea éxito o error)
-        }
-    };
+    
 
     const handleSaveDatos = async () => {
         const token = getToken();
@@ -318,23 +347,32 @@ useEffect(() => {
 
     const handlePagar = async (ins: Inscripcion) => {
     const token = getToken();
+    
+    // 1. Verificamos en consola qué valores trae realmente 'ins'
+    console.log("Datos de la inscripción al pagar:", ins);
+
+    // 2. Preparamos el envío asegurando que el precio no sea null
+    const payload = {
+        id_reserva: Number(ins.id_reserva),
+        nombre_evento: String(ins.nombre_evento),
+        // Usamos monto, si es null usamos costo, si no 0
+        precio: Number(ins.monto || ins.costo || 0) 
+    };
+
     try {
-        // Llamamos al backend para crear la preferencia de Mercado Pago
-        const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, {
-            id_reserva: ins.id_reserva,
-            nombre_evento: ins.nombre_evento,
-            precio: ins.monto
-        }, {
+        const response = await axios.post(`${apiUrl}/pagos/crear_preferencia`, payload, {
             headers: { Authorization: `Bearer ${token}` }
         });
 
-        // Mercado Pago nos devuelve una URL (init_point) para pagar
         if (response.data.init_point) {
             window.location.href = response.data.init_point;
         }
     } catch (err: any) {
-        console.error("Error al iniciar el pago:", err);
-        setError("No se pudo iniciar el proceso de pago. Intenta más tarde.");
+        if (err.response?.status === 422) {
+            console.error("Detalle del error 422:", err.response.data.detail);
+            alert("Error de datos: El servidor no recibió un precio válido.");
+        }
+        setError("Error al conectar con Mercado Pago.");
     }
 };
 

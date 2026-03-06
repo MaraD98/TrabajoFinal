@@ -1,12 +1,13 @@
 from sqlalchemy.orm import Session, joinedload
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, BackgroundTasks
 from app.db.crud import inscripcion_crud, registro_crud
 from app.models.inscripcion_models import ReservaEvento
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.inscripcion_models import ReservaEvento as Inscripcion
-from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva
-from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento
+from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva, enviar_correo_pago_confirmado
+from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento, enviar_whatsapp_pago_confirmado
+from app.db.crud.notificacion_crud import NotificacionCRUD
 
 class InscripcionService:
 
@@ -110,7 +111,7 @@ class InscripcionService:
         return datos_formateados
 
     @staticmethod
-    def crear_inscripcion(db: Session, id_evento: int, usuario_actual, background_tasks):
+    def crear_inscripcion(db: Session, id_evento: int, usuario_actual: Usuario, background_tasks):
         evento = registro_crud.get_evento_by_id(db, id_evento)
         if not evento:
             raise HTTPException(status_code=404, detail="El evento no existe.")
@@ -145,26 +146,34 @@ class InscripcionService:
             id_usuario=usuario_actual.id_usuario,
             id_estado=id_estado_inicial
         )
+        
+        # ✅ NUEVO: Notificación interna Navbar
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=usuario_actual.id_usuario,
+            id_estado_solicitud=None,
+            mensaje=f"🚲 {mensaje} para el evento '{evento.nombre_evento}'."
+        )
 
         # MANDAMOS EL MAIL EN SEGUNDO PLANO
         background_tasks.add_task(
             enviar_correo_reserva,
-            enviar_correo_cancelacion_reserva,
             email_destino=usuario_actual.email,
             nombre_usuario=usuario_actual.nombre_y_apellido,
             evento=evento.nombre_evento,
-            fecha=f"{evento.fecha_evento}. {mensaje}"
+            fecha=f"{evento.fecha_evento}",
+            precio=costo
         )
 
         # MANDAMOS EL WHATSAPP EN SEGUNDO PLANO (SOLO SI EL USUARIO TIENE TELÉFONO)
         if hasattr(usuario_actual, 'telefono') and usuario_actual.telefono:
             background_tasks.add_task(
                 enviar_whatsapp_reserva,
-                enviar_whatsapp_cancelacion_evento,
                 telefono=usuario_actual.telefono,
                 nombre_usuario=usuario_actual.nombre_y_apellido,
                 evento=evento.nombre_evento,
-                fecha=str(evento.fecha_evento)
+                fecha=str(evento.fecha_evento),
+                precio=costo
             )
 
         return {
@@ -175,15 +184,70 @@ class InscripcionService:
         }
 
     @staticmethod
-    def confirmar_pago_manual(db: Session, id_reserva: int, usuario_actual):
+    def confirmar_pago_manual(db: Session, id_reserva: int, usuario_actual: Usuario, background_tasks: BackgroundTasks):
+        # 1. Validamos permisos del ADMIN (el que está operando)
         if usuario_actual.id_rol not in [1, 2]:
              raise HTTPException(status_code=403, detail="No tienes permisos para confirmar pagos.")
-        reserva = inscripcion_crud.get_reserva_por_id(db, id_reserva)
+        
+        # 2. Buscamos la reserva cargando Usuario, Evento Y CONTACTO (donde está el teléfono)
+        reserva = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.evento),
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto) # <-- Join anidado a Contacto
+        ).filter(ReservaEvento.id_reserva == id_reserva).first()
+
         if not reserva:
             raise HTTPException(status_code=404, detail="Reserva no encontrada.")
+        
         if reserva.id_estado_reserva == 2:
              raise HTTPException(status_code=400, detail="Esta reserva ya está confirmada.")
+        
+        # 3. Confirmamos el pago
         reserva_act = inscripcion_crud.confirmar_reserva_pago(db, reserva)
+
+        # ✅ NOTIFICACIÓN INTERNA (NAVBAR)
+        nombre_evento = reserva.evento.nombre_evento if reserva.evento else "el evento"
+        
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=reserva.id_usuario, 
+            id_estado_solicitud=None,
+            mensaje=f"✅ ¡Pago confirmado! Tu inscripción para '{nombre_evento}' ya es oficial."
+        )
+
+        db.commit() 
+        
+        # 4. ✅ MAIL: Usamos los datos cargados en el paso 2
+        if reserva.usuario and reserva.usuario.email:
+            background_tasks.add_task(
+                enviar_correo_pago_confirmado,
+                email_destino=reserva.usuario.email,
+                nombre_usuario=reserva.usuario.nombre_y_apellido,
+                evento=nombre_evento,
+                fecha=f"{reserva.evento.fecha_evento}. ¡Tu pago ha sido acreditado con éxito!"
+            )
+
+        # 5. ✅ WHATSAPP: Buscamos el teléfono en la tabla Contacto
+        telefono_destino = None
+        if reserva.usuario and reserva.usuario.contacto:
+            # Si contacto es una lista, tomamos el primero. Si es objeto único, directo.
+            contacto = reserva.usuario.contacto
+            if isinstance(contacto, list) and len(contacto) > 0:
+                telefono_destino = contacto[0].telefono
+            else:
+                telefono_destino = getattr(contacto, 'telefono', None)
+
+        if telefono_destino:
+            print(f"DEBUG: Enviando WhatsApp al teléfono de la tabla Contacto: {telefono_destino}")
+            background_tasks.add_task(
+                enviar_whatsapp_pago_confirmado,
+                telefono=str(telefono_destino),
+                nombre_usuario=reserva.usuario.nombre_y_apellido,
+                evento=nombre_evento,
+                fecha=str(reserva.evento.fecha_evento)
+            )
+        else:
+            print(f"DEBUG: No se pudo enviar WhatsApp. El usuario ID {reserva.id_usuario} no tiene teléfono en la tabla Contacto.")
+
         return {
             "mensaje": "Pago registrado. Inscripción confirmada.",
             "id_reserva": reserva_act.id_reserva,
@@ -193,20 +257,67 @@ class InscripcionService:
     # En app/services/inscripcion_services.py
 
     @staticmethod
-    def confirmar_pago_automatico(db: Session, id_reserva: int):
-        # 1. Buscamos la reserva
-        reserva = db.query(ReservaEvento).filter(ReservaEvento.id_reserva == id_reserva).first()
+    def confirmar_pago_automatico(db: Session, id_reserva: int, background_tasks: BackgroundTasks):
+        # 1. Buscamos la reserva cargando Evento, Usuario y su Contacto (para el teléfono)
+        reserva = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.evento),
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(ReservaEvento.id_reserva == id_reserva).first()
+
         if not reserva:
             return None
         
-        # 2. Cambiamos el estado a 2 (que suele ser 'Pagado' o 'Confirmado')
-        # Fijate en tu tabla EstadoReserva qué ID tiene 'Pagado'
+        # Evitamos procesar si ya está confirmada
+        if reserva.id_estado_reserva == 2:
+            return reserva
+        
+        # 2. Cambiamos el estado a Confirmado (ID 2)
         reserva.id_estado_reserva = 2 
+        
+        # ✅ Notificación interna Navbar
+        nombre_evento = reserva.evento.nombre_evento if reserva.evento else "el evento"
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=reserva.id_usuario,
+            id_estado_solicitud=None,
+            mensaje=f"💳 ¡Pago acreditado! Ya estás confirmado en '{nombre_evento}'."
+        )
         
         db.commit()
         db.refresh(reserva)
-        return reserva
+        
+        # 3. Notificaciones externas
+        if reserva.usuario:
+            # Mail
+            if reserva.usuario.email:
+                background_tasks.add_task(
+                    enviar_correo_pago_confirmado,
+                    email_destino=reserva.usuario.email,
+                    nombre_usuario=reserva.usuario.nombre_y_apellido,
+                    evento=nombre_evento,
+                    fecha=f"{reserva.evento.fecha_evento}. Pago automático exitoso."
+                )
+            
+            # WhatsApp (Buscando teléfono en tabla Contacto)
+            telefono_destino = None
+            if reserva.usuario.contacto:
+                contacto = reserva.usuario.contacto
+                if isinstance(contacto, list) and len(contacto) > 0:
+                    telefono_destino = contacto[0].telefono
+                else:
+                    telefono_destino = getattr(contacto, 'telefono', None)
 
+            if telefono_destino:
+                background_tasks.add_task(
+                    enviar_whatsapp_pago_confirmado,
+                    telefono=str(telefono_destino),
+                    nombre_usuario=reserva.usuario.nombre_y_apellido,
+                    evento=nombre_evento,
+                    fecha=str(reserva.evento.fecha_evento)
+                )
+                
+        return reserva
+    
     @staticmethod
     def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual, background_tasks):
         # 1. Buscamos la inscripción
@@ -226,6 +337,15 @@ class InscripcionService:
         # 3. 🔥 CAMBIO CLAVE: NO BORRAMOS, ACTUALIZAMOS EL ESTADO
         # Según tus ifs de arriba, el ID 3 es "Cancelada"
         inscripcion.id_estado_reserva = 3 
+        
+        # ✅ NUEVO: Notificación interna Navbar
+        NotificacionCRUD.create_notificacion(
+            db=db,
+            id_usuario=inscripcion.id_usuario,
+            id_estado_solicitud=None,
+            mensaje=f"🚫 Tu inscripción para '{nom_e}' ha sido cancelada exitosamente."
+        )
+        
         db.commit() # Guardamos el cambio de estado
 
         # 4. MANDAMOS NOTIFICACIONES EN SEGUNDO PLANO
@@ -241,7 +361,7 @@ class InscripcionService:
                 enviar_whatsapp_cancelacion_evento,
                 telefono=usuario_actual.telefono,
                 nombre_evento=nom_e,
-                motivo="Cancelación realizada exitosamente."
+                motivo="Cancelación por parte del usuario."
             )
         
         return {"message": "Inscripción cancelada exitosamente (Soft Delete)"}

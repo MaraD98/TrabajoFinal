@@ -3,11 +3,18 @@ from fastapi import HTTPException
 from datetime import date
 
 from app.db.crud import eliminacion_crud
+from app.db.crud.notificacion_crud import NotificacionCRUD
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento, ReservaEvento
-from app.models.eliminacion_models import EliminacionEvento  # ✅ IMPORTAR AQUÍ
+from app.models.eliminacion_models import EliminacionEvento  
+from sqlalchemy.orm import Session, joinedload  
 from app.email import enviar_correo_cancelacion_evento
 from app.whatsapp import enviar_whatsapp_cancelacion_evento
+from fastapi import BackgroundTasks
+from app.email import enviar_correo_baja_aprobada, enviar_correo_baja_rechazada
+from app.whatsapp import enviar_whatsapp_baja_aprobada, enviar_whatsapp_baja_rechazada
+from sqlalchemy import text
+
 
 # ============================================================================
 # CONSTANTES
@@ -198,7 +205,7 @@ class EliminacionService:
     # ADMIN: APROBAR SOLICITUD DE BAJA
     # ========================================================================
     @staticmethod
-    def aprobar_baja(db: Session, id_evento: int, id_admin: int) -> dict:
+    def aprobar_baja(db: Session, id_evento: int, id_admin: int, background_tasks: BackgroundTasks) -> dict: # <--- Agregamos background_tasks
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
@@ -207,27 +214,60 @@ class EliminacionService:
         if not eliminacion:
             raise HTTPException(status_code=404, detail="No existe solicitud de baja para este evento.")
 
-        eliminacion.motivo_eliminacion += " | [✅ APROBADO POR ADMIN]"
-        eliminacion.estado_solicitud = 'aprobada'
-        eliminacion_crud.cancelar_evento(db, id_evento)
+        # Buscamos al dueño (organizador) para avisarle
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+
+        # Notificar a los corredores (tu función existente)
         EliminacionService._notificar_inscritos(
             db=db, evento=evento,
             motivo="Solicitud de baja aprobada por el administrador",
-            id_eliminacion=eliminacion.id_eliminacion
+            id_eliminacion=eliminacion.id_eliminacion,
+            background_tasks=background_tasks
         )
+
+        eliminacion.motivo_eliminacion += " | [✅ APROBADO POR ADMIN]"
+        eliminacion.estado_solicitud = 'aprobada'
+        eliminacion_crud.cancelar_evento(db, id_evento)
+        
+        # --- NOTIFICACIÓN INTERNA (NAVBAR) ---
+        if organizador:
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"✅ Tu solicitud de baja para el evento '{evento.nombre_evento}' ha sido aprobada."
+            )
+        
+        
         db.commit()
+
+        # ✅ NUEVO: Notificar al ORGANIZADOR que su baja fue aceptada
+        if organizador and organizador.id_usuario != id_admin:
+            if organizador.email:
+                background_tasks.add_task(
+                    enviar_correo_baja_aprobada,
+                    email_destino=organizador.email,
+                    nombre_usuario=organizador.nombre_y_apellido,
+                    nombre_evento=evento.nombre_evento
+                )
+            
+            # WhatsApp (opcional, siguiendo tu lógica anterior)
+            try:
+                res_tel = db.execute(text("SELECT telefono FROM contacto WHERE id_usuario = :id_u"), {"id_u": organizador.id_usuario}).fetchone()
+                if res_tel and res_tel[0]:
+                    background_tasks.add_task(enviar_whatsapp_baja_aprobada, telefono=res_tel[0], nombre_evento=evento.nombre_evento)
+            except: pass
 
         return {
             "mensaje": "Solicitud de baja aprobada. Evento cancelado y participantes notificados.",
             "id_evento": id_evento,
             "estado_nuevo": "Cancelado"
         }
-
     # ========================================================================
     # ADMIN: RECHAZAR SOLICITUD DE BAJA
     # ========================================================================
     @staticmethod
-    def rechazar_baja(db: Session, id_evento: int) -> dict:
+    def rechazar_baja(db: Session, id_evento: int, background_tasks: BackgroundTasks) -> dict: # <--- Agregamos background_tasks
         evento = db.query(Evento).filter(Evento.id_evento == id_evento).first()
         if not evento:
             raise HTTPException(status_code=404, detail="Evento no encontrado")
@@ -236,8 +276,36 @@ class EliminacionService:
         if not eliminacion:
             raise HTTPException(status_code=404, detail="No existe solicitud de baja para este evento.")
 
+        organizador = db.query(Usuario).filter(Usuario.id_usuario == evento.id_usuario).first()
+
         eliminacion_crud.rechazar_registro_eliminacion(db, id_evento)
+        
+        # --- NOTIFICACIÓN INTERNA (NAVBAR) ---
+        if organizador:
+            NotificacionCRUD.create_notificacion(
+                db=db,
+                id_usuario=organizador.id_usuario,
+                id_estado_solicitud=None,
+                mensaje=f"❌ Tu solicitud de baja para el evento '{evento.nombre_evento}' fue rechazada por la administración."
+            )
+        
         db.commit()
+
+        # ✅ NUEVO: Notificar al ORGANIZADOR que su pedido de baja fue RECHAZADO
+        if organizador:
+            if organizador.email:
+                background_tasks.add_task(
+                    enviar_correo_baja_rechazada,
+                    email_destino=organizador.email,
+                    nombre_usuario=organizador.nombre_y_apellido,
+                    nombre_evento=evento.nombre_evento
+                )
+            # WhatsApp Rechazo
+            try:
+                res_tel = db.execute(text("SELECT telefono FROM contacto WHERE id_usuario = :id_u"), {"id_u": organizador.id_usuario}).fetchone()
+                if res_tel and res_tel[0]:
+                    background_tasks.add_task(enviar_whatsapp_baja_rechazada, telefono=res_tel[0], nombre_evento=evento.nombre_evento)
+            except: pass
 
         return {
             "mensaje": "Solicitud de baja rechazada. El evento continúa publicado.",
@@ -319,16 +387,17 @@ class EliminacionService:
         db: Session,
         evento: Evento,
         motivo: str,
-        id_eliminacion: int
+        id_eliminacion: int,
+        background_tasks: BackgroundTasks 
     ) -> None:
         """
         Notifica a todos los inscritos que el evento fue cancelado.
-        Corrección: Busca el teléfono en la tabla 'contacto' mediante SQL directo.
+        Usa background_tasks para no bloquear el servidor.
         """
-        from sqlalchemy import text # Importar para la query manual
-
-        # 1. Buscamos las reservas ACTIVAS (Pendientes 1 y Confirmadas 2)
-        reservas = db.query(ReservaEvento).filter(
+        # 1. Buscamos las reservas ACTIVAS cargando Usuario y Contacto de una vez
+        reservas = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(
             ReservaEvento.id_evento == evento.id_evento,
             ReservaEvento.id_estado_reserva.in_([1, 2])
         ).all()
@@ -337,127 +406,62 @@ class EliminacionService:
             print(f"[INFO] Evento '{evento.nombre_evento}' no tiene inscripciones activas.")
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
             return
-        
-        # ✅ FIX: CANCELAR LAS RESERVAS ANTES DE NOTIFICAR
-        for reserva in reservas:
-            reserva.id_estado_reserva = 3  # Cancelada
-        db.flush()
-        # -----------------------------------------------
-        
+
         print(f"\n{'='*70}")
         print(f"[NOTIFICACIONES] Procesando {len(reservas)} participantes...")
         print(f"{'='*70}")
         
-        count = 0
         for reserva in reservas:
             participante = reserva.usuario 
             if not participante:
                 continue
 
-            # --- A. ENVÍO DE EMAIL ---
-            if participante.email:
-                try:
-                    enviar_correo_cancelacion_evento(
-                        email_destino=participante.email,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    print(f"  ✉️  Email enviado a: {participante.email}")
-                except Exception as e:
-                    print(f"  ❌ Error Email a {participante.email}: {e}")
-
-            # --- B. ENVÍO DE WHATSAPP (CORREGIDO) ---
+            # A. CAMBIAR ESTADO A CANCELADA (3)
+            reserva.id_estado_reserva = 3
+            
+            # B. NOTIFICACIÓN INTERNA (NAVBAR)
             try:
-                # Buscamos el tel directamente en la tabla contacto
-                query_tel = text("SELECT telefono FROM contacto WHERE id_usuario = :id_u")
-                res_tel = db.execute(query_tel, {"id_u": reserva.id_usuario}).fetchone()
-                tel_real = res_tel[0] if res_tel else None
-
-                if tel_real:
-                    enviar_whatsapp_cancelacion_evento(
-                        telefono=tel_real,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    print(f"  📱 WhatsApp enviado a: {tel_real}")
-                else:
-                    print(f"  ⚠️ Sin teléfono en tabla 'contacto' para usuario {reserva.id_usuario}")
+                NotificacionCRUD.create_notificacion(
+                    db=db,
+                    id_usuario=participante.id_usuario,
+                    id_estado_solicitud=None,
+                    mensaje=f"📢 IMPORTANTE: El evento '{evento.nombre_evento}' ha sido cancelado. Motivo: {motivo}."
+                )
             except Exception as e:
-                print(f"  ❌ Error WhatsApp para usuario {reserva.id_usuario}: {e}")
+                print(f"  ⚠️ Error notificación interna usuario {participante.id_usuario}: {e}")
 
-            count += 1
-            print(f"  {'-'*60}")
-        
-        # Marcar como notificado en la BD
+            # C. ENVÍO DE EMAIL (Vía Background Task)
+            if participante.email:
+                background_tasks.add_task(
+                    enviar_correo_cancelacion_evento,
+                    email_destino=participante.email,
+                    nombre_evento=evento.nombre_evento,
+                    motivo=motivo
+                )
+                print(f"  ✉️  Email encolado para: {participante.email}")
+
+            # D. ENVÍO DE WHATSAPP (Vía Background Task usando la relación)
+            if participante.contacto and participante.contacto.telefono:
+                tel_real = participante.contacto.telefono
+                background_tasks.add_task(
+                    enviar_whatsapp_cancelacion_evento,
+                    telefono=str(tel_real),
+                    nombre_evento=evento.nombre_evento,
+                    motivo=motivo
+                )
+                print(f"  📱 WhatsApp encolado para: {tel_real}")
+            else:
+                print(f"  ⚠️ Usuario {participante.id_usuario} sin teléfono en tabla contacto.")
+
+        # Guardamos cambios de estado y marcamos como notificado
+        db.flush() 
         try:
             eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
+            print(f"[✅ OK] Proceso de notificación completado.")
         except Exception as e:
             print(f"⚠️ Error al marcar notificación como enviada: {e}")
 
-        print(f"{'='*70}")
-        print(f"[✅ OK] {count} participantes procesados")
         print(f"{'='*70}\n")
-        
-        # 3. Datos del organizador para el log
-        organizador = db.query(Usuario).filter(
-            Usuario.id_usuario == evento.id_usuario
-        ).first()
-        
-        contacto = organizador.email if organizador else "soporte@wakeupbikes.com"
-
-        count = 0
-        for reserva in reservas:
-
-            participante = reserva.usuario 
-            
-            if participante and participante.email:
-                try:
-                    # --- AQUÍ MANDAMOS EL MAIL REAL ---
-                    # ✅ Se pasa el 'motivo' que cargó el admin o el usuario
-                    enviado = enviar_correo_cancelacion_evento(
-                        email_destino=participante.email,
-                        nombre_evento=evento.nombre_evento,
-                        motivo=motivo
-                    )
-                    
-                    # --- LOGS DE CONSOLA (Mantenemos tus prints) ---
-                    if enviado:
-                        status_envio = "[ENVIADO]"
-                        count += 1
-                    else:
-                        status_envio = "[ERROR EN ENVÍO]"
-                    
-                    print(f"  ✉️  → {participante.email} {status_envio}")
-                    print(f"     📧 Asunto: EVENTO CANCELADO - {evento.nombre_evento}")
-                    print(f"     📝 Motivo: {motivo}")
-                    print(f"     📞 Contacto: {contacto}")
-                    print(f"     {'-'*60}")
-                except Exception as e:
-                    print(f"  ❌ Error enviando mail a {participante.email}: {e}")
-                    
-                    # --- ✅ NUEVO: ENVÍO DE WHATSAPP ---
-                if hasattr(participante, 'telefono') and participante.telefono:
-                    try:
-                        # Llamamos a la función de whatsapp.py
-                        enviar_whatsapp_cancelacion_evento(
-                            telefono=participante.telefono,
-                            nombre_evento=evento.nombre_evento,
-                            motivo=motivo
-                        )
-                        print(f"  📱 WhatsApp enviado a: {participante.telefono}")
-                    except Exception as e:
-                        print(f"  ❌ Error WhatsApp a {participante.telefono}: {e}")
-
-                count += 1
-                print(f"  ✅ Procesado: {participante.email if participante.email else 'Sin Email'}")
-                print(f"  {'-'*60}")
-        
-        # Finalizamos proceso
-        eliminacion_crud.marcar_notificacion_enviada(db, id_eliminacion)
-        print(f"{'='*70}")
-        print(f"[✅ OK] {count} notificaciones (Email/WhatsApp) procesadas")
-        print(f"{'='*70}\n")
-
 
     # ========================================================================
     # CONSULTAS

@@ -296,18 +296,26 @@ export default function CalendarioPage() {
     try {
         await inscribirseEvento(idEventoSeleccionado, token);
         
-        setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
+        // --- Lógica de mensaje inteligente ---
+        const eventoActual = eventos.find(ev => ev.id_evento === idEventoSeleccionado);
+        const esPago = eventoActual && eventoActual.costo_participacion && eventoActual.costo_participacion > 0;
+
+        if (esPago) {
+            setMsgExito(`¡Reserva realizada! Recordá que tenés 72hs para abonar el evento ${nombreEvento}.`);
+        } else {
+            setMsgExito(`¡Inscripción exitosa a ${nombreEvento}!`);
+        }
+        // -------------------------------------
         
         setTimeout(() => {
             setIdEventoSeleccionado(null);
             setMsgExito(null);
             navigate('/perfil?tab=inscripciones');
-        }, 2000);
+        }, 5000); // 5 segundos para que alcancen a leer si es pago
 
     } catch (error: any) {
         console.error("Error en inscripción:", error);
 
-        // Manejo de errores detallado
         if (error.response) {
             const detalle = error.response.data?.detail || error.response.data?.message;
 

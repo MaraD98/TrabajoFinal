@@ -2,11 +2,11 @@ import os
 from pydantic import BaseModel
 from dotenv import load_dotenv 
 import mercadopago 
-from fastapi import APIRouter, HTTPException, Request, Depends 
+from fastapi import APIRouter, HTTPException, Request, Depends, BackgroundTasks # <--- Agregado BackgroundTasks
 from fastapi.responses import RedirectResponse 
 from sqlalchemy.orm import Session 
 
-# DB y Servicios (Ajustamos a tus rutas reales)
+# DB y Servicios
 from app.db.database import get_db
 from app.services.inscripcion_services import InscripcionService
 
@@ -20,6 +20,9 @@ class PagoRequest(BaseModel):
     id_reserva: int
     nombre_evento: str
     precio: float
+
+    class Config:
+        coerce_numbers_to_str = True
 
 @router.post("/crear_preferencia")
 async def crear_preferencia(datos: PagoRequest):
@@ -58,13 +61,14 @@ async def crear_preferencia(datos: PagoRequest):
         raise HTTPException(status_code=500, detail=str(e))
     
 # ==========================================
-# 🚀 EL RECIBIDOR (ESTO ES LO QUE TE FALTABA)
+# 🚀 EL RECIBIDOR (CORREGIDO)
 # ==========================================
 @router.get("/confirmar_pago")
 async def confirmar_pago(
     request: Request,
+    background_tasks: BackgroundTasks, # <--- Inyectamos BackgroundTasks aquí
     status: str = None,
-    external_reference: str = None, # Tu id_reserva
+    external_reference: str = None, 
     payment_id: str = None,
     db: Session = Depends(get_db)
 ):
@@ -76,10 +80,11 @@ async def confirmar_pago(
         try:
             id_reserva_int = int(external_reference)
             
-            # 🚀 USAMOS LA NUEVA FUNCIÓN AUTOMÁTICA QUE NO PIDE USUARIO
+            # 🚀 LLAMAMOS AL SERVICE PASANDO LAS BACKGROUND TASKS
             InscripcionService.confirmar_pago_automatico(
                 db=db, 
-                id_reserva=id_reserva_int
+                id_reserva=id_reserva_int,
+                background_tasks=background_tasks # <--- Importante para los avisos
             )
             print(f"✅ Pago automático impactado en DB para reserva: {id_reserva_int}")
             
