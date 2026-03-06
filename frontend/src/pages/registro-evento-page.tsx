@@ -672,32 +672,44 @@ export default function CreateEventPage() {
 
           <div className="event-registration__map-wrapper">
             <div className="map-card">
+
+              {/* ✅ MODIFICADO: header achicado — solo el título */}
               <div className="map-card__header">
-                <h3 className="map-card__title">Ubicación y Ruta
+                <h3 className="map-card__title">📍 Ubicación y Ruta</h3>
+              </div>
+
+              {/* ✅ NUEVO: controles separados del header (subtítulo + botones + distancia) */}
+              <div className="map-card__controls">
+                <div className="map-card__controls-top">
+                  {/* ✅ Botón sutil de ayuda */}
                   <button 
                     type="button" 
                     onClick={() => setMostrarAyudaMapa(true)}
-                    style={{ background: '#c30404', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    className="map-card__btn-help"
                   >
                     💡 Ver ejemplo
                   </button>
-                </h3>
-                <p className="map-card__subtitle">Haz clic para marcar el inicio. Sigue haciendo clic para trazar la ruta.</p>
-                
+                  <p className="map-card__instructions">
+                    Haz clic para marcar el inicio. Sigue haciendo clic para trazar la ruta.
+                  </p>
+                  <button 
+                    type="button" 
+                    onClick={limpiarMapa}
+                    className="map-card__btn-clear"
+                  >
+                    🗑️ Limpiar Mapa y Ruta
+                  </button>
+                </div>
+
+                {/* ✅ Cartelito de Distancia y Tiempo — naranja igual que solicitud-evento */}
                 {formData.distancia_km !== null && (
-                  <div style={{ marginTop: '12px', padding: '10px', backgroundColor: '#e8f4fd', borderRadius: '8px', borderLeft: '4px solid #4a9eff', color: '#333', fontWeight: 'bold' }}>
-                    🚴‍♂️ Distancia Total: {formData.distancia_km} km - ⏱️ Tiempo Estimado: {formData.tiempo_estimado}
+                  <div className="map-card__distance-info">
+                    🚴‍♂️ Distancia Total: <strong>{formData.distancia_km} km</strong> &nbsp;—&nbsp;
+                    ⏱️ Tiempo Estimado: <strong>{formData.tiempo_estimado}</strong>
                   </div>
                 )}
-
-                <button 
-                  type="button" 
-                  onClick={limpiarMapa} 
-                  style={{ marginTop: '12px', padding: '8px 16px', cursor: 'pointer', background: 'rgb(195 4 4)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: '600', width: '100%' }}
-                >
-                  🗑️ Limpiar Mapa y Ruta
-                </button>
               </div>
+
               <div id="map" className="map-card__map"></div>
             </div>
           </div>
@@ -706,11 +718,11 @@ export default function CreateEventPage() {
 
       {/* ✅ MODAL DE AYUDA DEL MAPA */}
       {mostrarAyudaMapa && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', overflow: 'auto', padding: '20px' }}>
           <div style={{ backgroundColor: '#1a1a1a', padding: '30px', borderRadius: '12px', maxWidth: '500px', width: '100%', position: 'relative', border: '1px solid #333' }}>
             <button 
               onClick={() => setMostrarAyudaMapa(false)} 
-              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' }}
+              style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer', marginTop: 'auto', marginBottom: 'auto' }}
             >
               ✖
             </button>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet-routing-machine";
+import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
 
 interface Evento {
     id_evento: number;
@@ -59,7 +61,10 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
         cupo_maximo: 0,
         descripcion: '',
         lat: null as number | null,
-        lng: null as number | null
+        lng: null as number | null,
+        distancia_km: null as number | null,
+        tiempo_estimado: '',
+        ruta_coordenadas: null as { lat: number; lng: number }[] | null,
     });
 
     const [tipos, setTipos] = useState<Catalogo[]>([]);
@@ -69,8 +74,8 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
     const [isSearching, setIsSearching] = useState(false);
     const [locationStatus, setLocationStatus] = useState<"idle" | "found" | "not-found">("idle");
     const mapRef = useRef<L.Map | null>(null);
-    const markerRef = useRef<L.Marker | null>(null);
     const searchTimeoutRef = useRef<number | null>(null);
+    const routingControlRef = useRef<any>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -136,13 +141,17 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             cupo_maximo: item.cupo_maximo || 0,
             descripcion: item.descripcion || '',
             lat: item.lat || null,
-            lng: item.lng || null
+            lng: item.lng || null,
+            distancia_km: null,
+            tiempo_estimado: '',
+            ruta_coordenadas: null,
         });
     };
 
     const initMap = () => {
         if (mapRef.current) {
             mapRef.current.remove();
+            mapRef.current = null;
         }
 
         const lat = formData.lat || -31.4135;
@@ -154,7 +163,7 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             zoomControl: true,
             scrollWheelZoom: true,
         });
-        
+
         mapRef.current = map;
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -162,45 +171,78 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
             maxZoom: 19,
         }).addTo(map);
 
-        if (formData.lat && formData.lng) {
-            const customIcon = L.divIcon({
-                className: "custom-marker",
-                html: '<div class="marker-pin"></div>',
-                iconSize: [30, 42],
-                iconAnchor: [15, 42],
-            });
-            
-            markerRef.current = L.marker([formData.lat, formData.lng], { icon: customIcon }).addTo(map);
-        }
+        const routingControl = (L as any).Routing.control({
+            waypoints: formData.lat && formData.lng
+                ? [L.latLng(formData.lat, formData.lng)]
+                : [],
+            routeWhileDragging: true,
+            show: false,
+            fitSelectedRoutes: false,
+            lineOptions: {
+                styles: [{ color: '#2563eb', opacity: 0.8, weight: 6 }]
+            },
+            router: (L as any).Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            createMarker: function(_i: number, waypoint: any) {
+                const customIcon = L.divIcon({
+                    className: "custom-marker",
+                    html: '<div class="marker-pin"></div>',
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 42],
+                });
+                return L.marker(waypoint.latLng, { icon: customIcon, draggable: true });
+            }
+        }).addTo(map);
 
+        routingControlRef.current = routingControl;
+
+        // Cuando se calcula una ruta, guardamos distancia y tiempo
+        routingControl.on('routesfound', (e: any) => {
+            const summary = e.routes[0].summary;
+            const distanceKm = parseFloat((summary.totalDistance / 1000).toFixed(2));
+            const totalSeconds = summary.totalTime;
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const tiempoFormateado = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+            const coords = e.routes[0].coordinates;
+
+            setFormData(prev => ({
+                ...prev,
+                distancia_km: distanceKm,
+                tiempo_estimado: tiempoFormateado,
+                ruta_coordenadas: coords
+            }));
+        });
+
+        // Click en el mapa: primer clic = ubicación, siguientes = waypoints
         map.on("click", async (e: L.LeafletMouseEvent) => {
             const { lat, lng } = e.latlng;
-            setFormData((prev) => ({ ...prev, lat, lng }));
-            
-            if (markerRef.current) markerRef.current.remove();
-            
-            const customIcon = L.divIcon({
-                className: "custom-marker",
-                html: '<div class="marker-pin"></div>',
-                iconSize: [30, 42],
-                iconAnchor: [15, 42],
-            });
-            
-            markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(map);
-            
-            try {
-                const res = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
-                    { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
-                );
-                const data = await res.json();
-                if (data && data.display_name) {
-                    setFormData((prev) => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
-                    setLocationStatus("found");
+
+            const currentWaypoints = routingControlRef.current
+                .getWaypoints()
+                .filter((wp: any) => wp && wp.latLng)
+                .map((wp: any) => wp.latLng);
+
+            if (currentWaypoints.length === 0) {
+                setFormData(prev => ({ ...prev, lat, lng }));
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`,
+                        { headers: { "User-Agent": "EventRegistrationApp/1.0" } }
+                    );
+                    const data = await res.json();
+                    if (data?.display_name) {
+                        setFormData(prev => ({ ...prev, ubicacion: data.display_name.substring(0, 150) }));
+                        setLocationStatus("found");
+                    }
+                } catch (err) {
+                    console.error("Error obteniendo dirección:", err);
                 }
-            } catch (err) {
-                console.error("Error obteniendo dirección:", err);
             }
+
+            currentWaypoints.push(L.latLng(lat, lng));
+            routingControlRef.current.setWaypoints(currentWaypoints);
         });
     };
 
@@ -233,27 +275,20 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                     const lng = parseFloat(data[0].lon);
                     setFormData((prev) => ({ ...prev, lat, lng }));
                     setLocationStatus("found");
-                    
+
                     if (mapRef.current) {
                         mapRef.current.setView([lat, lng], 16);
-                        
-                        if (markerRef.current) markerRef.current.remove();
-                        
-                        const customIcon = L.divIcon({
-                            className: "custom-marker",
-                            html: '<div class="marker-pin"></div>',
-                            iconSize: [30, 42],
-                            iconAnchor: [15, 42],
-                        });
-                        
-                        markerRef.current = L.marker([lat, lng], { icon: customIcon }).addTo(mapRef.current);
+                        // Usamos el routing en vez del marker directo
+                        if (routingControlRef.current) {
+                            routingControlRef.current.setWaypoints([L.latLng(lat, lng)]);
+                        }
                     }
                 } else {
                     setFormData((prev) => ({ ...prev, lat: null, lng: null }));
                     setLocationStatus("not-found");
-                    if (markerRef.current) {
-                        markerRef.current.remove();
-                        markerRef.current = null;
+                    // Limpiamos los waypoints en vez del marker
+                    if (routingControlRef.current) {
+                        routingControlRef.current.setWaypoints([]);
                     }
                 }
             } catch (err) {
@@ -799,11 +834,49 @@ export default function EditEventModal({ isOpen, onClose, item, tipo, onSuccess,
                                 background: '#1a1a1a'
                             }}>
                                 <h3 style={{ margin: 0, color: '#ccff00', fontSize: '1rem', fontWeight: '700' }}>
-                                    📍 Ubicación en el Mapa
+                                    📍 Ubicación y Ruta
                                 </h3>
-                                <p style={{ margin: '4px 0 0 0', color: '#666', fontSize: '0.8rem' }}>
-                                    Haz clic en el mapa para marcar el punto exacto
+                                <p style={{ margin: '4px 0 8px 0', color: '#666', fontSize: '0.8rem' }}>
+                                    Hacé clic para marcar el inicio. Seguí haciendo clic para trazar la ruta.
                                 </p>
+
+                                {formData.distancia_km !== null && (
+                                    <div style={{ marginBottom: '8px', padding: '8px 12px', backgroundColor: '#0f2a1a', borderRadius: '6px', borderLeft: '3px solid #4a9eff', color: '#ccc', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                                        🚴‍♂️ {formData.distancia_km} km — ⏱️ {formData.tiempo_estimado}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (routingControlRef.current) {
+                                            routingControlRef.current.setWaypoints([]);
+                                        }
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            lat: null,
+                                            lng: null,
+                                            distancia_km: null,
+                                            ruta_coordenadas: null,
+                                            ubicacion: '',
+                                            tiempo_estimado: ''
+                                        }));
+                                        setLocationStatus("idle");
+                                    }}
+                                    style={{ 
+                                        padding: '6px 14px', 
+                                        background: '#c30404', 
+                                        color: 'white', 
+                                        border: 'none', 
+                                        borderRadius: '6px', 
+                                        fontWeight: '600', 
+                                        cursor: 'pointer',
+                                        fontSize: '0.8rem',
+                                        width: '100%'
+                                    }}
+                                >
+                                    🗑️ Limpiar Mapa y Ruta
+                                </button>
                             </div>
                             <div id="edit-event-map" style={{ height: 'calc(100% - 70px)', minHeight: '430px' }}></div>
                         </div>

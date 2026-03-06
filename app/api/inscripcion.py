@@ -111,7 +111,8 @@ def inscribirse_evento(
 def confirmar_pago(
     id_reserva: int,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
     # VALIDACIÓN DE ROL: Si no es 1 (Admin) ni 2 (Supervisor), lo echamos.
     if current_user.id_rol not in [1, 2]:
@@ -123,7 +124,8 @@ def confirmar_pago(
     return InscripcionService.confirmar_pago_manual(
         db=db, 
         id_reserva=id_reserva, 
-        usuario_actual=current_user
+        usuario_actual=current_user,
+        background_tasks=background_tasks
     )
 
 # ============ CANCELAR INSCRIPCIÓN (Usuario o Admin) ============

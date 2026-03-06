@@ -9,7 +9,7 @@ const CATEGORIAS_EVENTOS = [
     id: 'ruta',
     titulo: 'Ciclismo de Ruta',
     icono: '🚴‍♂️',
-    descripcion: 'Velocidad pura sobre asfalto. Desde critériums explosivos hasta Gran Fondos de más de 100km. Ideal para estrategas y rodadores.',
+    descripcion: 'Velocidad pura sobre asfalto. Desde circuitos de velocidad de corta distancia hasta Gran Fondos de más de 100km. Ideal para estrategas y rodadores.',
     color: '#E74C3C' // Rojo intenso
   },
   {
