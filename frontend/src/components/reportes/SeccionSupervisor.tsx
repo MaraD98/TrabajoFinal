@@ -1,6 +1,6 @@
 import { ModalTermometro } from "../modals/reportesModal/ModalTermometro";
 import { ModalPerfilOrganizador } from '../modals/reportesModal/ModalPerfilOrganizador';
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
     ResponsiveContainer,
     BarChart,
@@ -54,76 +54,81 @@ export function SeccionSupervisor({
     filtroOcupacion,
     setFiltroOcupacion
 }: SeccionSupervisorProps) {
-    // 👇 . APLICAMOS EL FILTRO EXACTO DE TU COMPAÑERA 👇
-    let eventosFiltrados = [...(evtSist || [])];
+    // 👇 1. EVENTOS FILTRADOS MEMORIZADOS 👇
+  const eventosFiltrados = useMemo(() => {
+      let filtrados = [...(evtSist || [])];
 
-    if (fechaInicio) {
-        eventosFiltrados = eventosFiltrados.filter((e: any) => new Date(e.fecha_evento) >= new Date(fechaInicio));
-    }
-    if (fechaFin) {
-        eventosFiltrados = eventosFiltrados.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
-    }
+      if (fechaInicio) {
+          filtrados = filtrados.filter((e: any) => new Date(e.fecha_evento) >= new Date(fechaInicio));
+      }
+      if (fechaFin) {
+          filtrados = filtrados.filter((e: any) => new Date(e.fecha_evento) <= new Date(fechaFin));
+      }
+      if (filtroPertenencia && filtroPertenencia !== "todos") {
+          filtrados = filtrados.filter((e: any) => {
+              if (filtroPertenencia === "propios") return e.pertenencia === "Propio";
+              if (filtroPertenencia === "externos") return e.pertenencia === "Externo";
+              return true;
+          });
+      }
+      return filtrados;
+  }, [evtSist, fechaInicio, fechaFin, filtroPertenencia]);
 
-    // 🔥 . ACÁ SUMAMOS TU FILTRO DE PERTENENCIA 🔥
-    if (filtroPertenencia && filtroPertenencia !== "todos") {
-        eventosFiltrados = eventosFiltrados.filter((e: any) => {
-            if (filtroPertenencia === "propios") return e.pertenencia === "Propio";
-            if (filtroPertenencia === "externos") return e.pertenencia === "Externo";
-            return true;
-        });
-    }
+  const orgsParaMostrar = useMemo(() => {
+      let orgs = [...(organizadoresFiltrados || [])];
+      
+      if (filtroPertenencia && filtroPertenencia !== "todos") {
+          orgs = orgs.filter((org: any) => {
+              const esExterno = org.rol === "Organización Externa" || org.rol === "Cliente";
+              if (filtroPertenencia === "propios") return !esExterno;
+              if (filtroPertenencia === "externos") return esExterno;
+              return true;
+          });
+      }
+      return orgs;
+  }, [organizadoresFiltrados, filtroPertenencia]);
 
-    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A LOS ORGANIZADORES 👇
-    // Usamos organizadoresFiltrados porque el padre ya nos manda la lista ordenada acá
-    let orgsParaMostrar = [...(organizadoresFiltrados || [])];
+    const ocupacionParaMostrar = useMemo(() => {
+      let ocupacion = [...(ocupacionFiltrada || [])];
 
-    if (filtroPertenencia && filtroPertenencia !== "todos") {
-        orgsParaMostrar = orgsParaMostrar.filter((org: any) => {
-            // Roles externos (3 y 4)
-            const esExterno = org.rol === "Organización Externa" || org.rol === "Cliente";
-            
-            if (filtroPertenencia === "propios") return !esExterno; // Deja solo Admin y Supervisor
-            if (filtroPertenencia === "externos") return esExterno;  // Deja solo Org. Externa y Cliente
-            return true;
-        });
-    }
-
-    // 👇 . APLICAMOS EL FILTRO DE PERTENENCIA A TOP OCUPACIÓN 👇
-    let ocupacionParaMostrar = [...(ocupacionFiltrada || [])];
-
-    if (filtroPertenencia && filtroPertenencia !== "todos") {
-        ocupacionParaMostrar = ocupacionParaMostrar.filter((evt: any) => {
-            if (filtroPertenencia === "propios") return evt.pertenencia === "Propio";
-            if (filtroPertenencia === "externos") return evt.pertenencia === "Externo";
-            return true;
-        });
-    }
+      if (filtroPertenencia && filtroPertenencia !== "todos") {
+          ocupacion = ocupacion.filter((evt: any) => {
+              if (filtroPertenencia === "propios") return evt.pertenencia === "Propio";
+              if (filtroPertenencia === "externos") return evt.pertenencia === "Externo";
+              return true;
+          });
+      }
+      return ocupacion;
+  }, [ocupacionFiltrada, filtroPertenencia]);
     
 
     const [organizadorModal, setOrganizadorModal] = useState<any | null>(null);
-    console.log("organizadorModal actual:", organizadorModal);
     const [hoveredBar, setHoveredBar] = useState<string | null>(null);
     const [eventoModal, setEventoModal] = useState<any | null>(null); // Para el Modal Termómetro
-    // 👇 3. CALCULAMOS LOS DATOS DEL GRÁFICO CON LA DATA YA FILTRADA 👇
-    const stats = {
-        Activo: { Propios: 0, Externos: 0, Total: 0 },
-        Finalizado: { Propios: 0, Externos: 0, Total: 0 },
-        Cancelado: { Propios: 0, Externos: 0, Total: 0 }
-    };
+    
+    // 👇 4. DATOS DEL GRÁFICO MEMORIZADOS 👇
+  const barData = useMemo(() => {
+      const stats = {
+          Activo: { Propios: 0, Externos: 0, Total: 0 },
+          Finalizado: { Propios: 0, Externos: 0, Total: 0 },
+          Cancelado: { Propios: 0, Externos: 0, Total: 0 }
+      };
 
-    eventosFiltrados.forEach((e: any) => {
-        if (e.estado && stats[e.estado as keyof typeof stats]) {
-            const tipo = e.pertenencia === "Propio" ? "Propios" : "Externos";
-            stats[e.estado as keyof typeof stats][tipo] += 1;
-            stats[e.estado as keyof typeof stats].Total += 1;
-        }
-    });
+      eventosFiltrados.forEach((e: any) => {
+          if (e.estado && stats[e.estado as keyof typeof stats]) {
+              const tipo = e.pertenencia === "Propio" ? "Propios" : "Externos";
+              stats[e.estado as keyof typeof stats][tipo] += 1;
+              stats[e.estado as keyof typeof stats].Total += 1;
+          }
+      });
 
-    const barData = [
-        { name: 'Activos', Propios: stats.Activo.Propios, Externos: stats.Activo.Externos },
-        { name: 'Finalizados', Propios: stats.Finalizado.Propios, Externos: stats.Finalizado.Externos },
-        { name: 'Cancelados', Propios: stats.Cancelado.Propios, Externos: stats.Cancelado.Externos },
-    ];
+      return [
+          { name: 'Activos', Propios: stats.Activo.Propios, Externos: stats.Activo.Externos },
+          { name: 'Finalizados', Propios: stats.Finalizado.Propios, Externos: stats.Finalizado.Externos },
+          { name: 'Cancelados', Propios: stats.Cancelado.Propios, Externos: stats.Cancelado.Externos },
+      ];
+  }, [eventosFiltrados]);
+
     const CustomTooltip = ({ active, payload, label, hoveredKey }: any) => {
         if (active && payload && payload.length) {
             // Filtramos la data: si está tocando un color específico, mostramos solo ese.
@@ -295,7 +300,6 @@ export function SeccionSupervisor({
                                     <td 
                                         style={{ fontWeight: "bold", cursor: "pointer", color: "#60a5fa", textDecoration: "underline" }}
                                         onClick={() => {
-                                            console.log("Hiciste clic en:", org.organizador);
                                             setOrganizadorModal(org);
                                         }}
                                         title="Ver ficha de rendimiento"
