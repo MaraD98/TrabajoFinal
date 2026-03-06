@@ -57,7 +57,7 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
   const badgeBorder = isInternal ? `rgba(59, 130, 246, 0.3)` : `rgba(245, 158, 11, 0.3)`;
   const badgeColor = isInternal ? colorInternal : colorGold;
   const badgeIcon = isInternal ? "🏠" : "🏢";
-  const badgeText = isInternal ? "Producción Propia" : "Organización Externa";
+  const badgeText = isInternal ? "Empresa (WakeUp)" : "Organización Externa";
 
   const handleSaveNote = () => {
     if (!noteInput.trim()) return;
@@ -175,17 +175,17 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                       <span style={{ fontSize: "14px", marginBottom: "2px" }}>💰</span>
                       <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: colorSuccess }}>${(gananciaPlataforma / 1000).toFixed(1)}k</span>
-                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Histórico Real</span>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Recaudación Total</span>
                   </div>
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                       <span style={{ fontSize: "14px", marginBottom: "2px" }}>📈</span>
                       <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: isInternal ? colorInternal : colorGold }}>${stats.finalizados > 0 ? (gananciaPlataforma / stats.finalizados / 1000).toFixed(1) : 0}k</span>
-                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Promedio Éxito</span>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Ingreso Medio por Evento</span>
                   </div>
                   <div style={{ background: "#12141f", padding: "18px 16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
                       <span style={{ fontSize: "14px", marginBottom: "2px" }}>🎯</span>
                       <span style={{ fontSize: "18px", fontWeight: 800, lineHeight: 1, fontFamily: "'Syne', sans-serif", color: isAlertaRoja ? colorAlert : colorSuccess }}>{tasaExito}%</span>
-                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Tasa Comercial</span>
+                      <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.35)", textAlign: "center", lineHeight: 1.3, textTransform: "uppercase" }}>Tasa de Finalización</span>
                   </div>
               </div>
 
@@ -209,9 +209,9 @@ export function ModalPerfilOrganizador({ organizador, onClose }: ModalPerfilOrga
                 {showGlossary && (
                   <div style={{ padding: "0 28px 16px", background: "rgba(0,0,0,0.1)", animation: "fadeIn 0.3s ease" }}>
                     <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "rgba(255,255,255,0.5)", display: "flex", flexDirection: "column", gap: "6px", lineHeight: 1.4 }}>
-                      <li><strong style={{color:"#fff"}}>Histórico Real:</strong> Ganancia NETA para nuestra plataforma. <span style={{color: badgeColor}}>{isInternal ? 'Por ser un evento propio, se contabiliza el 100% de lo recaudado.' : 'Por ser organizador externo, se contabiliza solo el 10% de comisión.'}</span></li>
-                      <li><strong style={{color:"#fff"}}>Promedio Éxito:</strong> Lo que ganamos en promedio por cada evento finalizado.</li>
-                      <li><strong style={{color:"#fff"}}>Tasa Comercial:</strong> Porcentaje de eventos finalizados con éxito vs los que se cancelaron.</li>
+                      <li><strong style={{color:"#fff"}}>Recaudación Total:</strong> Ganancia NETA total acumulada por nuestra plataforma. <span style={{color: badgeColor}}>{isInternal ? 'Por ser un evento propio, se contabiliza el 100% de lo recaudado.' : 'Por ser organizador externo, se contabiliza solo el 10% de comisión.'}</span></li>
+                      <li><strong style={{color:"#fff"}}>Ingreso Medio por Evento:</strong> Promedio de ingresos obtenidos por la plataforma por cada evento finalizado.</li>
+                      <li><strong style={{color:"#fff"}}>Tasa de Finalización:</strong> Porcentaje de eventos concretados exitosamente en relación con los eventos cancelados.</li>
                     </ul>
                   </div>
                 )}

@@ -14,7 +14,7 @@ export const OfertaOrganizadoresPage = () => {
           <h1 className="org-title">WAKE UP BIKES</h1>
           <h2 className="org-subtitle">TODOS LOS EVENTOS EN UN SOLO LUGAR.</h2>
           <p className="org-description">
-            La plataforma definitiva para gestionar, promocionar y llenar el cupo de tu próxima carrera.
+            La plataforma definitiva para gestionar, promocionar y llenar el cupo de tu próximo evento.
             Llevá tu organización al siguiente nivel. ¡Sumate a la comunidad WakeUp!
           </p>
           <div className="org-actions">
@@ -73,7 +73,7 @@ export const OfertaOrganizadoresPage = () => {
           <div className="benefit-card">
             <div className="icon-box">📣</div>
             <h4>Comunidad Activa</h4>
-            <p>Notificamos a los usuarios cercanos a tu evento. Hacemos que "Wake up Bikes" sea una realidad llevando gente a la línea de largada.</p>
+            <p>Tu evento visible para cientos de ciclistas que entran a buscar su próximo desafío. Poné tu carrera en su radar, simplificá las inscripciones y llená el cupo más rápido.</p>
           </div>
         </div>
       </section>
@@ -96,7 +96,7 @@ export const OfertaOrganizadoresPage = () => {
           <div className="step">
             <span className="step-number">03</span>
             <h4>Recibe inscriptos</h4>
-            <p>Mira cómo crece tu lista de corredores.</p>
+            <p>Mira cómo crece tu lista de ciclistas.</p>
           </div>
         </div>
       </section>

@@ -46,7 +46,7 @@ export function ModalAdminEvento({ evento, onClose }: ModalAdminEventoProps) {
 
         {/* Sección de Métricas de Venta */}
         <div style={{ backgroundColor: "#0f172a", padding: "15px", borderRadius: "8px", border: "1px solid #1e293b", marginBottom: "20px" }}>
-          <h4 style={{ margin: "0 0 10px 0", fontSize: "0.85rem", color: "#3b82f6", textTransform: "uppercase" }}>Estado de Cupos</h4>
+          <h4 style={{ margin: "0 0 10px 0", fontSize: "0.85rem", color: "#3b82f6", textTransform: "uppercase" }}>Estado de Inscriptos</h4>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
              <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ color: "#fff", fontWeight: "bold", fontSize: "1.2rem" }}>{evento.inscripciones_confirmadas}</div>
@@ -58,7 +58,7 @@ export function ModalAdminEvento({ evento, onClose }: ModalAdminEventoProps) {
              </div>
              <div style={{ textAlign: "center", flex: 1 }}>
                 <div style={{ color: "#fff", fontWeight: "bold", fontSize: "1.2rem" }}>{cupo || "∞"}</div>
-                <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Cupo Total</div>
+                <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Cupo Máximo</div>
              </div>
           </div>
         </div>

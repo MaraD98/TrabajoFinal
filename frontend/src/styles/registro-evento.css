@@ -428,18 +428,19 @@
   height: 100%;
 }
 
+/* ✅ FIX: header achicado — solo muestra el título, los controles van en .map-card__controls */
 .map-card__header {
-  padding: var(--spacing-md);
+  padding: 8px var(--spacing-md);
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   color: var(--color-bg);
   flex-shrink: 0;
 }
 
 .map-card__title {
-  font-size: 20px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--color-bg);
-  margin: 0 0 4px 0;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
@@ -449,6 +450,73 @@
   color: rgba(255, 255, 255, 0.9);
   margin: 0;
   font-weight: 500;
+}
+
+/* ✅ NUEVO: controles del mapa (subtítulo + botones) separados del header naranja */
+.map-card__controls {
+  padding: 8px var(--spacing-md);
+  background: rgba(255, 107, 53, 0.06);
+  border-bottom: 2px solid var(--color-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-card__controls-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.map-card__instructions {
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-text-light);
+  margin: 0;
+  font-style: italic;
+}
+
+.map-card__btn-help {
+  background: #c30404;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.map-card__btn-help:hover { background: #a00303; }
+
+.map-card__btn-clear {
+  background: rgb(195, 4, 4);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.map-card__btn-clear:hover { background: #a00303; }
+
+/* ✅ Barra de distancia — fondo blanco, borde izquierdo naranja */
+.map-card__controls .map-card__distance-info {
+  font-size: 12px;
+  color: #212121 !important;
+  background: #ffffff !important;
+  border-left: 3px solid #ff6b35 !important;
+  border-radius: 6px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
 .map-card__map {
@@ -629,7 +697,7 @@
   }
   
   .map-card__header {
-    padding: var(--spacing-sm);
+    padding: 6px var(--spacing-sm);
   }
   
   .map-card__map {

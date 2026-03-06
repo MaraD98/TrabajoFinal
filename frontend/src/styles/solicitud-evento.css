@@ -44,19 +44,21 @@
   --transition: all 0.2s ease;
 }
 
-/* Reset y base */
+/* Reset y base — margin: 0 agregado para evitar espacio blanco sobre el navbar */
 * {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 /* ==========================================================================
    CONTENEDOR PRINCIPAL
    ========================================================================== */
 
+/* ✅ FIX: padding movido al container para que el navbar quede pegado al borde */
 .event-registration {
   height: 100vh;
   background: linear-gradient(135deg, #fff8f5 0%, #ffffff 100%);
-  padding: var(--spacing-md);
   font-family: var(--font-primary);
   font-size: var(--font-size-base);
   color: var(--color-text);
@@ -66,6 +68,7 @@
   flex-direction: column;
 }
 
+/* ✅ FIX: el padding ahora va acá, no en .event-registration */
 .event-registration__container {
   max-width: 1400px;
   margin: 0 auto;
@@ -74,6 +77,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  padding: var(--spacing-md);
 }
 
 /* ==========================================================================
@@ -297,15 +301,9 @@
 }
 
 @keyframes scaleIn {
-  0% {
-    transform: scale(0);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(0); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 @keyframes shake {
@@ -418,18 +416,19 @@
   height: 100%;
 }
 
+/* ✅ FIX: header achicado — solo muestra el título, los controles van en .map-card__controls */
 .map-card__header {
-  padding: var(--spacing-md);
+  padding: 8px var(--spacing-md);
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
   color: var(--color-bg);
   flex-shrink: 0;
 }
 
 .map-card__title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--color-bg);
-  margin: 0 0 4px 0;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.8px;
 }
@@ -439,6 +438,71 @@
   color: rgba(255, 255, 255, 0.9);
   margin: 0;
   font-weight: 500;
+}
+
+/* ✅ NUEVO: controles del mapa (subtítulo + botones) separados del header naranja */
+.map-card__controls {
+  padding: 8px var(--spacing-md);
+  background: rgba(255, 107, 53, 0.06);
+  border-bottom: 2px solid var(--color-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-card__controls-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.map-card__instructions {
+  flex: 1;
+  font-size: 11px;
+  color: var(--color-text-light);
+  margin: 0;
+  font-style: italic;
+}
+
+.map-card__btn-help {
+  background: #c30404;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.map-card__btn-help:hover { background: #a00303; }
+
+.map-card__btn-clear {
+  background: rgb(195, 4, 4);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.map-card__btn-clear:hover { background: #a00303; }
+
+.map-card__distance-info {
+  font-size: 12px;
+  color: #1a5fa8;
+  background: #e8f4fd;
+  border-left: 3px solid #4a9eff;
+  border-radius: var(--radius);
+  padding: 6px 10px;
 }
 
 .map-card__map {
@@ -499,12 +563,8 @@
     transform: rotate(-45deg) translateY(-60px);
     opacity: 0;
   }
-  50% {
-    transform: rotate(-45deg) translateY(8px);
-  }
-  70% {
-    transform: rotate(-45deg) translateY(-4px);
-  }
+  50% { transform: rotate(-45deg) translateY(8px); }
+  70% { transform: rotate(-45deg) translateY(-4px); }
   100% {
     transform: rotate(-45deg) translateY(0);
     opacity: 1;
@@ -597,10 +657,6 @@
 }
 
 @media (max-width: 768px) {
-  .event-registration {
-    padding: var(--spacing-sm);
-  }
-  
   .event-registration__title {
     font-size: 22px;
   }
@@ -619,7 +675,7 @@
   }
   
   .map-card__header {
-    padding: var(--spacing-sm);
+    padding: 6px var(--spacing-sm);
   }
   
   .map-card__map {
@@ -628,7 +684,7 @@
 }
 
 @media (max-width: 480px) {
-  .event-registration {
+  .event-registration__container {
     padding: var(--spacing-xs);
   }
   
