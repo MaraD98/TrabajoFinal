@@ -76,6 +76,7 @@ interface Evento {
   cupo_maximo?: number;
   lat?: number | null;
   lng?: number | null;
+  email_usuario?: string;
 }
 
 interface HistorialItem {
@@ -201,6 +202,9 @@ const AdminDashboard: React.FC = () => {
   const [pagoModal, setPagoModal] = useState<{ show: boolean; reserva: Reserva | null }>({ show: false, reserva: null });
   const [detalleEdicionModal, setDetalleEdicionModal] = useState<{ show: boolean; solicitud: SolicitudEdicion | null }>({ show: false, solicitud: null });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10; // Podés cambiar esto a 15, 20, etc.
+
   // ✅ Estado del modal de edición adaptado al nuevo modal (isOpen + item)
   const [editModal, setEditModal] = useState<{ isOpen: boolean; evento: Evento | null }>({ isOpen: false, evento: null });
 
@@ -235,6 +239,9 @@ const AdminDashboard: React.FC = () => {
   const showInputModal = (title: string, message: string, onConfirm: (value: string) => void, type: 'warning' | 'danger' | 'info' = 'warning') =>
     setInputModal({ show: true, title, message, value: '', onConfirm, type });
   const hideInputModal = () => setInputModal({ show: false, title: '', message: '', value: '', onConfirm: () => {}, type: 'warning' });
+
+  // BUG QUE NO SE MUESTRA EL DETALLE DE ALTA
+const [detalleAltaModal, setDetalleAltaModal] = useState<{ show: boolean; solicitud: any | null }>({ show: false, solicitud: null });
 
   useEffect(() => {
     cargarDatos();
@@ -337,7 +344,7 @@ const AdminDashboard: React.FC = () => {
   const handleRechazarEdicion = (idEvento: number, nombreEvento: string) =>
     showConfirm('Rechazar Edición', `¿Rechazar los cambios propuestos para "${nombreEvento}"? El evento mantendrá su versión anterior.`, async () => {
       try {
-        await axios.patch(`${API_URL}/eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+        await axios.patch(`${API_URL}/edicion-eventos/${idEvento}/rechazar-edicion`, {}, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
         showToast('Cambios rechazados. Evento sin modificar', 'info'); cargarDatos();
       } catch (error: any) { showToast(error.response?.data?.detail || 'Error al rechazar edición', 'error'); }
       hideConfirm();
@@ -398,12 +405,38 @@ const AdminDashboard: React.FC = () => {
     return res;
   };
 
-  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[], ...campos: string[]): T[] => {
+  const filtrarPorSearch = <T extends Record<string, any>>(lista: T[]): T[] => {
     if (!searchTerm) return lista;
-    const q = searchTerm.toLowerCase();
-    return lista.filter(item =>
-      campos.some(campo => String(item[campo] ?? '').toLowerCase().includes(q))
-    );
+    const q = searchTerm.toLowerCase().trim();
+
+    return lista.filter(item => {
+      // Función recursiva que busca en cada rinconcito del objeto
+      const buscarEnValores = (valor: any): boolean => {
+        if (valor === null || valor === undefined) return false;
+        
+        // Si es un objeto (ej: el objeto "usuario" que tiene el email), nos metemos adentro
+        if (typeof valor === 'object') {
+          return Object.values(valor).some(v => buscarEnValores(v));
+        }
+
+        const strValor = String(valor).toLowerCase();
+
+        // Chequeo especial para las fechas:
+        // Si el string parece una fecha ISO (tiene guiones), intentamos formatearla para comparar
+        if (strValor.includes('-') && !isNaN(Date.parse(strValor))) {
+          try {
+            const fechaFormateada = formatFecha(strValor as string).toLowerCase();
+            if (fechaFormateada.includes(q)) return true;
+          } catch (e) { /* ignorar error si no se pudo formatear */ }
+        }
+
+        // Búsqueda de texto normal
+        return strValor.includes(q);
+      };
+
+      // Le pasamos el item completo a nuestra función exploradora
+      return buscarEnValores(item);
+    });
   };
 
   const esRestaurable = (estado: string) => normalize(estado)=== 'eliminado';
@@ -452,6 +485,96 @@ const AdminDashboard: React.FC = () => {
     return `${dia}-${mes}-${anio}`;
   };
 
+  // Diccionario para las Dificultades
+const DIFICULTADES_MAP: Record<number, string> = {
+  1: 'Básico',
+  2: 'Intermedio',
+  3: 'Avanzado'
+};
+
+// Diccionario para los Tipos de Evento
+const TIPOS_MAP: Record<number, string> = {
+  1: 'Ciclismo de Ruta',
+  2: 'Mountain Bike (MTB)',
+  3: 'Rural Bike',
+  4: 'Gravel',
+  5: 'Cicloturismo', 
+  6: 'Entrenamiento / Social' 
+};
+
+  // CONSTANTES Y FILTRADOS PARA PAGINACIÓN -----------------------------------------------------
+  // 1. Primero filtramos
+const activosFiltrados = activosSort.sorted.filter(e => {
+  if (!searchActivos) return true;
+  const q = searchActivos.toLowerCase();
+  const nombre = e.nombre_evento?.toLowerCase() || '';
+  const creador = (e.email_usuario || '').toLowerCase();
+  const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
+  return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
+});
+
+// 2. Calculamos los índices para cortar el arreglo
+const totalPagesActivos = Math.ceil(activosFiltrados.length / itemsPerPage);
+const indexOfLastActivo = currentPage * itemsPerPage;
+const indexOfFirstActivo = indexOfLastActivo - itemsPerPage;
+
+// 3. Cortamos los elementos que van en la página actual
+const currentActivos = activosFiltrados.slice(indexOfFirstActivo, indexOfLastActivo);
+// Paginación Pendientes: Altas
+const [currentPageAltas, setCurrentPageAltas] = useState(1);
+const itemsPerPageAltas = 10;
+const altasFiltradas = filtrarPorSearch(altaSort.sorted);
+const totalPagesAltas = Math.ceil(altasFiltradas.length / itemsPerPageAltas);
+const indexOfLastAlta = currentPageAltas * itemsPerPageAltas;
+const indexOfFirstAlta = indexOfLastAlta - itemsPerPageAltas;
+const currentAltas = altasFiltradas.slice(indexOfFirstAlta, indexOfLastAlta);
+
+// Paginación Pendientes: Ediciones
+const [currentPageEdiciones, setCurrentPageEdiciones] = useState(1);
+const itemsPerPageEdiciones = 10;
+const edicionesFiltradas = filtrarPorSearch(edicionSort.sorted);
+const totalPagesEdiciones = Math.ceil(edicionesFiltradas.length / itemsPerPageEdiciones);
+const indexOfLastEdicion = currentPageEdiciones * itemsPerPageEdiciones;
+const indexOfFirstEdicion = indexOfLastEdicion - itemsPerPageEdiciones;
+const currentEdiciones = edicionesFiltradas.slice(indexOfFirstEdicion, indexOfLastEdicion);
+
+// Paginación Pendientes: Bajas
+const [currentPageBajas, setCurrentPageBajas] = useState(1);
+const itemsPerPageBajas = 10;
+const bajasFiltradas = filtrarPorSearch(bajaSort.sorted);
+const totalPagesBajas = Math.ceil(bajasFiltradas.length / itemsPerPageBajas);
+const indexOfLastBaja = currentPageBajas * itemsPerPageBajas;
+const indexOfFirstBaja = indexOfLastBaja - itemsPerPageBajas;
+const currentBajas = bajasFiltradas.slice(indexOfFirstBaja, indexOfLastBaja);
+
+// Paginación Historial
+const [currentPageHistorial, setCurrentPageHistorial] = useState(1);
+const itemsPerPageHistorial = 15; // Podés ajustarlo, puse 15 por ser historial
+const historialFiltrado = filtrarHistorial(); // Asumo que esto ya maneja la búsqueda y ordenamiento
+const totalPagesHistorial = Math.ceil(historialFiltrado.length / itemsPerPageHistorial);
+const indexOfLastHistorialItem = currentPageHistorial * itemsPerPageHistorial;
+const indexOfFirstHistorialItem = indexOfLastHistorialItem - itemsPerPageHistorial;
+const currentHistorial = historialFiltrado.slice(indexOfFirstHistorialItem, indexOfLastHistorialItem);
+
+// Paginación Pagos
+const [currentPagePagos, setCurrentPagePagos] = useState(1);
+const itemsPerPagePagos = 10;
+const pagosFiltrados = filtrarPorSearch(pagosSort.sorted);
+const totalPagesPagos = Math.ceil(pagosFiltrados.length / itemsPerPagePagos);
+const indexOfLastPago = currentPagePagos * itemsPerPagePagos;
+const indexOfFirstPago = indexOfLastPago - itemsPerPagePagos;
+const currentPagos = pagosFiltrados.slice(indexOfFirstPago, indexOfLastPago);
+
+// Paginación Inscriptos
+const [currentPageInscriptos, setCurrentPageInscriptos] = useState(1);
+const itemsPerPageInscriptos = 10;
+const inscriptosFiltrados = filtrarPorSearch(inscriptosSort.sorted);
+const totalPagesInscriptos = Math.ceil(inscriptosFiltrados.length / itemsPerPageInscriptos);
+const indexOfLastInscripto = currentPageInscriptos * itemsPerPageInscriptos;
+const indexOfFirstInscripto = indexOfLastInscripto - itemsPerPageInscriptos;
+const currentInscriptos = inscriptosFiltrados.slice(indexOfFirstInscripto, indexOfLastInscripto);
+
+// FIN DE CONSTANTES Y FILTRADOS PARA PAGINACIÓN -----------------------------------------------------
 
   const formatCosto = (costo?: number) =>
     costo != null ? `$${Number(costo).toLocaleString('es-AR')}` : '—';
@@ -468,7 +591,7 @@ const AdminDashboard: React.FC = () => {
           <h2 className="admin-title">Panel Admin</h2>
           <nav className="admin-nav">
             <button className={vistaActual === 'pendientes' ? 'active' : ''} onClick={() => setVistaActual('pendientes')}>📋 Pendientes</button>
-            <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => setVistaActual('activos')}>✅ Activos</button>
+            <button className={vistaActual === 'activos' ? 'active' : ''} onClick={() => {setVistaActual('activos'); setCurrentPage(1); }}>✅ Activos</button>
             <button className={vistaActual === 'historial' ? 'active' : ''} onClick={() => setVistaActual('historial')}>📖 Historial Eliminados/Finalizados</button>
             <button className={vistaActual === 'pagos' ? 'active' : ''} onClick={() => setVistaActual('pagos')}>💳 Pagos Pendientes</button>
             <button className={vistaActual === 'inscriptos' ? 'active' : ''} onClick={() => setVistaActual('inscriptos')}>👥 Pagos Confirmados</button>
@@ -483,7 +606,19 @@ const AdminDashboard: React.FC = () => {
                 <h2>📋 Solicitudes Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="search-input-admin" 
+                      placeholder="Buscar por nombre, email o fecha..." 
+                      value={searchTerm} 
+                      onChange={e => {
+                        setSearchTerm(e.target.value);
+                        // Resetear las 3 paginaciones al buscar
+                        setCurrentPageAltas(1);
+                        setCurrentPageEdiciones(1);
+                        setCurrentPageBajas(1);
+                      }} 
+                    />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -500,6 +635,9 @@ const AdminDashboard: React.FC = () => {
                 <table className="data-table-admin">
                     <thead>
                       <tr>
+                        <th style={{ ...altaSort.thStyle('id_solicitud'), width: '60px' }} onClick={() => altaSort.toggle('id_solicitud')}>
+                          ID{altaSort.arrow('id_solicitud')}
+                        </th>
                         <th style={altaSort.thStyle('nombre_evento')} onClick={() => altaSort.toggle('nombre_evento')}>Evento{altaSort.arrow('nombre_evento')}</th>
                         <th style={altaSort.thStyle('fecha_evento')} onClick={() => altaSort.toggle('fecha_evento')}>Fecha Evento{altaSort.arrow('fecha_evento')}</th>
                         <th style={altaSort.thStyle('id_usuario')} onClick={() => altaSort.toggle('id_usuario')}>Solicitante{altaSort.arrow('id_usuario')}</th>
@@ -511,25 +649,40 @@ const AdminDashboard: React.FC = () => {
                     <tbody>
                       {loading ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
-                      ) : filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
+                      ) : altasFiltradas.length === 0 ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(altaSort.sorted, 'nombre_evento', 'fecha_evento', 'fecha_solicitud').map(s => (
+                        currentAltas.map(s => (
                           <tr key={s.id_solicitud}>
+                            <td style={{ textAlign: 'center' }}>
+                              <span style={{ color: '#888', fontWeight: 'bold' }}>#{s.id_solicitud}</span>
+                            </td>
                             <td style={{ textAlign: 'left', fontWeight: 600 }}>
-                              <small style={{ color: '#888' }}>#{s.id_solicitud}</small> {s.nombre_evento}
+                              <small style={{ color: '#888' }}>{s.nombre_evento}</small>
                             </td>
                             <td style={{ textAlign: 'left' }}>{formatFecha(s.fecha_evento)}</td>
                             <td style={{ textAlign: 'left' }}><small>{s.usuario?.email || `#${s.id_usuario}`}</small></td>
                             <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(s.fecha_solicitud || '') || '—'}</small></td>
                             <td style={{ textAlign: 'left' }}>
                               <small style={{ color: '#a8a8a8' }}>
-                                {s.nombre_tipo || (s.id_tipo ? `Tipo #${s.id_tipo}` : '—')}
-                                {(s.nombre_dificultad || s.id_dificultad) ? ` · ${s.nombre_dificultad || `Dif. #${s.id_dificultad}`}` : ''}
+                                {/* Usamos una validación simple: si existe el ID, buscamos en el MAP */}
+                                {s.nombre_tipo || (s.id_tipo ? TIPOS_MAP[s.id_tipo] : null) || `Tipo #${s.id_tipo ?? '?'}`}
+                                
+                                {' · '}
+                                
+                                {/* Lo mismo para dificultad */}
+                                {s.nombre_dificultad || (s.id_dificultad ? DIFICULTADES_MAP[s.id_dificultad] : null) || `Dif. #${s.id_dificultad ?? '?'}`}
                               </small>
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                              <button className="btn-ver-detalle-admin" onClick={() => setDetalleAltaId(s.id_solicitud)} title="Ver detalles del evento" style={{ marginRight: '6px' }}>👁️</button>
+                              <button 
+                                  className="btn-ver-detalle-admin" 
+                                  onClick={() => setDetalleAltaModal({ show: true, solicitud: s })} 
+                                  title="Ver detalles de la solicitud" 
+                                  style={{ marginRight: '6px' }}
+                                >
+                                  👁️
+                                </button>
                               <button className="btn-aprobar-admin" onClick={() => handleAprobarAlta(s.id_solicitud)} title="Aprobar">✓</button>
                               <button className="btn-rechazar-admin" onClick={() => handleRechazarAlta(s.id_solicitud)} title="Rechazar">✕</button>
                             </td>
@@ -538,10 +691,26 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </tbody>
                 </table>
+                {/* Controles Paginación Altas */}
+                {totalPagesAltas > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+                    <button 
+                      onClick={() => setCurrentPageAltas(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPageAltas === 1}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageAltas === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageAltas === 1 ? 'not-allowed' : 'pointer' }}
+                    >◀</button>
+                    <span style={{ color: '#e0e0e0', fontSize: '0.9em' }}>{currentPageAltas} / {totalPagesAltas}</span>
+                    <button 
+                      onClick={() => setCurrentPageAltas(prev => Math.min(prev + 1, totalPagesAltas))}
+                      disabled={currentPageAltas === totalPagesAltas}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageAltas === totalPagesAltas ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageAltas === totalPagesAltas ? 'not-allowed' : 'pointer' }}
+                    >▶</button>
+                  </div>
+                )}
               </div>
 
               {/* EDICIONES */}
-              <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
+              <div className="seccion-solicitudes" style={{ marginTop: '30px' }}>
                 <h3 style={{ color: '#4a9eff' }}>✏️ Ediciones ({solicitudesEdicion.length})</h3>
                 <table className="data-table-admin">
                     <thead>
@@ -557,10 +726,10 @@ const AdminDashboard: React.FC = () => {
                     <tbody>
                       {loading ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
-                      ) : filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').length === 0 ? (
+                      ) : edicionesFiltradas.length === 0 ? (
                         <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de edición pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(edicionSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_evento', 'fecha_solicitud').map(s => (
+                        currentEdiciones.map(s => (
                           <tr key={s.id_solicitud_edicion} style={{ cursor: 'pointer' }}
                             onClick={() => setDetalleEdicionModal({ show: true, solicitud: s })}
                             title="Click para ver detalles"
@@ -588,10 +757,26 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </tbody>
                 </table>
+                {/* Controles Paginación Ediciones */}
+                {totalPagesEdiciones > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+                    <button 
+                      onClick={() => setCurrentPageEdiciones(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPageEdiciones === 1}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageEdiciones === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageEdiciones === 1 ? 'not-allowed' : 'pointer' }}
+                    >◀</button>
+                    <span style={{ color: '#e0e0e0', fontSize: '0.9em' }}>{currentPageEdiciones} / {totalPagesEdiciones}</span>
+                    <button 
+                      onClick={() => setCurrentPageEdiciones(prev => Math.min(prev + 1, totalPagesEdiciones))}
+                      disabled={currentPageEdiciones === totalPagesEdiciones}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageEdiciones === totalPagesEdiciones ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageEdiciones === totalPagesEdiciones ? 'not-allowed' : 'pointer' }}
+                    >▶</button>
+                  </div>
+                )}
               </div>
 
               {/* BAJAS */}
-              <div className="seccion-solicitudes" style={{ marginTop: '20px' }}>
+              <div className="seccion-solicitudes" style={{ marginTop: '30px', paddingBottom: '20px' }}>
                 <h3 style={{ color: '#fc8181' }}>🗑️ Bajas ({solicitudesBaja.length})</h3>
                 <table className="data-table-admin">
                     <thead>
@@ -606,10 +791,10 @@ const AdminDashboard: React.FC = () => {
                     <tbody>
                       {loading ? (
                         <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
-                      ) : filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').length === 0 ? (
+                      ) : bajasFiltradas.length === 0 ? (
                         <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de baja pendientes</td></tr>
                       ) : (
-                        filtrarPorSearch(bajaSort.sorted, 'nombre_evento', 'usuario_solicitante', 'fecha_solicitud').map(s => (
+                        currentBajas.map(s => (
                           <tr key={s.id_eliminacion} style={{ cursor: 'pointer' }} onClick={() => setDetalleBajaModal({ show: true, solicitud: s })} title="Click para ver detalles">
                             <td style={{ textAlign: 'left', fontWeight: 600 }}>
                               <small style={{ color: '#888' }}>#{s.id_evento}</small> {s.nombre_evento}
@@ -631,6 +816,22 @@ const AdminDashboard: React.FC = () => {
                       )}
                     </tbody>
                 </table>
+                {/* Controles Paginación Bajas */}
+                {totalPagesBajas > 1 && (
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '15px' }}>
+                    <button 
+                      onClick={() => setCurrentPageBajas(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPageBajas === 1}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageBajas === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageBajas === 1 ? 'not-allowed' : 'pointer' }}
+                    >◀</button>
+                    <span style={{ color: '#e0e0e0', fontSize: '0.9em' }}>{currentPageBajas} / {totalPagesBajas}</span>
+                    <button 
+                      onClick={() => setCurrentPageBajas(prev => Math.min(prev + 1, totalPagesBajas))}
+                      disabled={currentPageBajas === totalPagesBajas}
+                      style={{ padding: '6px 12px', borderRadius: '4px', background: currentPageBajas === totalPagesBajas ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageBajas === totalPagesBajas ? 'not-allowed' : 'pointer' }}
+                    >▶</button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -642,8 +843,16 @@ const AdminDashboard: React.FC = () => {
                 <h2>✅ Eventos Activos ({eventosActivos.length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, creador o fecha (DD-MM-YYYY)..."
-                      value={searchActivos} onChange={e => setSearchActivos(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="search-input-admin" 
+                      placeholder="Buscar por nombre, creador o fecha..."
+                      value={searchActivos} 
+                      onChange={e => {
+                        setSearchActivos(e.target.value);
+                        setCurrentPage(1); // 🚀 Reset al buscar
+                      }} 
+                    />
                   </div>
                   <div className="action-buttons-inline">
                     {searchActivos && (
@@ -666,23 +875,20 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {activosSort.sorted
-                    .filter(e => {
-                      if (!searchActivos) return true;
-                      const q = searchActivos.toLowerCase();
-                      const nombre = e.nombre_evento?.toLowerCase() || '';
-                      const creador = ((e as any).email_usuario || '').toLowerCase();
-                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
-                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
-                    })
-                    .map(e => (
-                      <tr key={e.id_evento}>
-                        <td style={{ textAlign: 'left', color: '#888' }}>#{e.id_evento}</td>
-                        <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
-                        <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{(e as any).email_usuario || `#${e.id_usuario}`}</small></td>
-                        <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
+                    {loading ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                    ) : activosFiltrados.length === 0 ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos activos.</td></tr>
+                    ) : (
+                      // 🚀 Usamos currentActivos en lugar de toda la lista
+                      currentActivos.map(e => (
+                        <tr key={e.id_evento}>
+                          <td style={{ textAlign: 'left', color: '#888' }}>#{e.id_evento}</td>
+                          <td style={{ textAlign: 'left', fontWeight: 600 }}>{e.nombre_evento}</td>
+                          <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{e.email_usuario || `#${e.id_usuario}`}</small></td>
+                          <td style={{ textAlign: 'left' }}>{formatFecha(e.fecha_evento)}</td>
+                          <td style={{ textAlign: 'center' }}>
+                            <button
                             className="btn-ver-detalle-admin"
                             onClick={() => { setDetalleEventoId(e.id_evento); setDetalleEventoEstado(3); }}
                             title="Ver detalles"
@@ -696,44 +902,66 @@ const AdminDashboard: React.FC = () => {
                             style={{ marginRight: '8px' }}
                           >✏️ Editar</button>
                           <button className="btn-rechazar-admin" onClick={() => handleEliminarEvento(e.id_evento, e.nombre_evento)}>🗑️ Eliminar</button>
-                        </td>
-                      </tr>
-                    ))}
-                  {loading ? (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
-                  ) : activosSort.sorted.filter(e => {
-                      if (!searchActivos) return true;
-                      const q = searchActivos.toLowerCase();
-                      const nombre = e.nombre_evento?.toLowerCase() || '';
-                      const creador = ((e as any).email_usuario || '').toLowerCase();
-                      const fecha = e.fecha_evento ? String(e.fecha_evento).toLowerCase() : '';
-                      return nombre.includes(q) || creador.includes(q) || fecha.includes(q);
-                    }).length === 0 && (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay eventos activos.</td></tr>
+                          </td>
+                        </tr>
+                        ))
+                      )}
+                    </tbody>
+                    </table>
+
+                  {totalPagesActivos > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px', paddingBottom: '20px' }}>
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        style={{ padding: '8px 16px', borderRadius: '6px', background: currentPage === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                      >
+                        ◀ Anterior
+                      </button>
+                      
+                      <span style={{ color: '#e0e0e0', fontWeight: 'bold' }}>
+                        Página {currentPage} de {totalPagesActivos}
+                      </span>
+                      
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPagesActivos))}
+                        disabled={currentPage === totalPagesActivos}
+                        style={{ padding: '8px 16px', borderRadius: '6px', background: currentPage === totalPagesActivos ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPage === totalPagesActivos ? 'not-allowed' : 'pointer' }}
+                      >
+                        Siguiente ▶
+                      </button>
+                    </div>
                   )}
-                </tbody>
-              </table>
-            </div>
-          )}
+            </div> 
+          )} 
 
           {/* VISTA HISTORIAL */}
           {vistaActual === 'historial' && (
             <div className="admin-content-view">
               <div className="view-header">
-                <h2>📖 Historial Eliminados/Finalizados ({filtrarHistorial().length})</h2>
+                <h2>📖 Historial Eliminados/Finalizados ({historialFiltrado.length})</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="search-input-admin" 
+                      placeholder="Buscar por nombre, email o fecha..." 
+                      value={searchTerm} 
+                      onChange={e => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPageHistorial(1); // Reset al buscar
+                      }} 
+                    />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="filter-buttons-admin">
-                    <button onClick={() => setFilterType('todos')}>Todos</button>
-                    <button onClick={() => setFilterType('finalizados')}>Final.</button>
-                    <button onClick={() => setFilterType('eliminados')}>Elim.</button>
+                    <button onClick={() => { setFilterType('todos'); setCurrentPageHistorial(1); }}>Todos</button>
+                    <button onClick={() => { setFilterType('finalizados'); setCurrentPageHistorial(1); }}>Final.</button>
+                    <button onClick={() => { setFilterType('eliminados'); setCurrentPageHistorial(1); }}>Elim.</button>
                   </div>
                   <div className="action-buttons-inline">
                     <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
-                    <button className="btn-export-admin" onClick={() => handleExportCSV(filtrarHistorial(), 'Historial')}>📂 Excel</button>
+                    <button className="btn-export-admin" onClick={() => handleExportCSV(historialFiltrado, 'Historial')}>📂 Excel</button>
                     <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
                   </div>
                 </div>
@@ -749,37 +977,68 @@ const AdminDashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrarHistorial().map((item, idx) => (
-                    <tr key={idx}>
-                      <td style={{ textAlign: 'left' }}><strong>{item.nombre_evento}</strong></td>
-                      <td style={{ textAlign: 'left' }}>{item.motivo}</td>
-                      <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(item.fecha_eliminacion)}</small></td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span className={`badge-estado-small ${getBadgeClass(item.estado)}`}>{item.estado}</span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div className="action-buttons-inline">
-                          <button
-                            className="btn-ver-detalle-admin"
-                            onClick={() => {
-                              setDetalleEventoId(item.id_evento);
-                              setDetalleEventoEstado(estadoStringToIdEstado(item.estado));
-                            }}
-                            title="Ver detalles"
-                            style={{ marginRight: '6px' }}
-                          >👁️</button>
-                          {esRestaurable(item.estado) && (
-                            <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>♻️</button>
-                          )}
-                          {esDepurable(item.estado) && (
-                            <button className="btn-depurar-admin" title="Eliminar Definitivamente" onClick={() => handleDepurarEvento(item.id_evento, item.nombre_evento)}>🧹</button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {loading ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando historial...</td></tr>
+                  ) : currentHistorial.length === 0 ? (
+                     <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay registros en el historial.</td></tr>
+                  ) : (
+                    currentHistorial.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ textAlign: 'left' }}><strong>{item.nombre_evento}</strong></td>
+                        <td style={{ textAlign: 'left' }}>{item.motivo}</td>
+                        <td style={{ textAlign: 'left' }}><small style={{ color: '#888' }}>{formatFecha(item.fecha_eliminacion)}</small></td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span className={`badge-estado-small ${getBadgeClass(item.estado)}`}>{item.estado}</span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div className="action-buttons-inline">
+                            <button
+                              className="btn-ver-detalle-admin"
+                              onClick={() => {
+                                setDetalleEventoId(item.id_evento);
+                                setDetalleEventoEstado(estadoStringToIdEstado(item.estado));
+                              }}
+                              title="Ver detalles"
+                              style={{ marginRight: '6px' }}
+                            >👁️</button>
+                            {esRestaurable(item.estado) && (
+                              <button className="btn-restaurar-admin" title="Restaurar" onClick={() => handleRestaurarEvento(item.id_evento, item.nombre_evento)}>♻️</button>
+                            )}
+                            {esDepurable(item.estado) && (
+                              <button className="btn-depurar-admin" title="Eliminar Definitivamente" onClick={() => handleDepurarEvento(item.id_evento, item.nombre_evento)}>🧹</button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
+
+              {/* Controles Paginación Historial */}
+              {totalPagesHistorial > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px', paddingBottom: '20px' }}>
+                  <button 
+                    onClick={() => setCurrentPageHistorial(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPageHistorial === 1}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPageHistorial === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageHistorial === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    ◀ Anterior
+                  </button>
+                  
+                  <span style={{ color: '#e0e0e0', fontWeight: 'bold' }}>
+                    Página {currentPageHistorial} de {totalPagesHistorial}
+                  </span>
+                  
+                  <button 
+                    onClick={() => setCurrentPageHistorial(prev => Math.min(prev + 1, totalPagesHistorial))}
+                    disabled={currentPageHistorial === totalPagesHistorial}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPageHistorial === totalPagesHistorial ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageHistorial === totalPagesHistorial ? 'not-allowed' : 'pointer' }}
+                  >
+                    Siguiente ▶
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -790,11 +1049,20 @@ const AdminDashboard: React.FC = () => {
                 <h2>💳 Pagos Pendientes</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="search-input-admin" 
+                      placeholder="Buscar por nombre, email o fecha..." 
+                      value={searchTerm} 
+                      onChange={e => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPagePagos(1); // Reset de página al buscar
+                      }} 
+                    />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
-                    <button className="btn-print-admin" onClick={handleRecargar}>🔄</button>
+                    <button className="btn-print-admin" onClick={handleRecargar} title="Recargar">🔄</button>
                     <button className="btn-export-admin" onClick={() => handleExportCSV(reservas, 'Pagos')}>📂 Excel</button>
                     <button className="btn-print-admin" onClick={handlePrint}>🖨️</button>
                   </div>
@@ -815,11 +1083,11 @@ const AdminDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
-                  ) : filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
-                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay pagos pendientes</td></tr>
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
+                  ) : currentPagos.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay pagos pendientes</td></tr>
                   ) : (
-                    filtrarPorSearch(pagosSort.sorted, 'usuario_email', 'usuario_nombre', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
+                    currentPagos.map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}>{r.usuario_email}</td>
@@ -838,6 +1106,31 @@ const AdminDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
+
+              {/* Controles Paginación Pagos */}
+              {totalPagesPagos > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px', paddingBottom: '20px' }}>
+                  <button 
+                    onClick={() => setCurrentPagePagos(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPagePagos === 1}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPagePagos === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPagePagos === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    ◀ Anterior
+                  </button>
+                  
+                  <span style={{ color: '#e0e0e0', fontWeight: 'bold' }}>
+                    Página {currentPagePagos} de {totalPagesPagos}
+                  </span>
+                  
+                  <button 
+                    onClick={() => setCurrentPagePagos(prev => Math.min(prev + 1, totalPagesPagos))}
+                    disabled={currentPagePagos === totalPagesPagos}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPagePagos === totalPagesPagos ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPagePagos === totalPagesPagos ? 'not-allowed' : 'pointer' }}
+                  >
+                    Siguiente ▶
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -848,7 +1141,16 @@ const AdminDashboard: React.FC = () => {
                 <h2>👥 Pagos Confirmados</h2>
                 <div className="toolbar-admin">
                   <div className="search-form-admin">
-                    <input type="text" className="search-input-admin" placeholder="Buscar por nombre, email o fecha..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                    <input 
+                      type="text" 
+                      className="search-input-admin" 
+                      placeholder="Buscar por nombre, email o fecha..." 
+                      value={searchTerm} 
+                      onChange={e => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPageInscriptos(1); // Reset de página al buscar
+                      }} 
+                    />
                     <button className="btn-search-admin">Buscar</button>
                   </div>
                   <div className="action-buttons-inline">
@@ -872,10 +1174,10 @@ const AdminDashboard: React.FC = () => {
                 <tbody>
                   {loading ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando datos...</td></tr>
-                  ) : filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').length === 0 ? (
+                  ) : currentInscriptos.length === 0 ? (
                     <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay inscriptos confirmados</td></tr>
                   ) : (
-                    filtrarPorSearch(inscriptosSort.sorted, 'usuario_nombre', 'usuario_email', 'nombre_evento', 'fecha_evento', 'fecha_inscripcion').map(r => (
+                    currentInscriptos.map(r => (
                       <tr key={r.id_reserva}>
                         <td style={{ textAlign: 'left' }}>{r.usuario_nombre}</td>
                         <td style={{ textAlign: 'left' }}><small>{r.usuario_email}</small></td>
@@ -890,6 +1192,31 @@ const AdminDashboard: React.FC = () => {
                   )}
                 </tbody>
               </table>
+
+              {/* Controles Paginación Inscriptos */}
+              {totalPagesInscriptos > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '15px', marginTop: '20px', paddingBottom: '20px' }}>
+                  <button 
+                    onClick={() => setCurrentPageInscriptos(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPageInscriptos === 1}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPageInscriptos === 1 ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageInscriptos === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    ◀ Anterior
+                  </button>
+                  
+                  <span style={{ color: '#e0e0e0', fontWeight: 'bold' }}>
+                    Página {currentPageInscriptos} de {totalPagesInscriptos}
+                  </span>
+                  
+                  <button 
+                    onClick={() => setCurrentPageInscriptos(prev => Math.min(prev + 1, totalPagesInscriptos))}
+                    disabled={currentPageInscriptos === totalPagesInscriptos}
+                    style={{ padding: '8px 16px', borderRadius: '6px', background: currentPageInscriptos === totalPagesInscriptos ? '#333' : '#4a9eff', color: '#fff', border: 'none', cursor: currentPageInscriptos === totalPagesInscriptos ? 'not-allowed' : 'pointer' }}
+                  >
+                    Siguiente ▶
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </main>
@@ -944,6 +1271,83 @@ const AdminDashboard: React.FC = () => {
           onSuccess={() => { showToast('Evento actualizado correctamente', 'success'); cargarDatos(); }}
           onShowToast={showToast}
         />
+      )}
+      
+      {/* MODAL PARA DETALLES DE SOLICITUD DE ALTA */}
+      {detalleAltaModal.show && detalleAltaModal.solicitud && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+          <div className="modal-content" style={{ backgroundColor: '#111', color: '#fff', border: '1px solid #333', borderRadius: '12px', width: '90%', maxWidth: '500px', overflow: 'hidden' }}>
+            
+            {/* Header */}
+            <div className="modal-header" style={{ borderBottom: '2px solid #ccff00', padding: '15px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ color: '#ccff00', textTransform: 'uppercase', margin: 0, fontSize: '14px', letterSpacing: '1px', fontWeight: 'bold' }}>
+                DETALLE DE LA SOLICITUD #{detalleAltaModal.solicitud.id_solicitud}
+              </h3>
+              <button onClick={() => setDetalleAltaModal({ show: false, solicitud: null })} style={{ background: 'none', border: 'none', color: '#888', fontSize: '20px', cursor: 'pointer' }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="modal-body" style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto' }}>
+              <h2 style={{ marginTop: 0, marginBottom: '20px', fontSize: '24px', fontWeight: 'bold' }}>
+                {detalleAltaModal.solicitud.nombre_evento}
+              </h2>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
+                <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>📅 FECHA</span>
+                <strong style={{ fontSize: '16px' }}>{formatFecha(detalleAltaModal.solicitud.fecha_evento)}</strong>
+              </div>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', marginBottom: '15px', textAlign: 'center' }}>
+                <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>📍 UBICACIÓN</span>
+                <strong style={{ fontSize: '14px' }}>{detalleAltaModal.solicitud.ubicacion || 'No especificada'}</strong>
+              </div>
+
+              <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                {/* SECCIÓN TIPO ACTUALIZADA */}
+                <div style={{ flex: 1, background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>🏷️ TIPO</span>
+                  <strong style={{ color: '#ccff00' }}>
+                    {detalleAltaModal.solicitud.nombre_tipo || 
+                     (detalleAltaModal.solicitud.id_tipo ? TIPOS_MAP[detalleAltaModal.solicitud.id_tipo] : null) || 
+                     `Tipo #${detalleAltaModal.solicitud.id_tipo}`}
+                  </strong>
+                </div>
+
+                {/* SECCIÓN DIFICULTAD ACTUALIZADA */}
+                <div style={{ flex: 1, background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                  <span style={{ color: '#888', fontSize: '12px', display: 'block', marginBottom: '5px', letterSpacing: '1px' }}>⚡ DIFICULTAD</span>
+                  <strong style={{ color: '#20c997' }}>
+                    {detalleAltaModal.solicitud.nombre_dificultad || 
+                     (detalleAltaModal.solicitud.id_dificultad ? DIFICULTADES_MAP[detalleAltaModal.solicitud.id_dificultad] : null) || 
+                     `Dif. #${detalleAltaModal.solicitud.id_dificultad}`}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ background: '#1a1a1a', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
+                <span style={{ color: '#ccff00', fontSize: '12px', display: 'block', marginBottom: '10px', fontWeight: 'bold', letterSpacing: '1px' }}>📝 DESCRIPCIÓN</span>
+                <p style={{ margin: 0, fontSize: '14px', lineHeight: '1.6', color: '#ccc' }}>
+                  {detalleAltaModal.solicitud.descripcion || 'El solicitante no incluyó una descripción detallada.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="modal-footer" style={{ padding: '15px 20px', textAlign: 'center' }}>
+              <button
+                onClick={() => setDetalleAltaModal({ show: false, solicitud: null })}
+                style={{ width: '100%', padding: '12px', background: '#222', color: '#fff', border: '1px solid #444', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#333'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#222'}
+              >
+                CERRAR
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* Modal detalle evento (activos, historial y también altas) */}

@@ -398,16 +398,19 @@ export default function InicioPage() {
                         <div className="filter-row">
                             <div className="filter-group">
                                 <label className="filter-label">🏆 Tipo de Evento</label>
-                                <select className="filter-select" value={tipoSeleccionado || ""} onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)}>
-                                    <option value="">Todos los tipos</option>
-                                    {tiposEvento.map(tipo => (<option key={tipo.id} value={tipo.id}>{tipo.nombre}</option>))}
+                                <select className="filter-select" value={tipoSeleccionado || ""} onChange={(e) => setTipoSeleccionado(e.target.value ? Number(e.target.value) : undefined)}style={{ color: '#e0e0e0', backgroundColor: '#2a2a2a' }}>
+                                    <option style={{ color: '#e0e0e0' }} value="">Todos los tipos</option>
+                                    {tiposEvento.map(tipo => (<option key={tipo.id} value={tipo.id}style={{ color: '#e0e0e0' }}>
+                                    {tipo.nombre}</option>))}
                                 </select>
                             </div>
                             <div className="filter-group">
                                 <label className="filter-label">💪 Dificultad</label>
-                                <select className="filter-select" value={dificultadSeleccionada || ""} onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}>
-                                    <option value="">Todas las dificultades</option>
-                                    {nivelesDificultad.map(nivel => (<option key={nivel.id} value={nivel.id}>{nivel.nombre}</option>))}
+                                <select className="filter-select" value={dificultadSeleccionada || ""} onChange={(e) => setDificultadSeleccionada(e.target.value ? Number(e.target.value) : undefined)}style={{ color: '#e0e0e0', backgroundColor: '#2a2a2a' }}>
+                                    <option style={{ color: '#e0e0e0' }} value="">Todas las dificultades</option>
+                                    {nivelesDificultad.map(nivel => (<option key={nivel.id} value={nivel.id} style={{ color: '#e0e0e0' }}>
+                                     {nivel.nombre}
+                                    </option>))}
                                 </select>
                             </div>
                         </div>
