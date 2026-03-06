@@ -648,9 +648,9 @@ const currentInscriptos = inscriptosFiltrados.slice(indexOfFirstInscripto, index
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
+                        <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#888' }}>🔄 Cargando solicitudes...</td></tr>
                       ) : altasFiltradas.length === 0 ? (
-                        <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
+                        <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px', color: '#666' }}>No hay solicitudes de alta pendientes</td></tr>
                       ) : (
                         currentAltas.map(s => (
                           <tr key={s.id_solicitud}>
