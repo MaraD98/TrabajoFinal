@@ -41,14 +41,30 @@ def _ejecutar_envio_whatsapp(telefono_destino: str, mensaje: str):
 
 # --- FUNCIONES DE AVISO ---
 
-def enviar_whatsapp_reserva(telefono: str, nombre_usuario: str, evento: str, fecha: str):
+def enviar_whatsapp_reserva(telefono: str, nombre_usuario: str, evento: str, fecha: str, precio: float = 0):
     print(f"DEBUG - Preparando mensaje WhatsApp para {nombre_usuario} ({telefono}) sobre evento '{evento}' el {fecha}")
-    texto = (
-        f"🚲 *¡Hola {nombre_usuario}! Reserva Confirmada*\n\n"
-        f"Te confirmamos tu lugar para: *{evento}*\n"
-        f"📅 Fecha: {fecha}\n\n"
-        f"⚠️ *ACCIÓN REQUERIDA:* Recordá que tenés 72 horas para realizar el pago y asegurar tu lugar."
-    )
+    
+    # Verificamos si es pago o gratis
+    es_pago = precio > 0
+
+    if es_pago:
+        # Mensaje para eventos PAGOS
+        texto = (
+            f"🚲 *¡Hola {nombre_usuario}! Reserva Recibida*\n\n"
+            f"Te confirmamos la reserva para: *{evento}*\n"
+            f"📅 Fecha: {fecha}\n\n"
+            f"⚠️ *ACCIÓN REQUERIDA:* Recordá que tenés 72 horas para realizar el pago y asegurar tu lugar. "
+            f"Una vez abonado, recibirás la confirmación definitiva."
+        )
+    else:
+        # Mensaje para eventos GRATUITOS
+        texto = (
+            f"🚲 *¡Hola {nombre_usuario}! Inscripción Exitosa*\n\n"
+            f"¡Ya tenés tu lugar asegurado para: *{evento}*!\n"
+            f"📅 Fecha: {fecha}\n\n"
+            f"✅ Al ser un evento gratuito, no necesitás realizar ninguna acción adicional. ¡Nos vemos en la ruta!"
+        )
+        
     return _ejecutar_envio_whatsapp(telefono, texto)
 
 def enviar_whatsapp_modificacion_evento(telefono: str, nombre_evento: str):
@@ -109,5 +125,15 @@ def enviar_whatsapp_baja_rechazada(telefono: str, nombre_evento: str):
         f"Hola, te informamos que tu pedido de baja para el evento: *{nombre_evento}* "
         f"ha sido revisado y *rechazado* por la administración.\n\n"
         f"El evento continuará publicado en el calendario."
+    )
+    return _ejecutar_envio_whatsapp(telefono, texto)
+
+def enviar_whatsapp_pago_confirmado(telefono: str, nombre_usuario: str, evento: str, fecha: str):
+    print(f"DEBUG - Preparando mensaje de PAGO para {nombre_usuario} ({telefono})")
+    texto = (
+        f"✅ *¡PAGO RECIBIDO!* ¡Hola {nombre_usuario}!\n\n"
+        f"Tu lugar en el evento: *{evento}*\n"
+        f"📅 Fecha: {fecha}\n\n"
+        f"¡Ya estás oficialmente **CONFIRMADO**! Guardá este mensaje como comprobante. ¡Nos vemos pronto! 🚲"
     )
     return _ejecutar_envio_whatsapp(telefono, texto)
