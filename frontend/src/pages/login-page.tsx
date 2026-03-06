@@ -85,8 +85,6 @@ export default function LoginPage() {
       if (response.user) {
         localStorage.setItem('user', JSON.stringify(response.user));
         localStorage.setItem('rol', response.user.id_rol.toString());
-        
-        console.log('✅ Usuario guardado en localStorage:', response.user);
       }
       
       // Pasar token al contexto

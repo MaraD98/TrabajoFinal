@@ -71,20 +71,15 @@ export default function CalendarioPage() {
 
     setCargando(true);
     
-    try {
-      console.log(`📡 Pidiendo eventos (ID: ${pedidoActual}) para: ${mes + 1}/${anio}`);
-      
+    try {      
       // Pequeña pausa para que se sienta fluido (opcional)
       await new Promise(resolve => setTimeout(resolve, 300));
 
       const data = await getEventosCalendario(mes + 1, anio);
 
       if (pedidoActual !== ultimoPedidoId.current) {
-          console.log(`🚫 Ignorando petición vieja (ID: ${pedidoActual})`);
           return;
       }
-
-      console.log("✅ Datos válidos recibidos:", data);
       
       if (Array.isArray(data)) {
           setEventos(data);
