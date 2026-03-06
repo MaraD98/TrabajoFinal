@@ -203,14 +203,17 @@ const limpiarMonto = (valor: any): number => {
     });
   }, [eventosDetalle, filtroPertenencia, fechaInicio, fechaFin]);
 
+// ── Solo para Tarjetas Métricas: excluimos Cancelados ──
+const eventosActivosYFinalizados = eventosDetalleFiltrados.filter(
+  (ev: any) => ev.estado !== 5 && ev.estado !== 6  // Excluye Cancelado y Depurado por Admin
+);
 // Métricas de Eventos filtradas
-const totalEventosGlobalFiltrado = eventosDetalleFiltrados.length;
+const totalEventosGlobalFiltrado = eventosActivosYFinalizados.length;
 const hoyStr = new Date().toISOString().split('T')[0];
-const eventosFuturosFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.fecha_evento >= hoyStr && ev.fecha_evento !== "Sin fecha").length;
+const eventosFuturosFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.fecha_evento >= hoyStr && ev.fecha_evento !== "Sin fecha").length;
 const eventosPasadosFiltrado = totalEventosGlobalFiltrado - eventosFuturosFiltrado;
-const eventosPropiosCountFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.pertenencia === "Propio").length;
-const eventosExternosCountFiltrado = eventosDetalleFiltrados.filter((ev: any) => ev.pertenencia === "Externo").length;
-
+const eventosPropiosCountFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.pertenencia === "Propio").length;
+const eventosExternosCountFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.pertenencia === "Externo").length;
 // Métricas Financieras filtradas
 let recaudadoPropiosFiltrado = 0;
 let recaudadoExternosFiltrado = 0;
@@ -221,6 +224,7 @@ eventosDetalleFiltrados.forEach((ev: any) => {
   if (ev.pertenencia === "Propio") recaudadoPropiosFiltrado += recaudacion;
   else if (ev.pertenencia === "Externo") recaudadoExternosFiltrado += recaudacion * 0.10;
 });
+
 const totalRecaudadoGlobalFiltrado = recaudadoPropiosFiltrado + recaudadoExternosFiltrado;
 const cantidadGratuitosFiltrado = eventosDetalleFiltrados.filter((ev: any) => limpiarMonto(ev.costo_participacion) === 0).length;
 const cantidadPagosFiltrado = eventosDetalleFiltrados.length - cantidadGratuitosFiltrado;
