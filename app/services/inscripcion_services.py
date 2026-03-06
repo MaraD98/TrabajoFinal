@@ -5,8 +5,8 @@ from app.models.inscripcion_models import ReservaEvento
 from app.models.auth_models import Usuario
 from app.models.registro_models import Evento
 from app.models.inscripcion_models import ReservaEvento as Inscripcion
-from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva
-from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento
+from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva, enviar_correo_pago_confirmado
+from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento, enviar_whatsapp_pago_confirmado
 from app.db.crud.notificacion_crud import NotificacionCRUD
 
 class InscripcionService:
@@ -161,7 +161,8 @@ class InscripcionService:
             email_destino=usuario_actual.email,
             nombre_usuario=usuario_actual.nombre_y_apellido,
             evento=evento.nombre_evento,
-            fecha=f"{evento.fecha_evento}. {mensaje}"
+            fecha=f"{evento.fecha_evento}",
+            precio=costo
         )
 
         # MANDAMOS EL WHATSAPP EN SEGUNDO PLANO (SOLO SI EL USUARIO TIENE TELÉFONO)
@@ -171,7 +172,8 @@ class InscripcionService:
                 telefono=usuario_actual.telefono,
                 nombre_usuario=usuario_actual.nombre_y_apellido,
                 evento=evento.nombre_evento,
-                fecha=str(evento.fecha_evento)
+                fecha=str(evento.fecha_evento),
+                precio=costo
             )
 
         return {
@@ -217,7 +219,7 @@ class InscripcionService:
         # 4. ✅ MAIL: Usamos los datos cargados en el paso 2
         if reserva.usuario and reserva.usuario.email:
             background_tasks.add_task(
-                enviar_correo_reserva,
+                enviar_correo_pago_confirmado,
                 email_destino=reserva.usuario.email,
                 nombre_usuario=reserva.usuario.nombre_y_apellido,
                 evento=nombre_evento,
@@ -237,7 +239,7 @@ class InscripcionService:
         if telefono_destino:
             print(f"DEBUG: Enviando WhatsApp al teléfono de la tabla Contacto: {telefono_destino}")
             background_tasks.add_task(
-                enviar_whatsapp_reserva,
+                enviar_whatsapp_pago_confirmado,
                 telefono=str(telefono_destino),
                 nombre_usuario=reserva.usuario.nombre_y_apellido,
                 evento=nombre_evento,
@@ -289,7 +291,7 @@ class InscripcionService:
             # Mail
             if reserva.usuario.email:
                 background_tasks.add_task(
-                    enviar_correo_reserva,
+                    enviar_correo_pago_confirmado,
                     email_destino=reserva.usuario.email,
                     nombre_usuario=reserva.usuario.nombre_y_apellido,
                     evento=nombre_evento,
@@ -307,7 +309,7 @@ class InscripcionService:
 
             if telefono_destino:
                 background_tasks.add_task(
-                    enviar_whatsapp_reserva,
+                    enviar_whatsapp_pago_confirmado,
                     telefono=str(telefono_destino),
                     nombre_usuario=reserva.usuario.nombre_y_apellido,
                     evento=nombre_evento,
@@ -359,7 +361,7 @@ class InscripcionService:
                 enviar_whatsapp_cancelacion_evento,
                 telefono=usuario_actual.telefono,
                 nombre_evento=nom_e,
-                motivo="Cancelación realizada exitosamente."
+                motivo="Cancelación por parte del usuario."
             )
         
         return {"message": "Inscripción cancelada exitosamente (Soft Delete)"}
