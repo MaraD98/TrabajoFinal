@@ -14,6 +14,17 @@ SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 API_URL = os.getenv("BACKEND_URL")
 URL_LOGO = os.getenv("URL_LOGO")
 
+CABECERA_HTML = """
+<div style="text-align: center; padding: 25px; background-color: #1e1e1e; border-bottom: 2px solid #333;">
+    <h1 style="color: #ff6b35; font-family: Arial, sans-serif; font-size: 28px; margin: 0; text-transform: uppercase; letter-spacing: 3px; font-weight: bold;">
+        WAKE UP <span style="color: #ffffff;">BIKES</span>
+    </h1>
+    <p style="color: #888888; font-family: Arial, sans-serif; font-size: 11px; margin: 5px 0 0 0; letter-spacing: 4px; text-transform: uppercase;">
+        Community & Rides
+    </p>
+</div>
+"""
+
 def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, fecha: str, precio: float = 0):
     msg = EmailMessage()
     
@@ -60,9 +71,9 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e; border-bottom: 1px solid #333;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
-                </div>
+                
+                {CABECERA_HTML}
+                    
                 <div style="background-color: {banner_color}; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">{banner_titulo}</h1>
                 </div>
@@ -91,6 +102,7 @@ def enviar_correo_reserva(email_destino: str, nombre_usuario: str, evento: str, 
     """
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
+
 def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, evento: str):
     msg = EmailMessage()
     msg['Subject'] = f'❌ Cancelación de Reserva: {evento}'
@@ -101,9 +113,9 @@ def enviar_correo_cancelacion_reserva(email_destino: str, nombre_usuario: str, e
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                    
+                {CABECERA_HTML}
+                    
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Reserva Cancelada</h1>
                 </div>
@@ -147,9 +159,9 @@ def enviar_correo_nuevo_evento(email_destino: str, nombre_evento: str, fecha_eve
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
-                </div>
+                    
+                {CABECERA_HTML}
+                    
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">¡Nueva Ruta Disponible!</h1>
                 </div>
@@ -188,9 +200,9 @@ def enviar_correo_modificacion_evento(email_destino: str, nombre_evento: str, id
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                    
+                {CABECERA_HTML}
+                
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">Actualización de Evento</h1>
                 </div>
@@ -226,9 +238,9 @@ def enviar_correo_cancelacion_evento(email_destino: str, nombre_evento: str, mot
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                    
+                {CABECERA_HTML}
+                
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Evento Cancelado</h1>
                 </div>
@@ -264,9 +276,9 @@ def enviar_correo_recordatorio_pago(email_destino: str, nombre_evento: str):
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #f4a261; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">Recordatorio de Pago</h1>
                 </div>
@@ -298,9 +310,9 @@ def enviar_correo_advertencia_organizador(email_destino: str, nombre_evento: str
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e; border-bottom: 1px solid #333;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #ffcc00; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">Aviso de Baja Ocupación</h1>
                 </div>
@@ -346,9 +358,9 @@ def enviar_correo_pago_confirmado(email_destino: str, nombre_usuario: str, event
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">¡Pago Acreditado!</h1>
                 </div>
@@ -380,9 +392,9 @@ def enviar_correo_rechazo_edicion(email_destino: str, nombre_usuario: str, nombr
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Edición No Aprobada</h1>
                 </div>
@@ -418,9 +430,9 @@ def enviar_correo_aprobacion_edicion(email_destino: str, nombre_usuario: str, no
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">¡Edición Aprobada!</h1>
                 </div>
@@ -453,9 +465,9 @@ def enviar_correo_aprobacion_publicacion(email_destino: str, nombre_usuario: str
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 140px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #ff6b35; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #121212;">¡Tu Evento está en línea!</h1>
                 </div>
@@ -526,9 +538,9 @@ def enviar_correo_baja_aprobada(email_destino: str, nombre_usuario: str, nombre_
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #4CAF50; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Baja Confirmada</h1>
                 </div>
@@ -565,9 +577,9 @@ def enviar_correo_baja_rechazada(email_destino: str, nombre_usuario: str, nombre
     <html>
         <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #121212; color: #ffffff;">
             <div style="max-width: 600px; margin: 20px auto; background-color: #1e1e1e; border: 1px solid #333; border-radius: 12px; overflow: hidden;">
-                <div style="text-align: center; padding: 20px; background-color: #1e1e1e;">
-                    <img src="{URL_LOGO}" alt="Wake Up Bikes" style="width: 120px;">
-                </div>
+                
+                {CABECERA_HTML}
+                
                 <div style="background-color: #e63946; padding: 20px; text-align: center;">
                     <h1 style="margin: 0; color: #ffffff;">Solicitud de Baja Rechazada</h1>
                 </div>
