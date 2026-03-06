@@ -142,6 +142,47 @@ export default function PerfilPage() {
     const navigate = useNavigate();
     const apiUrl = import.meta.env.VITE_API_URL;
 
+    const fetchInscripciones = async () => {
+    const token = getToken();
+    setIsLoading(true); // Empezamos a cargar
+        try {
+            const response = await axios.get(`${apiUrl}/me/inscripciones`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setInscripciones(response.data);
+        } catch (err) {
+            console.error("Error cargando inscripciones:", err);
+        } finally {
+            setIsLoading(false); // Terminamos de cargar (sea éxito o error)
+        }
+    };
+
+    // 2. EL EFECTO PARA CAPTURAR EL PAGO (Ponelo acá)
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const status = params.get('status');
+        const paymentId = params.get('payment_id');
+
+        if (status === 'approved') {
+            setSuccessMsg(`¡Pago aprobado! (ID: ${paymentId}). Tu inscripción está confirmada.`);
+            // Limpiamos la URL para que no quede el mensaje si recarga
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+            
+            // Refrescamos las inscripciones para que aparezca "Confirmada"
+            if (typeof fetchInscripciones === 'function') {
+                fetchInscripciones();
+            }
+        } else if (status === 'pending') {
+            setError("El pago está en proceso. Te avisaremos cuando se acredite.");
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+        } else if (status === 'failure') {
+            setError("El pago fue rechazado. Por favor, intenta nuevamente.");
+            window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
+        }
+    }, [location]);
+
+
+
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const tab = params.get('tab');
@@ -189,20 +230,7 @@ useEffect(() => {
     cargarDatosIniciales();
 }, [apiUrl, getToken, navigate]);
 
-    const fetchInscripciones = async () => {
-    const token = getToken();
-    setIsLoading(true); // Empezamos a cargar
-        try {
-            const response = await axios.get(`${apiUrl}/me/inscripciones`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setInscripciones(response.data);
-        } catch (err) {
-            console.error("Error cargando inscripciones:", err);
-        } finally {
-            setIsLoading(false); // Terminamos de cargar (sea éxito o error)
-        }
-    };
+    
 
     const handleSaveDatos = async () => {
         const token = getToken();

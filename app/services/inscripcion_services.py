@@ -256,27 +256,35 @@ class InscripcionService:
 
     @staticmethod
     def confirmar_pago_automatico(db: Session, id_reserva: int, background_tasks: BackgroundTasks):
-        # 1. Buscamos la reserva
-        reserva = db.query(ReservaEvento).filter(ReservaEvento.id_reserva == id_reserva).first()
+        # 1. Buscamos la reserva cargando Evento, Usuario y su Contacto (para el teléfono)
+        reserva = db.query(ReservaEvento).options(
+            joinedload(ReservaEvento.evento),
+            joinedload(ReservaEvento.usuario).joinedload(Usuario.contacto)
+        ).filter(ReservaEvento.id_reserva == id_reserva).first()
+
         if not reserva:
             return None
         
-        # 2. Cambiamos el estado a 2 (que suele ser 'Pagado' o 'Confirmado')
-        # Fijate en tu tabla EstadoReserva qué ID tiene 'Pagado'
+        # Evitamos procesar si ya está confirmada
+        if reserva.id_estado_reserva == 2:
+            return reserva
+        
+        # 2. Cambiamos el estado a Confirmado (ID 2)
         reserva.id_estado_reserva = 2 
         
-        # ✅ NUEVO: Notificación interna Navbar
+        # ✅ Notificación interna Navbar
+        nombre_evento = reserva.evento.nombre_evento if reserva.evento else "el evento"
         NotificacionCRUD.create_notificacion(
             db=db,
             id_usuario=reserva.id_usuario,
             id_estado_solicitud=None,
-            mensaje=f"💳 ¡Pago automático acreditado! Ya estás confirmado en '{reserva.evento.nombre_evento}'."
+            mensaje=f"💳 ¡Pago automático acreditado! Ya estás confirmado en '{nombre_evento}'."
         )
         
         db.commit()
         db.refresh(reserva)
         
-        # 2. ✅ NUEVO: Notificaciones externas
+        # 3. Notificaciones externas
         if reserva.usuario:
             # Mail
             if reserva.usuario.email:
@@ -284,21 +292,30 @@ class InscripcionService:
                     enviar_correo_reserva,
                     email_destino=reserva.usuario.email,
                     nombre_usuario=reserva.usuario.nombre_y_apellido,
-                    evento=reserva.evento.nombre_evento,
+                    evento=nombre_evento,
                     fecha=f"{reserva.evento.fecha_evento}. Pago automático exitoso."
                 )
-            # WhatsApp
-            if hasattr(reserva.usuario, 'telefono') and reserva.usuario.telefono:
+            
+            # WhatsApp (Buscando teléfono en tabla Contacto)
+            telefono_destino = None
+            if reserva.usuario.contacto:
+                contacto = reserva.usuario.contacto
+                if isinstance(contacto, list) and len(contacto) > 0:
+                    telefono_destino = contacto[0].telefono
+                else:
+                    telefono_destino = getattr(contacto, 'telefono', None)
+
+            if telefono_destino:
                 background_tasks.add_task(
                     enviar_whatsapp_reserva,
-                    telefono=reserva.usuario.telefono,
+                    telefono=str(telefono_destino),
                     nombre_usuario=reserva.usuario.nombre_y_apellido,
-                    evento=reserva.evento.nombre_evento,
+                    evento=nombre_evento,
                     fecha=str(reserva.evento.fecha_evento)
                 )
                 
         return reserva
-
+    
     @staticmethod
     def cancelar_inscripcion(db: Session, id_inscripcion: int, usuario_actual, background_tasks):
         # 1. Buscamos la inscripción
