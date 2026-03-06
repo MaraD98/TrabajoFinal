@@ -1,4 +1,5 @@
 import { useState, useMemo} from 'react';
+import { ModalAdminEvento } from '../modals/reportesModal/ModalAdminEvento';
 import { TarjetasMetricas } from '../modals/reportesModal/TarjetasMetricas';
 import { 
   BarChart, 
@@ -42,6 +43,7 @@ export default function SeccionAdministrador({
   const [ordenUsuarios, setOrdenUsuarios] = useState({ columna: 'dia', direccion: 'asc' });
   const [provinciaExpandidaAdmin, setProvinciaExpandidaAdmin] = useState(null);
   const [localidadExpandidaAdmin, setLocalidadExpandidaAdmin] = useState<string | null>(null);
+  const [eventoSeleccionado, setEventoSeleccionado] = useState<any | null>(null);
 
   // --- LÓGICA DE ORDENAMIENTO ---
   const handleOrdenarMaster = (columna: any, tipoTabla: any) => {
@@ -263,26 +265,26 @@ const top10FiltradoYOrdenado = useMemo(() => {
 }, [reporteData?.top_10_recaudacion, filtroPertenencia, fechaInicio, fechaFin, ordenEventos]);
 
 // 2. MEMOIZAMOS LA DISTRIBUCIÓN GEOGRÁFICA (Esto era lo más pesado)
-const distribucionGeograficaFiltrada = useMemo(() => {
-  if (!reporteData?.tendencias_ubicacion_completa) return [];
+// const distribucionGeograficaFiltrada = useMemo(() => {
+//   if (!reporteData?.tendencias_ubicacion_completa) return [];
 
-  return reporteData.tendencias_ubicacion_completa.map((prov: any) => {
-    // Filtramos las localidades primero
-    const localidadesFiltradas = (prov.localidades || []).map((loc: any) => {
-      const eventosLocFiltrados = aplicarFiltrosEventos(loc.eventos || []);
-      return { ...loc, eventosFiltrados: eventosLocFiltrados };
-    }).filter((loc: any) => loc.eventosFiltrados.length > 0); // Quitamos localidades vacías
+//   return reporteData.tendencias_ubicacion_completa.map((prov: any) => {
+//     // Filtramos las localidades primero
+//     const localidadesFiltradas = (prov.localidades || []).map((loc: any) => {
+//       const eventosLocFiltrados = aplicarFiltrosEventos(loc.eventos || []);
+//       return { ...loc, eventosFiltrados: eventosLocFiltrados };
+//     }).filter((loc: any) => loc.eventosFiltrados.length > 0); // Quitamos localidades vacías
 
-    // Calculamos el total de la provincia
-    const totalProvinciaFiltrado = localidadesFiltradas.reduce((acc: number, loc: any) => acc + loc.eventosFiltrados.length, 0);
+//     // Calculamos el total de la provincia
+//     const totalProvinciaFiltrado = localidadesFiltradas.reduce((acc: number, loc: any) => acc + loc.eventosFiltrados.length, 0);
 
-    return {
-      ...prov,
-      localidadesFiltradas,
-      totalFiltrado: totalProvinciaFiltrado
-    };
-  }).filter((prov: any) => prov.totalFiltrado > 0); // Quitamos provincias sin eventos
-}, [reporteData?.tendencias_ubicacion_completa, filtroPertenencia, fechaInicio, fechaFin, filtroTipoTendencias]);
+//     return {
+//       ...prov,
+//       localidadesFiltradas,
+//       totalFiltrado: totalProvinciaFiltrado
+//     };
+//   }).filter((prov: any) => prov.totalFiltrado > 0); // Quitamos provincias sin eventos
+// }, [reporteData?.tendencias_ubicacion_completa, filtroPertenencia, fechaInicio, fechaFin, filtroTipoTendencias]);
 
   return (
     <div className="seccion-administrador-container">
@@ -367,17 +369,12 @@ const distribucionGeograficaFiltrada = useMemo(() => {
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <button 
-                                onClick={() => setModalFiltroTorta({ 
-                                  titulo: "Todos los Tipos", 
-                                  filtroKey: "tipo", 
-                                  valor: "TODOS",
-                                  dataFiltrada: eventosFiltradosParaGraficos 
-                                })} 
-                                className="btn-export" 
-                                style={{ backgroundColor: "#3b82f6", color: "#fff" }}
-                              >
-                                Ver Detalles
-                              </button>
+                              onClick={() => setEventoSeleccionado(evt)} 
+                              className="btn-export" 
+                              style={{ backgroundColor: "#3b82f6", color: "#fff" }}
+                            >
+                              Ver Detalles
+                            </button>
                               </td>
                             </tr>
                           ))}
@@ -915,7 +912,7 @@ const distribucionGeograficaFiltrada = useMemo(() => {
                             <th onClick={() => handleOrdenarMaster('dia', 'usuarios')} style={{ textAlign: "center", cursor: "pointer" }}>
                               Día {ordenUsuarios.columna === 'dia' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
                             </th>
-                            <th style={{ textAlign: "center" }}>Actividad</th>
+                            {/* <th style={{ textAlign: "center" }}>Actividad</th> */}
                           </tr>
                         </thead>
                         <tbody>
@@ -951,13 +948,13 @@ const distribucionGeograficaFiltrada = useMemo(() => {
                                 <td style={{ textAlign: "center", fontWeight: "bold", color: "#cbd5e1" }}>
                                   {u.fecha_creacion ? u.fecha_creacion.split('/')[0] : "-"}
                                 </td>
-                                <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
+                                {/* <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
                                   {u.rol === "Cliente" ? (
                                     <span><strong style={{ color: "#4ade80" }}>{u.cantidad_inscripciones}</strong> inscrip.</span>
                                   ) : (
                                     <span><strong style={{ color: "#8b5cf6" }}>{u.cantidad_eventos_creados}</strong> eventos</span>
                                   )}
-                                </td>
+                                </td> */}
                               </tr>
                             ))
                           }
@@ -1072,6 +1069,11 @@ const distribucionGeograficaFiltrada = useMemo(() => {
             onAbrirModalFinanciero={() => setModalFinanciero(true)}
           />
         </div>
+        {/* ── MODAL DE EVENTO (Ranking) ────────────────────────────────── */}
+        <ModalAdminEvento 
+          evento={eventoSeleccionado} 
+          onClose={() => setEventoSeleccionado(null)} 
+        />
         {/* ── MODAAAAAL ────────────────────────────────── */}
         {modalDetalleUsuario && (
         <div style={{
