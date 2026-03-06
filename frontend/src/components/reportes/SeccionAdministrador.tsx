@@ -1,5 +1,4 @@
 import { useState, useMemo} from 'react';
-import { ModalAdminEvento } from '../modals/reportesModal/ModalAdminEvento';
 import { TarjetasMetricas } from '../modals/reportesModal/TarjetasMetricas';
 import { 
   BarChart, 
@@ -43,7 +42,6 @@ export default function SeccionAdministrador({
   const [ordenUsuarios, setOrdenUsuarios] = useState({ columna: 'dia', direccion: 'asc' });
   const [provinciaExpandidaAdmin, setProvinciaExpandidaAdmin] = useState(null);
   const [localidadExpandidaAdmin, setLocalidadExpandidaAdmin] = useState<string | null>(null);
-  const [eventoSeleccionado, setEventoSeleccionado] = useState<any | null>(null);
 
   // --- LÓGICA DE ORDENAMIENTO ---
   const handleOrdenarMaster = (columna: any, tipoTabla: any) => {
@@ -264,27 +262,142 @@ const top10FiltradoYOrdenado = useMemo(() => {
     });
 }, [reporteData?.top_10_recaudacion, filtroPertenencia, fechaInicio, fechaFin, ordenEventos]);
 
-// 2. MEMOIZAMOS LA DISTRIBUCIÓN GEOGRÁFICA (Esto era lo más pesado)
-// const distribucionGeograficaFiltrada = useMemo(() => {
-//   if (!reporteData?.tendencias_ubicacion_completa) return [];
+// 1. DICCIONARIO VERSIÓN TITÁN (Agarra provincias vacías y departamentos)
+const DICCIONARIO_LOCALIDADES: Record<string, string> = {
+  "resistencia chaco": "Chaco",
+  "san rafael mendoza": "Mendoza",
+  "apostoles misiones": "Misiones",
+  "puerto higuazu": "Misiones",
+  "puerto iguazu": "Misiones",
+  "puerto iguazú": "Misiones", // Agregamos variantes con Z y tilde
+  "departamento doctor manuel belgrano": "Jujuy",
+  "departamento la capital": "Santa Fe",
+  "departamento humahuaca": "Jujuy",
+  "partido de mar chiquita": "Buenos Aires",
+  "albardón": "San Juan",
+  "albardon": "San Juan",
+  "pedanía los reartes": "Córdoba",
+  "pedania los reartes": "Córdoba",
+  "departamento calamuchita": "Córdoba",
+  "departamento patiño": "Formosa",
+  "departamento patino": "Formosa",
+  "lago argentino": "Santa Cruz",
+  "departamento general lópez": "Santa Fe",
+  "departamento general lopez": "Santa Fe",
+  "departamento paraná": "Entre Ríos",
+  "departamento parana": "Entre Ríos",
+  "partido de tandil": "Buenos Aires",
+  "departamento san alberto": "Córdoba",
+  "jáchal": "San Juan",
+  "jachal": "San Juan",
+  "departamento ushuaia": "Tierra del Fuego",
+  "capital": "Salta", // Ojo: forzado a Salta como pediste
+  "taninga": "Córdoba",
+  "rio cuarto": "Córdoba",
+  "pilar cordoba": "Córdoba",
+  "parana": "Entre Ríos",
+  "rosario santa fe": "Santa Fe",
+  "rosario": "Santa Fe",
+  "villa carlos paz córdoba": "Córdoba",
+  "villa carlos paz cordoba": "Córdoba",
+  "tanti": "Córdoba",
+  "santa lucia san juan": "San Juan",
+  "villa cura brochero": "Córdoba",
+  "san francisco": "Córdoba",
+  "villa maria": "Córdoba",
+  "alta gracia": "Córdoba",
+  "general pico": "La Pampa",
+  "mina clavero": "Córdoba",
+  "santa rosa la pampa": "La Pampa",
+  "chascomus": "Buenos Aires",
+  "merlo san luis": "San Luis",
+  "departamento capital": "Córdoba", 
+  "san carlos de bariloche": "Río Negro",
+  "villa allende": "Córdoba"
+};
 
-//   return reporteData.tendencias_ubicacion_completa.map((prov: any) => {
-//     // Filtramos las localidades primero
-//     const localidadesFiltradas = (prov.localidades || []).map((loc: any) => {
-//       const eventosLocFiltrados = aplicarFiltrosEventos(loc.eventos || []);
-//       return { ...loc, eventosFiltrados: eventosLocFiltrados };
-//     }).filter((loc: any) => loc.eventosFiltrados.length > 0); // Quitamos localidades vacías
+// 2. EL RECONSTRUCTOR DE MAPAS (Normaliza Provincia y Localidad y ORDENA)
+const distribucionGeograficaNormalizada = useMemo(() => {
+  if (!reporteData?.tendencias_ubicacion_completa) return [];
 
-//     // Calculamos el total de la provincia
-//     const totalProvinciaFiltrado = localidadesFiltradas.reduce((acc: number, loc: any) => acc + loc.eventosFiltrados.length, 0);
+  const resultadoMap = new Map();
 
-//     return {
-//       ...prov,
-//       localidadesFiltradas,
-//       totalFiltrado: totalProvinciaFiltrado
-//     };
-//   }).filter((prov: any) => prov.totalFiltrado > 0); // Quitamos provincias sin eventos
-// }, [reporteData?.tendencias_ubicacion_completa, filtroPertenencia, fechaInicio, fechaFin, filtroTipoTendencias]);
+  // 1. Recorremos todas las provincias que vienen del backend
+  reporteData.tendencias_ubicacion_completa.forEach((prov: any) => {
+    const provOriginal = (prov.provincia || "").trim();
+    const provLower = provOriginal.toLowerCase();
+
+    // Por las dudas, si no hay localidades, pasamos a la siguiente
+    if (!prov.localidades) return;
+
+    // 2. Recorremos cada localidad
+    prov.localidades.forEach((loc: any) => {
+      const locLower = (loc.localidad || "").toLowerCase().trim();
+
+      // PRIORIDAD 1: Buscamos si la localidad está en nuestro diccionario
+      let provFinal = DICCIONARIO_LOCALIDADES[locLower];
+
+      // PRIORIDAD 2: Si no saltó, vemos si el nombre de la "provincia" era en realidad un departamento del diccionario
+      if (!provFinal) {
+        provFinal = DICCIONARIO_LOCALIDADES[provLower];
+      }
+
+      // PRIORIDAD 3: Autodetectar por palabra clave (Fallback inteligente)
+      if (!provFinal) {
+        const textoCombinado = `${provLower} ${locLower}`;
+        if (textoCombinado.includes("cordoba") || textoCombinado.includes("córdoba")) provFinal = "Córdoba";
+        else if (textoCombinado.includes("mendoza")) provFinal = "Mendoza";
+        else if (textoCombinado.includes("santa fe")) provFinal = "Santa Fe";
+        else if (textoCombinado.includes("san juan")) provFinal = "San Juan";
+        else if (textoCombinado.includes("misiones")) provFinal = "Misiones";
+        else if (textoCombinado.includes("chaco")) provFinal = "Chaco";
+        else if (textoCombinado.includes("la pampa")) provFinal = "La Pampa";
+        else if (textoCombinado.includes("san luis")) provFinal = "San Luis";
+        else if (textoCombinado.includes("buenos aires")) provFinal = "Buenos Aires";
+        else if (textoCombinado.includes("jujuy")) provFinal = "Jujuy";
+        else if (textoCombinado.includes("salta")) provFinal = "Salta";
+        else if (textoCombinado.includes("santa cruz")) provFinal = "Santa Cruz";
+        else if (textoCombinado.includes("formosa")) provFinal = "Formosa";
+        else if (textoCombinado.includes("entre rios") || textoCombinado.includes("entre ríos")) provFinal = "Entre Ríos";
+        else if (textoCombinado.includes("tierra del fuego")) provFinal = "Tierra del Fuego";
+      }
+
+      // PRIORIDAD 4: Si falló todo, usamos la provincia original o "Sin Asignar"
+      if (!provFinal) {
+        if (provOriginal === "" || provLower === "sin provincia" || provOriginal === "null") {
+          provFinal = "Otras / Sin Asignar";
+        } else {
+          provFinal = provOriginal;
+        }
+      }
+
+      // Agrupamos en el Map usando la provincia final en mayúsculas como llave
+      const key = provFinal.toUpperCase();
+
+      if (!resultadoMap.has(key)) {
+        resultadoMap.set(key, { provincia: provFinal, localidades: [] });
+      }
+
+      // Metemos la localidad en su provincia correcta
+      resultadoMap.get(key).localidades.push(loc);
+    });
+  }); // <-- ACÁ CERRAMOS EL RECORRIDO DE LAS PROVINCIAS (Esto te faltaba)
+
+  // 3. Convertimos el Map a un array
+  const resultadoArray = Array.from(resultadoMap.values());
+
+  // 4. Lo ordenamos de mayor a menor cantidad de eventos
+  resultadoArray.sort((a, b) => {
+    // Sumamos los eventos (ataja si la variable se llama "cantidad" o "eventos")
+    const totalA = a.localidades.reduce((acc: number, loc: any) => acc + (Number(loc.cantidad) || Number(loc.eventos) || 1), 0);
+    const totalB = b.localidades.reduce((acc: number, loc: any) => acc + (Number(loc.cantidad) || Number(loc.eventos) || 1), 0);
+
+    return totalB - totalA; // Orden descendente (el más grande arriba)
+  });
+
+  // 5. Devolvemos la magia
+  return resultadoArray;
+}, [reporteData?.tendencias_ubicacion_completa]);
 
   return (
     <div className="seccion-administrador-container">
@@ -369,12 +482,17 @@ const top10FiltradoYOrdenado = useMemo(() => {
                           </td>
                           <td style={{ textAlign: "center" }}>
                             <button 
-                              onClick={() => setEventoSeleccionado(evt)} 
-                              className="btn-export" 
-                              style={{ backgroundColor: "#3b82f6", color: "#fff" }}
-                            >
-                              Ver Detalles
-                            </button>
+                                onClick={() => setModalFiltroTorta({ 
+                                  titulo: "Todos los Tipos", 
+                                  filtroKey: "tipo", 
+                                  valor: "TODOS",
+                                  dataFiltrada: eventosFiltradosParaGraficos 
+                                })} 
+                                className="btn-export" 
+                                style={{ backgroundColor: "#3b82f6", color: "#fff" }}
+                              >
+                                Ver Detalles
+                              </button>
                               </td>
                             </tr>
                           ))}
@@ -428,7 +546,7 @@ const top10FiltradoYOrdenado = useMemo(() => {
             </div>
 
             <div className="grafico-card__body" style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "20px", flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "5px" }}>
-              {reporteData?.tendencias_ubicacion_completa?.map((prov: any, index: any) => {
+              {distribucionGeograficaNormalizada?.map((prov: any, index: any) => {
                 
                 const todosEventosProvincia = prov.localidades.flatMap((loc: any) => loc.eventos || []);
                 const eventosFiltrados = aplicarFiltrosEventos(todosEventosProvincia);
@@ -912,7 +1030,7 @@ const top10FiltradoYOrdenado = useMemo(() => {
                             <th onClick={() => handleOrdenarMaster('dia', 'usuarios')} style={{ textAlign: "center", cursor: "pointer" }}>
                               Día {ordenUsuarios.columna === 'dia' ? (ordenUsuarios.direccion === 'asc' ? '🔼' : '🔽') : '↕️'}
                             </th>
-                            {/* <th style={{ textAlign: "center" }}>Actividad</th> */}
+                            <th style={{ textAlign: "center" }}>Actividad</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -948,13 +1066,13 @@ const top10FiltradoYOrdenado = useMemo(() => {
                                 <td style={{ textAlign: "center", fontWeight: "bold", color: "#cbd5e1" }}>
                                   {u.fecha_creacion ? u.fecha_creacion.split('/')[0] : "-"}
                                 </td>
-                                {/* <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
+                                <td style={{ textAlign: "center", fontSize: "0.85rem", color: "#94a3b8" }}>
                                   {u.rol === "Cliente" ? (
                                     <span><strong style={{ color: "#4ade80" }}>{u.cantidad_inscripciones}</strong> inscrip.</span>
                                   ) : (
                                     <span><strong style={{ color: "#8b5cf6" }}>{u.cantidad_eventos_creados}</strong> eventos</span>
                                   )}
-                                </td> */}
+                                </td>
                               </tr>
                             ))
                           }
@@ -1069,11 +1187,6 @@ const top10FiltradoYOrdenado = useMemo(() => {
             onAbrirModalFinanciero={() => setModalFinanciero(true)}
           />
         </div>
-        {/* ── MODAL DE EVENTO (Ranking) ────────────────────────────────── */}
-        <ModalAdminEvento 
-          evento={eventoSeleccionado} 
-          onClose={() => setEventoSeleccionado(null)} 
-        />
         {/* ── MODAAAAAL ────────────────────────────────── */}
         {modalDetalleUsuario && (
         <div style={{
