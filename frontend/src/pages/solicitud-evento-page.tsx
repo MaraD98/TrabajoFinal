@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet-routing-machine";
 import "leaflet-routing-machine/dist/leaflet-routing-machine.css";
-import "../styles/registro-evento.css";
+import "../styles/solicitud-evento.css";
 import { Navbar } from "../components/navbar";
 import Toast from '../components/modals/Toast';
 import { useAuth } from "../context/auth-context";
@@ -142,17 +142,21 @@ export default function SolicitudEventoPage() {
         ruta_coordenadas: formData.ruta_coordenadas
       };
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=true`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(datosAEnviar)
-        }
-      );
+      // ✅ FIX 409: Si ya existe un borrador, actualizarlo con PUT en vez de crear uno nuevo con POST
+      const url = idBorrador
+        ? `${import.meta.env.VITE_API_URL}/solicitudes-eventos/${idBorrador}?enviar=true`
+        : `${import.meta.env.VITE_API_URL}/solicitudes-eventos?enviar=true`;
+
+      const method = idBorrador ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(datosAEnviar)
+      });
 
       if (response.ok) {
         localStorage.removeItem('borrador_solicitud');
@@ -726,49 +730,44 @@ export default function SolicitudEventoPage() {
 
           <div className="event-registration__map-wrapper">
             <div className="map-card">
-              {/* ✅ MODIFICADO: Agregamos info de distancia y botón de limpiar */}
+
+              {/* ✅ MODIFICADO: header achicado — solo el título */}
               <div className="map-card__header">
-                <h3 className="map-card__title">Ubicación y Ruta
-                    {/* ✅ Botón sutil de ayuda */}
+                <h3 className="map-card__title">📍 Ubicación y Ruta</h3>
+              </div>
+
+              {/* ✅ NUEVO: controles separados del header (subtítulo + botones + distancia) */}
+              <div className="map-card__controls">
+                <div className="map-card__controls-top">
+                  {/* ✅ Botón sutil de ayuda */}
                   <button 
                     type="button" 
                     onClick={() => setMostrarAyudaMapa(true)}
-                    style={{ background: '#c30404', border: 'none', color: 'white', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    className="map-card__btn-help"
                   >
                     💡 Ver ejemplo
                   </button>
-                </h3>
-                <p className="map-card__subtitle">
-                  Haz clic para marcar el inicio. Sigue haciendo clic para trazar la ruta.
-                </p>
-                
+                  <p className="map-card__instructions">
+                    Haz clic para marcar el inicio. Sigue haciendo clic para trazar la ruta.
+                  </p>
+                  <button 
+                    type="button" 
+                    onClick={limpiarMapa}
+                    className="map-card__btn-clear"
+                  >
+                    🗑️ Limpiar Mapa y Ruta
+                  </button>
+                </div>
+
                 {/* ✅ Cartelito de Distancia y Tiempo */}
                 {formData.distancia_km !== null && (
-                  <div style={{ marginTop: '12px', padding: '10px', backgroundColor: '#e8f4fd', borderRadius: '8px', borderLeft: '4px solid #4a9eff', color: '#333', fontWeight: 'bold' }}>
-                    🚴‍♂️ Distancia Total: {formData.distancia_km} km - 
-                    ⏱️ Tiempo Estimado: {formData.tiempo_estimado}
+                  <div className="map-card__distance-info">
+                    🚴‍♂️ Distancia Total: <strong>{formData.distancia_km} km</strong> &nbsp;—&nbsp;
+                    ⏱️ Tiempo Estimado: <strong>{formData.tiempo_estimado}</strong>
                   </div>
                 )}
-
-                <button 
-                  type="button" 
-                  onClick={limpiarMapa} 
-                  style={{ 
-                    marginTop: '12px', 
-                    padding: '8px 16px', 
-                    cursor: 'pointer', 
-                    background: 'rgb(195 4 4)', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '6px',
-                    fontWeight: '600',
-                    width: '100%'
-                  }}
-                >
-                  🗑️ Limpiar Mapa y Ruta
-                </button>
-
               </div>
+
               <div id="map" className="map-card__map"></div>
             </div>
           </div>
@@ -777,8 +776,8 @@ export default function SolicitudEventoPage() {
       
       {/* ✅ MODAL DE AYUDA DEL MAPA */}
       {mostrarAyudaMapa && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-          <div style={{ backgroundColor: '#1a1a1a', padding: '30px', borderRadius: '12px', maxWidth: '500px', width: '100%', position: 'relative', border: '1px solid #333' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '20px', overflowY: 'auto' }}>
+          <div style={{ backgroundColor: '#1a1a1a', padding: '30px', borderRadius: '12px', maxWidth: '500px', width: '100%', position: 'relative', border: '1px solid #333', marginTop: 'auto', marginBottom: 'auto' }}>
             <button 
               onClick={() => setMostrarAyudaMapa(false)} 
               style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#888', fontSize: '24px', cursor: 'pointer' }}
