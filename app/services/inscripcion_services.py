@@ -278,7 +278,7 @@ class InscripcionService:
             db=db,
             id_usuario=reserva.id_usuario,
             id_estado_solicitud=None,
-            mensaje=f"💳 ¡Pago automático acreditado! Ya estás confirmado en '{nombre_evento}'."
+            mensaje=f"💳 ¡Pago acreditado! Ya estás confirmado en '{nombre_evento}'."
         )
         
         db.commit()

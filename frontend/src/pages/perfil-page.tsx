@@ -161,10 +161,11 @@ export default function PerfilPage() {
     useEffect(() => {
         const params = new URLSearchParams(location.search);
         const status = params.get('status');
-        const paymentId = params.get('payment_id');
+        const paymentId = params.get('payment_id') || params.get('collection_id');
 
         if (status === 'approved') {
-            setSuccessMsg(`¡Pago aprobado! (ID: ${paymentId}). Tu inscripción está confirmada.`);
+            const displayId = paymentId ? `ID: ${paymentId}` : "Exitoso";
+            setSuccessMsg(`¡Pago aprobado! (${displayId}). Tu inscripción está confirmada.`);
             // Limpiamos la URL para que no quede el mensaje si recarga
             window.history.replaceState({}, document.title, "/perfil?tab=inscripciones");
             
