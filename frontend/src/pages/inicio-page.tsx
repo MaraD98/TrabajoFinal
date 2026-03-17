@@ -368,7 +368,7 @@ export default function InicioPage() {
                                 <label className="filter-label">🔍 Buscar por nombre del evento</label>
                                 <input 
                                     type="text" 
-                                    placeholder="Ej: Ciclovía, Mountain Bike..." 
+                                    placeholder="Ej: Gran fondo, Gravel, Ciclismo social..." 
                                     className="filter-input"
                                     value={busqueda}
                                     onChange={(e) => setBusqueda(e.target.value)}

@@ -348,7 +348,7 @@ def enviar_correo_advertencia_organizador(email_destino: str, nombre_evento: str
     msg.add_alternative(html_content, subtype='html')
     return _ejecutar_envio(msg)
 
-def enviar_correo_pago_confirmado(email_destino: str, nombre_usuario: str, evento: str, fecha: str): # <-- Agregamos parámetros
+def enviar_correo_pago_confirmado(email_destino: str, nombre_usuario: str, evento: str, fecha: str): 
     msg = EmailMessage()
     msg['Subject'] = f'✅ Pago Confirmado: {evento}'
     msg['From'] = f'Wake Up Bikes <{REMITENTE}>'
@@ -365,9 +365,9 @@ def enviar_correo_pago_confirmado(email_destino: str, nombre_usuario: str, event
                     <h1 style="margin: 0; color: #ffffff;">¡Pago Acreditado!</h1>
                 </div>
                 <div style="padding: 30px; text-align: center;">
-                    <p style="font-size: 18px;">¡Todo listo, {nombre_usuario}!</p> # <-- Usamos el nombre
+                    <p style="font-size: 18px;">¡Todo listo, {nombre_usuario}!</p> 
                     <p style="line-height: 1.6; color: #dddddd;">
-                        Confirmamos que recibimos el pago para el evento <strong>{evento}</strong> del día <strong>{fecha}</strong>. # <-- Usamos la fecha
+                        Confirmamos que recibimos el pago para el evento <strong>{evento}</strong> del día <strong>{fecha}</strong>.
                         <br><br>
                         Ya tenés tu lugar asegurado. ¡Nos vemos en la ruta!
                     </p>
