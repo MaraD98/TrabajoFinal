@@ -8,6 +8,7 @@ from app.models.inscripcion_models import ReservaEvento as Inscripcion
 from app.email import enviar_correo_reserva, enviar_correo_cancelacion_reserva, enviar_correo_pago_confirmado
 from app.whatsapp import enviar_whatsapp_reserva, enviar_whatsapp_cancelacion_evento, enviar_whatsapp_pago_confirmado
 from app.db.crud.notificacion_crud import NotificacionCRUD
+from sqlalchemy import desc
 
 class InscripcionService:
 
@@ -17,7 +18,7 @@ class InscripcionService:
             joinedload(ReservaEvento.usuario),
             joinedload(ReservaEvento.evento).joinedload(Evento.tipo_evento),
             joinedload(ReservaEvento.evento).joinedload(Evento.nivel_dificultad)
-        ).all()
+        ).order_by(desc(ReservaEvento.fecha_reserva)).limit(100).all()
 
         datos_formateados = []
 
