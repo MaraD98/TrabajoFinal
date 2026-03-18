@@ -1,5 +1,5 @@
 import { useState, useMemo} from 'react';
-import { TarjetasMetricas } from '../modals/reportesModal/TarjetasMetricas';
+
 import { 
   BarChart, 
   Bar, 
@@ -18,7 +18,8 @@ export default function SeccionAdministrador({
   mesesOrdenados,
   maxEventosProvincia,
   // Funciones para abrir modales
-  setModalEventosGlobal, setModalParticipantes, setModalFinanciero, setModalAdminEvento,
+  // setModalEventosGlobal, setModalParticipantes, setModalFinanciero,
+  setModalAdminEvento,
   setModalFiltroTorta,
   exportando,
   handleExportarCSV,
@@ -29,8 +30,8 @@ export default function SeccionAdministrador({
   fechaInicio,
   fechaFin,
   filtroPertenencia,
-  onVerPropios,    
-  onVerExternos,
+  //onVerPropios,    
+  //onVerExternos,
   eventosDetalle,
   ocupacionData,
 }: any) {
@@ -1155,10 +1156,9 @@ const distribucionGeograficaNormalizada = useMemo(() => {
 
           </div>
             
-        {/* ── Tarjetas Admin ────────────────────────────────── */}
+        {/* ── Tarjetas Admin ────────────────────────────────── 
       
           <div style={{ display: "flex", gap: "20px",marginTop: '2rem', flexWrap: "wrap" }}>
-            {/* BLOQUE DE TARJETAS DE MÉTRICAS */}
             <TarjetasMetricas
             // Props Eventos — AHORA FILTRADOS
             totalEventosGlobal={totalEventosGlobalFiltrado}
@@ -1186,7 +1186,9 @@ const distribucionGeograficaNormalizada = useMemo(() => {
             recaudadoExternos={recaudadoExternosFiltrado}
             onAbrirModalFinanciero={() => setModalFinanciero(true)}
           />
-        </div>
+        </div>*/}
+        
+
         {/* ── MODAAAAAL ────────────────────────────────── */}
         {modalDetalleUsuario && (
         <div style={{
