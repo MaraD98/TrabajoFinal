@@ -33,8 +33,7 @@ export default function SeccionAdministrador({
   filtroPertenencia,
   //onVerPropios,    
   //onVerExternos,
-  eventosDetalle,
-  ocupacionData,
+  eventosDetalle
 }: any) {
 
   // --- ESTADOS ---
@@ -206,18 +205,6 @@ const limpiarMonto = (valor: any): number => {
     });
   }, [eventosDetalle, filtroPertenencia, fechaInicio, fechaFin]);
 
-// ── Solo para Tarjetas Métricas: excluimos Cancelados ──
-const eventosActivosYFinalizados = eventosDetalleFiltrados.filter(
-  (ev: any) => ev.estado !== 5 && ev.estado !== 6  // Excluye Cancelado y Depurado por Admin
-);
-// Métricas de Eventos filtradas
-const totalEventosGlobalFiltrado = eventosActivosYFinalizados.length;
-const hoyStr = new Date().toISOString().split('T')[0];
-const eventosFuturosFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.fecha_evento >= hoyStr && ev.fecha_evento !== "Sin fecha").length;
-const eventosPasadosFiltrado = totalEventosGlobalFiltrado - eventosFuturosFiltrado;
-const eventosPropiosCountFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.pertenencia === "Propio").length;
-const eventosExternosCountFiltrado = eventosActivosYFinalizados.filter( (ev: any) => ev.pertenencia === "Externo").length;
-// Métricas Financieras filtradas
 let recaudadoPropiosFiltrado = 0;
 let recaudadoExternosFiltrado = 0;
 eventosDetalleFiltrados.forEach((ev: any) => {
@@ -227,19 +214,6 @@ eventosDetalleFiltrados.forEach((ev: any) => {
   if (ev.pertenencia === "Propio") recaudadoPropiosFiltrado += recaudacion;
   else if (ev.pertenencia === "Externo") recaudadoExternosFiltrado += recaudacion * 0.10;
 });
-
-const totalRecaudadoGlobalFiltrado = recaudadoPropiosFiltrado + recaudadoExternosFiltrado;
-const cantidadGratuitosFiltrado = eventosDetalleFiltrados.filter((ev: any) => limpiarMonto(ev.costo_participacion) === 0).length;
-const cantidadPagosFiltrado = eventosDetalleFiltrados.length - cantidadGratuitosFiltrado;
-
-// Métricas de Ocupación filtradas (filtramos top_ocupacion por nombre de evento)
-const nombresEventosFiltrados = new Set(eventosDetalleFiltrados.map((ev: any) => ev.nombre));
-const ocupacionFiltrada = (ocupacionData || []).filter((ev: any) => nombresEventosFiltrados.has(ev.nombre_evento));
-const totalConfirmadasFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.inscriptos_pagos) || 0), 0);
-const totalPendientesFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.reservados_no_pagos) || 0), 0);
-const cupoTotalFiltrado = ocupacionFiltrada.reduce((acc: number, ev: any) => acc + (Number(ev.cupo_maximo) || 0), 0);
-const promedioParticipantesFiltrado = ocupacionFiltrada.length > 0 ? Math.round(totalConfirmadasFiltrado / ocupacionFiltrada.length) : 0;
-const ocupacionGlobalFiltrado = cupoTotalFiltrado > 0 ? ((totalConfirmadasFiltrado / cupoTotalFiltrado) * 100).toFixed(1) : "0";
 
 // 1. MEMOIZAMOS EL RANKING TOP 10
 const top10FiltradoYOrdenado = useMemo(() => {
@@ -1152,38 +1126,6 @@ const distribucionGeograficaNormalizada = useMemo(() => {
             </div>
 
           </div>
-            
-        {/* ── Tarjetas Admin ────────────────────────────────── 
-      
-          <div style={{ display: "flex", gap: "20px",marginTop: '2rem', flexWrap: "wrap" }}>
-            <TarjetasMetricas
-            // Props Eventos — AHORA FILTRADOS
-            totalEventosGlobal={totalEventosGlobalFiltrado}
-            eventosFuturos={eventosFuturosFiltrado}
-            eventosPasados={eventosPasadosFiltrado}
-            eventosPropiosCount={eventosPropiosCountFiltrado}
-            eventosExternosCount={eventosExternosCountFiltrado}
-            onAbrirModalEventos={() => setModalEventosGlobal(true)}
-            onVerPropios={onVerPropios}
-            onVerExternos={onVerExternos}
-
-            // Props Participantes — AHORA FILTRADOS
-            totalConfirmadas={totalConfirmadasFiltrado}
-            totalPendientes={totalPendientesFiltrado}
-            promedioParticipantes={promedioParticipantesFiltrado}
-            ocupacionGlobal={ocupacionGlobalFiltrado}
-            onAbrirModalParticipantes={() => setModalParticipantes(true)}
-
-            // Props Financiera — AHORA FILTRADOS
-            usuarioRol={usuarioRol}
-            totalRecaudadoGlobal={totalRecaudadoGlobalFiltrado}
-            cantidadGratuitos={cantidadGratuitosFiltrado}
-            cantidadPagos={cantidadPagosFiltrado}
-            recaudadoPropios={recaudadoPropiosFiltrado}
-            recaudadoExternos={recaudadoExternosFiltrado}
-            onAbrirModalFinanciero={() => setModalFinanciero(true)}
-          />
-        </div>*/}
 
         {/* ── MODAL DE EVENTO (Ranking) ────────────────────────────────── */}
         <ModalAdminEvento 
